@@ -1,0 +1,24 @@
+{
+  "final": {
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "runtime": {
+      "provider": "",
+      "model": "",
+      "route_source": "global"
+    },
+    "created_at": 1793112402.3476396,
+    "pending_controls": [],
+    "run_id": "run_4744af9c8cbc4e19a8c17b8166a49941",
+    "status": "completed",
+    "session_id": "nk_dm_038f9079-61d1-4850-aa9c-cf71ad3bf8e9",
+    "admission_id": "d28d2440dc014a679b1c09714676735f",
+    "execution_generation": 4,
+    "output": "NEKODOT_PHASE1_STEER_OK",
+    "usage": {
+      "input_tokens": 75341,
+      "output_tokens": 139,
+      "total_tokens": 75480
+    }
+  }
+}

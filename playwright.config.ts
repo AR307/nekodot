@@ -1,10 +1,12 @@
 import { defineConfig } from '@playwright/test';
+const webPort = Number(process.env.PLAYWRIGHT_WEB_PORT ?? 4318);
+const webUrl = `http://127.0.0.1:${webPort}`;
 export default defineConfig({
   testDir: './tests/browser',
-  use: { baseURL: 'http://127.0.0.1:4318', browserName: 'chromium', channel: 'msedge' },
+  use: { baseURL: webUrl, browserName: 'chromium', channel: 'msedge' },
   webServer: {
-    command: 'pnpm --filter @nekodot/web dev --host 127.0.0.1 --port 4318',
-    url: 'http://127.0.0.1:4318',
+    command: `pnpm --filter @nekodot/web dev --host 127.0.0.1 --port ${webPort} --strictPort`,
+    url: webUrl,
     reuseExistingServer: !process.env.CI,
   },
 });

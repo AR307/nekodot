@@ -77,10 +77,12 @@ export class ManagedHermes implements HermesRuntime {
       API_SERVER_ENABLED: 'true',
       API_SERVER_HOST: '127.0.0.1',
       API_SERVER_PORT: '18642',
-      ...(current.NEKODOT_PROVIDER_API_KEY
+      ...(!provider && current.NEKODOT_PROVIDER_API_KEY
         ? { NEKODOT_PROVIDER_API_KEY: current.NEKODOT_PROVIDER_API_KEY }
         : {}),
-      ...(current.OPENROUTER_API_KEY ? { OPENROUTER_API_KEY: current.OPENROUTER_API_KEY } : {}),
+      ...(!provider && current.OPENROUTER_API_KEY
+        ? { OPENROUTER_API_KEY: current.OPENROUTER_API_KEY }
+        : {}),
     };
     if (provider) {
       values[provider.kind === 'custom' ? 'NEKODOT_PROVIDER_API_KEY' : 'OPENROUTER_API_KEY'] =

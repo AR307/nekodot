@@ -1,0 +1,24 @@
+{
+  "final": {
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "runtime": {
+      "provider": "",
+      "model": "",
+      "route_source": "global"
+    },
+    "created_at": 1793112327.4014733,
+    "pending_controls": [],
+    "run_id": "run_a0bf063128074206929d82b2bbccfee3",
+    "status": "completed",
+    "session_id": "nk_dm_038f9079-61d1-4850-aa9c-cf71ad3bf8e9",
+    "admission_id": "dbf5a95bff30489f9613e41c78181e01",
+    "execution_generation": 3,
+    "output": "NEKODOT_PHASE1_DENIED\n\n⚠️ File-mutation verifier: 1 file edit(s) FAILED this turn despite any wording above that may suggest otherwise. Run `git status` or `read_file` to confirm what actually landed.\n  • `<phase1-case>/workspace/deny/AGENTS.md` — [patch] BLOCKED: write to protected agent-instruction file(s) (AGENTS.md) was denied by the user. The user has NOT consented to this write. Do NOT retry it or attempt the same edit via an…",
+    "usage": {
+      "input_tokens": 111710,
+      "output_tokens": 260,
+      "total_tokens": 111970
+    }
+  }
+}

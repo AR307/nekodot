@@ -1,0 +1,19 @@
+{
+  "final": {
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "created_at": 1793112460.3344646,
+    "pending_controls": [],
+    "run_id": "run_2b7624f1cc3c49d094b6756eafc575b2",
+    "status": "cancelled",
+    "session_id": "nk_dm_038f9079-61d1-4850-aa9c-cf71ad3bf8e9",
+    "admission_id": "a7029c51fa75463ab1f2a83c0eb1e640",
+    "execution_generation": 5,
+    "output": "",
+    "usage": {
+      "input_tokens": 37845,
+      "output_tokens": 86,
+      "total_tokens": 37931
+    }
+  }
+}

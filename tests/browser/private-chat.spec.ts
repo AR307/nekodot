@@ -80,7 +80,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await page.screenshot({ path: 'docs/evidence/phase1-pairing.png', fullPage: true });
 
   services.nodeHome = await mkdtemp(join(tmpdir(), 'nekodot-browser-node-'));
-  services.credentials = await pairNode(services.nodeHome, relayUrl, code!);
+  services.credentials = await pairNode(services.nodeHome, relayUrl, code!, 'Acceptance computer');
   const profiles = new Set(['default']);
   const runtime: HermesRuntime = {
     start: async () => {},

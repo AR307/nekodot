@@ -1,0 +1,49 @@
+: open
+
+id: 0
+data: {"event": "tool.started", "run_id": "run_8677f583ca8945f1bc8459bf68fa9b4f", "timestamp": 1793112288.7063892, "tool": "read_file", "preview": "AGENTS.md", "tool_call_id": "call_xgeVR4HlRYMFWKEiaVMXnP53", "seq": 0}
+
+id: 1
+data: {"event": "tool.completed", "run_id": "run_8677f583ca8945f1bc8459bf68fa9b4f", "timestamp": 1793112288.8096802, "tool": "read_file", "duration": 0, "error": false, "tool_call_id": "call_xgeVR4HlRYMFWKEiaVMXnP53", "preview": "", "seq": 1}
+
+id: 2
+data: {"event": "tool.started", "run_id": "run_8677f583ca8945f1bc8459bf68fa9b4f", "timestamp": 1793112319.390188, "tool": "patch", "preview": "<phase1-case>/workspace/allow/AGENTS.md", "tool_call_id": "call_4a6YxF0TNG9Y5fmnUZrZAgru", "seq": 2}
+
+id: 3
+data: {"event": "approval.request", "run_id": "run_8677f583ca8945f1bc8459bf68fa9b4f", "timestamp": 1793112319.398459, "kind": "approval", "prompt_id": "5a48982f1ee24ff295af182a91fe2049", "execution_generation": 2, "command": "<write to AGENTS.md>", "description": "Write to protected agent-instruction file(s): AGENTS.md. These files steer future agent behavior; approval is always required (not bypassed by auto-approve).", "choices": ["once", "deny"], "seq": 3}
+
+id: 4
+data: {"event": "approval.settled", "run_id": "run_8677f583ca8945f1bc8459bf68fa9b4f", "timestamp": 1793112320.2881207, "prompt_id": "5a48982f1ee24ff295af182a91fe2049", "execution_generation": 2, "seq": 4}
+
+id: 5
+data: {"event": "tool.completed", "run_id": "run_8677f583ca8945f1bc8459bf68fa9b4f", "timestamp": 1793112320.3145566, "tool": "patch", "duration": 0, "error": false, "tool_call_id": "call_4a6YxF0TNG9Y5fmnUZrZAgru", "preview": "", "seq": 5}
+
+id: 6
+data: {"event": "message.delta", "run_id": "run_8677f583ca8945f1bc8459bf68fa9b4f", "timestamp": 1793112326.097709, "delta": "\n\nNE", "seq": 6}
+
+id: 7
+data: {"event": "message.delta", "run_id": "run_8677f583ca8945f1bc8459bf68fa9b4f", "timestamp": 1793112326.0992208, "delta": "K", "seq": 7}
+
+id: 8
+data: {"event": "message.delta", "run_id": "run_8677f583ca8945f1bc8459bf68fa9b4f", "timestamp": 1793112326.0996127, "delta": "OD", "seq": 8}
+
+id: 9
+data: {"event": "message.delta", "run_id": "run_8677f583ca8945f1bc8459bf68fa9b4f", "timestamp": 1793112326.1001906, "delta": "OT", "seq": 9}
+
+id: 10
+data: {"event": "message.delta", "run_id": "run_8677f583ca8945f1bc8459bf68fa9b4f", "timestamp": 1793112326.1007981, "delta": "_PHASE", "seq": 10}
+
+id: 11
+data: {"event": "message.delta", "run_id": "run_8677f583ca8945f1bc8459bf68fa9b4f", "timestamp": 1793112326.1490495, "delta": "1", "seq": 11}
+
+id: 12
+data: {"event": "message.delta", "run_id": "run_8677f583ca8945f1bc8459bf68fa9b4f", "timestamp": 1793112326.2361572, "delta": "_ALLOW", "seq": 12}
+
+id: 13
+data: {"event": "message.delta", "run_id": "run_8677f583ca8945f1bc8459bf68fa9b4f", "timestamp": 1793112326.3689272, "delta": "_OK", "seq": 13}
+
+id: 14
+data: {"event": "run.completed", "run_id": "run_8677f583ca8945f1bc8459bf68fa9b4f", "timestamp": 1793112326.4864254, "output": "NEKODOT_PHASE1_ALLOW_OK", "usage": {"input_tokens": 109903, "output_tokens": 278, "total_tokens": 110181}, "runtime": {"provider": "", "model": "", "route_source": "global"}, "completed": true, "partial": false, "interrupted": false, "seq": 14}
+
+: stream closed
+

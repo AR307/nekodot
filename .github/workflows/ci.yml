@@ -1,4 +1,4 @@
-name: Phase 0
+name: nekodot
 on: [push, pull_request]
 jobs:
   check:
@@ -15,3 +15,5 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm exec playwright install --with-deps msedge
+      - run: pnpm test:e2e

@@ -158,3 +158,55 @@ HERMES_HOME=<isolated-home> HERMES_RUNTIME_DIR=<isolated-tools> \
 2. 最初 Python stop 探针可能等待审批；停止后不响应失效审批，最终改用无写入的 sleep 45。
 3. 一轮模型未读就覆盖已有文件，被 Hermes 拒绝；场景固定为完整读取后 patch，没有关闭检查。
 4. 失败尝试没有标记通过，已收集的失败 fixture 保留在忽略的 .runtime/spike-attempts/。
+
+## Phase 1：原生 steer 与产品整栈实测
+
+验证日期仍为 2026-10-27；沿用上述官方 baseline、Ubuntu 24.04、Node 24.22.1 与独立 PM runtime。
+Windows 编辑仓库与 WSL 检出各自安装 node_modules。真实产品走 Edge → WSL Relay → Node CLI → Hermes → 本地配置的自定义 API；没有改 Hermes 核心。
+
+### 运行命令和保留现场
+
+独立检出在 `/root/.cache/nekodot-phase1/acceptance-20261027-223030/app`，Node 数据在同级 `node`。
+实际使用的命令形态如下，JWT_SECRET 仅在启动 shell 中本地生成：
+
+```bash
+PORT=4329 WEB_DIR="$APP/apps/web/dist" DATA_DIR="$CASE/relay" \
+  PUBLIC_URL=http://127.0.0.1:4329 node apps/relay/dist/index.js
+NEKODOT_HOME="$CASE/node" node apps/node/dist/index.cjs pair \
+  --relay http://127.0.0.1:4329 --code <browser-pairing-code> --name 'nekodot WSL computer'
+NEKODOT_HOME="$CASE/node" node apps/node/dist/index.cjs run \
+  --hermes-source /root/.cache/nekodot-phase0/hermes-source \
+  --hermes-runtime /root/.cache/nekodot-phase0/tools
+```
+
+WSL 会话退出时直接派生的后台进程曾被回收；最终使用仅属于本验收的 transient systemd unit
+`nekodot-phase1-acceptance.service` 保持 Node，Relay 在独立工具会话前台运行。
+未修改全局 shell 或 WSL 网络设置；现场、日志、失败尝试与 profile 都保留，未执行删除。
+
+### API 行为与映射
+
+- 原生补充入口：`POST /p/<profile>/v1/runs/<runId>/steer`，body 为 `{ "input": "..." }`。
+  接口接受后才保存新的用户消息；后续文本进入该 run 的新回复段。
+- 普通回合 thread 为 `nk_dm_<conversationId>`，Idempotency-Key 使用产品用户消息 ID。
+- SSE 实测事件为 `run.steered`，`accepted:true` 仅表示接受；终态 `pending_steer` 非空表示尚未消费。
+  产品保留该提示及放回输入框的入口，不自动新建 run。
+- `run.completed.output` 只校正最后的回复段，已有文本与工具卡不被替换。
+- stream 与普通 HTTP 的超时分开；Last-Event-ID 使用已持久化的 SSE seq。节点重启查询已知 run，不重新发送用户任务。
+- 审批始终取实际 pending_controls 的 prompt_id/execution_generation，操作只有 once/deny，结果卡留在历史。
+
+单独 steer spike 记录于 `runs-steer.sse` 和同名 state；完整产品资料为
+`phase1-live-allow`、`phase1-live-deny`、`phase1-live-steer`、`phase1-live-stop` 的 SSE/state。
+所有 fixture 去除 endpoint、模型名、API key 与实际临时路径。
+
+### 实际结果
+
+产品验收从 2026-10-27 14:44:15 UTC 开始，于 14:48:08 UTC 完成：
+
+- 网页注册、CLI 配对、提供方配置、热建 bot，真实文本回复 NEKODOT_PHASE1_REAL_OK。
+- 受保护测试 AGENTS.md：审批中刷新仍能允许；允许后文件增加指定一行。拒绝后文件不变，无重试或换路径。
+- 工具运行时网页补充指令，保持同一 run，最终 NEKODOT_PHASE1_STEER_OK；实际 terminal 调用和文件效果各一次。
+- 执行中网页停止，Hermes 最终状态 cancelled；Node 实际结束再启动，bot 与历史恢复。
+- 实际浏览器无 pageerror。后续用最新 WSL 构建重看保留历史，390/768/1440px 均通过；该视觉复验不新增模型调用。
+
+完整场景和 runId 见 `docs/evidence/phase1-live-report.json`，最终视口复验见
+`phase1-live-visual-report.json`。OpenRouter 只完成网页配置、托管文件和密钥切换场景检查，未调用其付费模型。

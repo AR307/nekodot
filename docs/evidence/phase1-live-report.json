@@ -1,0 +1,72 @@
+{
+  "startedAt": "2026-10-27T14:44:15.959Z",
+  "scenarios": [
+    {
+      "name": "registration-pair-provider-bot",
+      "passed": true
+    },
+    {
+      "name": "text",
+      "runId": "run_67b2073a08314a1ea4647af09c485ef1",
+      "status": "completed",
+      "passed": true
+    },
+    {
+      "name": "approval-allow-refresh",
+      "runId": "run_8677f583ca8945f1bc8459bf68fa9b4f",
+      "status": "completed",
+      "passed": true,
+      "tools": [
+        {
+          "name": "read_file",
+          "status": "done",
+          "toolCallId": "call_xgeVR4HlRYMFWKEiaVMXnP53"
+        },
+        {
+          "name": "patch",
+          "status": "done",
+          "toolCallId": "call_4a6YxF0TNG9Y5fmnUZrZAgru"
+        }
+      ]
+    },
+    {
+      "name": "approval-deny",
+      "runId": "run_a0bf063128074206929d82b2bbccfee3",
+      "status": "completed",
+      "passed": true,
+      "tools": [
+        {
+          "name": "read_file",
+          "status": "done",
+          "toolCallId": "call_70F4m6xEele0voxZ0CRwmHN4"
+        },
+        {
+          "name": "patch",
+          "status": "done",
+          "toolCallId": "call_pty8Y41IecbWNmPP66xR4Eh5"
+        }
+      ]
+    },
+    {
+      "name": "same-run-steer",
+      "runId": "run_4744af9c8cbc4e19a8c17b8166a49941",
+      "status": "completed",
+      "toolCount": 1,
+      "effectCount": 1,
+      "passed": true
+    },
+    {
+      "name": "stop",
+      "runId": "run_2b7624f1cc3c49d094b6756eafc575b2",
+      "status": "cancelled",
+      "passed": true
+    },
+    {
+      "name": "node-restart-history",
+      "passed": true
+    }
+  ],
+  "browserErrors": [],
+  "completedAt": "2026-10-27T14:48:08.854Z",
+  "passed": true
+}

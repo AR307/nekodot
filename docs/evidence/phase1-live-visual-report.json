@@ -1,0 +1,7 @@
+{
+  "checkedAt": "2026-10-27T15:11:02.929Z",
+  "widths": [1440, 768, 390],
+  "browserErrors": [],
+  "passed": true,
+  "note": "Fresh WSL built Web against retained real-run history. No additional model execution. Model badge masked."
+}
