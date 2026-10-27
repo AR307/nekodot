@@ -7,7 +7,26 @@
 | 0.2 协议              | 已完成；按实测定稿           | Zod、导出类型、业务输入样例；裁切依据见 hermes-notes       |
 | 0.3 真实 Hermes spike | 已完成                       | 五项真实场景通过；持久现场确认；七项调查与 CDP 连接证据    |
 | 0.4 测试回放服务      | 已完成                       | 六类真实 HTTP 接口、13 项场景检查与真实 fixture            |
-| 0.5 整体验收          | 进行中                       | 待全新检出验收、最终浏览器复验与本地提交                   |
+| 0.5 整体验收          | 工程与真实接入验收完成       | 全新检出安装、lint、类型、13 项测试、构建和浏览器复验通过  |
+
+## 最终验收 / 2026-10-27
+
+- 全新本地检出基于提交 `5e98c3006c56c0abdb5e9b4a0435a3ecae18a985`，目录为
+  `D:/nekodot-app/.runtime/acceptance-20261027-175647`。没有复制 `.env` 或既有 node_modules。
+- 使用 Node 24.22.1、pnpm 10.34.5，依次执行 `pnpm install --frozen-lockfile`、
+  `pnpm lint`、`pnpm typecheck`、`pnpm test`、`pnpm build`，各命令独立退出码均为 0。
+- 3 个测试文件、13 项场景通过：协议业务输入、真实 SSE 分块读取、HTTP 文本/工具/
+  审批允许与拒绝/执行中停止/等待审批时取消/profile 隔离。HTTP 回放使用真实录制资料。
+- `pnpm test:e2e` 在实际 Microsoft Edge 中通过 1 个完整旅程：桌面基础页、3 个模块、
+  中英切换、390×844 手机布局与无横向溢出。重新查看两张截图，内容完整、布局正常。
+  截图为 `docs/evidence/foundation-desktop.png`、`docs/evidence/foundation-mobile.png`。
+- 全新检出构建的 Node 入口实际启动并正常退出；Relay 实际启动后 GET `/health` 返回
+  `{service:"nekodot-relay",phase:0,status:"ok"}`，随后结束本次验收进程。
+- 真实模型五项结果见下文及 `docs/fixtures/spike-report.json`；它们独立于回放验收。
+  最终 spike 于 2026-10-27 09:49:59 UTC 完成，再次进入 WSL 后现场及审批文件仍保留。
+- 产品运行入口不导入 fake-hermes；`.env`、临时现场、失败尝试和全新检出均保持忽略。
+  Git 跟踪文件未发现本地三项 provider 配置的实际值。初始私有归档之后的模块只做本地提交。
+- 剩余限制只有原 HTML 的视觉核对，详见末节；未将其写为通过。
 
 ## 真实结果
 

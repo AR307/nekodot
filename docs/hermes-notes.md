@@ -82,7 +82,7 @@ API_SERVER_HOST=127.0.0.1、API_SERVER_PORT=18642 和随机 API_SERVER_KEY。
 新建配置与密钥文件指定 0600；key 没有内嵌 YAML。
 官方写法见 hermes_cli/model_setup_flows_custom.py:167–184。
 OpenRouter provider 为 openrouter，密钥入口 OPENROUTER_API_KEY，见
-plugins/model-providers/openrouter/**init**.py:208。本轮没有真实调用 OpenRouter。
+`plugins/model-providers/openrouter/__init__.py:208`。本轮没有真实调用 OpenRouter。
 
 ## 5. SSE 实际事件与字段
 
