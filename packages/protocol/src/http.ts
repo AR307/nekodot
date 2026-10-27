@@ -21,3 +21,8 @@ export const meSchema = z.strictObject({
 });
 export type NodeSummary = z.infer<typeof nodeSummarySchema>;
 export type Me = z.infer<typeof meSchema>;
+export const pairResponseSchema = z.strictObject({
+  nodeId: z.string(),
+  nodeToken: z.string().min(1),
+});
+export const nodeCredentialsSchema = pairResponseSchema.extend({ relayUrl: z.url() });

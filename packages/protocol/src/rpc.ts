@@ -107,10 +107,17 @@ export type RpcResult<M extends RpcMethod> = z.infer<(typeof rpcContracts)[M]['r
 const requests = Object.entries(rpcContracts).map(([method, contract]) =>
   z.strictObject({ method: z.literal(method), params: contract.params }),
 );
-export const rpcRequestSchema = z.union(requests);
-export function rpcResponseSchema<M extends RpcMethod>(method: M) {
+export type RpcRequest = { [M in RpcMethod]: { method: M; params: RpcParams<M> } }[RpcMethod];
+export const rpcRequestSchema = z.union(requests) as z.ZodType<RpcRequest>;
+export function rpcResponseSchema<M extends RpcMethod>(
+  method: M,
+): z.ZodType<
+  { ok: true; result: RpcResult<M> } | { ok: false; error: z.infer<typeof rpcErrorSchema> }
+> {
   return z.discriminatedUnion('ok', [
     z.strictObject({ ok: z.literal(true), result: rpcContracts[method].result }),
     z.strictObject({ ok: z.literal(false), error: rpcErrorSchema }),
-  ]);
+  ]) as z.ZodType<
+    { ok: true; result: RpcResult<M> } | { ok: false; error: z.infer<typeof rpcErrorSchema> }
+  >;
 }
