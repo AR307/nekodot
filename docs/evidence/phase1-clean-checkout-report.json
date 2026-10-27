@@ -1,0 +1,37 @@
+{
+  "checkout": "D:/nekodot-app/.runtime/phase1-clean-20261027-231530",
+  "steps": [
+    {
+      "command": "pnpm install --frozen-lockfile",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm lint",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm typecheck",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm test",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm build",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm test:e2e",
+      "exitCode": 0
+    }
+  ],
+  "startedAt": "2026-10-27T15:15:31.1792739Z",
+  "node": "v24.22.1",
+  "completedAt": "2026-10-27T15:16:35.6219506Z",
+  "sourceCommit": "3816562395d700527b57f5018da705e2ae22fa2d",
+  "pnpm": "10.34.5",
+  "webPort": 4328,
+  "copiedCredentials": false,
+  "passed": true
+}
