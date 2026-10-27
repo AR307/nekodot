@@ -2,6 +2,7 @@ import {
   hermesControlResponseSchema,
   hermesRunCreatedSchema,
   hermesRunStateSchema,
+  hermesSteerResponseSchema,
   type HermesRunState,
 } from '@nekodot/protocol';
 import { readSse } from './sse';
@@ -18,10 +19,13 @@ export class HermesApi {
         Authorization: 'Bearer ' + this.apiKey,
         ...init?.headers,
       },
-      signal: init?.signal ?? AbortSignal.timeout(180_000),
+      ...(!path.endsWith('/events') ? { signal: init?.signal ?? AbortSignal.timeout(30_000) } : {}),
     });
     if (!response.ok)
-      throw new Error('Hermes HTTP ' + response.status + ': ' + (await response.text()));
+      throw Object.assign(
+        new Error('Hermes HTTP ' + response.status + '. Check the run or provider and try again.'),
+        { code: 'hermes_error' },
+      );
     return response;
   }
   async createRun(input: string, sessionId: string, messageId: string, instructions?: string) {
@@ -61,7 +65,27 @@ export class HermesApi {
     });
     return hermesControlResponseSchema.parse(await response.json());
   }
-  async *events(runId: string) {
-    yield* readSse(await this.request('/v1/runs/' + encodeURIComponent(runId) + '/events'));
+  async steer(runId: string, input: string) {
+    const response = await this.request('/v1/runs/' + encodeURIComponent(runId) + '/steer', {
+      method: 'POST',
+      body: JSON.stringify({ input }),
+    });
+    return hermesSteerResponseSchema.parse(await response.json());
+  }
+  async health() {
+    return (
+      await this.request('/health', { signal: AbortSignal.timeout(3000) })
+    ).json() as Promise<unknown>;
+  }
+  async models() {
+    return (await this.request('/api/model/options')).json() as Promise<unknown>;
+  }
+  async *events(runId: string, lastSeq = -1, signal?: AbortSignal) {
+    yield* readSse(
+      await this.request('/v1/runs/' + encodeURIComponent(runId) + '/events', {
+        signal: signal ?? new AbortController().signal,
+        headers: lastSeq >= 0 ? { 'Last-Event-ID': String(lastSeq) } : {},
+      }),
+    );
   }
 }

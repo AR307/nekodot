@@ -10,6 +10,7 @@
     "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node24 --packages=external --outfile=dist/index.js"
   },
   "dependencies": {
-    "@nekodot/protocol": "workspace:*"
+    "@nekodot/protocol": "workspace:*",
+    "zod": "^4.6.7"
   }
 }

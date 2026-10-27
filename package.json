@@ -15,8 +15,11 @@
     "test": "vitest run",
     "build": "pnpm -r build && pnpm spike:build",
     "spike:build": "esbuild scripts/spike-hermes.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/scripts/spike-hermes.mjs",
+    "spike:steer:build": "esbuild scripts/spike-steer.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/scripts/spike-steer.mjs",
     "spike:hermes": "tsx scripts/spike-hermes.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "node:pair": "tsx apps/node/src/index.ts pair",
+    "node:run": "tsx apps/node/src/index.ts run"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.0",

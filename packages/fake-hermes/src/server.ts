@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import {
+  botSchema,
   hermesApprovalSchema,
   hermesCreateRunSchema,
   hermesRunStateSchema,
@@ -16,6 +17,7 @@ const scenarios = [
   'runs-tools',
   'runs-tools-approval',
   'runs-approval-deny',
+  'runs-steer',
   'runs-stop',
 ] as const;
 type Scenario = (typeof scenarios)[number];
@@ -30,12 +32,22 @@ interface ReplayRun {
   fixture: Fixture;
   state: HermesRunState;
   stopped: boolean;
+  steers: string[];
+  steerReplay: boolean;
+  toolStarts: number;
+  frames: Fixture['events'];
+  clients: Set<ServerResponse>;
+  replaying: boolean;
+  ended: boolean;
   release?: () => void;
 }
 export interface FakeHermesOptions {
   fixturesDirectory: string;
   profiles: string[];
   apiKey: string;
+  allowProfileCreate?: boolean;
+  models?: unknown;
+  eventDelayMs?: number;
 }
 function json(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, { 'Content-Type': 'application/json' });
@@ -75,11 +87,76 @@ export async function startFakeHermes(options: FakeHermesOptions) {
     });
   }
   const runs = new Map<string, ReplayRun>();
+  async function replay(runId: string, run: ReplayRun) {
+    run.replaying = true;
+    let toolGateSeen = false;
+    for (const recorded of run.fixture.events) {
+      let event = { ...recorded, run_id: runId };
+      if (run.stopped && run.scenario !== 'runs-stop') {
+        const cancelled = fixtures.get('runs-stop')!;
+        event = {
+          ...cancelled.events.find((item) => item.event === 'run.cancelled')!,
+          run_id: runId,
+          seq: recorded.seq,
+        };
+        run.state = { ...cancelled.final, run_id: runId, session_id: run.state.session_id };
+      }
+      let gate: Promise<void> | undefined;
+      if (event.event === 'approval.request' && !run.stopped) {
+        run.state = { ...run.fixture.pending!, run_id: runId, session_id: run.state.session_id };
+        gate = new Promise<void>((resolve) => {
+          run.release = resolve;
+        });
+      }
+      if (
+        (run.scenario === 'runs-stop' || run.steerReplay) &&
+        event.event === 'tool.started' &&
+        !toolGateSeen
+      ) {
+        toolGateSeen = true;
+        if (!run.stopped && !run.steers.length)
+          gate = new Promise<void>((resolve) => {
+            run.release = resolve;
+          });
+      }
+      if (event.event === 'tool.started') run.toolStarts++;
+      if (
+        ['run.completed', 'run.cancelled', 'run.failed', 'run.interrupted'].includes(event.event)
+      ) {
+        if (!run.stopped || run.scenario === 'runs-stop')
+          run.state = { ...run.fixture.final, run_id: runId, session_id: run.state.session_id };
+      }
+      run.frames.push(event);
+      for (const client of run.clients)
+        client.write('id: ' + event.seq + '\ndata: ' + JSON.stringify(event) + '\n\n');
+      if (event.event === 'run.cancelled' && run.stopped) break;
+      if (gate) {
+        await gate;
+        run.release = undefined;
+      }
+      await delay(options.eventDelayMs ?? 1);
+    }
+    run.ended = true;
+    for (const client of run.clients) client.end();
+    run.clients.clear();
+  }
   async function route(request: IncomingMessage, response: ServerResponse) {
     if (request.headers.authorization !== 'Bearer ' + options.apiKey)
       return json(response, 401, {
         error: { code: 'unauthorized', message: 'Invalid test API key' },
       });
+    if (request.method === 'POST' && request.url === '/test/profiles') {
+      if (!options.allowProfileCreate)
+        return json(response, 404, { error: { code: 'not_found', message: 'Not found' } });
+      const input = await body(request);
+      if (!input || typeof input !== 'object' || !('profile' in input))
+        return json(response, 400, {
+          error: { code: 'invalid_params', message: 'Profile is required' },
+        });
+      const profile = botSchema.shape.botId.parse(input.profile);
+      if (!options.profiles.includes(profile)) options.profiles.push(profile);
+      return json(response, 201, { profile });
+    }
     const path = new URL(request.url ?? '/', 'http://127.0.0.1').pathname.split('/');
     const profile = path[2];
     if (path[1] !== 'p' || !profile || !options.profiles.includes(profile))
@@ -88,10 +165,30 @@ export async function startFakeHermes(options: FakeHermesOptions) {
       });
     if (request.method === 'GET' && path[3] === 'health' && path.length === 4)
       return json(response, 200, { status: 'ok', profile });
+    if (
+      request.method === 'GET' &&
+      path[3] === 'api' &&
+      path[4] === 'model' &&
+      path[5] === 'options'
+    )
+      return json(response, 200, options.models ?? { models: [] });
     if (path[3] !== 'v1' || path[4] !== 'runs') return json(response, 404, {});
     if (request.method === 'POST' && path.length === 5) {
       const input = hermesCreateRunSchema.parse(await body(request));
-      const scenario = scenarios.find((name) => name === input.input);
+      const inputText = input.input.toLowerCase();
+      const scenario =
+        scenarios.find((name) => name === input.input) ??
+        (inputText.includes('long task')
+          ? 'runs-stop'
+          : inputText.includes('steer') || inputText.includes('same run')
+            ? 'runs-steer'
+            : inputText.includes('deny') || inputText.includes('denial')
+              ? 'runs-approval-deny'
+              : inputText.includes('approval') || inputText.includes('approve')
+                ? 'runs-tools-approval'
+                : inputText.includes('hello') || inputText.includes('greeting')
+                  ? 'runs-basic'
+                  : undefined);
       if (!scenario)
         return json(response, 400, {
           error: { code: 'unknown_fixture', message: 'Use a recorded scenario name as input' },
@@ -103,6 +200,13 @@ export async function startFakeHermes(options: FakeHermesOptions) {
         scenario,
         fixture,
         stopped: false,
+        steers: [],
+        steerReplay: inputText.includes('steer') || inputText.includes('same run'),
+        toolStarts: 0,
+        frames: [],
+        clients: new Set(),
+        replaying: false,
+        ended: false,
         state: {
           run_id: runId,
           session_id: input.session_id,
@@ -121,6 +225,31 @@ export async function startFakeHermes(options: FakeHermesOptions) {
         error: { code: 'run_not_found', message: 'Run not found in this profile' },
       });
     if (request.method === 'GET' && path.length === 6) return json(response, 200, run.state);
+    if (request.method === 'POST' && path[6] === 'steer') {
+      const input = await body(request);
+      if (
+        !input ||
+        typeof input !== 'object' ||
+        !('input' in input) ||
+        typeof input.input !== 'string' ||
+        !input.input
+      )
+        return json(response, 400, {
+          error: { code: 'invalid_params', message: 'Input is required' },
+        });
+      if (!['running', 'queued', 'pending'].includes(run.state.status))
+        return json(response, 409, {
+          error: { code: 'run_not_active', message: 'Run is no longer active' },
+        });
+      if (!run.steerReplay)
+        return json(response, 409, {
+          error: { code: 'steer_not_recorded', message: 'This run has no recorded steer replay.' },
+        });
+      run.steers.push(input.input);
+      run.state = { ...run.state, pending_steer: input.input };
+      run.release?.();
+      return json(response, 200, { run_id: runId, accepted: true });
+    }
     if (request.method === 'POST' && path[6] === 'approval') {
       const approval = hermesApprovalSchema.parse(await body(request));
       const pending = run.state.pending_controls?.find(
@@ -157,52 +286,16 @@ export async function startFakeHermes(options: FakeHermesOptions) {
     if (request.method === 'GET' && path[6] === 'events') {
       response.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
       response.write(': open\n\n');
-      response.once('close', () => run.release?.());
-      let stopGateSeen = false;
-      for (const event of run.fixture.events) {
-        if (response.destroyed) break;
-        if (run.stopped && run.scenario !== 'runs-stop') {
-          const cancelled = fixtures.get('runs-stop')!;
-          const terminal = cancelled.events.find((item) => item.event === 'run.cancelled')!;
-          run.state = { ...cancelled.final, run_id: runId!, session_id: run.state.session_id };
-          response.write(
-            'id: ' +
-              event.seq +
-              '\ndata: ' +
-              JSON.stringify({ ...terminal, run_id: runId, seq: event.seq }) +
-              '\n\n',
-          );
-          break;
-        }
-        let gate: Promise<void> | undefined;
-        if (event.event === 'approval.request' && !run.stopped) {
-          run.state = { ...run.fixture.pending!, run_id: runId!, session_id: run.state.session_id };
-          gate = new Promise<void>((resolve) => {
-            run.release = resolve;
-          });
-        }
-        if (run.scenario === 'runs-stop' && event.event === 'tool.started' && !stopGateSeen) {
-          stopGateSeen = true;
-          if (!run.stopped)
-            gate = new Promise<void>((resolve) => {
-              run.release = resolve;
-            });
-        }
-        if (
-          event.event.startsWith('run.') &&
-          ['run.completed', 'run.cancelled', 'run.failed', 'run.interrupted'].includes(event.event)
-        )
-          run.state = { ...run.fixture.final, run_id: runId!, session_id: run.state.session_id };
-        response.write(
-          'id: ' + event.seq + '\ndata: ' + JSON.stringify({ ...event, run_id: runId }) + '\n\n',
-        );
-        if (gate) {
-          await gate;
-          run.release = undefined;
-        }
-        await delay(1);
+      const lastSeq = Number(request.headers['last-event-id'] ?? -1);
+      for (const event of run.frames)
+        if (event.seq > lastSeq)
+          response.write('id: ' + event.seq + '\ndata: ' + JSON.stringify(event) + '\n\n');
+      if (run.ended) response.end();
+      else {
+        run.clients.add(response);
+        response.once('close', () => run.clients.delete(response));
+        if (!run.replaying) void replay(runId!, run);
       }
-      response.end();
       return;
     }
     json(response, 404, {});
@@ -221,6 +314,14 @@ export async function startFakeHermes(options: FakeHermesOptions) {
   if (!address || typeof address === 'string') throw new Error('Test server has no TCP address');
   return {
     url: 'http://127.0.0.1:' + address.port,
+    inspectRuns: () =>
+      [...runs.entries()].map(([runId, run]) => ({
+        runId,
+        profile: run.profile,
+        scenario: run.scenario,
+        steers: [...run.steers],
+        toolStarts: run.toolStarts,
+      })),
     close: async () => {
       for (const run of runs.values()) run.release?.();
       server.closeAllConnections();

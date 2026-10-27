@@ -75,3 +75,11 @@ Node 以官方 CLI/API 管理 Hermes。Node 是本地业务状态的唯一数据
 - 支持 OpenRouter、自定义 API、hub 模型目录、nk-xxxxxx profile 与独立私聊会话。
 - bot 名称、角色、头像、模型可更新；逻辑归档保留历史和 profile。
 - 通过真实 HTTP 录制回放和 Edge 网页完成首次提供方配置、热建 bot 和私聊；真实 provider 网页验收单独记录。
+
+### 2026-10-27 / Phase 1.4
+
+- 联通 Node 命令入口、同会话消息去重、真实 run、SSE 文本快照、工具、审批、停止与原生 steer。
+- steer 保持 runId，保留已有文本和工具，后续使用新回复段；终态 pending_steer 提示用户并提供放回输入框。
+- 分离 SSE 与普通请求超时，使用 Last-Event-ID 续接；同步重发 activity，恢复时查询已有 run，不自动重跑。
+- 测试回放加载真实 steer 录制，断开 SSE 不推进审批，重新连接只续传后续事件。
+- Node 24 检查及 Edge 旅程通过；WSL 真实网页文本、允许/拒绝、同 run steer（一次工具、一次文件效果）、停止和节点重启均通过。

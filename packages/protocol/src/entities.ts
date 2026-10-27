@@ -53,7 +53,11 @@ const textContent = z.strictObject({ text: z.string() });
 export const messageSchema = z.discriminatedUnion('kind', [
   z.strictObject({ ...messageBase, kind: z.literal('text'), content: textContent }),
   z.strictObject({ ...messageBase, kind: z.literal('commentary'), content: textContent }),
-  z.strictObject({ ...messageBase, kind: z.literal('system'), content: textContent }),
+  z.strictObject({
+    ...messageBase,
+    kind: z.literal('system'),
+    content: z.strictObject({ text: z.string(), retryText: z.string().optional() }),
+  }),
   z.strictObject({
     ...messageBase,
     kind: z.literal('tool'),
@@ -74,6 +78,7 @@ export const messageSchema = z.discriminatedUnion('kind', [
       requestId: idSchema,
       executionGeneration: z.number().int().nonnegative(),
       prompt: z.string(),
+      command: z.string().optional(),
       choice: z.enum(['once', 'deny']).optional(),
     }),
   }),

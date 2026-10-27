@@ -1,0 +1,42 @@
+id: 0
+data: {"event": "message.delta", "run_id": "run_c543c7f8567543a291fafc5e9594e624", "timestamp": 1793107504.4225442, "delta": " ", "seq": 0}
+
+id: 1
+data: {"event": "tool.started", "run_id": "run_c543c7f8567543a291fafc5e9594e624", "timestamp": 1793107504.8968427, "tool": "terminal", "preview": "sleep 8 + 1 command", "tool_call_id": "call_20126cc2987f481d87e054bd40741701", "seq": 1}
+
+id: 2
+data: {"event": "run.steered", "run_id": "run_c543c7f8567543a291fafc5e9594e624", "timestamp": 1793107505.4040785, "accepted": true, "seq": 2}
+
+id: 3
+data: {"event": "tool.completed", "run_id": "run_c543c7f8567543a291fafc5e9594e624", "timestamp": 1793107513.2822099, "tool": "terminal", "duration": 0, "error": false, "tool_call_id": "call_20126cc2987f481d87e054bd40741701", "preview": "", "seq": 3}
+
+id: 4
+data: {"event": "message.delta", "run_id": "run_c543c7f8567543a291fafc5e9594e624", "timestamp": 1793107517.9955254, "delta": " ", "seq": 4}
+
+id: 5
+data: {"event": "message.delta", "run_id": "run_c543c7f8567543a291fafc5e9594e624", "timestamp": 1793107517.9960938, "delta": "\n\nNE", "seq": 5}
+
+id: 6
+data: {"event": "message.delta", "run_id": "run_c543c7f8567543a291fafc5e9594e624", "timestamp": 1793107517.9968028, "delta": "K", "seq": 6}
+
+id: 7
+data: {"event": "message.delta", "run_id": "run_c543c7f8567543a291fafc5e9594e624", "timestamp": 1793107518.0304332, "delta": "OD", "seq": 7}
+
+id: 8
+data: {"event": "message.delta", "run_id": "run_c543c7f8567543a291fafc5e9594e624", "timestamp": 1793107518.0461798, "delta": "OT", "seq": 8}
+
+id: 9
+data: {"event": "message.delta", "run_id": "run_c543c7f8567543a291fafc5e9594e624", "timestamp": 1793107518.0468075, "delta": "_ST", "seq": 9}
+
+id: 10
+data: {"event": "message.delta", "run_id": "run_c543c7f8567543a291fafc5e9594e624", "timestamp": 1793107518.047456, "delta": "E", "seq": 10}
+
+id: 11
+data: {"event": "message.delta", "run_id": "run_c543c7f8567543a291fafc5e9594e624", "timestamp": 1793107518.0477326, "delta": "ER", "seq": 11}
+
+id: 12
+data: {"event": "message.delta", "run_id": "run_c543c7f8567543a291fafc5e9594e624", "timestamp": 1793107518.2780209, "delta": "_OK", "seq": 12}
+
+id: 13
+data: {"event": "run.completed", "run_id": "run_c543c7f8567543a291fafc5e9594e624", "timestamp": 1793107518.3581817, "output": "NEKODOT_STEER_OK", "usage": {"input_tokens": 28900, "output_tokens": 67, "total_tokens": 28967}, "runtime": {"provider": "", "model": "", "route_source": "global"}, "completed": true, "partial": false, "interrupted": false, "seq": 13}
+

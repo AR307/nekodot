@@ -1,0 +1,47 @@
+{
+  "created": {
+    "run_id": "run_c543c7f8567543a291fafc5e9594e624",
+    "status": "started"
+  },
+  "beforeSteer": {
+    "run_id": "run_c543c7f8567543a291fafc5e9594e624",
+    "status": "running",
+    "output": "",
+    "execution_generation": 1,
+    "pending_controls": [],
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "created_at": 1793107496.7182853,
+    "session_id": "nk_dm_steer_0512921f-644e-4994-b856-c6c1a9c6767d",
+    "admission_id": "908ee331e9ee4217a2df499d9878be1e",
+    "usage": {}
+  },
+  "steerResponse": {
+    "run_id": "run_c543c7f8567543a291fafc5e9594e624",
+    "accepted": true,
+    "object": "hermes.run.steer"
+  },
+  "final": {
+    "run_id": "run_c543c7f8567543a291fafc5e9594e624",
+    "status": "completed",
+    "output": "NEKODOT_STEER_OK",
+    "execution_generation": 1,
+    "pending_controls": [],
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "runtime": {
+      "provider": "",
+      "model": "",
+      "route_source": "global"
+    },
+    "created_at": 1793107496.7182853,
+    "session_id": "nk_dm_steer_0512921f-644e-4994-b856-c6c1a9c6767d",
+    "admission_id": "908ee331e9ee4217a2df499d9878be1e",
+    "usage": {
+      "input_tokens": 28900,
+      "output_tokens": 67,
+      "total_tokens": 28967
+    }
+  },
+  "toolCount": 1
+}
