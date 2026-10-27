@@ -1,0 +1,3 @@
+* text=auto eol=lf
+*.pdf -text
+/design/nekodot*reference.html -text
