@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@nekodot/protocol": "workspace:*",
-    "pino": "^10.4.0"
+    "pino": "^10.4.0",
+    "ws": "^8.22.0",
+    "yaml": "^2.9.1"
   }
 }

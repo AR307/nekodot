@@ -8,7 +8,12 @@
     "build": "vite build"
   },
   "dependencies": {
+    "@nekodot/protocol": "workspace:*",
+    "@tailwindcss/vite": "^4.3.3",
+    "motion": "^14.7.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "tailwindcss": "^4.3.3",
+    "zustand": "^5.0.16"
   }
 }

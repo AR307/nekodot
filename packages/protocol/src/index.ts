@@ -4,3 +4,4 @@ export * from './rpc';
 export * from './envelope';
 export * from './hermes';
 export * from './errors';
+export * from './http';

@@ -34,6 +34,7 @@ export const liveSchema = z.discriminatedUnion('kind', [
     conversationId: idSchema,
     messageId: idSchema,
     text: z.string(),
+    offset: z.number().int().nonnegative(),
   }),
   z.strictObject({
     kind: z.literal('activity'),

@@ -17,6 +17,7 @@ export const envelopeSchema = z
       'error',
       'ping',
       'pong',
+      'node.status',
     ]),
     nodeId: idSchema.optional(),
     replyTo: z.uuidv4().optional(),
@@ -53,6 +54,7 @@ export const payloadSchemas = {
   error: rpcErrorSchema,
   ping: z.strictObject({}),
   pong: z.strictObject({}),
+  'node.status': z.strictObject({ online: z.boolean() }),
 };
 export const protocolTimings = {
   helloMs: 5000,

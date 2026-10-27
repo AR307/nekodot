@@ -54,3 +54,10 @@ Node 以官方 CLI/API 管理 Hermes。Node 是本地业务状态的唯一数据
 - 全新构建的 Node 入口与 Relay HTTP health 实际启动通过；再次确认 WSL 审批现场保留。
 - 完成验收记录与开发入口说明。原 HTML 视觉核对仍受查看方式限制，未虚报通过。
 - 初始私有 GitHub 归档已上传；后续模块均保留为本地提交，没有推送真实配置或运行现场。
+
+### 2026-10-27 / Phase 1.1
+
+- 实现 Relay 账号、JWT、配对码、节点凭证和解绑；不保存聊天正文。
+- 实现 client/node WebSocket、请求路由、所有权检查、在线通知和心跳。
+- 协议增加 HTTP 边界、node.status 和实时文本 offset；安装既定 Phase 1 依赖。
+- 真实 HTTP/WebSocket 旅程通过：注册登录、配对单次使用、跨账号隔离、节点解绑。

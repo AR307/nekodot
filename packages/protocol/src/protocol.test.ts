@@ -55,7 +55,13 @@ describe('real product protocol journeys', () => {
       }),
     ).toBeDefined();
     expect(
-      liveSchema.parse({ kind: 'delta', conversationId: 'dm-1', messageId: 'msg-1', text: '你好' }),
+      liveSchema.parse({
+        kind: 'delta',
+        offset: 0,
+        conversationId: 'dm-1',
+        messageId: 'msg-1',
+        text: '你好',
+      }),
     ).toBeDefined();
     expect(eventSchema.parse({ seq: 1, kind: 'message.upserted', data: message })).toBeDefined();
     expect(
