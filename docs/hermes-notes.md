@@ -107,7 +107,7 @@ data: {"event":"tool.started","run_id":"...","timestamp":1793094168.4,"tool":"te
 
 Hermes duration 单位为秒，产品 durationMs 映射时乘 1000；本轮短工具常为 0。
 查询审批状态为 waiting_for_approval，pending_controls 返回 prompt_id、kind、execution_generation。
-审批请求使用 request_id 字段。POST stop 返回 stopping，流结束后查询最终 cancelled。
+审批请求使用 request_id 字段；实际响应为 {run_id,status:"resolved",prompt_id}。POST stop 返回 stopping，流结束后查询最终 cancelled。
 工具拒绝时 error:true，但模型正常解释拒绝后整个 run 仍可 completed。
 
 证据：runs-basic、runs-tools、runs-tools-approval、runs-approval-deny、runs-stop 的 .sse 与

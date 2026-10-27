@@ -39,3 +39,10 @@ Node 以官方 CLI/API 管理 Hermes。Node 是本地业务状态的唯一数据
 - 录制真实 SSE、审批/停止响应、pending/final 状态及测试文件结果；七项调查完成。
 - 自有 Chromium CDP 实际连接成功；最终临时现场使用持久缓存且已重新进入确认。
 - 修正真实 SSE 的 JSON event 读取、先读后改审批场景；失败资料本地保留。
+
+### 2026-10-27 / 0.4
+
+- 实现仅测试的 loopback HTTP 回放服务：health、创建、SSE、查询、stop、approval。
+- 用真实 fixture 驱动文本、工具关联、审批暂停/允许/拒绝、取消及 profile 隔离。
+- 实际 Node HermesApi 通过 HTTP 消费回放；fake-hermes 只列为根 devDependency，产品不导入。
+- 业务协议、HTTP 回放与分块 SSE 场景共 13 项检查通过；不以其替代真实模型结果。
