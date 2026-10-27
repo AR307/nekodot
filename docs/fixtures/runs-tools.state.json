@@ -1,0 +1,25 @@
+{
+  "final": {
+    "run_id": "run_a0d2de993f0843828c6d62782d03ef7c",
+    "status": "completed",
+    "output": "NEKODOT_TOOL_OK",
+    "execution_generation": 1,
+    "pending_controls": [],
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "runtime": {
+      "provider": "",
+      "model": "",
+      "route_source": "global"
+    },
+    "created_at": 1793094531.8150866,
+    "session_id": "nk_dm_219e8a88-14c3-48fb-b275-14a8723c10a4",
+    "admission_id": "7bdcc121b4f246489a26068c31e6cd21",
+    "usage": {
+      "input_tokens": 28806,
+      "output_tokens": 34,
+      "total_tokens": 28840
+    }
+  },
+  "pending": null
+}

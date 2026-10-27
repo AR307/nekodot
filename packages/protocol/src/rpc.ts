@@ -10,6 +10,7 @@ import {
   seqSchema,
 } from './entities';
 import { eventSchema } from './events';
+import { rpcErrorSchema } from './errors';
 const empty = z.strictObject({});
 const groupCreate = z
   .strictObject(groupFields)
@@ -32,17 +33,6 @@ export const providerOutputSchema = z.strictObject({
   ...providerSettings,
   apiKeyLast4: z.string().max(4),
 });
-export const errorCodes = [
-  'invalid_params',
-  'unauthorized',
-  'forbidden',
-  'not_found',
-  'conflict',
-  'timeout',
-  'unavailable',
-  'internal_error',
-] as const;
-export const rpcErrorSchema = z.strictObject({ code: z.enum(errorCodes), message: z.string() });
 export const rpcContracts = {
   'sync.snapshot': {
     params: empty,

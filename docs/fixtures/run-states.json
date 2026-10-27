@@ -1,0 +1,172 @@
+{
+  "runs-basic-final": {
+    "run_id": "run_25cff177edcd4e2f82c635e499ceda83",
+    "status": "completed",
+    "output": "NEKODOT_PHASE0_OK",
+    "execution_generation": 1,
+    "pending_controls": [],
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "runtime": {
+      "provider": "",
+      "model": "",
+      "route_source": "global"
+    },
+    "created_at": 1793094522.9758832,
+    "session_id": "nk_dm_d53fad1c-6f35-446b-a8bc-e5f0daf6121e",
+    "admission_id": "7e3db0be81484f37a047a3b5ebc2644e",
+    "usage": {
+      "input_tokens": 14371,
+      "output_tokens": 11,
+      "total_tokens": 14382
+    }
+  },
+  "runs-tools-final": {
+    "run_id": "run_a0d2de993f0843828c6d62782d03ef7c",
+    "status": "completed",
+    "output": "NEKODOT_TOOL_OK",
+    "execution_generation": 1,
+    "pending_controls": [],
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "runtime": {
+      "provider": "",
+      "model": "",
+      "route_source": "global"
+    },
+    "created_at": 1793094531.8150866,
+    "session_id": "nk_dm_219e8a88-14c3-48fb-b275-14a8723c10a4",
+    "admission_id": "7bdcc121b4f246489a26068c31e6cd21",
+    "usage": {
+      "input_tokens": 28806,
+      "output_tokens": 34,
+      "total_tokens": 28840
+    }
+  },
+  "runs-tools-approval-pending": {
+    "run_id": "run_792bb221a01c48d6b113c3faf77d25c8",
+    "status": "waiting_for_approval",
+    "output": "",
+    "execution_generation": 1,
+    "pending_controls": [
+      {
+        "prompt_id": "ac9730c5472d4316bfd0629e931f8b5f",
+        "kind": "approval",
+        "execution_generation": 1,
+        "command": "<write to AGENTS.md>",
+        "description": "Write to protected agent-instruction file(s): AGENTS.md. These files steer future agent behavior; approval is always required (not bypassed by auto-approve).",
+        "choices": [
+          "once",
+          "deny"
+        ]
+      }
+    ],
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "created_at": 1793094544.4359322,
+    "session_id": "nk_dm_d23c5985-bc98-4a95-87dc-3965be12a640",
+    "admission_id": "79071430eeb041d19d602d30d35625c1",
+    "usage": {}
+  },
+  "runs-tools-approval-approval-response": {
+    "run_id": "run_792bb221a01c48d6b113c3faf77d25c8",
+    "status": "resolved",
+    "prompt_id": "ac9730c5472d4316bfd0629e931f8b5f"
+  },
+  "runs-tools-approval-final": {
+    "run_id": "run_792bb221a01c48d6b113c3faf77d25c8",
+    "status": "completed",
+    "output": "Read the full file and successfully appended the exact line NEKODOT_APPROVAL_OK using patch in replace mode.",
+    "execution_generation": 1,
+    "pending_controls": [],
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "runtime": {
+      "provider": "",
+      "model": "",
+      "route_source": "global"
+    },
+    "created_at": 1793094544.4359322,
+    "session_id": "nk_dm_d23c5985-bc98-4a95-87dc-3965be12a640",
+    "admission_id": "79071430eeb041d19d602d30d35625c1",
+    "usage": {
+      "input_tokens": 105217,
+      "output_tokens": 286,
+      "total_tokens": 105503
+    }
+  },
+  "runs-approval-deny-pending": {
+    "run_id": "run_afd524bd72e34893885914bd7bc7d273",
+    "status": "waiting_for_approval",
+    "output": "",
+    "execution_generation": 1,
+    "pending_controls": [
+      {
+        "prompt_id": "cbff66882fd847a998a85f6fd53ef74b",
+        "kind": "approval",
+        "execution_generation": 1,
+        "command": "<write to AGENTS.md>",
+        "description": "Write to protected agent-instruction file(s): AGENTS.md. These files steer future agent behavior; approval is always required (not bypassed by auto-approve).",
+        "choices": [
+          "once",
+          "deny"
+        ]
+      }
+    ],
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "created_at": 1793094571.3314075,
+    "session_id": "nk_dm_3c7ac286-a8cf-47ba-9001-23263cc00626",
+    "admission_id": "c849e665d31746b480a7aafbe9cc1bff",
+    "usage": {}
+  },
+  "runs-approval-deny-approval-response": {
+    "run_id": "run_afd524bd72e34893885914bd7bc7d273",
+    "status": "resolved",
+    "prompt_id": "cbff66882fd847a998a85f6fd53ef74b"
+  },
+  "runs-approval-deny-final": {
+    "run_id": "run_afd524bd72e34893885914bd7bc7d273",
+    "status": "completed",
+    "output": "The requested write was denied by the user’s approval policy. I did not retry or use another tool/path.\n\n⚠️ File-mutation verifier: 1 file edit(s) FAILED this turn despite any wording above that may suggest otherwise. Run `git status` or `read_file` to confirm what actually landed.\n  • `/tmp/nekodot-spike/workspace/deny/AGENTS.md` — [patch] BLOCKED: write to protected agent-instruction file(s) (AGENTS.md) was denied by the user. The user has NOT consented to this write. Do NOT retry it or attempt the same edit via an…",
+    "execution_generation": 1,
+    "pending_controls": [],
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "runtime": {
+      "provider": "",
+      "model": "",
+      "route_source": "global"
+    },
+    "created_at": 1793094571.3314075,
+    "session_id": "nk_dm_3c7ac286-a8cf-47ba-9001-23263cc00626",
+    "admission_id": "c849e665d31746b480a7aafbe9cc1bff",
+    "usage": {
+      "input_tokens": 43808,
+      "output_tokens": 235,
+      "total_tokens": 44043
+    }
+  },
+  "runs-stop-stop-response": {
+    "run_id": "run_355699127cc946d29016d68f068614b4",
+    "status": "stopping",
+    "admission_id": "30cc2709862f44f5b39a3ebc655f4323"
+  },
+  "runs-stop-final": {
+    "run_id": "run_355699127cc946d29016d68f068614b4",
+    "status": "cancelled",
+    "output": "",
+    "execution_generation": 1,
+    "pending_controls": [],
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "created_at": 1793094585.1481524,
+    "session_id": "nk_dm_b1a44bab-27cf-48ab-8175-79679de93009",
+    "admission_id": "30cc2709862f44f5b39a3ebc655f4323",
+    "usage": {
+      "input_tokens": 14378,
+      "output_tokens": 33,
+      "total_tokens": 14411
+    }
+  }
+}

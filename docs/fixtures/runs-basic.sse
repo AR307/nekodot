@@ -1,0 +1,27 @@
+id: 0
+data: {"event": "message.delta", "run_id": "run_25cff177edcd4e2f82c635e499ceda83", "timestamp": 1793094530.5398185, "delta": " ", "seq": 0}
+
+id: 1
+data: {"event": "message.delta", "run_id": "run_25cff177edcd4e2f82c635e499ceda83", "timestamp": 1793094530.5402572, "delta": "NE", "seq": 1}
+
+id: 2
+data: {"event": "message.delta", "run_id": "run_25cff177edcd4e2f82c635e499ceda83", "timestamp": 1793094530.54053, "delta": "K", "seq": 2}
+
+id: 3
+data: {"event": "message.delta", "run_id": "run_25cff177edcd4e2f82c635e499ceda83", "timestamp": 1793094530.7520945, "delta": "OD", "seq": 3}
+
+id: 4
+data: {"event": "message.delta", "run_id": "run_25cff177edcd4e2f82c635e499ceda83", "timestamp": 1793094530.8831766, "delta": "OT", "seq": 4}
+
+id: 5
+data: {"event": "message.delta", "run_id": "run_25cff177edcd4e2f82c635e499ceda83", "timestamp": 1793094531.0683627, "delta": "_PHASE", "seq": 5}
+
+id: 6
+data: {"event": "message.delta", "run_id": "run_25cff177edcd4e2f82c635e499ceda83", "timestamp": 1793094531.1237307, "delta": "0", "seq": 6}
+
+id: 7
+data: {"event": "message.delta", "run_id": "run_25cff177edcd4e2f82c635e499ceda83", "timestamp": 1793094531.6631029, "delta": "_OK", "seq": 7}
+
+id: 8
+data: {"event": "run.completed", "run_id": "run_25cff177edcd4e2f82c635e499ceda83", "timestamp": 1793094531.7359536, "output": "NEKODOT_PHASE0_OK", "usage": {"input_tokens": 14371, "output_tokens": 11, "total_tokens": 14382}, "runtime": {"provider": "", "model": "", "route_source": "global"}, "completed": true, "partial": false, "interrupted": false, "seq": 8}
+

@@ -1,0 +1,49 @@
+{
+  "final": {
+    "run_id": "run_afd524bd72e34893885914bd7bc7d273",
+    "status": "completed",
+    "output": "The requested write was denied by the user’s approval policy. I did not retry or use another tool/path.\n\n⚠️ File-mutation verifier: 1 file edit(s) FAILED this turn despite any wording above that may suggest otherwise. Run `git status` or `read_file` to confirm what actually landed.\n  • `/tmp/nekodot-spike/workspace/deny/AGENTS.md` — [patch] BLOCKED: write to protected agent-instruction file(s) (AGENTS.md) was denied by the user. The user has NOT consented to this write. Do NOT retry it or attempt the same edit via an…",
+    "execution_generation": 1,
+    "pending_controls": [],
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "runtime": {
+      "provider": "",
+      "model": "",
+      "route_source": "global"
+    },
+    "created_at": 1793094571.3314075,
+    "session_id": "nk_dm_3c7ac286-a8cf-47ba-9001-23263cc00626",
+    "admission_id": "c849e665d31746b480a7aafbe9cc1bff",
+    "usage": {
+      "input_tokens": 43808,
+      "output_tokens": 235,
+      "total_tokens": 44043
+    }
+  },
+  "pending": {
+    "run_id": "run_afd524bd72e34893885914bd7bc7d273",
+    "status": "waiting_for_approval",
+    "output": "",
+    "execution_generation": 1,
+    "pending_controls": [
+      {
+        "prompt_id": "cbff66882fd847a998a85f6fd53ef74b",
+        "kind": "approval",
+        "execution_generation": 1,
+        "command": "<write to AGENTS.md>",
+        "description": "Write to protected agent-instruction file(s): AGENTS.md. These files steer future agent behavior; approval is always required (not bypassed by auto-approve).",
+        "choices": [
+          "once",
+          "deny"
+        ]
+      }
+    ],
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "created_at": 1793094571.3314075,
+    "session_id": "nk_dm_3c7ac286-a8cf-47ba-9001-23263cc00626",
+    "admission_id": "c849e665d31746b480a7aafbe9cc1bff",
+    "usage": {}
+  }
+}

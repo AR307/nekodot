@@ -1,0 +1,12 @@
+id: 0
+data: {"event": "message.delta", "run_id": "run_355699127cc946d29016d68f068614b4", "timestamp": 1793094597.9879558, "delta": " ", "seq": 0}
+
+id: 1
+data: {"event": "tool.started", "run_id": "run_355699127cc946d29016d68f068614b4", "timestamp": 1793094598.372197, "tool": "terminal", "preview": "sleep 45 + 1 command", "tool_call_id": "call_ecea8c6164094798bf75216e56020fd1", "seq": 1}
+
+id: 2
+data: {"event": "tool.completed", "run_id": "run_355699127cc946d29016d68f068614b4", "timestamp": 1793094599.455884, "tool": "terminal", "duration": 0, "error": true, "tool_call_id": "call_ecea8c6164094798bf75216e56020fd1", "preview": "", "seq": 2}
+
+id: 3
+data: {"event": "run.cancelled", "run_id": "run_355699127cc946d29016d68f068614b4", "timestamp": 1793094599.487676, "completed": false, "partial": false, "interrupted": true, "turn_exit_reason": "interrupted_by_user", "seq": 3}
+

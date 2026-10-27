@@ -1,0 +1,99 @@
+id: 0
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094575.7732852, "delta": " ", "seq": 0}
+
+id: 1
+data: {"event": "tool.started", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094575.9550111, "tool": "read_file", "preview": "AGENTS.md L1-2000", "tool_call_id": "call_cd4bf3d9ac894117b3c444f13b5c5b4c", "seq": 1}
+
+id: 2
+data: {"event": "tool.completed", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094576.0139875, "tool": "read_file", "duration": 0, "error": false, "tool_call_id": "call_cd4bf3d9ac894117b3c444f13b5c5b4c", "preview": "", "seq": 2}
+
+id: 3
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094581.6641905, "delta": " ", "seq": 3}
+
+id: 4
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094581.6647267, "delta": "\n\n", "seq": 4}
+
+id: 5
+data: {"event": "tool.started", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094582.097764, "tool": "patch", "preview": "/tmp/nekodot-spike/workspace/deny/AGENTS.md", "tool_call_id": "call_2dbc688f93df40b78ef95708d79acc2b", "seq": 5}
+
+id: 6
+data: {"event": "approval.request", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094582.1009297, "kind": "approval", "prompt_id": "cbff66882fd847a998a85f6fd53ef74b", "execution_generation": 1, "command": "<write to AGENTS.md>", "description": "Write to protected agent-instruction file(s): AGENTS.md. These files steer future agent behavior; approval is always required (not bypassed by auto-approve).", "choices": ["once", "deny"], "seq": 6}
+
+id: 7
+data: {"event": "approval.settled", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094582.1063, "prompt_id": "cbff66882fd847a998a85f6fd53ef74b", "execution_generation": 1, "seq": 7}
+
+id: 8
+data: {"event": "tool.completed", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094582.1136134, "tool": "patch", "duration": 0, "error": true, "tool_call_id": "call_2dbc688f93df40b78ef95708d79acc2b", "preview": "", "seq": 8}
+
+id: 9
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.83958, "delta": " ", "seq": 9}
+
+id: 10
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.8400774, "delta": "\n\nThe", "seq": 10}
+
+id: 11
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.8403492, "delta": " requested", "seq": 11}
+
+id: 12
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.8407595, "delta": " write", "seq": 12}
+
+id: 13
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.8409708, "delta": " was", "seq": 13}
+
+id: 14
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.841276, "delta": " denied", "seq": 14}
+
+id: 15
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.841458, "delta": " by", "seq": 15}
+
+id: 16
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.8416352, "delta": " the", "seq": 16}
+
+id: 17
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.8418033, "delta": " user", "seq": 17}
+
+id: 18
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.8597484, "delta": "\u2019s", "seq": 18}
+
+id: 19
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.8601363, "delta": " approval", "seq": 19}
+
+id: 20
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.905791, "delta": " policy", "seq": 20}
+
+id: 21
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.90626, "delta": ".", "seq": 21}
+
+id: 22
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.9068587, "delta": " I", "seq": 22}
+
+id: 23
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.9070919, "delta": " did", "seq": 23}
+
+id: 24
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.9074638, "delta": " not", "seq": 24}
+
+id: 25
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.907922, "delta": " retry", "seq": 25}
+
+id: 26
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.9081357, "delta": " or", "seq": 26}
+
+id: 27
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.9083743, "delta": " use", "seq": 27}
+
+id: 28
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.9089222, "delta": " another", "seq": 28}
+
+id: 29
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.9092593, "delta": " tool", "seq": 29}
+
+id: 30
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094584.9338017, "delta": "/path", "seq": 30}
+
+id: 31
+data: {"event": "message.delta", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094585.0737107, "delta": ".", "seq": 31}
+
+id: 32
+data: {"event": "run.completed", "run_id": "run_afd524bd72e34893885914bd7bc7d273", "timestamp": 1793094585.1306615, "output": "The requested write was denied by the user\u2019s approval policy. I did not retry or use another tool/path.\n\n\u26a0\ufe0f File-mutation verifier: 1 file edit(s) FAILED this turn despite any wording above that may suggest otherwise. Run `git status` or `read_file` to confirm what actually landed.\n  \u2022 `/tmp/nekodot-spike/workspace/deny/AGENTS.md` \u2014 [patch] BLOCKED: write to protected agent-instruction file(s) (AGENTS.md) was denied by the user. The user has NOT consented to this write. Do NOT retry it or attempt the same edit via an\u2026", "usage": {"input_tokens": 43808, "output_tokens": 235, "total_tokens": 44043}, "runtime": {"provider": "", "model": "", "route_source": "global"}, "completed": true, "partial": false, "interrupted": false, "seq": 32}
+

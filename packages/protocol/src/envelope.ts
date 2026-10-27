@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { idSchema } from './entities';
 import { eventSchema, liveSchema } from './events';
-import { rpcErrorSchema, rpcRequestSchema } from './rpc';
+import { rpcRequestSchema } from './rpc';
+import { rpcErrorSchema } from './errors';
 export const envelopeSchema = z
   .strictObject({
     v: z.literal(1),

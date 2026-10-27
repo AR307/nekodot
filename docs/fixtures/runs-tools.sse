@@ -1,0 +1,33 @@
+id: 0
+data: {"event": "message.delta", "run_id": "run_a0d2de993f0843828c6d62782d03ef7c", "timestamp": 1793094537.8042786, "delta": " ", "seq": 0}
+
+id: 1
+data: {"event": "tool.started", "run_id": "run_a0d2de993f0843828c6d62782d03ef7c", "timestamp": 1793094538.089277, "tool": "terminal", "preview": "printf NEKODOT_TOOL_OK", "tool_call_id": "call_648ad89d75a94224a7536f929446364f", "seq": 1}
+
+id: 2
+data: {"event": "tool.completed", "run_id": "run_a0d2de993f0843828c6d62782d03ef7c", "timestamp": 1793094538.1811259, "tool": "terminal", "duration": 0, "error": false, "tool_call_id": "call_648ad89d75a94224a7536f929446364f", "preview": "", "seq": 2}
+
+id: 3
+data: {"event": "message.delta", "run_id": "run_a0d2de993f0843828c6d62782d03ef7c", "timestamp": 1793094544.012664, "delta": " ", "seq": 3}
+
+id: 4
+data: {"event": "message.delta", "run_id": "run_a0d2de993f0843828c6d62782d03ef7c", "timestamp": 1793094544.0130816, "delta": "\n\nNE", "seq": 4}
+
+id: 5
+data: {"event": "message.delta", "run_id": "run_a0d2de993f0843828c6d62782d03ef7c", "timestamp": 1793094544.024337, "delta": "K", "seq": 5}
+
+id: 6
+data: {"event": "message.delta", "run_id": "run_a0d2de993f0843828c6d62782d03ef7c", "timestamp": 1793094544.0247185, "delta": "OD", "seq": 6}
+
+id: 7
+data: {"event": "message.delta", "run_id": "run_a0d2de993f0843828c6d62782d03ef7c", "timestamp": 1793094544.0249066, "delta": "OT", "seq": 7}
+
+id: 8
+data: {"event": "message.delta", "run_id": "run_a0d2de993f0843828c6d62782d03ef7c", "timestamp": 1793094544.0252507, "delta": "_TOOL", "seq": 8}
+
+id: 9
+data: {"event": "message.delta", "run_id": "run_a0d2de993f0843828c6d62782d03ef7c", "timestamp": 1793094544.266796, "delta": "_OK", "seq": 9}
+
+id: 10
+data: {"event": "run.completed", "run_id": "run_a0d2de993f0843828c6d62782d03ef7c", "timestamp": 1793094544.3781064, "output": "NEKODOT_TOOL_OK", "usage": {"input_tokens": 28806, "output_tokens": 34, "total_tokens": 28840}, "runtime": {"provider": "", "model": "", "route_source": "global"}, "completed": true, "partial": false, "interrupted": false, "seq": 10}
+

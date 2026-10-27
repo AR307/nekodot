@@ -1,0 +1,49 @@
+{
+  "final": {
+    "run_id": "run_792bb221a01c48d6b113c3faf77d25c8",
+    "status": "completed",
+    "output": "Read the full file and successfully appended the exact line NEKODOT_APPROVAL_OK using patch in replace mode.",
+    "execution_generation": 1,
+    "pending_controls": [],
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "runtime": {
+      "provider": "",
+      "model": "",
+      "route_source": "global"
+    },
+    "created_at": 1793094544.4359322,
+    "session_id": "nk_dm_d23c5985-bc98-4a95-87dc-3965be12a640",
+    "admission_id": "79071430eeb041d19d602d30d35625c1",
+    "usage": {
+      "input_tokens": 105217,
+      "output_tokens": 286,
+      "total_tokens": 105503
+    }
+  },
+  "pending": {
+    "run_id": "run_792bb221a01c48d6b113c3faf77d25c8",
+    "status": "waiting_for_approval",
+    "output": "",
+    "execution_generation": 1,
+    "pending_controls": [
+      {
+        "prompt_id": "ac9730c5472d4316bfd0629e931f8b5f",
+        "kind": "approval",
+        "execution_generation": 1,
+        "command": "<write to AGENTS.md>",
+        "description": "Write to protected agent-instruction file(s): AGENTS.md. These files steer future agent behavior; approval is always required (not bypassed by auto-approve).",
+        "choices": [
+          "once",
+          "deny"
+        ]
+      }
+    ],
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "created_at": 1793094544.4359322,
+    "session_id": "nk_dm_d23c5985-bc98-4a95-87dc-3965be12a640",
+    "admission_id": "79071430eeb041d19d602d30d35625c1",
+    "usage": {}
+  }
+}
