@@ -1,0 +1,14 @@
+{
+  "name": "@nekodot/node",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node24 --packages=external --outfile=dist/index.js"
+  },
+  "dependencies": {
+    "@nekodot/protocol": "workspace:*",
+    "pino": "^10.4.0"
+  }
+}

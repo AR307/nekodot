@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "types": ["node", "vite/client"],
+    "paths": {
+      "@nekodot/protocol": ["./packages/protocol/src/index.ts"],
+      "@nekodot/fake-hermes": ["./packages/fake-hermes/src/index.ts"]
+    }
+  },
+  "include": ["apps", "packages", "scripts", "tests", "*.config.ts"]
+}

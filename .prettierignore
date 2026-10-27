@@ -1,0 +1,8 @@
+pnpm-lock.yaml
+docs/references/**
+design/**
+docs/fixtures/**
+.runtime/**
+dist/**
+node_modules/**
+.env*
