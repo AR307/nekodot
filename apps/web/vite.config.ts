@@ -1,3 +1,14 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-export default defineConfig({ plugins: [react()], server: { host: '127.0.0.1', port: 4318 } });
+import tailwindcss from '@tailwindcss/vite';
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  server: {
+    host: '127.0.0.1',
+    port: 4318,
+    proxy: {
+      '/api': { target: process.env.VITE_RELAY_URL ?? 'http://127.0.0.1:4319' },
+      '/ws': { target: process.env.VITE_RELAY_URL ?? 'http://127.0.0.1:4319', ws: true },
+    },
+  },
+});
