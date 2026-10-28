@@ -169,6 +169,15 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   expect(services.fake!.inspectRuns()).toHaveLength(1);
   await expect(page.locator('.run-banner')).toHaveCount(0, { timeout: 10000 });
 
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  const resumedSocket = page.waitForEvent('websocket', { timeout: 10000 });
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow')));
+  const socket = await resumedSocket;
+  expect(socket.url()).toContain('/ws/client');
+  await expect(page.locator('.chat-status')).not.toContainText('电脑离线');
+  expect(pageErrors).toEqual([]);
+
   await composer.fill('Please demonstrate a protected-file approval.');
   await composer.press('Enter');
   await expect(page.locator('.approval-card')).toBeVisible({ timeout: 10000 });

@@ -12,6 +12,7 @@
     "fresh-vps-node-install",
     "node-service-restart-history",
     "reverse-ssh-tunnel-offline-online-reconnect",
+    "browser-page-resume-reconnect",
     "second-client-conversation-sync",
     "offline-online-resync",
     "lan-development-page"
@@ -36,6 +37,16 @@
       "nodeDownloadHttpStatus": 200,
       "nodeDownloadBytes": 1389522,
       "dataMountPreserved": true
+    },
+    "browserResume": {
+      "websocketReopened": true,
+      "nodeSyncCompleted": true,
+      "browserErrors": 0
+    },
+    "edgeE2e": {
+      "browser": "Microsoft Edge",
+      "results": "3 passed",
+      "isolatedWebPort": 4392
     },
     "freshVpsNode": {
       "os": "Ubuntu 24.04 x64",

@@ -79,6 +79,7 @@ export function RelayConnection() {
           useAppStore.getState().setSelectedConversation(activeConversation);
           await loadConversation(activeConversation);
         }
+        useAppStore.getState().setNodeOnline(selectedNodeId, true);
         syncing = false;
         const buffered = queue.splice(0);
         for (const update of buffered
@@ -137,7 +138,7 @@ export function RelayConnection() {
       if (document.visibilityState !== 'visible') return;
       if (socket?.readyState === WebSocket.OPEN) {
         reconnectDelay = 1000;
-        socket.close(1001, 'Client resumed');
+        socket.close(1000, 'Client resumed');
       } else if (socket?.readyState !== WebSocket.CONNECTING) connect();
     };
     connect();

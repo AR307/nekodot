@@ -156,5 +156,7 @@ Node 以官方 CLI/API 管理 Hermes。Node 是本地业务状态的唯一数据
 - 新增服务器首次安装时补装 `libatomic1` 后，通过独立 Unix 用户和 systemd linger 安装 Hermes/Node；真实自定义 API 私聊成功，Node service 重启后历史保留，断开反向 SSH 通路 30 秒后自动重连。
 - 新服务器暴露 Hermes PM 的 `libatomic.so.1` 前置依赖，安装器现会在下载前明确检查并提示 Ubuntu/Debian 安装 `libatomic1`；包含该检查的新 Relay 镜像已部署，Relay health、安装器和 Node 单文件下载均验证成功。
 - VPS 节点验收期间通过本机 SSH 反向隧道访问 loopback Relay；当前节点在线依赖该隧道持续运行，尚未配置新服务器到 Relay 的持久服务器间 SSH 身份。PM 对可选 `cua-driver` 报缺少 `libXi.so.6`，屏幕控制未纳入本阶段验证。
+- Edge 页面恢复时改用浏览器允许的 WebSocket 正常关闭码；重连同步成功后恢复节点在线状态，私聊 E2E 覆盖页面返回、WebSocket 重建和无浏览器异常。
+- 最新代码在独立检出通过 frozen install、lint、typecheck、21 项测试、build 与 3 条 Edge E2E；现场截图和首次安装依赖记录保留在 `docs/evidence/`。
 - 尚未在手机真机后台/唤醒流程和全新 WSL 配对现场验收；开发脚本自建 SSH 隧道的断线重连分支也未单独触发。
 - Phase 3 提交后另建独立本地克隆，不复制 `.env`、账号或 `node_modules`；Node 24.22.1 / pnpm 10.34.5 的 frozen install、lint、typecheck、21 项测试、build 和独立端口 4368 的 3 条 Edge E2E 全部通过。
