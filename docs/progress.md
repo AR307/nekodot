@@ -138,3 +138,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 已人工查看新建群组、流式接力、工具/审批、真实失败继续、非最终提及、停止及三尺寸截图；中英、浅深色、reduced-motion 和无横向溢出通过。
 - 检查全部 Git 跟踪及本次新增资料，未发现本地 endpoint、model、API key 的实际值；Phase 2 fixture/报告未发现个人目录。未删除参考、profile、历史、日志或检出现场；未推送任何 Phase 2 提交。
 - 原 HTML 的逐屏视觉对照限制继续保留；产品本身的 Edge 视觉验收已完成。
+
+## 2026-10-28 / Hermes 原生单 agent 边界
+
+- 已核对产品调用链：`bots.ts` 为每个 Bot 创建独立 Hermes profile；`app.ts` 将私聊原文交给该 profile 的 `HermesApi.createRun`，会话使用 `nk_dm_<conversationId>`。产品不直接调用模型，也不实现 agent 或工具执行循环。
+- 官方源码中 `gateway/platforms/api_server.py` 创建 `AIAgent`，`api_server_runs.py` 调用 `agent.run_conversation`。nekodot 的 SSE、审批、steer 与停止只是该原生运行的界面和控制入口；群聊只增加成员路由和上下文传递。
+- 移除产品新建 profile 的 `--no-skills`，使用 `hermes profile create <botId> --no-alias` 的官方默认技能初始化。架构约定已写入 AGENTS.md、README 和 Summary.md。
+- 在 WSL Ubuntu 24.04 / Node v24.22.1 中通过 `runHermesCli` 与官方 PM runtime 实际创建两个隔离 profile：均有独立 `.env`、SOUL、会话、记忆和技能目录，各包含 58 个技能，均无 `.no-bundled-skills` 标记。验证脚本及原始 CLI 日志保留在本地忽略目录；既有 profile 未修改或删除。
+- `pnpm lint`、`pnpm typecheck`、`pnpm test`（8 文件、19 项场景）及 `pnpm --filter @nekodot/node build` 通过。本次修改只影响新 profile 的初始化，未新增模型调用；此前真实私聊和群聊证据保持独立记录。

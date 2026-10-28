@@ -155,14 +155,7 @@ export class ManagedHermes implements HermesRuntime {
     }
   }
   async configureBot(bot: Bot, create: boolean) {
-    if (create)
-      await runHermesCli(this.launch, [
-        'profile',
-        'create',
-        bot.botId,
-        '--no-alias',
-        '--no-skills',
-      ]);
+    if (create) await runHermesCli(this.launch, ['profile', 'create', bot.botId, '--no-alias']);
     const provider = await this.currentProvider();
     if (!provider) throw new Error('Configure a model provider first');
     await this.writeEnv(bot.botId, provider);

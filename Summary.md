@@ -8,12 +8,19 @@ Node 以官方 CLI/API 管理 Hermes。Node 是本地业务状态的唯一数据
 - apps/web：React 用户界面。
 - apps/relay：连接与路由入口。
 - apps/node：本机代理与 Hermes 集成。
+- 每个 Bot 对应独立 Hermes profile；单 agent 的模型、上下文、记忆、技能和工具循环直接采用 Hermes 原生实现。nekodot 只处理产品状态与群聊接力路由。
 - packages/protocol：Zod 边界协议及 TypeScript 类型。
 - packages/fake-hermes：仅测试使用的真实事件回放服务。
 - scripts：开发和真实 Hermes spike。
 - docs/references、design：完整技术及视觉原件。
 
 ## 更新记录
+
+### 2026-10-28 / Hermes 原生单 agent 边界
+
+- 确认一个 Bot 对应一个 Hermes profile；私聊原文通过官方 Runs API 交给 Hermes，模型、上下文、记忆、技能及工具循环均由 Hermes 实现。群聊仅在产品层选择成员并顺序交接。
+- 新建 profile 不再传入 --no-skills，保留官方默认技能初始化；将此边界写入 AGENTS.md 和 README。
+- WSL Ubuntu 24.04 中通过产品 CLI 封装在隔离 HERMES_HOME 实际创建两个 profile，各初始化 58 个技能和独立会话/记忆目录。Node 24 的 lint、typecheck、19 项现有场景与 Node 构建通过；既有 profile 和历史保持原状。
 
 ### 2026-10-27 / 0.0
 

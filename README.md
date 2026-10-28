@@ -5,6 +5,10 @@
 架构：React Web → Fastify/WebSocket Relay → 本地 Node → 官方 Hermes CLI/API。
 聊天与完整密钥留在 Node；Relay 负责账号、配对、在线状态和连接路由。
 
+每个 Bot 就是一个独立的 Hermes profile。私聊将用户输入直接交给该 profile 的官方 Runs API，
+由 Hermes 自身处理模型调用、会话上下文、记忆、技能和工具执行；新建 profile 使用官方默认技能初始化。
+nekodot 负责界面与消息同步，群聊只增加成员选择、上下文传递和顺序接力，每轮仍交给对应 profile 的 Hermes 执行。
+
 ## 开发
 
 要求 Node 24 LTS、pnpm 10.34.5；浏览器验收当前使用本机 Microsoft Edge。
