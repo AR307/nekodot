@@ -1,0 +1,50 @@
+﻿{
+  "sourceCommit": "d96712fec7fdcf9bd9ad5f62d3526912f27b878c",
+  "checkout": ".runtime/phase2-clean-20261028-155920",
+  "startedAt": "2026-10-28T07:59:20.0509146Z",
+  "node": "v24.22.1",
+  "pnpm": "10.34.5",
+  "rootEnvCopied": false,
+  "dependenciesCopied": false,
+  "edge": true,
+  "webPort": 4358,
+  "commands": [
+    {
+      "command": "pnpm install --frozen-lockfile",
+      "exitCode": 0,
+      "seconds": 3.74
+    },
+    {
+      "command": "pnpm lint",
+      "exitCode": 0,
+      "seconds": 5.33
+    },
+    {
+      "command": "pnpm typecheck",
+      "exitCode": 0,
+      "seconds": 2.66
+    },
+    {
+      "command": "pnpm test",
+      "exitCode": 0,
+      "seconds": 8.39
+    },
+    {
+      "command": "pnpm build",
+      "exitCode": 0,
+      "seconds": 1.71
+    },
+    {
+      "command": "pnpm test:e2e",
+      "exitCode": 0,
+      "seconds": 29.83
+    }
+  ],
+  "passed": true,
+  "completedAt": "2026-10-28T08:00:13.0107939Z",
+  "tests": {
+    "scenarios": 19,
+    "edgeJourneys": 3,
+    "files": 8
+  }
+}
