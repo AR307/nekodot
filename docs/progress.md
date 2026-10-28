@@ -146,3 +146,24 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 移除产品新建 profile 的 `--no-skills`，使用 `hermes profile create <botId> --no-alias` 的官方默认技能初始化。架构约定已写入 AGENTS.md、README 和 Summary.md。
 - 在 WSL Ubuntu 24.04 / Node v24.22.1 中通过 `runHermesCli` 与官方 PM runtime 实际创建两个隔离 profile：均有独立 `.env`、SOUL、会话、记忆和技能目录，各包含 58 个技能，均无 `.no-bundled-skills` 标记。验证脚本及原始 CLI 日志保留在本地忽略目录；既有 profile 未修改或删除。
 - `pnpm lint`、`pnpm typecheck`、`pnpm test`（8 文件、19 项场景）及 `pnpm --filter @nekodot/node build` 通过。本次修改只影响新 profile 的初始化，未新增模型调用；此前真实私聊和群聊证据保持独立记录。
+
+# Phase 3 进度
+
+| 模块               | 状态              | 验证                                                                                                                                       |
+| ------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 3.1 Relay 与分发   | 已实现并部署      | 本地构建镜像；VPS 健康、`/install.sh` 和 Node 下载正常；仅 `127.0.0.1:4329` 映射，既有 `/data` 挂载保留                                    |
+| 3.2 本地开发入口   | 已实现并启动      | `pnpm dev:remote` 提供 4318 同源页面，复用已有健康隧道；`--lan` 绑定 LAN 可达，页面 HTTP 200                                               |
+| 3.3 节点安装与服务 | WSL2 重复安装通过 | 使用已配对节点，不提供配对码；身份/历史保留，Hermes API 自动选用 18643，systemd user service 正常。独立 VPS 节点和全新配对尚未验收         |
+| 3.4 配对与多端恢复 | 主要旅程通过      | Edge 两客户端私聊/群聊同步、30 秒离线恢复通过；真实手机后台恢复未测                                                                        |
+| 3.5–3.6 整体验收   | 部分完成          | frozen install、lint、typecheck、21 项测试、build、3 条 Edge E2E 及真实自定义 API 私聊/群聊通过；开发工具自建 SSH 隧道的断线重连未单独触发 |
+
+## Phase 3 实际结果 / 2026-10-28
+
+- Relay 镜像在本地构建后上传到现有 VPS；仅重建 `nekodot-phase3` 项目容器，没有重启整机、Caddy 或其他项目。部署后 `/health`、`/install.sh`、`/downloads/nekodot-node.cjs` 均可用，数据库 bind mount 未变，账号可继续登录。
+- 本机 `dev:remote` 在 4318 提供页面，浏览器 HTTP、WebSocket 和下载经同源代理。由于 WSL systemd SSH 隧道已占用本机 4329 且 Relay health 正常，启动器复用该隧道而未额外启动第二条 SSH 连接。独立 `--lan` 测试在 LAN 接口地址上返回 HTTP 200；未进行真机访问。
+- WSL Ubuntu 24.04 x64 中重复执行从新 Relay 下载的安装器，无 `--pair` 参数。安装器保留已有 nodeId 与数据，发现 18642 已由 Phase 1 Hermes 使用后选择 18643；当前 nekodot Node 服务 `active/running`，Phase 1 进程未触碰。
+- Edge 使用本地已有账号登录，没有重复注册或消费配对码。真实自定义 OpenAI-compatible API 的私聊回复成功；第二个 Hermes profile 在群聊收到非主答成员的 @handle 定向请求并成功回复。
+- 两个独立 Edge 客户端看到同一私聊及群聊记录；私聊第二客户端离线 30 秒期间由第一客户端发送，恢复后同步到新消息。真实截图为 `phase3-live-chat.png`、`phase3-second-device-390.png`、`phase3-group-390.png`；初次配对界面为 `phase3-pairing-live.png`。
+- 实际命令：`pnpm install --frozen-lockfile`、`pnpm lint`、`pnpm typecheck`、`pnpm test`（9 文件、21 项）、`pnpm build`、`CI=true PLAYWRIGHT_WEB_PORT=4358 pnpm test:e2e`（3 条 Edge 旅程）。另实际构建隔离 Docker 镜像并验证其不含源码目录，安装器和单文件 Node 下载 HTTP 均成功。
+- 未完成项：独立 VPS 专属用户下运行 Node、最新版本全新 WSL 配对、手机真机后台恢复及开发脚本自建 SSH 隧道断线重连。Phase 3 不整体标记为全部验收完成。
+- 证据文件 `docs/evidence/phase3-live-acceptance.json` 不记录账号、密钥、endpoint、model 名或 SSH 目标；既有 provider `.env`、账号、profile 和临时现场均留在本地。

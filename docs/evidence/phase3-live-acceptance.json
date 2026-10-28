@@ -1,0 +1,37 @@
+{
+  "acceptanceRunCompleted": true,
+  "phase3Complete": false,
+  "target": "WSL2 Ubuntu 24.04 x64 existing node home; VPS hosts Relay on loopback",
+  "browser": "Microsoft Edge",
+  "scenarios": [
+    "existing-account-login",
+    "repeat-install-retains-node",
+    "systemd-user-service",
+    "custom-provider-live-private-reply",
+    "real-group-targeted-reply",
+    "second-client-conversation-sync",
+    "offline-online-resync",
+    "lan-development-page"
+  ],
+  "results": {
+    "pairingCodeProvidedOnRepeatInstall": false,
+    "nodeIdentityRetained": true,
+    "nodeService": "active",
+    "hermesApiPort": 18643,
+    "realProvider": "custom-openai-compatible",
+    "privateReply": "NEKODOT_PHASE3_LIVE_OK",
+    "secondClientReply": "NEKODOT_PHASE3_SECOND_DEVICE_OK",
+    "groupReply": "NEKODOT_PHASE3_GROUP_PARTNER_OK",
+    "offlineRecoverySeconds": 30,
+    "lanPageHttpStatus": 200,
+    "relayHealth": "ok",
+    "relayDataMountPreserved": true
+  },
+  "screenshots": [
+    "phase3-pairing-live.png",
+    "phase3-live-chat.png",
+    "phase3-second-device-390.png",
+    "phase3-group-390.png"
+  ],
+  "credentialsRecorded": false
+}
