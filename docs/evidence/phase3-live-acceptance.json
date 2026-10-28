@@ -9,6 +9,9 @@
     "systemd-user-service",
     "custom-provider-live-private-reply",
     "real-group-targeted-reply",
+    "fresh-vps-node-install",
+    "node-service-restart-history",
+    "reverse-ssh-tunnel-offline-online-reconnect",
     "second-client-conversation-sync",
     "offline-online-resync",
     "lan-development-page"
@@ -25,13 +28,35 @@
     "offlineRecoverySeconds": 30,
     "lanPageHttpStatus": 200,
     "relayHealth": "ok",
-    "relayDataMountPreserved": true
+    "relayDataMountPreserved": true,
+    "relayUpdate": {
+      "health": "ok",
+      "installerHttpStatus": 200,
+      "installerDependencyCheck": "libatomic.so.1",
+      "nodeDownloadHttpStatus": 200,
+      "nodeDownloadBytes": 1389522,
+      "dataMountPreserved": true
+    },
+    "freshVpsNode": {
+      "os": "Ubuntu 24.04 x64",
+      "noHermesAtBaseline": true,
+      "dedicatedUserService": "active",
+      "privateReply": "NEKODOT_PHASE3_NEW_VPS_OK",
+      "serviceRestartHistory": "passed",
+      "relayReconnectAfterTunnelOutageSeconds": 30,
+      "relayAccessDuringAcceptance": "temporary workstation SSH reverse tunnel",
+      "runtimeDependencyInstalled": "libatomic1"
+    },
+    "optionalHermesCuaDriver": "PM verification reported missing libXi.so.6; screen-control scope was not tested",
+    "existingDockerServicesRestarted": false,
+    "preexistingSystemdFailureChanged": false
   },
   "screenshots": [
     "phase3-pairing-live.png",
     "phase3-live-chat.png",
     "phase3-second-device-390.png",
-    "phase3-group-390.png"
+    "phase3-group-390.png",
+    "phase3-new-vps-live.png"
   ],
   "credentialsRecorded": false
 }

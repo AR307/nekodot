@@ -51,6 +51,10 @@ fi
 for tool in curl tar git; do
   command -v "$tool" >/dev/null || { printf 'Install %s with your system package manager, then rerun.\n' "$tool" >&2; exit 1; }
 done
+if ! ldconfig -p 2>/dev/null | grep -qF 'libatomic.so.1'; then
+  printf '%s\n' 'The Hermes runtime requires libatomic.so.1. Install the OS package that provides it (Ubuntu/Debian: libatomic1), then rerun.' >&2
+  exit 1
+fi
 if [ -n "$relay_ssh" ]; then
   [[ "$relay_ssh" =~ ^([a-zA-Z0-9_.-]+@)?[a-zA-Z0-9_.-]+$ ]] || {
     printf '%s\n' 'The Relay SSH target must be a configured host alias or user@host.' >&2; exit 2;
