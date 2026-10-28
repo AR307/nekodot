@@ -229,9 +229,13 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
         () =>
           !app.database.runs().some((run) => run.conversationId === conversation.conversationId),
       );
-      const runText = messages().filter(
-        (message) => message.kind === 'text' && message.author.type === 'bot',
-      );
+      const runText = app.database
+        .messagesForRun(lastRun.runId)
+        .filter(
+          (message) =>
+            (message.kind === 'text' || message.kind === 'commentary') &&
+            message.author.type === 'bot',
+        );
       expect(runText.length).toBeGreaterThanOrEqual(2);
       expect(runText.at(-1)).toMatchObject({ content: { text: 'NEKODOT_STEER_OK' } });
       expect(relay.inspectRuns().at(-1)?.toolStarts).toBe(1);
@@ -274,6 +278,7 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
         'group-researcher',
         'group-writer',
         'group-self-outsider',
+        'group-nonfinal-mentions',
         'group-loop-researcher',
         'group-loop-writer',
         'group-steer',
@@ -331,6 +336,7 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
         )) as { bot: Bot };
       const lead = await createBot('Researcher', 'researcher');
       const writer = await createBot('Writer', 'writer');
+      const reviewer = await createBot('Reviewer', 'reviewer');
       const created = (await app.handle(
         request('groups.create', {
           name: 'Research room',
@@ -421,6 +427,24 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       await waitIdle();
       expect(relay.inspectRuns().slice(before)).toHaveLength(1);
 
+      schedule.push('group-nonfinal-mentions');
+      before = relay.inspectRuns().length;
+      await send('Mention a teammate only in the progress note and terminal preview.');
+      await waitIdle();
+      const nonfinalRuns = relay.inspectRuns().slice(before);
+      expect(nonfinalRuns).toHaveLength(1);
+      const nonfinalMessages = app.database.messagesForRun(nonfinalRuns[0]!.runId);
+      expect(
+        nonfinalMessages.some(
+          (message) => message.kind === 'commentary' && message.content.text.includes('@writer'),
+        ),
+      ).toBe(true);
+      expect(
+        nonfinalMessages.some(
+          (message) => message.kind === 'tool' && message.content.preview.includes('@writer'),
+        ),
+      ).toBe(true);
+
       schedule.push('group-failed', 'group-writer');
       before = relay.inspectRuns().length;
       await send('@researcher @writer Continue if the first member fails.');
@@ -459,6 +483,11 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       await waitFor(() => app.database.runs().length === 0);
       expect(app.database.chain(conversation.conversationId)).toBeUndefined();
       expect(relay.inspectRuns().slice(before)).toHaveLength(1);
+      expect(
+        app.database
+          .messagesForRun(relay.inspectRuns().at(-1)!.runId)
+          .find((message) => message.kind === 'tool')?.status,
+      ).toBe('cancelled');
 
       before = relay.inspectRuns().length;
       schedule.push(
@@ -493,6 +522,63 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       await waitIdle();
       expect(relay.inspectRuns().slice(before)[0]?.profile).toBe(writer.bot.botId);
       expect(relay.inspectRuns().at(-1)?.input).toContain('Edited research room');
+
+      const other = (await app.handle(
+        request('groups.create', {
+          name: 'Review room',
+          botIds: [lead.bot.botId, reviewer.bot.botId],
+          leadBotId: reviewer.bot.botId,
+        }),
+      )) as { group: { groupId: string } };
+      const otherConversation = app.database
+        .conversations()
+        .find((item) => item.kind === 'group' && item.groupId === other.group.groupId)!;
+      before = relay.inspectRuns().length;
+      schedule.push('runs-tools-approval', 'group-lead', 'group-writer');
+      await send('@researcher @writer Wait for the protected-file approval.');
+      await waitFor(() => app.database.runs().some((run) => run.state === 'waiting_approval'));
+      await app.handle(
+        request('groups.update', {
+          groupId: created.group.groupId,
+          botIds: [lead.bot.botId, reviewer.bot.botId],
+          leadBotId: reviewer.bot.botId,
+        }),
+      );
+      expect(
+        app.database.chain(conversation.conversationId)?.roster.map((bot) => bot.botId),
+      ).toEqual([lead.bot.botId, writer.bot.botId]);
+      await app.handle(
+        request('messages.send', {
+          conversationId: otherConversation.conversationId,
+          text: 'Complete another group while the first one waits.',
+          clientMsgId: randomUUID(),
+        }),
+      );
+      await waitFor(() => !app.database.chain(otherConversation.conversationId));
+      expect(app.database.runs()).toHaveLength(1);
+      expect(app.database.runs()[0]?.state).toBe('waiting_approval');
+      await app.close();
+      app = new NodeApplication(home, runtime);
+      await app.resume();
+      expect(app.database.chain(conversation.conversationId)?.queue).toEqual([writer.bot.botId]);
+      const approval = app.database
+        .messages(conversation.conversationId)
+        .find((message) => message.kind === 'approval' && message.status === 'streaming')!;
+      await app.handle(
+        request('approvals.respond', { messageId: approval.messageId, choice: 'once' }),
+      );
+      await waitIdle();
+      expect(
+        relay
+          .inspectRuns()
+          .slice(before)
+          .map((run) => run.profile),
+      ).toEqual([lead.bot.botId, reviewer.bot.botId, writer.bot.botId]);
+      schedule.push('group-lead');
+      await send('Use the updated members for this new message.');
+      await waitIdle();
+      expect(relay.inspectRuns().at(-1)?.profile).toBe(reviewer.bot.botId);
+      await app.handle(request('groups.archive', { groupId: other.group.groupId }));
       await app.handle(request('groups.archive', { groupId: created.group.groupId }));
       expect(app.database.groups()).toHaveLength(0);
       expect(app.database.conversation(conversation.conversationId)).toBeDefined();

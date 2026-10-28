@@ -98,7 +98,7 @@ export async function startFakeHermes(options: FakeHermesOptions) {
     let toolGateSeen = false;
     for (const recorded of run.fixture.events) {
       let event = { ...recorded, run_id: runId };
-      if (run.stopped && run.scenario !== 'runs-stop') {
+      if (run.stopped && !run.scenario.endsWith('-stop')) {
         const cancelled = fixtures.get('runs-stop')!;
         event = {
           ...cancelled.events.find((item) => item.event === 'run.cancelled')!,
@@ -129,7 +129,7 @@ export async function startFakeHermes(options: FakeHermesOptions) {
       if (
         ['run.completed', 'run.cancelled', 'run.failed', 'run.interrupted'].includes(event.event)
       ) {
-        if (!run.stopped || run.scenario === 'runs-stop')
+        if (!run.stopped || run.scenario.endsWith('-stop'))
           run.state = { ...run.fixture.final, run_id: runId, session_id: run.state.session_id };
       }
       run.frames.push(event);

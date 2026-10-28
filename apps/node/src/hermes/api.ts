@@ -4,8 +4,10 @@ import {
   hermesRunStateSchema,
   hermesSteerResponseSchema,
   type HermesRunState,
+  type RpcError,
 } from '@nekodot/protocol';
 import { readSse } from './sse';
+import { NodeFault } from '../fault';
 export class HermesApi {
   constructor(
     readonly baseUrl: string,
@@ -21,11 +23,19 @@ export class HermesApi {
       },
       ...(!path.endsWith('/events') ? { signal: init?.signal ?? AbortSignal.timeout(30_000) } : {}),
     });
-    if (!response.ok)
-      throw Object.assign(
-        new Error('Hermes HTTP ' + response.status + '. Check the run or provider and try again.'),
-        { code: 'hermes_error' },
+    if (!response.ok) {
+      const codes: Record<number, RpcError['code']> = {
+        400: 'invalid_params',
+        401: 'unauthorized',
+        403: 'forbidden',
+        404: 'not_found',
+        409: 'conflict',
+      };
+      throw new NodeFault(
+        codes[response.status] ?? 'unavailable',
+        'Hermes HTTP ' + response.status + '. Check the run or provider and try again.',
       );
+    }
     return response;
   }
   async createRun(input: string, sessionId: string, messageId: string, instructions?: string) {

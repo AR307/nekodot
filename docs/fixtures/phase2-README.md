@@ -8,9 +8,11 @@
 | group-target-1 / 2 | 用户按 Writer、Researcher 顺序指定成员 |
 | group-researcher / writer | Researcher 最终文本 @writer，Writer 接力 |
 | group-self-outsider | 自身与非成员提及，不产生额外回合 |
+| group-nonfinal-mentions | 工具前进度说明与工具命令提及成员，最终回复无提及，只运行一次 |
 | group-loop-researcher / writer | 两位成员相互提及；Node 在六回合停止队列 |
 | group-steer | terminal 执行中原生 steer，同一 run、一次工具与文件效果 |
 | group-stop | 工具中停止，真实 cancelled |
+| group-stop-latest | 最新代码再次停止，工具先 error-completed 再 run.cancelled，刷新后卡片仍为已停止 |
 | group-failed | 隔离提供方连接错误，真实 run.failed；后续成员继续 |
 
 回放服务的 `additionalFixtures` / `scenarioFor` 只用于测试选取录制场景。它不合成成功回复，产品启动链路不导入回放服务。原 Hermes 错误输出中的建议作为原始事实保留，不表示 nekodot 增加了对应功能。

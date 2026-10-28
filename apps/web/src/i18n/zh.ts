@@ -120,6 +120,7 @@ const zh = {
   noGroups: '让不同专长的 bot 组成小队。',
   relayProgress: '接力已进行',
   relayPaused: '已暂停接力，@ 某个 bot 继续。',
+  botTurnFailed: '{name} 未能完成本回合，继续处理后续成员。',
   stopAll: '全部停止',
   handoffTo: '交给',
   mentionMember: '@ 群成员',

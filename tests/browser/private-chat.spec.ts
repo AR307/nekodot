@@ -166,6 +166,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
     timeout: 10000,
   });
   expect(services.fake!.inspectRuns()).toHaveLength(1);
+  await expect(page.locator('.run-banner')).toHaveCount(0, { timeout: 10000 });
 
   await composer.fill('Please demonstrate a protected-file approval.');
   await composer.press('Enter');

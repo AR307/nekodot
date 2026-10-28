@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
+import { NodeFault } from './fault';
 import {
   envelopeSchema,
   rpcRequestSchema,
@@ -63,10 +64,8 @@ export function connectRelay(options: NodeConnectionOptions) {
           try {
             payload = { ok: true, result: await options.handleRpc(parsed.data) };
           } catch (error) {
-            const code =
-              error && typeof error === 'object' && 'code' in error ? error.code : 'internal_error';
-            const message =
-              error instanceof Error && 'code' in error ? error.message : 'Node request failed';
+            const code = error instanceof NodeFault ? error.code : 'internal_error';
+            const message = error instanceof NodeFault ? error.message : 'Node request failed';
             payload = { ok: false, error: { code, message } };
           }
         }

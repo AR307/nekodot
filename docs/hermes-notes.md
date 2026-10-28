@@ -210,3 +210,21 @@ WSL 会话退出时直接派生的后台进程曾被回收；最终使用仅属�
 
 完整场景和 runId 见 `docs/evidence/phase1-live-report.json`，最终视口复验见
 `phase1-live-visual-report.json`。OpenRouter 只完成网页配置、托管文件和密钥切换场景检查，未调用其付费模型。
+
+## Phase 2：群聊与 Bot 接力实测
+
+2026-10-28 沿用独立 WSL Ubuntu 24.04、Node 24.22.1、官方 Hermes PM runtime 和本地自定义 API。
+产品未更改 Hermes 核心；Relay 继续只路由既有 RPC、持久事件与实时通知。
+
+- 群会话使用 `nk_grp_<groupId>_<botId>`。名册与角色放在 Runs API 的 `instructions`，新群文本放在 `input`，采用 PDF 的群聊模板。
+- 每个 Bot 在 Node 持久保存上次发言游标；当前接力持久保存成员快照、顺序队列和已启动回合数。Node 重启查询原 run，并续接 SSE；不重发已完成任务。
+- 真实名册中的 Researcher 最终文本提及 Writer 后，Node 启动 Writer 的独立 run；自身与非成员提及不产生新回合。相互提及到第六回合时由 Node 写入提示并清空队列。
+- Hermes 实测可能在 `tool.started` 前仅发送 message.delta 而没有 message.interim；Node 将该段保存为 commentary。真实进度说明和工具预览包含 @writer、最终文本无提及时，只产生一个 run，不显示交接标签。
+- 群内 terminal 执行中调用原生 steer：runId 保持不变，一次工具、一次文件效果；尚未启动的 Writer 队列被清空。停止后 Hermes 实际为 cancelled，Writer 未启动。
+- 真实取消前可能先发 `tool.completed(error=true)`，再发 `run.cancelled`；Node 保存用户停止意图，将受影响工具标为 cancelled，历史已完成工具保持原结果。
+- 隔离 profile 临时配置不可达 provider 录制真实 `run.failed`，配置随后恢复；后续 Writer 完成。另一次无效模型引发上游 503 重试。这两次分别超过 120/240 秒浏览器等待，最终结果另行从网页和 run 状态复核，不据此承诺故障响应时间。
+- 最新 WSL 构建从网页修正本地模型配置，再完成 Writer → Researcher 的两次定向回复，以及建群、编辑主答、刷新、归档。完整 endpoint、model 与 key 未写入报告。
+
+实际命令形态与 Phase 1 相同，验收 Web/Relay 端口为 4339；Node 数据和 Hermes home 均为独立目录。
+运行中使用 `POST /p/<profile>/v1/runs/<runId>/steer` 和 `/stop`，没有增加群聊专用 Hermes 或 Relay 接口。
+真实 SSE/state 说明在 `docs/fixtures/phase2-README.md`，场景与 run/session 证据在 `docs/evidence/phase2-live-report.json`。

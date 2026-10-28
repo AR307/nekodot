@@ -346,6 +346,11 @@ function MessageView({
             ) : message.content.text ===
               'Relay paused after 6 turns. Mention a group member to continue.' ? (
               t.relayPaused
+            ) : message.content.text.endsWith(' could not complete this turn.') ? (
+              t.botTurnFailed.replace(
+                '{name}',
+                message.content.text.slice(0, -' could not complete this turn.'.length),
+              )
             ) : (
               message.content.text
             ))}
@@ -395,7 +400,9 @@ function MessageView({
             </>
           )}
           {message.kind === 'tool' && (
-            <div className={`tool-card${message.content.error ? ' tool-error' : ''}`}>
+            <div
+              className={`tool-card${message.content.error && message.status !== 'cancelled' ? ' tool-error' : ''}`}
+            >
               {members && (
                 <small className="card-author">
                   {bot.displayName} @{bot.handle}
@@ -405,10 +412,10 @@ function MessageView({
                 <span className={`tool-check ${message.status === 'streaming' ? 'spinning' : ''}`}>
                   {message.status === 'streaming'
                     ? '◌'
-                    : message.content.error || message.status === 'failed'
-                      ? '!'
-                      : message.status === 'cancelled'
-                        ? '×'
+                    : message.status === 'cancelled'
+                      ? '×'
+                      : message.content.error || message.status === 'failed'
+                        ? '!'
                         : '✓'}
                 </span>
                 <span className="tool-title">

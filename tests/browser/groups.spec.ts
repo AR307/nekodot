@@ -44,6 +44,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
   await relay.app.listen({ host: '127.0.0.1', port: 4340 });
   let app: NodeApplication | undefined;
   let connection: ReturnType<typeof connectRelay> | undefined;
+  let rejectNextControl = false;
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   try {
@@ -69,7 +70,11 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
             body: JSON.stringify({ profile: bot.botId }),
           });
       },
-      api: async (profile) => new HermesApi(fake.url + '/p/' + profile, key),
+      api: async (profile) => {
+        const apiKey = rejectNextControl ? 'rejected-control-key' : key;
+        rejectNextControl = false;
+        return new HermesApi(fake.url + '/p/' + profile, apiKey);
+      },
       models: async () => ({ models: [] }),
     };
     const connect = () => {
@@ -167,6 +172,12 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     await expect(page.locator('.chat-status')).toContainText('电脑离线');
     connect();
     await expect(page.locator('.chat-status')).toContainText('正在运行工具');
+    rejectNextControl = true;
+    await send('Keep this run and use the added instruction.');
+    await expect(page.locator('.inline-error')).toContainText('Hermes HTTP 401');
+    await expect(page.locator('.composer textarea')).toHaveValue(
+      'Keep this run and use the added instruction.',
+    );
     await send('Keep this run and use the added instruction.');
     await expect(page.getByText('已向当前回合补充指令', { exact: true })).toBeVisible();
     await idle();
@@ -179,6 +190,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     await page.getByRole('button', { name: '全部停止', exact: true }).click();
     await idle();
     expect(fake.inspectRuns()).toHaveLength(6);
+    await expect(page.locator('.tool-card').last().locator('.tool-status')).toContainText('已停止');
 
     await page.locator('.chat-title').click();
     await page.getByLabel('群组名称').fill('Edited studio');

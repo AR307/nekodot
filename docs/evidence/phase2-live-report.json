@@ -1,0 +1,210 @@
+{
+  "startedAt": "2026-10-28T06:58:05.264Z",
+  "scenarios": [
+    {
+      "name": "register-pair-provider-bots-group",
+      "passed": true
+    },
+    {
+      "name": "lead",
+      "passed": true,
+      "runs": [
+        {
+          "profile": "nk-couscr",
+          "runId": "run_bd3d05541a104437945a0b5b88e34a4e",
+          "sessionId": "nk_grp_d41144b9-4f4d-42c1-80e2-896213742416_nk-couscr",
+          "status": "completed",
+          "output": "PHASE2_LEAD_OK"
+        }
+      ]
+    },
+    {
+      "name": "member-order",
+      "passed": true,
+      "runs": [
+        {
+          "profile": "nk-sycedm",
+          "runId": "run_531ca5b31e99421c9edd6fd333dc21b4",
+          "sessionId": "nk_grp_d41144b9-4f4d-42c1-80e2-896213742416_nk-sycedm",
+          "status": "completed",
+          "output": "PHASE2_TARGET_OK"
+        },
+        {
+          "profile": "nk-couscr",
+          "runId": "run_4e21fc34a0a34bc2874b6085494f6a23",
+          "sessionId": "nk_grp_d41144b9-4f4d-42c1-80e2-896213742416_nk-couscr",
+          "status": "completed",
+          "output": "PHASE2_TARGET_OK"
+        }
+      ]
+    },
+    {
+      "name": "bot-relay",
+      "passed": true,
+      "runs": [
+        {
+          "profile": "nk-couscr",
+          "runId": "run_fb78f6df7fbe44cb988e888a3c87ba95",
+          "sessionId": "nk_grp_d41144b9-4f4d-42c1-80e2-896213742416_nk-couscr",
+          "status": "completed",
+          "output": "Research complete. @writer write the summary."
+        },
+        {
+          "profile": "nk-sycedm",
+          "runId": "run_8e44b00215ea416d86edaa75104cd27d",
+          "sessionId": "nk_grp_d41144b9-4f4d-42c1-80e2-896213742416_nk-sycedm",
+          "status": "completed",
+          "output": "PHASE2_RELAY_OK"
+        }
+      ]
+    },
+    {
+      "name": "self-and-outsider",
+      "passed": true,
+      "runs": [
+        {
+          "profile": "nk-couscr",
+          "runId": "run_e4d0b2bf69604392a181109ea3427dbb",
+          "sessionId": "nk_grp_d41144b9-4f4d-42c1-80e2-896213742416_nk-couscr",
+          "status": "completed",
+          "output": "PHASE2_IGNORE_OK @researcher @outsider"
+        }
+      ]
+    },
+    {
+      "name": "six-turn-limit",
+      "passed": true,
+      "runs": [
+        {
+          "profile": "nk-couscr",
+          "runId": "run_65bfff8360d74a52b52329c606f4453f",
+          "sessionId": "nk_grp_d41144b9-4f4d-42c1-80e2-896213742416_nk-couscr",
+          "status": "completed",
+          "output": "@writer PHASE2_LOOP"
+        },
+        {
+          "profile": "nk-sycedm",
+          "runId": "run_a6a95ea2884f4df4bb24082267010a34",
+          "sessionId": "nk_grp_d41144b9-4f4d-42c1-80e2-896213742416_nk-sycedm",
+          "status": "completed",
+          "output": "@researcher PHASE2_LOOP"
+        },
+        {
+          "profile": "nk-couscr",
+          "runId": "run_80ce0ab9240d4a2cb20bb5b3994752b5",
+          "sessionId": "nk_grp_d41144b9-4f4d-42c1-80e2-896213742416_nk-couscr",
+          "status": "completed",
+          "output": "@writer PHASE2_LOOP"
+        },
+        {
+          "profile": "nk-sycedm",
+          "runId": "run_45db37342d8c4fea99f0cce9d6ca4add",
+          "sessionId": "nk_grp_d41144b9-4f4d-42c1-80e2-896213742416_nk-sycedm",
+          "status": "completed",
+          "output": "@researcher PHASE2_LOOP"
+        },
+        {
+          "profile": "nk-couscr",
+          "runId": "run_75721b319b424418940e5e725e1a72a2",
+          "sessionId": "nk_grp_d41144b9-4f4d-42c1-80e2-896213742416_nk-couscr",
+          "status": "completed",
+          "output": "@writer PHASE2_LOOP"
+        },
+        {
+          "profile": "nk-sycedm",
+          "runId": "run_8fcdd821345d4c1fa811656c6657d8d5",
+          "sessionId": "nk_grp_d41144b9-4f4d-42c1-80e2-896213742416_nk-sycedm",
+          "status": "completed",
+          "output": "@researcher PHASE2_LOOP"
+        }
+      ]
+    },
+    {
+      "name": "same-run-steer-clears-queue",
+      "passed": true,
+      "runId": "run_bf33d47d2c834fd9b059a50924bdd7a0",
+      "toolCount": 1,
+      "effectCount": 1
+    },
+    {
+      "name": "stop-clears-queue",
+      "passed": true,
+      "runId": "run_2e39e89c98d8452d92eda9ab7e727e2e",
+      "status": "cancelled"
+    },
+    {
+      "name": "restart-history",
+      "passed": true
+    },
+    {
+      "name": "failure-continues-queue",
+      "passed": true,
+      "method": "isolated unreachable provider on the first member",
+      "runs": [
+        {
+          "profile": "nk-couscr",
+          "runId": "run_99ba53e1c0634516b3f16ba30ebe1596",
+          "status": "failed"
+        },
+        {
+          "profile": "nk-sycedm",
+          "runId": "run_2d06313d4636472e97a7d8b59bbf5cac",
+          "status": "completed"
+        }
+      ],
+      "browserRechecked": true
+    },
+    {
+      "name": "latest-build-directed-replies-and-group-management",
+      "passed": true,
+      "runs": [
+        {
+          "profile": "nk-sycedm",
+          "runId": "run_02192dd1e2484f589b667544f2f1455c",
+          "sessionId": "nk_grp_665cd4a3-0160-4ded-acb1-044f62245dcf_nk-sycedm",
+          "status": "completed",
+          "output": "PHASE2_FINAL_OK"
+        },
+        {
+          "profile": "nk-couscr",
+          "runId": "run_be9bf4ec279c48e898288a2c2f3b78a1",
+          "sessionId": "nk_grp_665cd4a3-0160-4ded-acb1-044f62245dcf_nk-couscr",
+          "status": "completed",
+          "output": "PHASE2_FINAL_OK"
+        }
+      ],
+      "refresh": true,
+      "edited": true,
+      "archived": true
+    },
+    {
+      "name": "commentary-and-tool-mentions-do-not-relay",
+      "passed": true,
+      "runId": "run_01f08a99c0304de3936061bd90261d31",
+      "sessionId": "nk_grp_d41144b9-4f4d-42c1-80e2-896213742416_nk-couscr",
+      "runCount": 1,
+      "commentaryMention": true,
+      "toolMention": true,
+      "output": "PHASE2_NONFINAL_IGNORE_OK"
+    },
+    {
+      "name": "latest-build-stop-and-tool-card",
+      "passed": true,
+      "runId": "run_ccf414c20d8741ab8b10de8eeb731f91",
+      "status": "cancelled",
+      "runCount": 1,
+      "queuedMemberStarted": false,
+      "toolCard": "cancelled",
+      "refresh": true
+    }
+  ],
+  "browserErrors": [],
+  "completedAt": "2026-10-28T07:00:48.740Z",
+  "passed": true,
+  "observations": [
+    "An invalid-model attempt exceeded the 240-second browser wait during upstream 503 retries. It ultimately failed and the queued member completed; the delayed result was recovered without replaying the task.",
+    "A later isolated unreachable-provider attempt also exceeded its 120-second browser wait. The first member ultimately failed and the next member completed. The final page, run states and recorded run.failed SSE were checked separately.",
+    "Failure continuation is verified; no immediate provider-failure response-time claim is made."
+  ],
+  "recheckedAt": "2026-10-28T07:57:55.810Z"
+}

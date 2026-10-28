@@ -120,6 +120,7 @@ const en = {
   noGroups: 'Bring different specialties into one team.',
   relayProgress: 'Relay turns',
   relayPaused: 'Relay paused after 6 turns. Mention a group member to continue.',
+  botTurnFailed: '{name} could not complete this turn. Continuing with queued members.',
   stopAll: 'Stop all',
   handoffTo: 'Hand to',
   mentionMember: '@ group member',

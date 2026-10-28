@@ -536,8 +536,12 @@ export class NodeApplication {
     if (event.event === 'tool.started') {
       const previous = this.currentText(run);
       if (previous) {
-        previous.status = 'done';
-        this.persistText(run, previous, event.seq);
+        run.lastSeq = event.seq;
+        this.database.putMessage(
+          { ...previous, kind: 'commentary', status: 'done' },
+          { runId },
+          run,
+        );
         run.textMessageId = undefined;
       }
       const toolCallId = event.tool_call_id!;
@@ -563,7 +567,7 @@ export class NodeApplication {
       run.state = 'thinking';
       run.lastSeq = event.seq;
       if (tool?.kind === 'tool') {
-        tool.status = 'done';
+        tool.status = run.stopRequested ? 'cancelled' : 'done';
         tool.content = {
           ...tool.content,
           resultPreview: event.preview ?? '',
@@ -820,7 +824,15 @@ export class NodeApplication {
       this.activeRuns.get(conversationId) ??
       this.database.runs().find((item) => item.conversationId === conversationId);
     if (!run?.runId) throw new NodeFault('not_found', 'No active run');
-    await (await this.hermes.api(run.botId)).stop(run.runId);
+    run.stopRequested = true;
+    this.database.saveRun(run);
+    try {
+      await (await this.hermes.api(run.botId)).stop(run.runId);
+    } catch (error) {
+      run.stopRequested = false;
+      this.database.saveRun(run);
+      throw error;
+    }
     if (run.groupId) this.database.clearChain(conversationId);
     return {};
   }

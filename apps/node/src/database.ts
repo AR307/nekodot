@@ -16,6 +16,7 @@ export interface RunRecord {
   botId: string;
   groupId?: string;
   requestId?: string;
+  stopRequested?: boolean;
   lastSeq: number;
   state: 'thinking' | 'tool' | 'waiting_approval' | 'idle';
   textMessageId?: string;
