@@ -23,6 +23,7 @@ export interface RuntimeOptions {
   home: string;
   source?: string;
   runtime: string;
+  apiPort?: number;
   onReady?: () => void;
   onLog?: (line: string) => void;
 }
@@ -33,8 +34,10 @@ export class ManagedHermes implements HermesRuntime {
   private child?: ChildProcess;
   private closing = false;
   private launch: HermesLaunch;
+  private apiPort: number;
   private secrets = new Set<string>();
   constructor(readonly options: RuntimeOptions) {
+    this.apiPort = options.apiPort ?? 18642;
     this.launch = options.source
       ? {
           command: 'bash',
@@ -59,7 +62,7 @@ export class ManagedHermes implements HermesRuntime {
     const env = await this.env(profile);
     if (!env.API_SERVER_KEY) throw new Error('Hermes profile has no API key');
     this.secrets.add(env.API_SERVER_KEY);
-    return new HermesApi('http://127.0.0.1:18642/p/' + profile, env.API_SERVER_KEY);
+    return new HermesApi('http://127.0.0.1:' + this.apiPort + '/p/' + profile, env.API_SERVER_KEY);
   }
   private async writeEnv(profile: string, provider?: ProviderInput) {
     const directory = this.profileHome(profile);
@@ -76,7 +79,7 @@ export class ManagedHermes implements HermesRuntime {
       API_SERVER_KEY: apiKey,
       API_SERVER_ENABLED: 'true',
       API_SERVER_HOST: '127.0.0.1',
-      API_SERVER_PORT: '18642',
+      API_SERVER_PORT: String(this.apiPort),
       ...(!provider && current.NEKODOT_PROVIDER_API_KEY
         ? { NEKODOT_PROVIDER_API_KEY: current.NEKODOT_PROVIDER_API_KEY }
         : {}),
@@ -113,7 +116,12 @@ export class ManagedHermes implements HermesRuntime {
     );
     const document = parseDocument(raw);
     if (document.errors.length) throw new Error('Hermes config is not valid YAML');
-    if (profile === 'default') document.setIn(['gateway', 'multiplex_profiles'], true);
+    if (profile === 'default') {
+      const gateway = document.get('gateway');
+      if (gateway && typeof gateway === 'object' && !Array.isArray(gateway))
+        document.setIn(['gateway', 'multiplex_profiles'], true);
+      else document.set('gateway', { multiplex_profiles: true });
+    }
     if (provider) {
       document.setIn(['model', 'provider'], provider.kind);
       document.setIn(['model', 'default'], model ?? provider.defaultModel ?? '');

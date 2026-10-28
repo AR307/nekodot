@@ -36,6 +36,7 @@ async function main() {
     const appRef: { current?: NodeApplication } = {};
     const runtime = new ManagedHermes({
       home: join(home, 'hermes'),
+      apiPort: Number(process.env.NEKODOT_HERMES_API_PORT ?? 18642),
       source: values['hermes-source'] ?? process.env.NEKODOT_HERMES_SOURCE,
       runtime:
         values['hermes-runtime'] ??
@@ -74,7 +75,8 @@ async function main() {
     }
   } else console.log('nekodot-node pair --relay <url> --code <code> | nekodot-node run');
 }
-void main().catch(() => {
-  console.error('Node startup failed. Check pairing credentials, runtime paths and local logs.');
+void main().catch((reason: unknown) => {
+  const detail = reason instanceof Error ? reason.message : 'Unknown startup error';
+  console.error('Node startup failed:', detail);
   process.exitCode = 1;
 });
