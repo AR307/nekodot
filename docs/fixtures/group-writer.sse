@@ -1,0 +1,28 @@
+: open
+
+id: 0
+data: {"event": "message.delta", "run_id": "run_8e44b00215ea416d86edaa75104cd27d", "timestamp": 1793170731.998855, "delta": " ", "seq": 0}
+
+id: 1
+data: {"event": "message.delta", "run_id": "run_8e44b00215ea416d86edaa75104cd27d", "timestamp": 1793170731.9993398, "delta": "PH", "seq": 1}
+
+id: 2
+data: {"event": "message.delta", "run_id": "run_8e44b00215ea416d86edaa75104cd27d", "timestamp": 1793170732.0082757, "delta": "ASE", "seq": 2}
+
+id: 3
+data: {"event": "message.delta", "run_id": "run_8e44b00215ea416d86edaa75104cd27d", "timestamp": 1793170732.0085554, "delta": "2", "seq": 3}
+
+id: 4
+data: {"event": "message.delta", "run_id": "run_8e44b00215ea416d86edaa75104cd27d", "timestamp": 1793170732.0087976, "delta": "_RE", "seq": 4}
+
+id: 5
+data: {"event": "message.delta", "run_id": "run_8e44b00215ea416d86edaa75104cd27d", "timestamp": 1793170732.009098, "delta": "LAY", "seq": 5}
+
+id: 6
+data: {"event": "message.delta", "run_id": "run_8e44b00215ea416d86edaa75104cd27d", "timestamp": 1793170732.0796309, "delta": "_OK", "seq": 6}
+
+id: 7
+data: {"event": "run.completed", "run_id": "run_8e44b00215ea416d86edaa75104cd27d", "timestamp": 1793170732.1536472, "output": "PHASE2_RELAY_OK", "usage": {"input_tokens": 14803, "output_tokens": 43, "total_tokens": 14846}, "runtime": {"provider": "", "model": "", "route_source": "global"}, "completed": true, "partial": false, "interrupted": false, "seq": 7}
+
+: stream closed
+

@@ -1,0 +1,40 @@
+: open
+
+id: 0
+data: {"event": "message.delta", "run_id": "run_2e39e89c98d8452d92eda9ab7e727e2e", "timestamp": 1793170833.697779, "delta": "I", "seq": 0}
+
+id: 1
+data: {"event": "message.delta", "run_id": "run_2e39e89c98d8452d92eda9ab7e727e2e", "timestamp": 1793170833.6982572, "delta": "\u2019ll", "seq": 1}
+
+id: 2
+data: {"event": "message.delta", "run_id": "run_2e39e89c98d8452d92eda9ab7e727e2e", "timestamp": 1793170833.698623, "delta": " run", "seq": 2}
+
+id: 3
+data: {"event": "message.delta", "run_id": "run_2e39e89c98d8452d92eda9ab7e727e2e", "timestamp": 1793170833.6989424, "delta": " the", "seq": 3}
+
+id: 4
+data: {"event": "message.delta", "run_id": "run_2e39e89c98d8452d92eda9ab7e727e2e", "timestamp": 1793170833.6991572, "delta": " terminal", "seq": 4}
+
+id: 5
+data: {"event": "message.delta", "run_id": "run_2e39e89c98d8452d92eda9ab7e727e2e", "timestamp": 1793170833.699352, "delta": " command", "seq": 5}
+
+id: 6
+data: {"event": "message.delta", "run_id": "run_2e39e89c98d8452d92eda9ab7e727e2e", "timestamp": 1793170833.6998048, "delta": " exactly", "seq": 6}
+
+id: 7
+data: {"event": "message.delta", "run_id": "run_2e39e89c98d8452d92eda9ab7e727e2e", "timestamp": 1793170833.7000136, "delta": " once", "seq": 7}
+
+id: 8
+data: {"event": "message.delta", "run_id": "run_2e39e89c98d8452d92eda9ab7e727e2e", "timestamp": 1793170833.8722796, "delta": ".", "seq": 8}
+
+id: 9
+data: {"event": "tool.started", "run_id": "run_2e39e89c98d8452d92eda9ab7e727e2e", "timestamp": 1793170834.0748103, "tool": "terminal", "preview": "sleep 45 + 1 command", "tool_call_id": "call_ANyfPyTjdAg9ecJFASokr6KC", "seq": 9}
+
+id: 10
+data: {"event": "tool.completed", "run_id": "run_2e39e89c98d8452d92eda9ab7e727e2e", "timestamp": 1793170834.2508442, "tool": "terminal", "duration": 0, "error": true, "tool_call_id": "call_ANyfPyTjdAg9ecJFASokr6KC", "preview": "", "seq": 10}
+
+id: 11
+data: {"event": "run.cancelled", "run_id": "run_2e39e89c98d8452d92eda9ab7e727e2e", "timestamp": 1793170834.314706, "completed": false, "partial": false, "interrupted": true, "turn_exit_reason": "interrupted_by_user", "seq": 11}
+
+: stream closed
+

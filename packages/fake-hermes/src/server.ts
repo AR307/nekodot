@@ -20,7 +20,6 @@ const scenarios = [
   'runs-steer',
   'runs-stop',
 ] as const;
-type Scenario = (typeof scenarios)[number];
 interface Fixture {
   events: ReturnType<typeof hermesSseEventSchema.parse>[];
   final: HermesRunState;
@@ -28,7 +27,9 @@ interface Fixture {
 }
 interface ReplayRun {
   profile: string;
-  scenario: Scenario;
+  scenario: string;
+  input: string;
+  instructions?: string;
   fixture: Fixture;
   state: HermesRunState;
   stopped: boolean;
@@ -48,6 +49,11 @@ export interface FakeHermesOptions {
   allowProfileCreate?: boolean;
   models?: unknown;
   eventDelayMs?: number;
+  additionalFixtures?: string[];
+  scenarioFor?: (
+    input: { input: string; session_id?: string; instructions?: string },
+    profile: string,
+  ) => string | undefined;
 }
 function json(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, { 'Content-Type': 'application/json' });
@@ -61,8 +67,8 @@ async function body(request: IncomingMessage): Promise<unknown> {
 
 /** Test-only HTTP replay. No provider, shell execution, or product runtime entry point. */
 export async function startFakeHermes(options: FakeHermesOptions) {
-  const fixtures = new Map<Scenario, Fixture>();
-  for (const name of scenarios) {
+  const fixtures = new Map<string, Fixture>();
+  for (const name of [...scenarios, ...(options.additionalFixtures ?? [])]) {
     const raw = await readFile(join(options.fixturesDirectory, name + '.sse'), 'utf8');
     const events = raw
       .trim()
@@ -109,7 +115,7 @@ export async function startFakeHermes(options: FakeHermesOptions) {
         });
       }
       if (
-        (run.scenario === 'runs-stop' || run.steerReplay) &&
+        (run.scenario.endsWith('-stop') || run.steerReplay) &&
         event.event === 'tool.started' &&
         !toolGateSeen
       ) {
@@ -177,7 +183,11 @@ export async function startFakeHermes(options: FakeHermesOptions) {
       const input = hermesCreateRunSchema.parse(await body(request));
       const inputText = input.input.toLowerCase();
       const scenario =
+        options.scenarioFor?.(input, profile) ??
         scenarios.find((name) => name === input.input) ??
+        [...scenarios]
+          .sort((a, b) => b.length - a.length)
+          .find((name) => input.input.includes(name)) ??
         (inputText.includes('long task')
           ? 'runs-stop'
           : inputText.includes('steer') || inputText.includes('same run')
@@ -189,7 +199,7 @@ export async function startFakeHermes(options: FakeHermesOptions) {
                 : inputText.includes('hello') || inputText.includes('greeting')
                   ? 'runs-basic'
                   : undefined);
-      if (!scenario)
+      if (!scenario || !fixtures.has(scenario))
         return json(response, 400, {
           error: { code: 'unknown_fixture', message: 'Use a recorded scenario name as input' },
         });
@@ -198,10 +208,12 @@ export async function startFakeHermes(options: FakeHermesOptions) {
       runs.set(runId, {
         profile,
         scenario,
+        input: input.input,
+        instructions: input.instructions,
         fixture,
         stopped: false,
         steers: [],
-        steerReplay: inputText.includes('steer') || inputText.includes('same run'),
+        steerReplay: scenario.endsWith('-steer'),
         toolStarts: 0,
         frames: [],
         clients: new Set(),
@@ -319,6 +331,9 @@ export async function startFakeHermes(options: FakeHermesOptions) {
         runId,
         profile: run.profile,
         scenario: run.scenario,
+        sessionId: run.state.session_id,
+        input: run.input,
+        instructions: run.instructions,
         steers: [...run.steers],
         toolStarts: run.toolStarts,
       })),

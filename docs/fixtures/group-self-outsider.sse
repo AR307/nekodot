@@ -1,0 +1,40 @@
+: open
+
+id: 0
+data: {"event": "message.delta", "run_id": "run_e4d0b2bf69604392a181109ea3427dbb", "timestamp": 1793170739.3063455, "delta": "PH", "seq": 0}
+
+id: 1
+data: {"event": "message.delta", "run_id": "run_e4d0b2bf69604392a181109ea3427dbb", "timestamp": 1793170739.3068767, "delta": "ASE", "seq": 1}
+
+id: 2
+data: {"event": "message.delta", "run_id": "run_e4d0b2bf69604392a181109ea3427dbb", "timestamp": 1793170739.3071685, "delta": "2", "seq": 2}
+
+id: 3
+data: {"event": "message.delta", "run_id": "run_e4d0b2bf69604392a181109ea3427dbb", "timestamp": 1793170739.3074312, "delta": "_IGNORE", "seq": 3}
+
+id: 4
+data: {"event": "message.delta", "run_id": "run_e4d0b2bf69604392a181109ea3427dbb", "timestamp": 1793170739.343408, "delta": "_OK", "seq": 4}
+
+id: 5
+data: {"event": "message.delta", "run_id": "run_e4d0b2bf69604392a181109ea3427dbb", "timestamp": 1793170739.4232192, "delta": " @", "seq": 5}
+
+id: 6
+data: {"event": "message.delta", "run_id": "run_e4d0b2bf69604392a181109ea3427dbb", "timestamp": 1793170739.4237003, "delta": "research", "seq": 6}
+
+id: 7
+data: {"event": "message.delta", "run_id": "run_e4d0b2bf69604392a181109ea3427dbb", "timestamp": 1793170739.4367683, "delta": "er", "seq": 7}
+
+id: 8
+data: {"event": "message.delta", "run_id": "run_e4d0b2bf69604392a181109ea3427dbb", "timestamp": 1793170739.4371862, "delta": " @", "seq": 8}
+
+id: 9
+data: {"event": "message.delta", "run_id": "run_e4d0b2bf69604392a181109ea3427dbb", "timestamp": 1793170739.4374359, "delta": "outs", "seq": 9}
+
+id: 10
+data: {"event": "message.delta", "run_id": "run_e4d0b2bf69604392a181109ea3427dbb", "timestamp": 1793170739.4956996, "delta": "ider", "seq": 10}
+
+id: 11
+data: {"event": "run.completed", "run_id": "run_e4d0b2bf69604392a181109ea3427dbb", "timestamp": 1793170739.5632656, "output": "PHASE2_IGNORE_OK @researcher @outsider", "usage": {"input_tokens": 37098, "output_tokens": 76, "total_tokens": 37174}, "runtime": {"provider": "", "model": "", "route_source": "global"}, "completed": true, "partial": false, "interrupted": false, "seq": 11}
+
+: stream closed
+

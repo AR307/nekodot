@@ -8,12 +8,14 @@ import type {
   RpcRequest,
   RpcResult,
 } from '@nekodot/protocol';
-import { NodeDatabase, type RunRecord } from './database';
+import { NodeDatabase, type GroupChainRecord, type RunRecord } from './database';
 import type { HermesRuntime } from './hermes/runtime';
 import type { HermesApi } from './hermes/api';
 import { NodeFault } from './fault';
 import type { SseFrame } from './hermes/sse';
 import { BotService } from './bots';
+import { GroupService } from './groups';
+import { groupPrompt, MAX_CHAIN, mentionedBots } from './group-routing';
 
 type HermesEvent = SseFrame['data'] & {
   event: string;
@@ -42,6 +44,7 @@ const isActiveStatus = (status: string) =>
 export class NodeApplication {
   readonly database: NodeDatabase;
   readonly bots: BotService;
+  readonly groups: GroupService;
   onEvent: (event: PersistedEvent) => void = () => {};
   onLive: (event: LiveEvent) => void = () => {};
   private readonly consumers = new Map<string, AbortController>();
@@ -56,6 +59,7 @@ export class NodeApplication {
   ) {
     this.database = new NodeDatabase(home);
     this.bots = new BotService(this.database, hermes);
+    this.groups = new GroupService(this.database);
     this.database.onEvent = (event) => this.onEvent(event);
   }
 
@@ -64,8 +68,8 @@ export class NodeApplication {
       case 'sync.snapshot':
         this.activities();
         return {
-          bots: this.database.bots(),
-          groups: [],
+          bots: this.database.allBots(),
+          groups: this.database.groups(),
           conversations: this.database.conversations(),
           headSeq: this.database.head(),
           node: { platform: platform(), computerUse: false },
@@ -101,6 +105,12 @@ export class NodeApplication {
         return this.bots.update(request.params);
       case 'bots.archive':
         return this.bots.archive(request.params.botId);
+      case 'groups.create':
+        return this.groups.create(request.params);
+      case 'groups.update':
+        return this.groups.update(request.params);
+      case 'groups.archive':
+        return this.groups.archive(request.params.groupId);
       default:
         throw new NodeFault('not_found', 'Method is not available in this phase');
     }
@@ -109,7 +119,24 @@ export class NodeApplication {
   activities() {
     const runs = this.database.runs();
     for (const conversation of this.database.conversations()) {
-      if (conversation.kind !== 'dm') continue;
+      if (conversation.kind === 'group') {
+        const run =
+          this.activeRuns.get(conversation.conversationId) ??
+          runs.find((item) => item.conversationId === conversation.conversationId);
+        const chain = this.database.chain(conversation.conversationId);
+        this.onLive({
+          kind: 'activity',
+          conversationId: conversation.conversationId,
+          botId:
+            run?.botId ??
+            chain?.currentBotId ??
+            this.database.group(conversation.groupId)?.leadBotId ??
+            '',
+          state: run?.state ?? 'idle',
+          chain: chain ? { count: chain.count, max: MAX_CHAIN } : undefined,
+        });
+        continue;
+      }
       const run =
         this.activeRuns.get(conversation.conversationId) ??
         runs.find((item) => item.conversationId === conversation.conversationId);
@@ -125,7 +152,7 @@ export class NodeApplication {
   async resume() {
     for (const run of this.database.runs()) {
       if (!run.runId) {
-        this.finishInterrupted(run, 'Run was interrupted before Hermes returned its run ID.');
+        await this.finishInterrupted(run, 'Run was interrupted before Hermes returned its run ID.');
         continue;
       }
       try {
@@ -162,11 +189,19 @@ export class NodeApplication {
           this.publishActivity(run);
           this.consume(run, api);
         } else {
-          this.finishFromState(run, state.status, state.output, state.pending_steer);
+          await this.finishFromState(run, state.status, state.output, state.pending_steer);
         }
       } catch {
-        this.finishInterrupted(run, 'Hermes could not resume this run. It was not restarted.');
+        await this.finishInterrupted(
+          run,
+          'Hermes could not resume this run. It was not restarted.',
+        );
       }
+    }
+    const activeConversations = new Set(this.database.runs().map((run) => run.conversationId));
+    for (const chain of this.database.chains()) {
+      if (chain.queue.length && !activeConversations.has(chain.conversationId))
+        await this.startNextGroupRun(chain);
     }
   }
 
@@ -182,8 +217,8 @@ export class NodeApplication {
     const duplicate = this.database.byClient(params.clientMsgId);
     if (duplicate) return { messageId: duplicate.messageId };
     const conversation = this.database.conversation(params.conversationId);
-    if (!conversation || conversation.kind !== 'dm')
-      throw new NodeFault('not_found', 'Conversation not found');
+    if (!conversation) throw new NodeFault('not_found', 'Conversation not found');
+    if (conversation.kind === 'group') return this.sendGroupMessage(params, conversation);
     const bot = this.bots.get(conversation.botId);
     const active =
       this.activeRuns.get(conversation.conversationId) ??
@@ -248,12 +283,162 @@ export class NodeApplication {
     return { messageId: userMessage.messageId };
   }
 
-  private async startRun(run: RunRecord, input: string) {
+  private async sendGroupMessage(
+    params: RpcParams<'messages.send'>,
+    conversation: Extract<NonNullable<ReturnType<NodeDatabase['conversation']>>, { kind: 'group' }>,
+  ) {
+    const group = this.database.group(conversation.groupId);
+    if (!group || group.archived) throw new NodeFault('not_found', 'Group not found');
+    const roster = group.botIds.map((botId) => this.bots.get(botId));
+    const active =
+      this.activeRuns.get(conversation.conversationId) ??
+      this.database.runs().find((run) => run.conversationId === conversation.conversationId);
+    const userMessage: Message = {
+      messageId: randomUUID(),
+      conversationId: conversation.conversationId,
+      seq: this.database.head(),
+      author: { type: 'user' },
+      kind: 'text',
+      status: 'done',
+      createdAt: now(),
+      content: { text: params.text },
+    };
+    if (active) {
+      if (active.state === 'waiting_approval')
+        throw new NodeFault(
+          'conflict',
+          'Resolve the pending approval or stop this run before sending.',
+        );
+      if (!active.runId)
+        throw new NodeFault('conflict', 'The current run is starting. Try again shortly.');
+      const accepted = await (await this.hermes.api(active.botId)).steer(active.runId, params.text);
+      if (!accepted.accepted)
+        throw new NodeFault(
+          'conflict',
+          'Hermes did not accept this instruction. You can send it again.',
+        );
+      const previousReply = this.currentText(active);
+      if (previousReply) {
+        previousReply.status = 'done';
+        this.database.putMessage(previousReply, { runId: active.runId }, active);
+      }
+      userMessage.seq = this.database.head();
+      this.database.putMessage(
+        userMessage,
+        { clientMsgId: params.clientMsgId, runId: active.runId },
+        active,
+      );
+      active.textMessageId = undefined;
+      active.inputMessageId = userMessage.messageId;
+      active.state = 'thinking';
+      const chain = this.database.chain(conversation.conversationId);
+      if (chain) {
+        chain.queue = [];
+        this.database.saveChain(chain);
+      }
+      this.database.saveRun(active);
+      this.publishActivity(active);
+      return { messageId: userMessage.messageId };
+    }
+    const mentioned = mentionedBots(params.text, roster);
+    const chain: GroupChainRecord = {
+      conversationId: conversation.conversationId,
+      group,
+      roster,
+      queue: mentioned.length ? mentioned : [group.leadBotId],
+      count: 0,
+      cursorByBot: this.database.groupHistory(conversation.conversationId)?.cursorByBot ?? {},
+      requestId: userMessage.messageId,
+      active: true,
+    };
+    userMessage.seq = this.database.head();
+    this.database.putMessage(userMessage, { clientMsgId: params.clientMsgId }, undefined, chain);
+    await this.startNextGroupRun(chain);
+    return { messageId: userMessage.messageId };
+  }
+
+  private async startNextGroupRun(chain: GroupChainRecord) {
+    if (chain.count >= MAX_CHAIN) {
+      this.groupNotice(chain, 'Relay paused after 6 turns. Mention a group member to continue.');
+      this.database.clearChain(chain.conversationId);
+      this.publishGroupIdle(chain.conversationId);
+      return;
+    }
+    if (!chain.queue.length) {
+      this.database.clearChain(chain.conversationId);
+      this.publishGroupIdle(chain.conversationId);
+      return;
+    }
+    const botId = chain.queue.shift()!;
+    chain.count += 1;
+    chain.currentBotId = botId;
+    const prompt = groupPrompt(
+      chain,
+      botId,
+      this.database.messagesAfter(chain.conversationId, chain.cursorByBot[botId] ?? 0),
+    );
+    chain.currentInput = prompt.input;
+    chain.currentInstructions = prompt.instructions;
+    this.database.saveChain(chain);
+    const run: RunRecord = {
+      conversationId: chain.conversationId,
+      botId,
+      groupId: chain.group.groupId,
+      requestId: chain.requestId,
+      lastSeq: -1,
+      state: 'thinking',
+      inputMessageId: chain.requestId ?? randomUUID(),
+    };
+    this.database.saveRun(run);
+    this.activeRuns.set(run.conversationId, run);
+    this.publishActivity(run);
+    void this.startRun(run, chain.currentInput, chain.currentInstructions);
+  }
+
+  private groupNotice(chain: GroupChainRecord, text: string) {
+    this.database.putMessage(
+      {
+        messageId: randomUUID(),
+        conversationId: chain.conversationId,
+        seq: this.database.head(),
+        author: { type: 'system' },
+        kind: 'system',
+        status: 'done',
+        createdAt: now(),
+        content: { text },
+      },
+      {},
+    );
+  }
+
+  private publishGroupIdle(conversationId: string) {
+    const group = this.database
+      .conversations()
+      .find((item) => item.kind === 'group' && item.conversationId === conversationId);
+    if (!group || group.kind !== 'group') return;
+    const model = this.database.group(group.groupId);
+    if (!model) return;
+    this.onLive({
+      kind: 'activity',
+      conversationId,
+      botId: model.leadBotId,
+      state: 'idle',
+      chain: { count: 0, max: MAX_CHAIN },
+    });
+  }
+
+  private async startRun(run: RunRecord, input: string, instructions?: string) {
     try {
       const api = await this.hermes.api(run.botId);
-      const created = await api.createRun(input, 'nk_dm_' + run.conversationId, run.inputMessageId);
+      const created = await api.createRun(
+        input,
+        run.groupId ? `nk_grp_${run.groupId}_${run.botId}` : 'nk_dm_' + run.conversationId,
+        run.requestId ?? run.inputMessageId,
+        instructions,
+      );
       run.runId = created.run_id;
-      this.database.setMessageRun(run.inputMessageId, created.run_id);
+      if (this.database.message(run.inputMessageId))
+        this.database.setMessageRun(run.inputMessageId, created.run_id);
       this.database.saveRun(run);
       this.consume(run, api);
     } catch {
@@ -263,8 +448,11 @@ export class NodeApplication {
         'failed',
       );
       const idle = this.idle(run);
-      this.database.putMessage(failed, { runId: run.runId }, idle);
-      this.end(idle);
+      if (run.groupId) await this.finishGroupRun(run, 'failed', failed.content.text);
+      else {
+        this.database.putMessage(failed, { runId: run.runId }, idle);
+        this.end(idle);
+      }
     }
   }
 
@@ -285,13 +473,13 @@ export class NodeApplication {
           const event = frame.data as HermesEvent;
           if (event.seq <= Math.max(run.lastSeq, this.appliedSeq.get(run.runId) ?? -1)) continue;
           await this.acceptEvent(run, api, event);
-          this.appliedSeq.set(run.runId, event.seq);
           if (run.state === 'idle') return;
+          this.appliedSeq.set(run.runId, event.seq);
         }
         if (signal.aborted) return;
         const state = await api.state(run.runId);
         if (!isActiveStatus(state.status)) {
-          this.finishFromState(run, state.status, state.output, state.pending_steer);
+          await this.finishFromState(run, state.status, state.output, state.pending_steer);
           return;
         }
         reconnectDelay = 1000;
@@ -444,12 +632,16 @@ export class NodeApplication {
       return;
     }
     if (event.event === 'run.completed') {
+      const state = await api.state(runId);
       const reply = this.ensureText(run);
       reply.content = { text: event.output ?? reply.content.text };
       reply.status = 'done';
       this.persistText(run, reply, event.seq);
-      this.pendingInstruction(run, (await api.state(runId)).pending_steer);
-      this.end(run);
+      this.pendingInstruction(run, state.pending_steer);
+      if (run.groupId) await this.finishGroupRun(run, 'completed', reply.content.text);
+      else {
+        this.end(run);
+      }
       return;
     }
     if (
@@ -479,12 +671,58 @@ export class NodeApplication {
         reply.content = { text: event.output ?? 'Run failed.' };
       reply.status = event.event === 'run.cancelled' ? 'cancelled' : 'failed';
       this.persistText(run, reply, event.seq);
-      this.pendingInstruction(run, (await api.state(runId)).pending_steer);
-      this.end(run);
+      const state = await api.state(runId);
+      this.pendingInstruction(run, state.pending_steer);
+      if (run.groupId)
+        await this.finishGroupRun(
+          run,
+          event.event === 'run.cancelled' ? 'cancelled' : 'failed',
+          reply.content.text,
+        );
+      else {
+        this.end(run);
+      }
       return;
     }
     run.lastSeq = event.seq;
     this.database.saveRun(run);
+  }
+
+  private async finishGroupRun(
+    run: RunRecord,
+    status: 'completed' | 'failed' | 'cancelled',
+    output: string,
+  ) {
+    run.state = 'idle';
+    const chain = this.database.chain(run.conversationId);
+    this.activeRuns.delete(run.conversationId);
+    if (run.runId) {
+      this.appliedSeq.delete(run.runId);
+      const consumer = this.consumers.get(run.runId);
+      consumer?.abort();
+      this.consumers.delete(run.runId);
+    }
+    if (!chain || status === 'cancelled') {
+      if (chain && status === 'cancelled') this.database.clearChain(run.conversationId);
+      this.database.saveRun({ ...run, state: 'idle' });
+      this.publishGroupIdle(run.conversationId);
+      return;
+    }
+    if (status === 'failed')
+      this.groupNotice(
+        chain,
+        `${chain.roster.find((bot) => bot.botId === run.botId)?.displayName ?? 'Bot'} could not complete this turn.`,
+      );
+    chain.cursorByBot[run.botId] = this.database.head();
+    if (status === 'completed')
+      for (const botId of mentionedBots(output, chain.roster))
+        if (botId !== run.botId) chain.queue.push(botId);
+    chain.currentBotId = undefined;
+    chain.currentInstructions = undefined;
+    chain.requestId = randomUUID();
+    this.database.saveRun({ ...run, state: 'idle' });
+    this.database.saveChain(chain);
+    await this.startNextGroupRun(chain);
   }
 
   private ensureText(run: RunRecord): TextMessage {
@@ -567,11 +805,13 @@ export class NodeApplication {
   }
 
   private publishActivity(run: RunRecord) {
+    const chain = run.groupId ? this.database.chain(run.conversationId) : undefined;
     this.onLive({
       kind: 'activity',
       conversationId: run.conversationId,
       botId: run.botId,
       state: run.state,
+      chain: chain ? { count: chain.count, max: MAX_CHAIN } : undefined,
     });
   }
 
@@ -581,6 +821,7 @@ export class NodeApplication {
       this.database.runs().find((item) => item.conversationId === conversationId);
     if (!run?.runId) throw new NodeFault('not_found', 'No active run');
     await (await this.hermes.api(run.botId)).stop(run.runId);
+    if (run.groupId) this.database.clearChain(conversationId);
     return {};
   }
 
@@ -624,8 +865,27 @@ export class NodeApplication {
     );
   }
 
-  private finishFromState(run: RunRecord, status: string, output?: string, pendingSteer?: string) {
+  private async finishFromState(
+    run: RunRecord,
+    status: string,
+    output?: string,
+    pendingSteer?: string,
+  ) {
     const activeMessage = this.currentText(run);
+    if (run.groupId) {
+      const reply = activeMessage ?? this.newText(run, output ?? '', 'done');
+      reply.content = { text: output ?? reply.content.text };
+      reply.status =
+        status === 'cancelled' ? 'cancelled' : status === 'completed' ? 'done' : 'failed';
+      this.persistText(run, reply, run.lastSeq);
+      this.pendingInstruction(run, pendingSteer);
+      await this.finishGroupRun(
+        run,
+        status === 'cancelled' ? 'cancelled' : status === 'completed' ? 'completed' : 'failed',
+        output ?? activeMessage?.content.text ?? '',
+      );
+      return;
+    }
     if (status === 'completed') {
       const reply = activeMessage ?? this.newText(run, output ?? '', 'done');
       reply.content = { text: output ?? reply.content.text };
@@ -645,11 +905,15 @@ export class NodeApplication {
     this.end(run);
   }
 
-  private finishInterrupted(run: RunRecord, text: string) {
+  private async finishInterrupted(run: RunRecord, text: string) {
     const message = this.currentText(run) ?? this.newText(run, text, 'failed');
     if (!message.content.text) message.content = { text };
     message.status = 'failed';
     this.database.putMessage(message, { runId: run.runId }, this.idle(run));
+    if (run.groupId) {
+      await this.finishGroupRun(run, 'failed', text);
+      return;
+    }
     this.activeRuns.delete(run.conversationId);
     this.publishActivity(this.idle(run));
   }

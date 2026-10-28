@@ -55,6 +55,8 @@ export class BotService {
   }
   archive(botId: string) {
     const bot = this.get(botId);
+    if (this.database.groups().some((group) => group.botIds.includes(botId)))
+      throw new NodeFault('conflict', 'Remove this bot from active groups before archiving it');
     this.database.putBot({ ...bot, archived: true });
     return {};
   }

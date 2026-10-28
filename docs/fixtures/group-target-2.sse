@@ -1,0 +1,22 @@
+: open
+
+id: 0
+data: {"event": "message.delta", "run_id": "run_4e21fc34a0a34bc2874b6085494f6a23", "timestamp": 1793170716.4842365, "delta": "PH", "seq": 0}
+
+id: 1
+data: {"event": "message.delta", "run_id": "run_4e21fc34a0a34bc2874b6085494f6a23", "timestamp": 1793170716.485005, "delta": "ASE", "seq": 1}
+
+id: 2
+data: {"event": "message.delta", "run_id": "run_4e21fc34a0a34bc2874b6085494f6a23", "timestamp": 1793170716.4854536, "delta": "2", "seq": 2}
+
+id: 3
+data: {"event": "message.delta", "run_id": "run_4e21fc34a0a34bc2874b6085494f6a23", "timestamp": 1793170716.5047243, "delta": "_TARGET", "seq": 3}
+
+id: 4
+data: {"event": "message.delta", "run_id": "run_4e21fc34a0a34bc2874b6085494f6a23", "timestamp": 1793170717.4260798, "delta": "_OK", "seq": 4}
+
+id: 5
+data: {"event": "run.completed", "run_id": "run_4e21fc34a0a34bc2874b6085494f6a23", "timestamp": 1793170717.6355581, "output": "PHASE2_TARGET_OK", "usage": {"input_tokens": 36957, "output_tokens": 9, "total_tokens": 36966}, "runtime": {"provider": "", "model": "", "route_source": "global"}, "completed": true, "partial": false, "interrupted": false, "seq": 5}
+
+: stream closed
+

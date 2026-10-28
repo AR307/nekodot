@@ -1,0 +1,7 @@
+: open
+
+id: 0
+data: {"event": "run.failed", "run_id": "run_99ba53e1c0634516b3f16ba30ebe1596", "timestamp": 1793172115.7475111, "error": "Connection error.", "completed": false, "partial": false, "interrupted": false, "seq": 0}
+
+: stream closed
+

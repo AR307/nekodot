@@ -1,0 +1,24 @@
+{
+  "final": {
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "runtime": {
+      "provider": "",
+      "model": "",
+      "route_source": "global"
+    },
+    "created_at": 1793170698.1320362,
+    "pending_controls": [],
+    "run_id": "run_531ca5b31e99421c9edd6fd333dc21b4",
+    "status": "completed",
+    "session_id": "nk_grp_d41144b9-4f4d-42c1-80e2-896213742416_nk-sycedm",
+    "admission_id": "3ffb9e29e5d446f4a2895cf746937173",
+    "execution_generation": 1,
+    "output": "PHASE2_TARGET_OK",
+    "usage": {
+      "input_tokens": 14713,
+      "output_tokens": 20,
+      "total_tokens": 14733
+    }
+  }
+}

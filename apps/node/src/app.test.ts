@@ -257,3 +257,252 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
     }
   });
 });
+
+describe('Node group journeys with the recorded Hermes HTTP service', () => {
+  it('manages groups, relays recorded replies, resumes a run, and clears queued work on steer or stop', async () => {
+    const schedule: string[] = [];
+    const relay = await startFakeHermes({
+      fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
+      profiles: ['default'],
+      apiKey: testKey,
+      allowProfileCreate: true,
+      eventDelayMs: 5,
+      additionalFixtures: [
+        'group-lead',
+        'group-target-1',
+        'group-target-2',
+        'group-researcher',
+        'group-writer',
+        'group-self-outsider',
+        'group-loop-researcher',
+        'group-loop-writer',
+        'group-steer',
+        'group-stop',
+        'group-failed',
+      ],
+      scenarioFor: () => schedule.shift(),
+    });
+    const home = await mkdtemp(join(tmpdir(), 'nekodot-node-group-'));
+    const profiles = new Set(['default']);
+    const runtime: HermesRuntime = {
+      start: async () => {},
+      close: async () => {},
+      configureProvider: async () => {},
+      configureBot: async (bot: Bot) => {
+        if (profiles.has(bot.botId)) return;
+        const response = await fetch(relay.url + '/test/profiles', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + testKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profile: bot.botId }),
+        });
+        expect(response.status).toBe(201);
+        profiles.add(bot.botId);
+      },
+      api: async (profile) => new HermesApi(relay.url + '/p/' + profile, testKey),
+      models: async () => ({ models: [] }),
+    };
+    let app = new NodeApplication(home, runtime);
+    const request = (method: string, params: unknown) => rpcRequestSchema.parse({ method, params });
+    const waitFor = async (condition: () => boolean) => {
+      const started = Date.now();
+      while (!condition()) {
+        if (Date.now() - started > 8000) throw new Error('Timed out waiting for group replay.');
+        await delay(10);
+      }
+    };
+    try {
+      await app.handle(
+        request('providers.set', {
+          kind: 'custom',
+          apiKey: 'group-provider-secret',
+          baseUrl: 'https://api.example.test/v1',
+          defaultModel: 'test-model',
+        }),
+      );
+      const createBot = async (displayName: string, handle: string) =>
+        (await app.handle(
+          request('bots.create', {
+            displayName,
+            handle,
+            avatar: { shape: 'dot', color: '#E8603C' },
+            role: 'Group specialist',
+            model: 'test-model',
+          }),
+        )) as { bot: Bot };
+      const lead = await createBot('Researcher', 'researcher');
+      const writer = await createBot('Writer', 'writer');
+      const created = (await app.handle(
+        request('groups.create', {
+          name: 'Research room',
+          botIds: [lead.bot.botId, writer.bot.botId],
+          leadBotId: lead.bot.botId,
+        }),
+      )) as { group: { groupId: string } };
+      const conversation = app.database
+        .conversations()
+        .find((item) => item.kind === 'group' && item.groupId === created.group.groupId);
+      if (!conversation || conversation.kind !== 'group')
+        throw new Error('Group conversation missing.');
+
+      const send = (text: string) =>
+        app.handle(
+          request('messages.send', {
+            conversationId: conversation.conversationId,
+            text,
+            clientMsgId: randomUUID(),
+          }),
+        );
+      const waitIdle = () =>
+        waitFor(() => app.database.chain(conversation.conversationId) === undefined);
+      schedule.push('group-lead');
+      await app.handle(
+        request('messages.send', {
+          conversationId: conversation.conversationId,
+          text: 'runs-basic',
+          clientMsgId: randomUUID(),
+        }),
+      );
+      await waitIdle();
+      let groupRuns = relay
+        .inspectRuns()
+        .filter((run) => run.profile === lead.bot.botId || run.profile === writer.bot.botId);
+      expect(groupRuns).toHaveLength(1);
+      expect(groupRuns[0]?.profile).toBe(lead.bot.botId);
+
+      schedule.push('group-target-1', 'group-target-2');
+      await app.handle(
+        request('messages.send', {
+          conversationId: conversation.conversationId,
+          text: 'hello @writer @researcher @writer @outsider',
+          clientMsgId: randomUUID(),
+        }),
+      );
+      await waitIdle();
+      groupRuns = relay
+        .inspectRuns()
+        .filter((run) => run.profile === lead.bot.botId || run.profile === writer.bot.botId);
+      expect(groupRuns.map((run) => run.profile)).toEqual([
+        lead.bot.botId,
+        writer.bot.botId,
+        lead.bot.botId,
+      ]);
+      expect(groupRuns.map((run) => run.sessionId)).toEqual([
+        `nk_grp_${created.group.groupId}_${lead.bot.botId}`,
+        `nk_grp_${created.group.groupId}_${writer.bot.botId}`,
+        `nk_grp_${created.group.groupId}_${lead.bot.botId}`,
+      ]);
+      expect(
+        app.database
+          .messages(conversation.conversationId)
+          .filter((message) => message.kind === 'text').length,
+      ).toBeGreaterThan(4);
+
+      expect(groupRuns[1]?.input).toContain('New messages since your last turn:');
+      expect(groupRuns[1]?.instructions).toContain('Researcher (@researcher) — Group specialist');
+      expect(groupRuns[2]?.input).not.toContain('User: runs-basic');
+      expect(groupRuns[2]?.input).toContain('Writer (@writer): PHASE2_TARGET_OK');
+      await expect(
+        app.handle(request('bots.archive', { botId: lead.bot.botId })),
+      ).rejects.toMatchObject({ code: 'conflict' });
+
+      let before = relay.inspectRuns().length;
+      schedule.push('group-researcher', 'group-writer');
+      await send('Start a member handoff.');
+      await waitIdle();
+      expect(
+        relay
+          .inspectRuns()
+          .slice(before)
+          .map((run) => run.profile),
+      ).toEqual([lead.bot.botId, writer.bot.botId]);
+      schedule.push('group-self-outsider');
+      before = relay.inspectRuns().length;
+      await send('Check mentions of self and outsiders.');
+      await waitIdle();
+      expect(relay.inspectRuns().slice(before)).toHaveLength(1);
+
+      schedule.push('group-failed', 'group-writer');
+      before = relay.inspectRuns().length;
+      await send('@researcher @writer Continue if the first member fails.');
+      await waitIdle();
+      expect(relay.inspectRuns().slice(before)).toHaveLength(2);
+      expect(
+        app.database
+          .messages(conversation.conversationId)
+          .some(
+            (message) =>
+              message.kind === 'system' && message.content.text.includes('could not complete'),
+          ),
+      ).toBe(true);
+
+      schedule.push('group-steer');
+      before = relay.inspectRuns().length;
+      await send('@researcher @writer Start the recorded steer task.');
+      await waitFor(() => app.database.runs().some((run) => run.state === 'tool'));
+      const activeId = app.database.runs()[0]!.runId;
+      await app.close();
+      app = new NodeApplication(home, runtime);
+      await app.resume();
+      expect(app.database.runs()[0]?.runId).toBe(activeId);
+      expect(app.database.chain(conversation.conversationId)?.queue).toEqual([writer.bot.botId]);
+      await send('Keep the same run and use the new final instruction.');
+      await waitIdle();
+      expect(relay.inspectRuns().slice(before)).toHaveLength(1);
+      expect(relay.inspectRuns().at(-1)).toMatchObject({ runId: activeId, toolStarts: 1 });
+      expect(relay.inspectRuns().at(-1)?.steers).toHaveLength(1);
+
+      schedule.push('group-stop');
+      before = relay.inspectRuns().length;
+      await send('@researcher @writer Start a long task.');
+      await waitFor(() => app.database.runs().some((run) => run.state === 'tool'));
+      await app.handle(request('runs.stop', { conversationId: conversation.conversationId }));
+      await waitFor(() => app.database.runs().length === 0);
+      expect(app.database.chain(conversation.conversationId)).toBeUndefined();
+      expect(relay.inspectRuns().slice(before)).toHaveLength(1);
+
+      before = relay.inspectRuns().length;
+      schedule.push(
+        'group-loop-researcher',
+        'group-loop-writer',
+        'group-loop-researcher',
+        'group-loop-writer',
+        'group-loop-researcher',
+        'group-loop-writer',
+      );
+      await send('Follow the loop policy.');
+      await app.handle(
+        request('groups.update', {
+          groupId: created.group.groupId,
+          name: 'Edited research room',
+          leadBotId: writer.bot.botId,
+        }),
+      );
+      await waitIdle();
+      expect(relay.inspectRuns().slice(before)).toHaveLength(6);
+      expect(
+        app.database
+          .messages(conversation.conversationId)
+          .some(
+            (message) =>
+              message.kind === 'system' && message.content.text.includes('paused after 6'),
+          ),
+      ).toBe(true);
+      schedule.push('group-lead');
+      before = relay.inspectRuns().length;
+      await send('Reply without mentions.');
+      await waitIdle();
+      expect(relay.inspectRuns().slice(before)[0]?.profile).toBe(writer.bot.botId);
+      expect(relay.inspectRuns().at(-1)?.input).toContain('Edited research room');
+      await app.handle(request('groups.archive', { groupId: created.group.groupId }));
+      expect(app.database.groups()).toHaveLength(0);
+      expect(app.database.conversation(conversation.conversationId)).toBeDefined();
+      await expect(send('Archived group')).rejects.toMatchObject({ code: 'not_found' });
+      await app.handle(request('bots.archive', { botId: lead.bot.botId }));
+      expect(app.database.bot(lead.bot.botId)?.archived).toBe(true);
+      expect(schedule).toHaveLength(0);
+    } finally {
+      await app.close();
+      await relay.close();
+    }
+  });
+});

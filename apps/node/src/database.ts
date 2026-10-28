@@ -1,17 +1,41 @@
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Bot, Conversation, Message, PersistedEvent, RpcResult } from '@nekodot/protocol';
+import type {
+  Bot,
+  Conversation,
+  Group,
+  Message,
+  PersistedEvent,
+  RpcResult,
+} from '@nekodot/protocol';
 
 export interface RunRecord {
   runId?: string;
   conversationId: string;
   botId: string;
+  groupId?: string;
+  requestId?: string;
   lastSeq: number;
   state: 'thinking' | 'tool' | 'waiting_approval' | 'idle';
   textMessageId?: string;
   inputMessageId: string;
 }
+
+export interface GroupChainRecord {
+  conversationId: string;
+  group: Group;
+  roster: Bot[];
+  queue: string[];
+  count: number;
+  cursorByBot: Record<string, number>;
+  currentBotId?: string;
+  currentInput?: string;
+  currentInstructions?: string;
+  requestId?: string;
+  active: boolean;
+}
+
 export class NodeDatabase {
   readonly db: DatabaseSync;
   onEvent: (event: PersistedEvent) => void = () => {};
@@ -19,7 +43,7 @@ export class NodeDatabase {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(join(directory, 'node.db'));
     this.db.exec('PRAGMA journal_mode=WAL');
-    const version = Number(this.db.prepare('PRAGMA user_version').get()!.user_version);
+    let version = Number(this.db.prepare('PRAGMA user_version').get()!.user_version);
     if (version < 1) {
       this.db
         .exec(`CREATE TABLE bots(bot_id TEXT PRIMARY KEY,handle TEXT UNIQUE NOT NULL,data TEXT NOT NULL);
@@ -30,6 +54,27 @@ export class NodeDatabase {
         CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
         CREATE TABLE runs(conversation_id TEXT PRIMARY KEY,data TEXT NOT NULL);
         PRAGMA user_version=1;`);
+      version = 1;
+    }
+    if (version < 2) {
+      this.db.exec(`BEGIN;
+        ALTER TABLE conversations RENAME TO conversations_v1;
+        CREATE TABLE conversations(
+          conversation_id TEXT PRIMARY KEY,
+          kind TEXT NOT NULL,
+          bot_id TEXT,
+          group_id TEXT,
+          data TEXT NOT NULL
+        );
+        INSERT INTO conversations(conversation_id,kind,bot_id,data)
+          SELECT conversation_id,'dm',bot_id,data FROM conversations_v1;
+        CREATE UNIQUE INDEX conversation_dm_bot ON conversations(bot_id) WHERE kind='dm';
+        CREATE UNIQUE INDEX conversation_group_id ON conversations(group_id) WHERE kind='group';
+        DROP TABLE conversations_v1;
+        CREATE TABLE groups(group_id TEXT PRIMARY KEY,data TEXT NOT NULL);
+        CREATE TABLE group_chains(conversation_id TEXT PRIMARY KEY,data TEXT NOT NULL);
+        PRAGMA user_version=2;
+        COMMIT;`);
     }
   }
   private all<T>(sql: string, ...params: string[]): T[] {
@@ -54,6 +99,12 @@ export class NodeDatabase {
   }
   conversations() {
     return this.all<Conversation>('SELECT data FROM conversations');
+  }
+  groups() {
+    return this.all<Group>('SELECT data FROM groups').filter((group) => !group.archived);
+  }
+  group(id: string) {
+    return this.all<Group>('SELECT data FROM groups WHERE group_id=?', id)[0];
   }
   conversation(id: string) {
     return this.all<Conversation>('SELECT data FROM conversations WHERE conversation_id=?', id)[0];
@@ -101,6 +152,14 @@ export class NodeDatabase {
       .map((r) => JSON.parse(r.data as string) as Message)
       .reverse();
   }
+  messagesAfter(conversationId: string, afterSeq: number) {
+    return this.db
+      .prepare(
+        'SELECT data FROM messages WHERE conversation_id=? AND created_seq>? ORDER BY created_seq',
+      )
+      .all(conversationId, afterSeq)
+      .map((row) => JSON.parse(row.data as string) as Message);
+  }
   head() {
     return Number(this.db.prepare('SELECT COALESCE(MAX(seq),0) AS seq FROM events').get()!.seq);
   }
@@ -125,6 +184,7 @@ export class NodeDatabase {
     data: unknown,
     save: (seq: number) => void,
     run?: RunRecord,
+    chain?: GroupChainRecord,
   ) {
     this.db.exec('BEGIN');
     let event: PersistedEvent;
@@ -136,6 +196,7 @@ export class NodeDatabase {
       save(seq);
       const payload = data;
       if (run) this.saveRun(run);
+      if (chain) this.saveChain(chain);
       this.db.prepare('UPDATE events SET data=? WHERE seq=?').run(JSON.stringify(payload), seq);
       event = { seq, kind, data: payload } as PersistedEvent;
       this.db.exec('COMMIT');
@@ -145,6 +206,29 @@ export class NodeDatabase {
     }
     this.onEvent(event);
     return event;
+  }
+  private writeBatch(
+    items: { kind: PersistedEvent['kind']; data: unknown; save: (seq: number) => void }[],
+  ) {
+    const events: PersistedEvent[] = [];
+    this.db.exec('BEGIN');
+    try {
+      for (const item of items) {
+        const seq = Number(
+          this.db.prepare('INSERT INTO events(kind,data) VALUES(?,?)').run(item.kind, '{}')
+            .lastInsertRowid,
+        );
+        item.save(seq);
+        this.db.prepare('UPDATE events SET data=? WHERE seq=?').run(JSON.stringify(item.data), seq);
+        events.push({ seq, kind: item.kind, data: item.data } as PersistedEvent);
+      }
+      this.db.exec('COMMIT');
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
+    for (const event of events) this.onEvent(event);
+    return events;
   }
   putBot(bot: Bot) {
     this.write(
@@ -159,17 +243,57 @@ export class NodeDatabase {
     );
   }
   putConversation(conversation: Conversation) {
-    if (conversation.kind !== 'dm') throw new Error('Phase 1 supports direct messages');
     this.write('conversation.upserted', conversation, () =>
       this.db
-        .prepare('INSERT INTO conversations VALUES(?,?,?)')
-        .run(conversation.conversationId, conversation.botId, JSON.stringify(conversation)),
+        .prepare(
+          'INSERT INTO conversations(conversation_id,kind,bot_id,group_id,data) VALUES(?,?,?,?,?)',
+        )
+        .run(
+          conversation.conversationId,
+          conversation.kind,
+          conversation.kind === 'dm' ? conversation.botId : null,
+          conversation.kind === 'group' ? conversation.groupId : null,
+          JSON.stringify(conversation),
+        ),
     );
+  }
+  putGroup(group: Group, conversation?: Conversation) {
+    const items: { kind: PersistedEvent['kind']; data: unknown; save: (seq: number) => void }[] = [
+      {
+        kind: group.archived ? 'group.archived' : 'group.upserted',
+        data: group.archived ? { groupId: group.groupId } : group,
+        save: () =>
+          this.db
+            .prepare(
+              'INSERT INTO groups VALUES(?,?) ON CONFLICT(group_id) DO UPDATE SET data=excluded.data',
+            )
+            .run(group.groupId, JSON.stringify(group)),
+      },
+    ];
+    if (conversation)
+      items.push({
+        kind: 'conversation.upserted',
+        data: conversation,
+        save: () =>
+          this.db
+            .prepare(
+              'INSERT INTO conversations(conversation_id,kind,bot_id,group_id,data) VALUES(?,?,?,?,?)',
+            )
+            .run(
+              conversation.conversationId,
+              conversation.kind,
+              conversation.kind === 'dm' ? conversation.botId : null,
+              conversation.kind === 'group' ? conversation.groupId : null,
+              JSON.stringify(conversation),
+            ),
+      });
+    this.writeBatch(items);
   }
   putMessage(
     message: Message,
     metadata: { clientMsgId?: string; runId?: string; toolCallId?: string } = {},
     run?: RunRecord,
+    chain?: GroupChainRecord,
   ) {
     const event = this.write(
       'message.upserted',
@@ -194,6 +318,7 @@ export class NodeDatabase {
           );
       },
       run,
+      chain,
     );
     return event.data as Message;
   }
@@ -223,5 +348,31 @@ export class NodeDatabase {
   }
   runs() {
     return this.all<RunRecord>('SELECT data FROM runs').filter((r) => r.state !== 'idle');
+  }
+  groupHistory(conversationId: string) {
+    return this.all<GroupChainRecord>(
+      'SELECT data FROM group_chains WHERE conversation_id=?',
+      conversationId,
+    )[0];
+  }
+  chain(conversationId: string) {
+    const chain = this.groupHistory(conversationId);
+    return chain?.active ? chain : undefined;
+  }
+  chains() {
+    return this.all<GroupChainRecord>('SELECT data FROM group_chains').filter(
+      (chain) => chain.active,
+    );
+  }
+  saveChain(chain: GroupChainRecord) {
+    this.db
+      .prepare(
+        'INSERT INTO group_chains VALUES(?,?) ON CONFLICT(conversation_id) DO UPDATE SET data=excluded.data',
+      )
+      .run(chain.conversationId, JSON.stringify(chain));
+  }
+  clearChain(conversationId: string) {
+    const chain = this.groupHistory(conversationId);
+    if (chain) this.saveChain({ ...chain, active: false, queue: [], currentBotId: undefined });
   }
 }
