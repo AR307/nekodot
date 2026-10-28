@@ -187,7 +187,7 @@ WSL 会话退出时直接派生的后台进程曾被回收；最终使用仅属�
 
 - 原生补充入口：`POST /p/<profile>/v1/runs/<runId>/steer`，body 为 `{ "input": "..." }`。
   接口接受后才保存新的用户消息；后续文本进入该 run 的新回复段。
-- 普通回合 thread 为 `nk_dm_<conversationId>`，Idempotency-Key 使用产品用户消息 ID。
+- 私聊继续使用 `nk_dm_<conversationId>`，Idempotency-Key 使用产品用户消息 ID。自 2026-10-29 起，同一 Bot 在任何群聊中的 Hermes Runs 也复用该 Bot 私聊的 session ID；这样 Hermes 原生 transcript 在私聊/群聊之间连续，不增加 nekodot 记忆层。
 - SSE 实测事件为 `run.steered`，`accepted:true` 仅表示接受；终态 `pending_steer` 非空表示尚未消费。
   产品保留该提示及放回输入框的入口，不自动新建 run。
 - `run.completed.output` 只校正最后的回复段，已有文本与工具卡不被替换。
@@ -216,7 +216,8 @@ WSL 会话退出时直接派生的后台进程曾被回收；最终使用仅属�
 2026-10-28 沿用独立 WSL Ubuntu 24.04、Node 24.22.1、官方 Hermes PM runtime 和本地自定义 API。
 产品未更改 Hermes 核心；Relay 继续只路由既有 RPC、持久事件与实时通知。
 
-- 群会话使用 `nk_grp_<groupId>_<botId>`。名册与角色放在 Runs API 的 `instructions`，新群文本放在 `input`，采用 PDF 的群聊模板。
+- 初始实现的群会话使用 `nk_grp_<groupId>_<botId>`；2026-10-29 根据产品要求改为复用对应 Bot 的 `nk_dm_<conversationId>`。群聊成员名册、角色与本轮新增文本仍按原模板传入，Hermes 会按共享 session ID 载入该 Bot 的完整原生 transcript。
+- 已有的 `nk_grp_*` Hermes 记录、Node 群聊历史和 fixture 均保留，不迁移或改写；此修复统一发布后的新回合。
 - 每个 Bot 在 Node 持久保存上次发言游标；当前接力持久保存成员快照、顺序队列和已启动回合数。Node 重启查询原 run，并续接 SSE；不重发已完成任务。
 - 真实名册中的 Researcher 最终文本提及 Writer 后，Node 启动 Writer 的独立 run；自身与非成员提及不产生新回合。相互提及到第六回合时由 Node 写入提示并清空队列。
 - Hermes 实测可能在 `tool.started` 前仅发送 message.delta 而没有 message.interim；Node 将该段保存为 commentary。真实进度说明和工具预览包含 @writer、最终文本无提及时，只产生一个 run，不显示交接标签。

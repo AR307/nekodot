@@ -149,6 +149,13 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 
 # Phase 3 进度
 
+## 2026-10-29 / Bot 跨私聊与群聊上下文
+
+- 根因：Node 分别用 `nk_dm_<conversationId>` 和 `nk_grp_<groupId>_<botId>` 调 Hermes Runs；Hermes 自然把两者视作独立 session transcript。
+- 修复：群聊每次调用对应成员 Bot profile 时，改用该 Bot 私聊 conversation ID 组成的同一 `session_id`。Hermes Runs 从原生 session transcript 续接上下文；Node 仍只负责群聊路由，不复制聊天历史或实现记忆机制。
+- Node 集成场景先私聊、再群聊接力、归档后再私聊，检查 lead 同一 Hermes session，其他 Bot 使用自己的私聊 session。Edge 使用真实浏览器完成相同旅程，验证 run 的 profile/session ID；两项目标测试通过。
+- 旧版群聊 session (`nk_grp_*`) 与产品聊天历史保持原状，不自动搬运到私聊；修复对发布后的新回合生效。
+
 ## 2026-10-28 / 浏览器私聊发送恢复
 
 - 同步修复 Bot 弹窗滚动/固定操作区、侧栏与节点切换器、模型目录选择、双语布局及 Hermes 工具审批等级；Edge 完整私聊和群聊旅程覆盖这些操作。

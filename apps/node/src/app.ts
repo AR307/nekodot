@@ -435,9 +435,16 @@ export class NodeApplication {
   private async startRun(run: RunRecord, input: string, instructions?: string) {
     try {
       const api = await this.hermes.api(run.botId);
+      const conversationId = run.groupId
+        ? this.database
+            .conversations()
+            .find((conversation) => conversation.kind === 'dm' && conversation.botId === run.botId)
+            ?.conversationId
+        : run.conversationId;
+      if (!conversationId) throw new Error('Bot private conversation is missing');
       const created = await api.createRun(
         input,
-        run.groupId ? `nk_grp_${run.groupId}_${run.botId}` : 'nk_dm_' + run.conversationId,
+        'nk_dm_' + conversationId,
         run.requestId ?? run.inputMessageId,
         instructions,
       );

@@ -335,6 +335,30 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       const lead = await createBot('Researcher', 'researcher');
       const writer = await createBot('Writer', 'writer');
       const reviewer = await createBot('Reviewer', 'reviewer');
+      const privateConversation = app.database
+        .conversations()
+        .find((item) => item.kind === 'dm' && item.botId === lead.bot.botId);
+      if (!privateConversation || privateConversation.kind !== 'dm')
+        throw new Error('Lead private conversation missing.');
+      const privateRunsBefore = relay.inspectRuns().length;
+      schedule.push('runs-basic');
+      await app.handle(
+        request('messages.send', {
+          conversationId: privateConversation.conversationId,
+          text: 'Remember this private note: the project color is amber.',
+          clientMsgId: randomUUID(),
+        }),
+      );
+      await waitFor(() => relay.inspectRuns().length > privateRunsBefore);
+      await waitFor(
+        () =>
+          !app.database
+            .runs()
+            .some((run) => run.conversationId === privateConversation.conversationId),
+      );
+      const privateSessionId = relay.inspectRuns().at(-1)?.sessionId;
+      expect(privateSessionId).toBe(`nk_dm_${privateConversation.conversationId}`);
+
       const created = (await app.handle(
         request('groups.create', {
           name: 'Research room',
@@ -347,6 +371,7 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
         .find((item) => item.kind === 'group' && item.groupId === created.group.groupId);
       if (!conversation || conversation.kind !== 'group')
         throw new Error('Group conversation missing.');
+      const groupRunOffset = relay.inspectRuns().length;
 
       const send = (text: string) =>
         app.handle(
@@ -369,9 +394,11 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       await waitIdle();
       let groupRuns = relay
         .inspectRuns()
+        .slice(groupRunOffset)
         .filter((run) => run.profile === lead.bot.botId || run.profile === writer.bot.botId);
       expect(groupRuns).toHaveLength(1);
       expect(groupRuns[0]?.profile).toBe(lead.bot.botId);
+      expect(groupRuns[0]?.sessionId).toBe(privateSessionId);
 
       schedule.push('group-target-1', 'group-target-2');
       await app.handle(
@@ -384,6 +411,7 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       await waitIdle();
       groupRuns = relay
         .inspectRuns()
+        .slice(groupRunOffset)
         .filter((run) => run.profile === lead.bot.botId || run.profile === writer.bot.botId);
       expect(groupRuns.map((run) => run.profile)).toEqual([
         lead.bot.botId,
@@ -391,9 +419,13 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
         lead.bot.botId,
       ]);
       expect(groupRuns.map((run) => run.sessionId)).toEqual([
-        `nk_grp_${created.group.groupId}_${lead.bot.botId}`,
-        `nk_grp_${created.group.groupId}_${writer.bot.botId}`,
-        `nk_grp_${created.group.groupId}_${lead.bot.botId}`,
+        `nk_dm_${privateConversation.conversationId}`,
+        `nk_dm_${
+          app.database
+            .conversations()
+            .find((item) => item.kind === 'dm' && item.botId === writer.bot.botId)!.conversationId
+        }`,
+        `nk_dm_${privateConversation.conversationId}`,
       ]);
       expect(
         app.database
@@ -581,6 +613,23 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       expect(app.database.groups()).toHaveLength(0);
       expect(app.database.conversation(conversation.conversationId)).toBeDefined();
       await expect(send('Archived group')).rejects.toMatchObject({ code: 'not_found' });
+      const privateRunsAfterGroup = relay.inspectRuns().length;
+      schedule.push('runs-basic');
+      await app.handle(
+        request('messages.send', {
+          conversationId: privateConversation.conversationId,
+          text: 'Back in private chat, recall the note from our group conversation.',
+          clientMsgId: randomUUID(),
+        }),
+      );
+      await waitFor(() => relay.inspectRuns().length > privateRunsAfterGroup);
+      await waitFor(
+        () =>
+          !app.database
+            .runs()
+            .some((run) => run.conversationId === privateConversation.conversationId),
+      );
+      expect(relay.inspectRuns().at(-1)?.sessionId).toBe(privateSessionId);
       await app.handle(request('bots.archive', { botId: lead.bot.botId }));
       expect(app.database.bot(lead.bot.botId)?.archived).toBe(true);
       expect(schedule).toHaveLength(0);

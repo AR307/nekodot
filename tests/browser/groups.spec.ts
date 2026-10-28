@@ -106,7 +106,24 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
       await page.locator('.advanced-field input').fill(handle!);
       await page.locator('.bot-dialog').getByRole('button', { name: '创建 bot' }).click();
       await expect(page.locator('.chat-title')).toContainText(name!);
+      if (handle === 'researcher') {
+        schedule.push('runs-basic');
+        await page.locator('.composer textarea').fill('Remember our private discussion.');
+        await page.locator('.send-button').click();
+        await expect(
+          page.locator('.bot-copy').filter({ hasText: 'NEKODOT_PHASE0_OK' }),
+        ).toBeVisible();
+        await expect(page.locator('.run-banner')).toHaveCount(0, { timeout: 15000 });
+      }
     }
+    const researcher = app.database.bots().find((bot) => bot.handle === 'researcher')!;
+    const researcherConversation = app.database
+      .conversations()
+      .find(
+        (conversation) => conversation.kind === 'dm' && conversation.botId === researcher.botId,
+      )!;
+    const privateSessionId = fake.inspectRuns()[0]!.sessionId;
+    expect(privateSessionId).toBe(`nk_dm_${researcherConversation.conversationId}`);
     await page.getByRole('button', { name: '新建群组', exact: true }).last().click();
     await page.getByLabel('群组名称').fill('Research studio');
     await page.locator('.member-option').filter({ hasText: 'Researcher' }).locator('input').check();
@@ -127,7 +144,9 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     await expect(page.locator('.chain-progress')).toContainText('1 / 6');
     await page.screenshot({ path: 'docs/evidence/phase2-streaming.png', animations: 'disabled' });
     await idle();
-    expect(fake.inspectRuns()).toHaveLength(1);
+    expect(fake.inspectRuns()).toHaveLength(2);
+    const groupSessionId = fake.inspectRuns().at(-1)!.sessionId;
+    expect(groupSessionId).toBe(privateSessionId);
     await page.locator('.composer textarea').fill('@w');
     await expect(page.getByRole('listbox', { name: '@ 群成员' })).toBeVisible();
     await page.getByRole('option', { name: /Writer/ }).click();
@@ -137,7 +156,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     await send('Let the researcher hand off to the writer.');
     await expect(page.locator('.bot-copy').filter({ hasText: 'PHASE2_RELAY_OK' })).toBeVisible();
     await idle();
-    expect(fake.inspectRuns()).toHaveLength(3);
+    expect(fake.inspectRuns()).toHaveLength(4);
     await expect(page.locator('.handoff-tag')).toContainText('@writer');
     await expect(
       page.locator('.message-author').filter({ hasText: 'Writer @writer' }),
@@ -181,14 +200,14 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     await expect(page.getByText('已向当前回合补充指令', { exact: true })).toBeVisible();
     await idle();
     expect(fake.inspectRuns().at(-1)).toMatchObject({ runId, toolStarts: 1 });
-    expect(fake.inspectRuns()).toHaveLength(5);
+    expect(fake.inspectRuns()).toHaveLength(6);
     schedule.push('group-stop');
     await send('@researcher @writer A long task.');
     await expect(page.locator('.run-banner')).toBeVisible();
     await expect.poll(() => app!.database.runs()[0]?.state).toBe('tool');
     await page.getByRole('button', { name: '全部停止', exact: true }).click();
     await idle();
-    expect(fake.inspectRuns()).toHaveLength(6);
+    expect(fake.inspectRuns()).toHaveLength(7);
     await expect(page.locator('.tool-card').last().locator('.tool-status')).toContainText('已停止');
 
     await page.locator('.chat-title').click();
@@ -224,6 +243,15 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     await page.locator('.chat-title').click();
     await page.getByRole('button', { name: 'Archive', exact: true }).click();
     await expect(page.locator('.group-row')).toHaveCount(0);
+    await page.locator('.bot-row').filter({ hasText: 'Researcher' }).click();
+    schedule.push('runs-basic');
+    await send('Back in private chat, recall the group discussion.');
+    await expect(page.locator('.bot-copy').filter({ hasText: 'NEKODOT_PHASE0_OK' })).toBeVisible();
+    await idle();
+    expect(fake.inspectRuns().at(-1)).toMatchObject({
+      profile: researcher.botId,
+      sessionId: privateSessionId,
+    });
     expect(
       app.database.messages(
         app.database.conversations().find((item) => item.kind === 'group')!.conversationId,

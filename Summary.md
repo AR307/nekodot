@@ -16,6 +16,12 @@ Node 以官方 CLI/API 管理 Hermes。Node 是本地业务状态的唯一数据
 
 ## 更新记录
 
+### 2026-10-29 / Bot 跨私聊与群聊共享 Hermes 会话
+
+- 同一 Bot 的群聊 Run 复用该 Bot 私聊的 Hermes `session_id`，使 Hermes 原生 transcript 在群聊与私聊之间连续；不添加 nekodot 自建记忆层。
+- 保留群聊名册、角色提示及新增群聊文本的既有路由。旧 `nk_grp_*` session 和历史不迁移、不改写。
+- Node HTTP 集成与 Edge 旅程验证私聊 → 群聊接力 → 私聊均使用同一 session；目标 Node 测试和群聊 Edge 旅程通过。
+
 ### 2026-10-28 / 私聊界面与消息发送恢复
 
 - 修复 Bot 弹窗滚动与固定操作区，调整侧栏宽度、logo 对齐、设置入口、语言布局和电脑选择器；清除重复的 Team 标题。
