@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { approvalChoiceSchema } from './entities';
 export const hermesSseEventSchema = z
   .looseObject({
     event: z.string().min(1),
@@ -23,7 +24,7 @@ export const hermesSseEventSchema = z
     status: z.string().optional(),
     usage: z.unknown().optional(),
     runtime: z.unknown().optional(),
-    choices: z.array(z.string()).optional(),
+    choices: z.array(approvalChoiceSchema).optional(),
     kind: z.string().optional(),
     role: z.string().optional(),
   })
@@ -48,7 +49,7 @@ export const hermesRunCreatedSchema = z.looseObject({ run_id: z.string(), status
 export const hermesApprovalSchema = z.strictObject({
   request_id: z.string(),
   execution_generation: z.number().int().nonnegative(),
-  choice: z.enum(['once', 'deny']),
+  choice: approvalChoiceSchema,
 });
 export const hermesControlResponseSchema = z.looseObject({
   run_id: z.string(),
@@ -67,8 +68,20 @@ export const hermesRunStateSchema = z.looseObject({
         prompt_id: z.string(),
         kind: z.string(),
         execution_generation: z.number().int().optional(),
+        choices: z.array(approvalChoiceSchema).optional(),
       }),
     )
     .optional(),
 });
 export type HermesRunState = z.infer<typeof hermesRunStateSchema>;
+export const hermesModelOptionsSchema = z.looseObject({
+  provider: z.string(),
+  providers: z.array(
+    z.looseObject({
+      slug: z.string(),
+      models: z.array(z.string()),
+      is_current: z.boolean().optional(),
+      warning: z.string().nullable().optional(),
+    }),
+  ),
+});

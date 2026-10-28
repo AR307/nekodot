@@ -12,12 +12,59 @@ import { cancelRpcRequests, newEnvelope, resolveRpc, rpc } from './api';
 import { useAppStore } from './store';
 
 let activeSocket: WebSocket | null = null;
+let clientReady = false;
+type ConnectionWaiter = {
+  resolve(socket: WebSocket): void;
+  reject(error: Error): void;
+  timeout: number;
+};
+const connectionWaiters = new Set<ConnectionWaiter>();
 
-export function callNode<M extends RpcMethod>(method: M, params: RpcParams<M>) {
+function waitForClientSocket() {
+  if (clientReady && activeSocket?.readyState === WebSocket.OPEN)
+    return Promise.resolve(activeSocket);
+  return new Promise<WebSocket>((resolve, reject) => {
+    const waiter: ConnectionWaiter = {
+      timeout: 0,
+      resolve: (socket) => {
+        window.clearTimeout(waiter.timeout);
+        connectionWaiters.delete(waiter);
+        resolve(socket);
+      },
+      reject: (error) => {
+        window.clearTimeout(waiter.timeout);
+        connectionWaiters.delete(waiter);
+        reject(error);
+      },
+    };
+    waiter.timeout = window.setTimeout(
+      () =>
+        waiter.reject(
+          new Error('Connection is recovering. Your draft is kept; retry after reconnecting.'),
+        ),
+      30_000,
+    );
+    connectionWaiters.add(waiter);
+  });
+}
+
+function setClientReady(socket: WebSocket) {
+  if (activeSocket !== socket) return;
+  clientReady = true;
+  for (const waiter of [...connectionWaiters]) waiter.resolve(socket);
+}
+
+function rejectConnectionWaiters(error: Error) {
+  for (const waiter of [...connectionWaiters]) waiter.reject(error);
+}
+
+export async function callNode<M extends RpcMethod>(method: M, params: RpcParams<M>) {
   const { selectedNodeId } = useAppStore.getState();
-  if (!activeSocket || activeSocket.readyState !== WebSocket.OPEN || !selectedNodeId)
-    return Promise.reject(new Error('Computer is not connected'));
-  return rpc(activeSocket, selectedNodeId, method, params);
+  if (!selectedNodeId) throw new Error('Select a computer before sending.');
+  const socket = await waitForClientSocket();
+  if (socket !== activeSocket || socket.readyState !== WebSocket.OPEN)
+    throw new Error('Computer disconnected. Your draft is kept; retry after reconnecting.');
+  return rpc(socket, selectedNodeId, method, params);
 }
 
 export function loadConversation(conversationId: string) {
@@ -52,19 +99,21 @@ export function RelayConnection() {
       else useAppStore.getState().applyLive(selectedNodeId, message.payload);
     };
 
-    const synchronize = async () => {
-      if (!socket || syncing) return;
+    const synchronize = async (currentSocket: WebSocket) => {
+      if (currentSocket.readyState !== WebSocket.OPEN || syncing) return;
       syncing = true;
       try {
         const store = useAppStore.getState();
         const existing = store.nodes[selectedNodeId];
         if (!existing || existing.seq === 0) {
-          const snapshot = await rpc(socket, selectedNodeId, 'sync.snapshot', {});
+          const snapshot = await rpc(currentSocket, selectedNodeId, 'sync.snapshot', {});
           useAppStore.getState().setSnapshot(selectedNodeId, snapshot);
         } else {
-          const since = await rpc(socket, selectedNodeId, 'sync.since', { seq: existing.seq });
+          const since = await rpc(currentSocket, selectedNodeId, 'sync.since', {
+            seq: existing.seq,
+          });
           if (since.resyncRequired) {
-            const snapshot = await rpc(socket, selectedNodeId, 'sync.snapshot', {});
+            const snapshot = await rpc(currentSocket, selectedNodeId, 'sync.snapshot', {});
             useAppStore.getState().setSnapshot(selectedNodeId, snapshot);
           } else {
             for (const event of since.events)
@@ -79,7 +128,8 @@ export function RelayConnection() {
           useAppStore.getState().setSelectedConversation(activeConversation);
           await loadConversation(activeConversation);
         }
-        useAppStore.getState().setNodeOnline(selectedNodeId, true);
+        if (activeSocket === currentSocket)
+          useAppStore.getState().setNodeOnline(selectedNodeId, true);
         syncing = false;
         const buffered = queue.splice(0);
         for (const update of buffered
@@ -88,7 +138,8 @@ export function RelayConnection() {
           handleUpdate(update);
         for (const update of buffered.filter((item) => item.type === 'live')) handleUpdate(update);
       } catch {
-        useAppStore.getState().setNodeOnline(selectedNodeId, false);
+        if (activeSocket === currentSocket)
+          useAppStore.getState().setNodeOnline(selectedNodeId, false);
       } finally {
         syncing = false;
       }
@@ -96,22 +147,29 @@ export function RelayConnection() {
 
     const connect = () => {
       if (stopped) return;
-      socket = new WebSocket(window.location.origin.replace(/^http/, 'ws') + '/ws/client');
-      activeSocket = socket;
-      socket.onopen = () => socket?.send(JSON.stringify(newEnvelope('hello', { token })));
-      socket.onmessage = (event) => {
+      window.clearTimeout(timer);
+      const currentSocket = new WebSocket(
+        window.location.origin.replace(/^http/, 'ws') + '/ws/client',
+      );
+      socket = currentSocket;
+      activeSocket = currentSocket;
+      clientReady = false;
+      currentSocket.onopen = () =>
+        currentSocket.send(JSON.stringify(newEnvelope('hello', { token })));
+      currentSocket.onmessage = (event) => {
         const message = envelopeSchema.parse(JSON.parse(String(event.data)));
         if (message.type === 'ping') {
-          socket?.send(JSON.stringify(newEnvelope('pong', {})));
+          currentSocket.send(JSON.stringify(newEnvelope('pong', {})));
         } else if (message.type === 'hello.ok') {
           reconnectDelay = 1000;
-          void synchronize();
+          setClientReady(currentSocket);
+          void synchronize(currentSocket);
         } else if (message.type === 'rpc.res') {
           if (message.replyTo) resolveRpc(message.replyTo, message.payload);
         } else if (message.type === 'node.status' && message.nodeId === selectedNodeId) {
           const online = (message.payload as { online: boolean }).online;
           useAppStore.getState().setNodeOnline(selectedNodeId, online);
-          if (online) void synchronize();
+          if (online) void synchronize(currentSocket);
         } else if (
           (message.type === 'event' || message.type === 'live') &&
           message.nodeId === selectedNodeId
@@ -123,16 +181,17 @@ export function RelayConnection() {
           );
         }
       };
-      socket.onclose = () => {
-        useAppStore.getState().setNodeOnline(selectedNodeId, false);
-        if (activeSocket === socket) activeSocket = null;
+      currentSocket.onclose = () => {
+        if (activeSocket !== currentSocket) return;
+        activeSocket = null;
+        clientReady = false;
         cancelRpcRequests();
         if (!stopped) {
           timer = window.setTimeout(connect, reconnectDelay);
           reconnectDelay = Math.min(reconnectDelay * 2, 30_000);
         }
       };
-      socket.onerror = () => socket?.close();
+      currentSocket.onerror = () => currentSocket.close();
     };
     const resumeConnection = () => {
       if (document.visibilityState !== 'visible') return;
@@ -151,7 +210,13 @@ export function RelayConnection() {
       window.removeEventListener('pageshow', resumeConnection);
       window.removeEventListener('online', resumeConnection);
       document.removeEventListener('visibilitychange', resumeConnection);
-      if (activeSocket === socket) activeSocket = null;
+      if (activeSocket === socket) {
+        activeSocket = null;
+        clientReady = false;
+      }
+      rejectConnectionWaiters(
+        new Error('Connection changed. Your draft is kept; retry after reconnecting.'),
+      );
       socket?.close();
       cancelRpcRequests();
     };

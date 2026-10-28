@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { AnimatePresence } from 'motion/react';
 import type { Bot, Conversation, Group, Message } from '@nekodot/protocol';
 import { loadConversation } from '../relay-connection';
@@ -9,10 +9,18 @@ import { BotAvatar, Icon, Wordmark, SpinnerDots } from '../ui';
 import { avatarColors, type Texts } from '../shared';
 import { GroupDialog } from './groups';
 import { GroupChatView } from './group-chat';
+import { NodePicker } from './node-picker';
 
-export function TeamPage({ t, nodeName }: { t: Texts; nodeName: string }) {
+export function TeamPage({
+  t,
+  nodeName,
+  onLanguage,
+}: {
+  t: Texts;
+  nodeName: string;
+  onLanguage(): void;
+}) {
   const me = useAppStore((state) => state.me);
-  const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const node = useAppStore(selectNodeData);
   const activeBots = node.bots.filter((bot) => !bot.archived);
   const selectedConversationId = useAppStore((state) => state.selectedConversationId);
@@ -21,6 +29,14 @@ export function TeamPage({ t, nodeName }: { t: Texts; nodeName: string }) {
   const [botModal, setBotModal] = useState<Bot | 'new' | null>(null);
   const [groupModal, setGroupModal] = useState<Group | 'new' | null>(null);
   const [mobileChat, setMobileChat] = useState(Boolean(selectedConversationId));
+  const [sidebarWidth, setSidebarWidth] = useState(
+    Number(localStorage.getItem('nekodot-sidebar-width')) || 280,
+  );
+  function resizeSidebar(width: number) {
+    const next = Math.max(260, Math.min(440, window.innerWidth - 480, width));
+    setSidebarWidth(next);
+    localStorage.setItem('nekodot-sidebar-width', String(next));
+  }
   const conversations = node.conversations.filter(
     (item) => item.kind === 'dm' && activeBots.some((bot) => bot.botId === item.botId),
   );
@@ -44,14 +60,19 @@ export function TeamPage({ t, nodeName }: { t: Texts; nodeName: string }) {
   function openConversation(item: Conversation) {
     setConversation(item.conversationId);
     setMobileChat(true);
-    void loadConversation(item.conversationId);
+    void loadConversation(item.conversationId).catch(() => {
+      // RelayConnection reloads the selected conversation after reconnecting.
+    });
   }
   function newBot() {
     setBotModal('new');
   }
 
   return (
-    <main className={`team-layout${mobileChat ? ' mobile-chat' : ''}`}>
+    <main
+      className={`team-layout${mobileChat ? ' mobile-chat' : ''}`}
+      style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}
+    >
       <aside className="team-sidebar">
         <header className="sidebar-header">
           <Wordmark />
@@ -63,139 +84,109 @@ export function TeamPage({ t, nodeName }: { t: Texts; nodeName: string }) {
             <Icon name="settings" />
           </button>
         </header>
-        <div className="team-heading">
-          <div>
-            <span className="eyebrow">
-              <i /> {t.team.toUpperCase()}
-            </span>
-            <h1>{t.team}</h1>
+        <NodePicker t={t} />
+        <div className="sidebar-conversations">
+          <div className="bot-list-heading">
+            <span>{t.dm}</span>
+            <button className="tiny-icon" onClick={newBot} aria-label={t.newBot}>
+              <Icon name="plus" />
+            </button>
           </div>
-          <div
-            className={`node-state ${online ? 'is-online' : 'is-offline'}`}
-            title={online ? t.connected : t.offline}
-          >
-            <i />
-            <select
-              aria-label={t.chooseNode}
-              value={selectedNodeId ?? ''}
-              onChange={(event) => useAppStore.getState().setSelectedNode(event.target.value)}
-            >
-              {me?.nodes.map((item) => (
-                <option value={item.nodeId} key={item.nodeId}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div className="bot-list-heading">
-          <span>{t.dm}</span>
-          <button className="tiny-icon" onClick={newBot} aria-label={t.newBot}>
-            <Icon name="plus" />
-          </button>
-        </div>
-        <div className="bot-list">
-          {activeBots.map((item) => {
-            const chat = node.conversations.find(
-              (entry) => entry.kind === 'dm' && entry.botId === item.botId,
-            );
-            const last = chat ? node.messages[chat.conversationId]?.at(-1) : undefined;
-            const state = chat ? (node.activity[chat.conversationId]?.state ?? 'idle') : 'idle';
-            const active = chat?.conversationId === conversation?.conversationId;
-            return (
-              <button
-                className={`bot-row${active ? ' active' : ''}`}
-                key={item.botId}
-                onClick={() => chat && openConversation(chat)}
-              >
-                <span className="avatar-wrap">
-                  <BotAvatar color={item.avatar.color} size={42} working={state !== 'idle'} />
-                  {state === 'thinking' && (
-                    <span className="mini-thinking">
-                      <SpinnerDots />
-                    </span>
+          <div className="bot-list">
+            {activeBots.map((item) => {
+              const chat = node.conversations.find(
+                (entry) => entry.kind === 'dm' && entry.botId === item.botId,
+              );
+              const last = chat ? node.messages[chat.conversationId]?.at(-1) : undefined;
+              const state = chat ? (node.activity[chat.conversationId]?.state ?? 'idle') : 'idle';
+              const active = chat?.conversationId === conversation?.conversationId;
+              return (
+                <button
+                  className={`bot-row${active ? ' active' : ''}`}
+                  key={item.botId}
+                  onClick={() => chat && openConversation(chat)}
+                >
+                  <span className="avatar-wrap">
+                    <BotAvatar color={item.avatar.color} size={42} working={state !== 'idle'} />
+                    {state === 'thinking' && (
+                      <span className="mini-thinking">
+                        <SpinnerDots />
+                      </span>
+                    )}
+                  </span>
+                  <span className="bot-row-info">
+                    <strong>{item.displayName}</strong>
+                    <small>{last ? messagePreview(last, t) : t.lastMessage}</small>
+                  </span>
+                  {state === 'waiting_approval' && (
+                    <span className="needs-you">{t.waitingApproval}</span>
                   )}
-                </span>
-                <span className="bot-row-info">
-                  <strong>{item.displayName}</strong>
-                  <small>{last ? messagePreview(last, t) : t.lastMessage}</small>
-                </span>
-                {state === 'waiting_approval' && (
-                  <span className="needs-you">{t.waitingApproval}</span>
-                )}
-                {state === 'tool' && <span className="work-indicator" />}
-              </button>
-            );
-          })}
-          {!activeBots.length && (
-            <div className="empty-bots">
-              <BotAvatar color={avatarColors[0]!} size={60} />
-              <p>{node.online ? t.noBots : t.offline}</p>
-              <button className="primary-button" disabled={!node.online} onClick={newBot}>
-                {t.newBot}
-                <Icon name="plus" />
-              </button>
-            </div>
-          )}
+                  {state === 'tool' && <span className="work-indicator" />}
+                </button>
+              );
+            })}
+            {!activeBots.length && (
+              <div className="empty-bots">
+                <BotAvatar color={avatarColors[0]!} size={60} />
+                <p>{node.online ? t.noBots : t.offline}</p>
+                <button className="primary-button" disabled={!node.online} onClick={newBot}>
+                  {t.newBot}
+                  <Icon name="plus" />
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="bot-list-heading group-list-heading">
+            <span>{t.groups}</span>
+            <button
+              className="tiny-icon"
+              onClick={() => setGroupModal('new')}
+              aria-label={t.newGroup}
+              disabled={activeBots.length < 2 || !online}
+            >
+              <Icon name="plus" />
+            </button>
+          </div>
+          <div className="bot-list group-list">
+            {node.groups.map((item) => {
+              const chat = node.conversations.find(
+                (entry) => entry.kind === 'group' && entry.groupId === item.groupId,
+              );
+              if (!chat) return null;
+              const active = chat.conversationId === conversation?.conversationId;
+              const state = node.activity[chat.conversationId];
+              return (
+                <button
+                  className={`bot-row group-row${active ? ' active' : ''}`}
+                  key={item.groupId}
+                  onClick={() => openConversation(chat)}
+                >
+                  <span className="group-avatar-stack">
+                    {item.botIds.slice(0, 3).map((botId) => {
+                      const member = node.bots.find((entry) => entry.botId === botId);
+                      return member ? (
+                        <BotAvatar key={botId} color={member.avatar.color} size={27} />
+                      ) : null;
+                    })}
+                  </span>
+                  <span className="bot-row-info">
+                    <strong>{item.name}</strong>
+                    <small>
+                      {state?.chain && state.state !== 'idle'
+                        ? `${t.relayProgress} ${state.chain.count}/${state.chain.max}`
+                        : t.groupChat}
+                    </small>
+                  </span>
+                  {state?.state === 'waiting_approval' && (
+                    <span className="needs-you">{t.waitingApproval}</span>
+                  )}
+                </button>
+              );
+            })}
+            {!node.groups.length && <p className="empty-group-copy">{t.noGroups}</p>}
+          </div>
         </div>
-        <div className="bot-list-heading group-list-heading">
-          <span>{t.groups}</span>
-          <button
-            className="tiny-icon"
-            onClick={() => setGroupModal('new')}
-            aria-label={t.newGroup}
-            disabled={activeBots.length < 2 || !online}
-          >
-            <Icon name="plus" />
-          </button>
-        </div>
-        <div className="bot-list group-list">
-          {node.groups.map((item) => {
-            const chat = node.conversations.find(
-              (entry) => entry.kind === 'group' && entry.groupId === item.groupId,
-            );
-            if (!chat) return null;
-            const active = chat.conversationId === conversation?.conversationId;
-            const state = node.activity[chat.conversationId];
-            return (
-              <button
-                className={`bot-row group-row${active ? ' active' : ''}`}
-                key={item.groupId}
-                onClick={() => openConversation(chat)}
-              >
-                <span className="group-avatar-stack">
-                  {item.botIds.slice(0, 3).map((botId) => {
-                    const member = node.bots.find((entry) => entry.botId === botId);
-                    return member ? (
-                      <BotAvatar key={botId} color={member.avatar.color} size={27} />
-                    ) : null;
-                  })}
-                </span>
-                <span className="bot-row-info">
-                  <strong>{item.name}</strong>
-                  <small>
-                    {state?.chain && state.state !== 'idle'
-                      ? `${t.relayProgress} ${state.chain.count}/${state.chain.max}`
-                      : t.groupChat}
-                  </small>
-                </span>
-                {state?.state === 'waiting_approval' && (
-                  <span className="needs-you">{t.waitingApproval}</span>
-                )}
-              </button>
-            );
-          })}
-          {!node.groups.length && <p className="empty-group-copy">{t.noGroups}</p>}
-        </div>
-        <button
-          className="new-bot-wide new-group-wide"
-          onClick={() => setGroupModal('new')}
-          disabled={activeBots.length < 2 || !online}
-        >
-          <Icon name="plus" />
-          {t.newGroup}
-        </button>
-        <button className="new-bot-wide" onClick={newBot}>
+        <button className="new-bot-wide" onClick={newBot} disabled={!online}>
           <Icon name="plus" />
           {t.newBot}
         </button>
@@ -208,7 +199,37 @@ export function TeamPage({ t, nodeName }: { t: Texts; nodeName: string }) {
             </span>
             <Icon name="chevron" />
           </button>
+          <button
+            className="quiet-button language-button"
+            onClick={onLanguage}
+            aria-label={t.language}
+          >
+            {t.language}
+          </button>
         </footer>
+        <div
+          className="sidebar-resizer"
+          role="separator"
+          aria-label={t.resizeSidebar}
+          aria-orientation="vertical"
+          aria-valuemin={260}
+          aria-valuemax={440}
+          aria-valuenow={sidebarWidth}
+          tabIndex={0}
+          onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)}
+          onPointerMove={(event) => {
+            if (event.currentTarget.hasPointerCapture(event.pointerId))
+              resizeSidebar(event.clientX);
+          }}
+          onPointerUp={(event) => event.currentTarget.releasePointerCapture(event.pointerId)}
+          onDoubleClick={() => resizeSidebar(280)}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+              event.preventDefault();
+              resizeSidebar(sidebarWidth + (event.key === 'ArrowLeft' ? -20 : 20));
+            }
+          }}
+        />
       </aside>
       <section className="conversation-area">
         {conversation && bot ? (

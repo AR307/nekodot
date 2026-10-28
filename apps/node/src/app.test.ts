@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { describe, expect, it } from 'vitest';
 import { startFakeHermes } from '@nekodot/fake-hermes';
-import { rpcRequestSchema, type Bot } from '@nekodot/protocol';
+import { rpcRequestSchema, type Bot, type Conversation } from '@nekodot/protocol';
 import { NodeApplication } from './app';
 import { HermesApi } from './hermes/api';
 import type { HermesRuntime, ProviderInput } from './hermes/runtime';
@@ -20,7 +20,10 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
       apiKey: testKey,
       allowProfileCreate: true,
       eventDelayMs: 30,
-      models: { models: [{ id: 'test-model', name: 'Recorded test model' }] },
+      models: {
+        provider: 'custom',
+        providers: [{ slug: 'custom', models: ['test-model'], is_current: true }],
+      },
     });
     const home = await mkdtemp(join(tmpdir(), 'nekodot-node-journey-'));
     const profiles = new Set(['default']);
@@ -28,6 +31,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
     const runtime: HermesRuntime = {
       start: async () => {},
       close: async () => {},
+      approvalMode: async () => 'manual',
       configureProvider: async (value) => {
         provider = value;
       },
@@ -43,12 +47,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
         }
       },
       api: async (profile) => new HermesApi(relay.url + '/p/' + profile, testKey),
-      models: async () =>
-        await (
-          await fetch(relay.url + '/p/default/api/model/options', {
-            headers: { Authorization: 'Bearer ' + testKey },
-          })
-        ).json(),
+      models: async () => new HermesApi(relay.url + '/p/default', testKey).models(),
     };
     const app = new NodeApplication(home, runtime);
     const request = (method: string, params: unknown) => rpcRequestSchema.parse({ method, params });
@@ -71,7 +70,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
       expect(JSON.stringify(app.database.setting('provider'))).not.toContain(secret);
       expect(provider?.apiKey).toBe(secret);
 
-      const { bot } = (await app.handle(
+      const { bot, conversation } = (await app.handle(
         request('bots.create', {
           displayName: 'Mochi',
           handle: 'mochi',
@@ -79,9 +78,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
           role: 'A practical assistant',
           model: 'test-model',
         }),
-      )) as { bot: Bot };
-      const conversation = app.database.conversations()[0];
-      if (!conversation) throw new Error('Bot conversation was not created.');
+      )) as { bot: Bot; conversation: Conversation };
       expect(conversation).toMatchObject({ kind: 'dm', botId: bot.botId });
       expect(((await runtime.models()) as { models: unknown[] }).models).toHaveLength(1);
 
@@ -292,6 +289,7 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
     const runtime: HermesRuntime = {
       start: async () => {},
       close: async () => {},
+      approvalMode: async () => 'manual',
       configureProvider: async () => {},
       configureBot: async (bot: Bot) => {
         if (profiles.has(bot.botId)) return;

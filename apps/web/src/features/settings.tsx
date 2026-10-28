@@ -5,6 +5,7 @@ import { callNode } from '../relay-connection';
 import { useAppStore } from '../store';
 import { Icon, SpinnerDots, Wordmark } from '../ui';
 import type { Texts } from '../shared';
+import { ModelPicker, useModelOptions } from './models';
 type Provider = NonNullable<RpcResult<'providers.get'>>;
 
 export function SettingsPage({
@@ -12,11 +13,13 @@ export function SettingsPage({
   dark,
   setDark,
   onHome,
+  onLanguage,
 }: {
   t: Texts;
   dark: boolean;
   setDark(value: boolean): void;
   onHome(): void;
+  onLanguage(): void;
 }) {
   const me = useAppStore((state) => state.me);
   const setToken = useAppStore((state) => state.setToken);
@@ -33,6 +36,7 @@ export function SettingsPage({
   const [copied, setCopied] = useState('');
   const [confirmArchive, setConfirmArchive] = useState<string | null>(null);
   const selectedNode = me?.nodes.find((item) => item.nodeId === selectedNodeId);
+  const catalog = useModelOptions(Boolean(selectedNode?.online));
 
   useEffect(() => {
     if (!selectedNode?.online) return;
@@ -45,8 +49,8 @@ export function SettingsPage({
           setDefaultModel(value.defaultModel ?? '');
         }
       })
-      .catch(() => {});
-  }, [selectedNode?.online, selectedNodeId]);
+      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : t.saveError));
+  }, [selectedNode?.online, selectedNodeId, t.saveError]);
 
   async function saveProvider(event: FormEvent) {
     event.preventDefault();
@@ -57,12 +61,18 @@ export function SettingsPage({
       const value = await callNode(
         'providers.set',
         kind === 'custom'
-          ? { kind, apiKey: key, baseUrl, ...(defaultModel ? { defaultModel } : {}) }
-          : { kind, apiKey: key, ...(defaultModel ? { defaultModel } : {}) },
+          ? {
+              kind,
+              ...(key ? { apiKey: key } : {}),
+              baseUrl: baseUrl.trim().replace(/\/+$/, ''),
+              ...(defaultModel ? { defaultModel } : {}),
+            }
+          : { kind, ...(key ? { apiKey: key } : {}), ...(defaultModel ? { defaultModel } : {}) },
       );
       setProvider(value);
       setKey('');
-      setMessage(`${t.keySaved} ····${value.apiKeyLast4}`);
+      setMessage(t.providerSaved);
+      await catalog.reload(true);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t.saveError);
     } finally {
@@ -106,6 +116,13 @@ export function SettingsPage({
         </button>
         <Wordmark />
         <span>{t.settingsTitle}</span>
+        <button
+          className="quiet-button language-button"
+          onClick={onLanguage}
+          aria-label={t.language}
+        >
+          {t.language}
+        </button>
       </header>
       <section className="settings-body">
         <span className="eyebrow">
@@ -152,21 +169,22 @@ export function SettingsPage({
             {t.apiKey}
             <input
               type="password"
-              required
+              required={provider?.kind !== kind}
               value={key}
               onChange={(event) => setKey(event.target.value)}
               placeholder={provider ? `••••••••${provider.apiKeyLast4}` : t.keyPlaceholder}
               autoComplete="new-password"
             />
           </label>
-          <label>
-            {t.defaultModel}
-            <input
-              value={defaultModel}
-              onChange={(event) => setDefaultModel(event.target.value)}
-              placeholder={t.modelPlaceholder}
-            />
-          </label>
+          {provider?.kind === kind && <small className="muted">{t.keepKeyHint}</small>}
+          <ModelPicker
+            t={t}
+            label={t.defaultModel}
+            value={defaultModel}
+            onChange={setDefaultModel}
+            catalog={catalog}
+            disabled={!selectedNode?.online || !provider}
+          />
           {provider && (
             <p className="saved-key">
               {t.keySaved} ····{provider.apiKeyLast4}
@@ -175,11 +193,15 @@ export function SettingsPage({
           {message && <p className="success-message">{message}</p>}
           {error && <p className="form-error">{error}</p>}
           <div className="settings-card-footer">
-            <button className="primary-button" disabled={saving || !key || !selectedNode?.online}>
+            <button
+              className="primary-button"
+              disabled={saving || (!key && provider?.kind !== kind) || !selectedNode?.online}
+            >
               {saving ? <SpinnerDots /> : t.saveProvider}
               <Icon name="arrow" />
             </button>
           </div>
+          {!selectedNode?.online && <p className="form-error">{t.offlineCreateHint}</p>}
         </form>
         <section className="settings-card">
           <div className="settings-card-heading">

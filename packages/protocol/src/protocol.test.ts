@@ -68,7 +68,7 @@ describe('real product protocol journeys', () => {
       rpcResponseSchema('messages.list').parse({ ok: true, result: { messages: [message] } }),
     ).toBeDefined();
   });
-  it('approval card supports once/deny and streaming tool state', () => {
+  it('approval card supports native Hermes scopes and streaming tool state', () => {
     expect(
       messageSchema.parse({
         ...message,
@@ -92,7 +92,7 @@ describe('real product protocol journeys', () => {
     expect(
       rpcContracts['approvals.respond'].params.safeParse({ messageId: 'msg-1', choice: 'always' })
         .success,
-    ).toBe(false);
+    ).toBe(true);
     expect(messageSchema.safeParse({ ...message, status: 'running' }).success).toBe(false);
     expect(
       messageSchema.safeParse({ ...message, kind: 'approval', content: { text: '?' } }).success,

@@ -7,6 +7,7 @@ import type {
   RpcParams,
   RpcRequest,
   RpcResult,
+  ApprovalChoice,
 } from '@nekodot/protocol';
 import { NodeDatabase, type GroupChainRecord, type RunRecord } from './database';
 import type { HermesRuntime } from './hermes/runtime';
@@ -34,6 +35,7 @@ type HermesEvent = SseFrame['data'] & {
   command?: string;
   description?: string;
   accepted?: boolean;
+  choices?: ApprovalChoice[];
 };
 type TextMessage = Extract<Message, { kind: 'text' }>;
 
@@ -98,13 +100,15 @@ export class NodeApplication {
       case 'providers.set':
         return this.bots.setProvider(request.params);
       case 'models.options':
-        return this.hermes.models();
+        return this.hermes.models(request.params.refresh);
       case 'bots.create':
         return this.bots.create(request.params);
       case 'bots.update':
         return this.bots.update(request.params);
       case 'bots.archive':
         return this.bots.archive(request.params.botId);
+      case 'bots.permissions.get':
+        return { mode: await this.hermes.approvalMode(this.bots.get(request.params.botId).botId) };
       case 'groups.create':
         return this.groups.create(request.params);
       case 'groups.update':
@@ -180,6 +184,7 @@ export class NodeApplication {
                     prompt.execution_generation ?? state.execution_generation ?? 0,
                   prompt: prompt.description ?? prompt.command ?? 'Approval required',
                   ...(prompt.command ? { command: prompt.command } : {}),
+                  ...(prompt.choices ? { choices: prompt.choices } : {}),
                 },
               };
               run.state = 'waiting_approval';
@@ -604,6 +609,9 @@ export class NodeApplication {
           botId: run.botId,
           requestId: pending.prompt_id,
           executionGeneration: pending.execution_generation ?? event.execution_generation ?? 0,
+          ...((pending.choices ?? event.choices)
+            ? { choices: pending.choices ?? event.choices }
+            : {}),
           prompt:
             details.description ??
             details.command ??

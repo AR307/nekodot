@@ -10,7 +10,6 @@ import { AuthPage } from './features/auth';
 import { PairScreen } from './features/pairing';
 import { SettingsPage } from './features/settings';
 import { TeamPage } from './features/team';
-import { Icon } from './ui';
 
 export function App() {
   const token = useAppStore((state) => state.token);
@@ -29,6 +28,10 @@ export function App() {
   const t: Texts = language === 'zh' ? zh : en;
 
   useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
+
+  useEffect(() => {
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
     localStorage.setItem('nekodot-theme', dark ? 'dark' : 'light');
   }, [dark]);
@@ -44,8 +47,10 @@ export function App() {
           useAppStore.getState().setNodeOnline(node.nodeId, node.online),
         );
         const savedNode = useAppStore.getState().selectedNodeId;
-        if (!savedNode || !value.nodes.some((node) => node.nodeId === savedNode))
-          setSelectedNode(value.nodes[0]?.nodeId ?? null);
+        if (!value.nodes.some((node) => node.nodeId === savedNode && node.online))
+          setSelectedNode(
+            value.nodes.find((node) => node.online)?.nodeId ?? value.nodes[0]?.nodeId ?? null,
+          );
         if (!value.nodes.length) setScreen('pair');
       })
       .catch((reason: unknown) => {
@@ -91,30 +96,28 @@ export function App() {
     <div className="app-shell" data-theme={dark ? 'dark' : 'light'}>
       <RelayConnection />
       {showPair ? (
-        <PairScreen t={t} onBack={() => setScreen('home')} />
+        <PairScreen
+          t={t}
+          onBack={() => setScreen('home')}
+          onLanguage={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
+        />
       ) : screen === 'settings' ? (
-        <SettingsPage t={t} dark={dark} setDark={setDark} onHome={() => setScreen('home')} />
+        <SettingsPage
+          key={selectedNodeId}
+          t={t}
+          dark={dark}
+          setDark={setDark}
+          onHome={() => setScreen('home')}
+          onLanguage={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
+        />
       ) : (
-        <TeamPage key={selectedNodeId} t={t} nodeName={selectedNode?.name ?? t.chooseNode} />
+        <TeamPage
+          key={selectedNodeId}
+          t={t}
+          nodeName={selectedNode?.name ?? t.chooseNode}
+          onLanguage={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
+        />
       )}
-      <div className="floating-actions">
-        <button
-          className="quiet-button language-button"
-          onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
-          aria-label={t.language}
-        >
-          {t.language}
-        </button>
-        {!showPair && (
-          <button
-            className="icon-button"
-            onClick={() => setScreen(screen === 'settings' ? 'home' : 'settings')}
-            aria-label={t.settings}
-          >
-            <Icon name="settings" />
-          </button>
-        )}
-      </div>
     </div>
   );
 }

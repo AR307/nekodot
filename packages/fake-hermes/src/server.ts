@@ -177,7 +177,14 @@ export async function startFakeHermes(options: FakeHermesOptions) {
       path[4] === 'model' &&
       path[5] === 'options'
     )
-      return json(response, 200, options.models ?? { models: [] });
+      return json(
+        response,
+        200,
+        options.models ?? {
+          provider: 'custom',
+          providers: [{ slug: 'custom', models: [], is_current: true }],
+        },
+      );
     if (path[3] !== 'v1' || path[4] !== 'runs') return json(response, 404, {});
     if (request.method === 'POST' && path.length === 5) {
       const input = hermesCreateRunSchema.parse(await body(request));

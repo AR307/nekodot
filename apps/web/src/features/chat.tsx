@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import type { Bot, Conversation, Group, Message } from '@nekodot/protocol';
+import type { ApprovalChoice, Bot, Conversation, Group, Message } from '@nekodot/protocol';
 import { callNode, loadConversation } from '../relay-connection';
 import { useAppStore } from '../store';
 import { BotAvatar, Icon, SpinnerDots } from '../ui';
@@ -157,6 +157,14 @@ export function ChatView({
                     ? t.connected
                     : t.offline}
         </div>
+        <button
+          className="icon-button"
+          onClick={onEdit}
+          aria-label={group ? t.editGroup : t.editBot}
+          title={group ? t.editGroup : t.editBot}
+        >
+          <Icon name="settings" />
+        </button>
       </header>
       <div className="message-scroll">
         <div className="messages-inner">
@@ -484,7 +492,7 @@ function ApprovalCard({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  async function respond(choice: 'once' | 'deny') {
+  async function respond(choice: ApprovalChoice) {
     setBusy(true);
     setError('');
     try {
@@ -495,16 +503,25 @@ function ApprovalCard({
       setBusy(false);
     }
   }
-  const status =
-    message.content.choice === 'once'
-      ? t.approved
-      : message.content.choice === 'deny'
-        ? t.denied
-        : message.status === 'cancelled'
-          ? t.stopped
-          : message.status === 'failed'
-            ? t.failed
-            : '';
+  const choiceLabels = {
+    once: t.allowOnce,
+    session: t.allowSession,
+    always: t.allowAlways,
+    deny: t.deny,
+  };
+  const resultLabels = {
+    once: t.approved,
+    session: t.approvedSession,
+    always: t.approvedAlways,
+    deny: t.denied,
+  };
+  const status = message.content.choice
+    ? resultLabels[message.content.choice]
+    : message.status === 'cancelled'
+      ? t.stopped
+      : message.status === 'failed'
+        ? t.failed
+        : '';
   return (
     <div className="approval-card">
       {author && <small className="card-author">{author}</small>}
@@ -516,14 +533,28 @@ function ApprovalCard({
       {message.content.command && <pre className="approval-command">{message.content.command}</pre>}
       {!status && message.status === 'streaming' && (
         <div className="approval-actions">
-          <button className="allow-button" disabled={busy} onClick={() => void respond('once')}>
-            {t.allowOnce}
-          </button>
-          <button className="deny-button" disabled={busy} onClick={() => void respond('deny')}>
-            {t.deny}
-          </button>
+          {(message.content.choices ?? (['once', 'deny'] as const)).map((choice) => (
+            <button
+              key={choice}
+              className={
+                choice === 'deny'
+                  ? 'deny-button'
+                  : choice === 'once'
+                    ? 'allow-button'
+                    : 'secondary-button'
+              }
+              disabled={busy}
+              onClick={() => void respond(choice)}
+            >
+              {choiceLabels[choice]}
+            </button>
+          ))}
         </div>
       )}
+      {!status &&
+        message.content.choices?.some((choice) => choice === 'session' || choice === 'always') && (
+          <small className="approval-scope-hint">{t.approvalScopeHint}</small>
+        )}
       {status && <span className="approval-result">{status}</span>}
       {error && <small className="form-error">{error}</small>}
     </div>

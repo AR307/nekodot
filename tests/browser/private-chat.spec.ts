@@ -13,6 +13,7 @@ import { connectRelay } from '../../apps/node/src/connection';
 import type { HermesRuntime } from '../../apps/node/src/hermes/runtime';
 import type { Bot } from '../../packages/protocol/src/entities';
 import type { NodeCredentials } from '../../apps/node/src/connection';
+import type { ApprovalMode } from '../../packages/protocol/src/entities';
 
 const relayPort = 4319;
 const relayUrl = `http://127.0.0.1:${relayPort}`;
@@ -37,7 +38,17 @@ test.beforeAll(async () => {
     apiKey: hermesKey,
     allowProfileCreate: true,
     eventDelayMs: 120,
-    models: { models: [{ id: 'recorded-model', name: 'Recorded integration model' }] },
+    models: {
+      provider: 'custom',
+      providers: [
+        {
+          slug: 'custom',
+          models: ['recorded-model', 'another-model', 'custom-model-id'],
+          is_current: true,
+        },
+        { slug: 'unconfigured', models: ['not-this-provider'] },
+      ],
+    },
   });
   services.relay = await createRelay({
     dataDir: await mkdtemp(join(tmpdir(), 'nekodot-browser-relay-')),
@@ -83,11 +94,14 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   services.nodeHome = await mkdtemp(join(tmpdir(), 'nekodot-browser-node-'));
   services.credentials = await pairNode(services.nodeHome, relayUrl, code!, 'Acceptance computer');
   const profiles = new Set(['default']);
+  const permissionModes = new Map<string, ApprovalMode>();
   const runtime: HermesRuntime = {
     start: async () => {},
     close: async () => {},
+    approvalMode: async (profile) => permissionModes.get(profile) ?? 'manual',
     configureProvider: async () => {},
-    configureBot: async (bot: Bot, create: boolean) => {
+    configureBot: async (bot: Bot, create: boolean, mode?: ApprovalMode) => {
+      if (mode) permissionModes.set(bot.botId, mode);
       if (create && !profiles.has(bot.botId)) {
         const response = await fetch(services.fake!.url + '/test/profiles', {
           method: 'POST',
@@ -114,26 +128,61 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   connectNode();
   await services.app.resume();
 
-  await expect(page.getByRole('heading', { name: '团队' })).toBeVisible({ timeout: 12000 });
-  await page.locator('.floating-actions button[aria-label="设置"]').click();
+  await expect(page.locator('.node-picker summary')).toContainText('Acceptance computer', {
+    timeout: 12000,
+  });
+  await page.locator('.sidebar-header button[aria-label="设置"]').click();
   await expect(page.getByRole('heading', { name: '模型提供方' })).toBeVisible();
   await page.getByLabel('API 地址').fill('https://models.example.test/v1');
   await page.getByLabel('API Key').fill('browser-only-secret-9472');
   await page.getByLabel('默认模型（可选）').fill('recorded-model');
-  await page.getByRole('button', { name: '保存提供方' }).click();
+  await page.getByRole('button', { name: '保存并获取模型' }).click();
   await expect(page.getByText('已保存密钥 ····9472').first()).toBeVisible();
+  await expect(page.getByLabel('可用模型').locator('option')).toHaveCount(4);
+  await expect(page.getByLabel('可用模型')).not.toContainText('not-this-provider');
+  await page.getByLabel('可用模型').selectOption('another-model');
+  await expect(page.getByLabel('默认模型（可选）')).toHaveValue('another-model');
+  await page.getByLabel('默认模型（可选）').fill('recorded-model');
+  await page.getByRole('button', { name: '保存并获取模型' }).click();
+  await expect(page.locator('.success-message')).toBeVisible();
   expect(JSON.stringify(services.app.database.setting('provider'))).not.toContain(
     'browser-only-secret-9472',
   );
   await page.screenshot({ path: 'docs/evidence/phase1-settings.png', fullPage: true });
 
   await page.getByRole('button', { name: '返回团队' }).click();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const resizer = page.getByRole('separator', { name: '调整侧栏宽度' });
+  await resizer.focus();
+  await resizer.press('ArrowRight');
+  await expect(resizer).toHaveAttribute('aria-valuenow', '300');
+  const logoBox = await page.locator('.sidebar-header .wordmark').boundingBox();
+  expect(logoBox!.x).toBeGreaterThanOrEqual(0);
+  expect(logoBox!.x + logoBox!.width).toBeLessThan(300);
+  await expect(page.getByRole('heading', { name: '团队', exact: true })).toHaveCount(0);
+  await page.setViewportSize({ width: 1024, height: 600 });
   await page.getByRole('button', { name: '新建 bot' }).last().click();
   await page.screenshot({ path: 'docs/evidence/phase1-new-bot.png', animations: 'disabled' });
   await page.getByLabel('名字').fill('Mochi');
   await page.getByLabel('它负责什么？').fill('A friendly assistant for everyday planning.');
-  await page.getByLabel('模型').fill('recorded-model');
+  await page.getByLabel(/工具权限/).selectOption('smart');
+  await expect(page.getByLabel('可用模型')).toBeVisible();
+  await page.getByLabel('可用模型').selectOption('recorded-model');
+  await expect(page.getByLabel('模型', { exact: true })).toHaveValue('recorded-model');
+  await page.getByRole('button', { name: '高级设置' }).click();
+  await page.locator('.advanced-field input').fill('mochi');
+  expect(
+    await page.locator('.dialog-body').evaluate((el) => el.scrollHeight > el.clientHeight),
+  ).toBe(true);
+  await expect(page.locator('.bot-dialog footer')).toBeInViewport();
+  await page.screenshot({
+    path: 'docs/evidence/fix-bot-dialog-scroll.png',
+    animations: 'disabled',
+  });
   await page.locator('.bot-dialog').getByRole('button', { name: '创建 bot' }).click();
+  const bot = services.app.database.bots()[0]!;
+  expect(permissionModes.get(bot.botId)).toBe('smart');
+  await page.setViewportSize({ width: 1440, height: 900 });
   await expect(page.getByRole('button', { name: /Mochi/ }).first()).toBeVisible();
   await page.getByRole('button', { name: /Mochi/ }).first().click();
   await expect(page.locator('.chat-header')).toContainText('Mochi');
@@ -141,19 +190,23 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   const composer = page.locator('.composer textarea');
   const originalHandle = services.app.handle.bind(services.app);
   let dropFirstReply = true;
+  let sendAttempts = 0;
   services.app.handle = async (request) => {
     const result = await originalHandle(request);
     if (dropFirstReply && request.method === 'messages.send') {
       dropFirstReply = false;
+      sendAttempts += 1;
       services.connection!.close();
       await delay(20);
     }
     return result;
   };
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow')));
   await composer.fill('Hello, please give me a short greeting.');
   await composer.press('Enter');
   await expect(page.locator('.inline-error')).toBeVisible();
   await expect(composer).toHaveValue('Hello, please give me a short greeting.');
+  expect(sendAttempts).toBe(1);
   services.app.handle = originalHandle;
   connectNode();
   await expect(page.locator('.chat-status')).not.toContainText('电脑离线');
@@ -287,13 +340,12 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await page.setViewportSize({ width: 1440, height: 900 });
   services.connection!.close();
   await expect(page.locator('.chat-status')).toContainText('电脑离线');
-  const bot = services.app.database.bots()[0]!;
   for (let index = 0; index < 1001; index++)
     services.app.database.putBot({ ...bot, displayName: 'Mochi restored' });
   connectNode();
   await expect(page.locator('.chat-header')).toContainText('Mochi restored');
   await expect(page.locator('.bot-copy').filter({ hasText: 'NEKODOT_STEER_OK' })).toBeVisible();
-  await page.locator('.floating-actions button[aria-label="设置"]').click();
+  await page.locator('.sidebar-header button[aria-label="设置"]').click();
   await page.getByRole('button', { name: '切换主题' }).click();
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.getByRole('button', { name: 'English', exact: true }).click();
@@ -308,8 +360,16 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await page.locator('.chat-title').click();
   await page.getByLabel('Name', { exact: true }).fill('Mochi edited');
   await page.locator('.color-swatches button').nth(1).click();
+  const permissionSelect = page.locator('.bot-dialog select').last();
+  await permissionSelect.selectOption('off');
   await page.locator('.bot-dialog').getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.locator('.chat-title')).toContainText('Mochi edited');
+  expect(permissionModes.get(bot.botId)).toBe('off');
+  await page.locator('.chat-title').click();
+  await expect(page.locator('.bot-dialog select').last()).toHaveValue('off');
+  await page.locator('.bot-dialog select').last().selectOption('manual');
+  await page.locator('.bot-dialog').getByRole('button', { name: 'Save', exact: true }).click();
+  expect(permissionModes.get(bot.botId)).toBe('manual');
   await page.reload();
   await expect(page.locator('.chat-title')).toContainText('Mochi edited');
   const conversationId = services.app.database.conversations()[0]!.conversationId;
@@ -329,7 +389,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await page.getByRole('button', { name: 'Load earlier messages' }).click();
   await expect(page.locator('.bot-copy').filter({ hasText: 'NEKODOT_STEER_OK' })).toBeVisible();
 
-  await page.locator('.floating-actions button[aria-label="Settings"]').click();
+  await page.locator('.sidebar-header button[aria-label="Settings"]').click();
   await page.getByRole('button', { name: 'Add computer', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Add computer', exact: true })).toBeVisible();
   await expect(page.locator('.pair-wait')).toContainText(/[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}/);
@@ -347,15 +407,16 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   services.secondApp.onEvent = services.secondConnection.event;
   services.secondApp.onLive = services.secondConnection.live;
   await services.secondApp.resume();
-  await expect(page.locator('.node-state select')).toHaveValue(secondCredentials.nodeId, {
+  await expect(page.locator('.node-picker summary')).toContainText('Second computer', {
     timeout: 10000,
   });
   await expect(page.locator('.bot-row')).toHaveCount(0);
   await expect(page.locator('.welcome-panel')).toContainText('Create a bot');
-  await page.getByLabel('Computer', { exact: true }).selectOption(services.credentials!.nodeId);
+  await page.getByLabel('Computer', { exact: true }).click();
+  await page.getByRole('menuitemradio', { name: /Acceptance computer/ }).click();
   await expect(page.locator('.chat-title')).toContainText('Mochi edited');
   await expect(page.locator('.bot-row')).toHaveCount(1);
-  await page.locator('.floating-actions button[aria-label="Settings"]').click();
+  await page.locator('.sidebar-header button[aria-label="Settings"]').click();
   await page
     .locator('.node-row')
     .filter({ hasText: 'Second computer' })
@@ -373,14 +434,14 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await page.reload();
   await expect(page.locator('.bot-row')).toHaveCount(0);
 
-  await page.locator('.floating-actions button[aria-label="Settings"]').click();
+  await page.locator('.sidebar-header button[aria-label="Settings"]').click();
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await page.getByRole('button', { name: 'Already have an account? Sign in' }).click();
   await page.getByLabel('Email', { exact: true }).fill(userEmail);
   await page.getByLabel('Password', { exact: true }).fill('nekodot-browser-password');
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await expect(page.locator('.team-sidebar')).toBeVisible();
-  await expect(page.locator('.node-state option')).toHaveCount(1);
+  await expect(page.locator('.node-menu button[role="menuitemradio"]')).toHaveCount(1);
   await expect(page.locator('.bot-row')).toHaveCount(0);
 
   expect(

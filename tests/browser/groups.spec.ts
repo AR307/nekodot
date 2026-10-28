@@ -59,6 +59,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     const runtime: HermesRuntime = {
       start: async () => {},
       close: async () => {},
+      approvalMode: async () => 'manual',
       configureProvider: async () => {},
       configureBot: async (bot, create) => {
         if (create)
@@ -86,11 +87,11 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     };
     app = new NodeApplication(home, runtime);
     connect();
-    await expect(page.getByRole('heading', { name: '团队', exact: true })).toBeVisible();
-    await page.locator('.floating-actions button[aria-label="设置"]').click();
+    await expect(page.locator('.node-picker summary')).toContainText('Group test computer');
+    await page.locator('.sidebar-header button[aria-label="设置"]').click();
     await page.getByLabel('API 地址').fill('https://test.example/v1');
     await page.getByLabel('API Key', { exact: true }).fill('test-only-provider-key');
-    await page.getByRole('button', { name: '保存提供方' }).click();
+    await page.getByRole('button', { name: '保存并获取模型' }).click();
     await expect(page.locator('.saved-key')).toBeVisible();
     await page.getByRole('button', { name: '返回团队' }).click();
     for (const [name, handle] of [
@@ -209,7 +210,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     }
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.locator('.floating-actions button[aria-label="设置"]').click();
+    await page.locator('.sidebar-header button[aria-label="设置"]').click();
     await page.getByRole('button', { name: '切换主题' }).click();
     await page.getByRole('button', { name: '返回团队' }).click();
     await page.locator('.language-button').click();

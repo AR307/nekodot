@@ -64,7 +64,13 @@ export async function rpc<M extends RpcMethod>(
         reject(new Error('Computer disconnected. Your draft is kept; reconnect to send it.'));
       },
     });
-    socket.send(JSON.stringify(envelope));
+    try {
+      socket.send(JSON.stringify(envelope));
+    } catch {
+      window.clearTimeout(timeout);
+      pending.delete(envelope.id);
+      reject(new Error('Computer disconnected. Your draft is kept; reconnect to send it.'));
+    }
   });
   const parsed = rpcResponseSchema(method).parse(response);
   if (!parsed.ok) throw new Error(parsed.error.message);

@@ -28,7 +28,21 @@ it('writes one current provider to the private managed env and config before any
   expect(parse(raw)).toMatchObject({
     gateway: { multiplex_profiles: true },
     model: { provider: 'custom', default: 'chosen-model', api_key: '${NEKODOT_PROVIDER_API_KEY}' },
+    providers: {
+      custom: {
+        base_url: 'https://models.example.test/v1',
+        api_key: '${NEKODOT_PROVIDER_API_KEY}',
+        discover_models: true,
+      },
+    },
   });
+  await runtime.configureProvider(
+    { kind: 'custom', baseUrl: 'https://models.example.test/v1' },
+    [],
+  );
+  expect(parseEnv(await readFile(join(home, '.env'), 'utf8')).NEKODOT_PROVIDER_API_KEY).toBe(
+    'test-custom-key-1234',
+  );
   await runtime.configureProvider(
     { kind: 'openrouter', apiKey: 'test-router-key-5678', defaultModel: 'vendor/chosen-model' },
     [],

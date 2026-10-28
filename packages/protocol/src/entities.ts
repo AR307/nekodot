@@ -2,6 +2,10 @@ import { z } from 'zod';
 export const idSchema = z.string().min(1);
 export const seqSchema = z.number().int().nonnegative();
 export const timestampSchema = z.iso.datetime();
+export const approvalChoiceSchema = z.enum(['once', 'session', 'always', 'deny']);
+export const approvalModeSchema = z.enum(['manual', 'smart', 'off']);
+export type ApprovalChoice = z.infer<typeof approvalChoiceSchema>;
+export type ApprovalMode = z.infer<typeof approvalModeSchema>;
 export const avatarSchema = z.strictObject({
   shape: z.literal('dot'),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
@@ -79,7 +83,8 @@ export const messageSchema = z.discriminatedUnion('kind', [
       executionGeneration: z.number().int().nonnegative(),
       prompt: z.string(),
       command: z.string().optional(),
-      choice: z.enum(['once', 'deny']).optional(),
+      choices: z.array(approvalChoiceSchema).optional(),
+      choice: approvalChoiceSchema.optional(),
     }),
   }),
 ]);

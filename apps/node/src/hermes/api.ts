@@ -3,8 +3,10 @@ import {
   hermesRunCreatedSchema,
   hermesRunStateSchema,
   hermesSteerResponseSchema,
+  hermesModelOptionsSchema,
   type HermesRunState,
   type RpcError,
+  type ApprovalChoice,
 } from '@nekodot/protocol';
 import { readSse } from './sse';
 import { NodeFault } from '../fault';
@@ -56,7 +58,7 @@ export class HermesApi {
       await (await this.request('/v1/runs/' + encodeURIComponent(runId))).json(),
     );
   }
-  async approve(runId: string, requestId: string, generation: number, choice: 'once' | 'deny') {
+  async approve(runId: string, requestId: string, generation: number, choice: ApprovalChoice) {
     const body = {
       request_id: requestId,
       execution_generation: generation,
@@ -87,8 +89,19 @@ export class HermesApi {
       await this.request('/health', { signal: AbortSignal.timeout(3000) })
     ).json() as Promise<unknown>;
   }
-  async models() {
-    return (await this.request('/api/model/options')).json() as Promise<unknown>;
+  async models(refresh = false) {
+    const payload = hermesModelOptionsSchema.parse(
+      await (
+        await this.request('/api/model/options?include_unconfigured=false&refresh=' + refresh)
+      ).json(),
+    );
+    const current = payload.providers.find(
+      (row) => row.is_current || row.slug === payload.provider,
+    );
+    return {
+      models: [...new Set(current?.models ?? [])],
+      ...(current?.warning ? { warning: current.warning } : {}),
+    };
   }
   async *events(runId: string, lastSeq = -1, signal?: AbortSignal) {
     yield* readSse(

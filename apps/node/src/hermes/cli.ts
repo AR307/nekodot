@@ -16,16 +16,19 @@ export function spawnHermesCli(launch: HermesLaunch, args: string[]): ChildProce
 export async function runHermesCli(launch: HermesLaunch, args: string[]): Promise<string> {
   const child = spawnHermesCli(launch, args);
   let output = '';
+  let errorOutput = '';
   child.stdout?.on('data', (chunk: Buffer) => {
     output += chunk.toString();
   });
   child.stderr?.on('data', (chunk: Buffer) => {
-    output += chunk.toString();
+    errorOutput += chunk.toString();
   });
   await new Promise<void>((resolve, reject) => {
     child.once('error', reject);
     child.once('exit', (code) =>
-      code === 0 ? resolve() : reject(new Error('Hermes CLI exited ' + code + ': ' + output)),
+      code === 0
+        ? resolve()
+        : reject(new Error('Hermes CLI exited ' + code + ': ' + output + errorOutput)),
     );
   });
   return output;

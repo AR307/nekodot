@@ -5,7 +5,15 @@ import { useAppStore } from '../store';
 import { BotAvatar, Icon, SpinnerDots, Wordmark } from '../ui';
 import { avatarColors, type Texts } from '../shared';
 
-export function PairScreen({ t, onBack }: { t: Texts; onBack(): void }) {
+export function PairScreen({
+  t,
+  onBack,
+  onLanguage,
+}: {
+  t: Texts;
+  onBack(): void;
+  onLanguage(): void;
+}) {
   const pairing = useAppStore((state) => state.pairing);
   const setPairing = useAppStore((state) => state.setPairing);
   const me = useAppStore((state) => state.me);
@@ -113,6 +121,13 @@ export function PairScreen({ t, onBack }: { t: Texts; onBack(): void }) {
         </button>
         <Wordmark />
         <span className="step-label">{t.stepOf}</span>
+        <button
+          className="quiet-button language-button"
+          onClick={onLanguage}
+          aria-label={t.language}
+        >
+          {t.language}
+        </button>
       </header>
       <section className="pair-content">
         <span className="eyebrow">

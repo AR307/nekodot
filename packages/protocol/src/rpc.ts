@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import {
   botFields,
+  approvalChoiceSchema,
+  approvalModeSchema,
   botSchema,
   conversationSchema,
   groupFields,
@@ -20,10 +22,14 @@ const providerSettings = {
   defaultModel: z.string().min(1).optional(),
 };
 export const providerInputSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('openrouter'), apiKey: z.string().min(1), ...providerSettings }),
+  z.strictObject({
+    kind: z.literal('openrouter'),
+    apiKey: z.string().min(1).optional(),
+    ...providerSettings,
+  }),
   z.strictObject({
     kind: z.literal('custom'),
-    apiKey: z.string().min(1),
+    apiKey: z.string().min(1).optional(),
     ...providerSettings,
     baseUrl: z.url(),
   }),
@@ -70,18 +76,26 @@ export const rpcContracts = {
   },
   'runs.stop': { params: z.strictObject({ conversationId: idSchema }), result: empty },
   'approvals.respond': {
-    params: z.strictObject({ messageId: idSchema, choice: z.enum(['once', 'deny']) }),
+    params: z.strictObject({ messageId: idSchema, choice: approvalChoiceSchema }),
     result: empty,
   },
-  'bots.create': { params: z.strictObject(botFields), result: z.strictObject({ bot: botSchema }) },
+  'bots.create': {
+    params: z.strictObject({ ...botFields, approvalMode: approvalModeSchema.optional() }),
+    result: z.strictObject({ bot: botSchema, conversation: conversationSchema }),
+  },
   'bots.update': {
     params: z.strictObject({
       botId: botSchema.shape.botId,
       ...z.object(botFields).partial().shape,
+      approvalMode: approvalModeSchema.optional(),
     }),
     result: z.strictObject({ bot: botSchema }),
   },
   'bots.archive': { params: z.strictObject({ botId: botSchema.shape.botId }), result: empty },
+  'bots.permissions.get': {
+    params: z.strictObject({ botId: botSchema.shape.botId }),
+    result: z.strictObject({ mode: approvalModeSchema }),
+  },
   'groups.create': { params: groupCreate, result: z.strictObject({ group: groupSchema }) },
   'groups.update': {
     params: z
@@ -95,7 +109,10 @@ export const rpcContracts = {
   'groups.archive': { params: z.strictObject({ groupId: idSchema }), result: empty },
   'providers.get': { params: empty, result: providerOutputSchema.nullable() },
   'providers.set': { params: providerInputSchema, result: providerOutputSchema },
-  'models.options': { params: empty, result: z.unknown() },
+  'models.options': {
+    params: z.strictObject({ refresh: z.boolean().optional() }),
+    result: z.strictObject({ models: z.array(z.string()), warning: z.string().optional() }),
+  },
   'screen.status': {
     params: empty,
     result: z.strictObject({ available: z.boolean(), running: z.boolean() }),

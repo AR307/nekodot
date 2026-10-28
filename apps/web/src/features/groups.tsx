@@ -71,6 +71,9 @@ export function GroupDialog({
     >
       <motion.form
         className="bot-dialog group-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="group-dialog-title"
         initial={{ opacity: 0, y: reduceMotion ? 0 : 18 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: reduceMotion ? 0 : 8 }}
@@ -82,67 +85,73 @@ export function GroupDialog({
               <i />
               NEKO DOT
             </span>
-            <h2>{value ? t.editGroup : t.newGroup}</h2>
+            <h2 id="group-dialog-title">{value ? t.editGroup : t.newGroup}</h2>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label={t.close}>
             <Icon name="close" />
           </button>
         </header>
-        <label>
-          {t.groupName}
-          <input
-            required
-            autoFocus
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </label>
-        <fieldset className="group-member-picker">
-          <legend>
-            {t.members} <small>{botIds.length}/6</small>
-          </legend>
-          <p className="muted">{t.groupMemberHint}</p>
-          {node.bots
-            .filter((bot) => !bot.archived)
-            .map((bot) => (
-              <label
-                className={`member-option${botIds.includes(bot.botId) ? ' selected' : ''}`}
-                key={bot.botId}
-              >
-                <input
-                  type="checkbox"
-                  checked={botIds.includes(bot.botId)}
-                  onChange={() => toggle(bot.botId)}
-                />
-                <BotAvatar color={bot.avatar.color} size={34} />
-                <span>
-                  <strong>{bot.displayName}</strong>
-                  <small>@{bot.handle}</small>
-                </span>
-              </label>
-            ))}
-        </fieldset>
-        <label>
-          {t.leadBot}
-          <select required value={leadBotId} onChange={(event) => setLeadBotId(event.target.value)}>
-            <option value="" disabled>
-              {t.chooseLead}
-            </option>
+        <div className="dialog-body">
+          <label>
+            {t.groupName}
+            <input
+              required
+              autoFocus
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </label>
+          <fieldset className="group-member-picker">
+            <legend>
+              {t.members} <small>{botIds.length}/6</small>
+            </legend>
+            <p className="muted">{t.groupMemberHint}</p>
             {node.bots
-              .filter((bot) => botIds.includes(bot.botId))
+              .filter((bot) => !bot.archived)
               .map((bot) => (
-                <option key={bot.botId} value={bot.botId}>
-                  {bot.displayName} (@{bot.handle})
-                </option>
+                <label
+                  className={`member-option${botIds.includes(bot.botId) ? ' selected' : ''}`}
+                  key={bot.botId}
+                >
+                  <input
+                    type="checkbox"
+                    checked={botIds.includes(bot.botId)}
+                    onChange={() => toggle(bot.botId)}
+                  />
+                  <BotAvatar color={bot.avatar.color} size={34} />
+                  <span>
+                    <strong>{bot.displayName}</strong>
+                    <small>@{bot.handle}</small>
+                  </span>
+                </label>
               ))}
-          </select>
-        </label>
-        {value && <small className="muted">{t.groupEditHint}</small>}
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
+          </fieldset>
+          <label>
+            {t.leadBot}
+            <select
+              required
+              value={leadBotId}
+              onChange={(event) => setLeadBotId(event.target.value)}
+            >
+              <option value="" disabled>
+                {t.chooseLead}
+              </option>
+              {node.bots
+                .filter((bot) => botIds.includes(bot.botId))
+                .map((bot) => (
+                  <option key={bot.botId} value={bot.botId}>
+                    {bot.displayName} (@{bot.handle})
+                  </option>
+                ))}
+            </select>
+          </label>
+          {value && <small className="muted">{t.groupEditHint}</small>}
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+        </div>
         <footer>
           {value && (
             <button
