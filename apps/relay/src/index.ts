@@ -8,6 +8,7 @@ const { app } = await createRelay({
   jwtSecret: process.env.JWT_SECRET,
   publicUrl: process.env.PUBLIC_URL ?? `http://127.0.0.1:${port}`,
   logger: true,
+  distributionDirectory: resolve(process.env.DISTRIBUTION_DIR ?? 'dist/distribution'),
   ...(process.env.WEB_DIR ? { webDirectory: resolve(process.env.WEB_DIR) } : {}),
 });
 await app.listen({ host: process.env.HOST ?? '127.0.0.1', port });

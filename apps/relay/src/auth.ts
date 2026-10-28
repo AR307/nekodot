@@ -85,7 +85,7 @@ export function registerAuth(
     const result = database.pairingCode(user.user_id);
     return {
       ...result,
-      installCommand: `pnpm node:pair --relay ${publicUrl} --code ${result.code}`,
+      installCommand: `curl -fsSL '${publicUrl.replace(/\/$/, '')}/install.sh' | bash -s -- --pair ${result.code}`,
     };
   });
   app.post('/api/pair', async (request) => {

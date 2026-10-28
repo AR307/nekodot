@@ -1,0 +1,11 @@
+**
+!dist/
+!dist/relay/
+!dist/relay/index.mjs
+!dist/relay/package.json
+!dist/distribution/
+!dist/distribution/install.sh
+!dist/distribution/nekodot-node.cjs
+!deploy/
+!deploy/docker/
+!deploy/docker/Dockerfile

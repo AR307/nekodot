@@ -4,12 +4,14 @@ import staticFiles from '@fastify/static';
 import { RelayDatabase } from './database';
 import { HttpFault, registerAuth } from './auth';
 import { registerRouting } from './routing';
+import { registerDownloads } from './downloads';
 
 export interface RelayOptions {
   dataDir: string;
   jwtSecret: string;
   publicUrl: string;
   webDirectory?: string;
+  distributionDirectory?: string;
   logger?: boolean;
 }
 export async function createRelay(options: RelayOptions) {
@@ -27,7 +29,9 @@ export async function createRelay(options: RelayOptions) {
     (id) => routing.revoke(id),
   );
   const routing = registerRouting(app.server, database, auth.authenticateToken);
-  app.get('/health', () => ({ service: 'nekodot-relay', phase: 1, status: 'ok' }));
+  app.get('/health', () => ({ service: 'nekodot-relay', phase: 3, status: 'ok' }));
+  if (options.distributionDirectory)
+    registerDownloads(app, options.distributionDirectory, options.publicUrl);
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof HttpFault)
       return reply.code(error.status).send({ error: { code: error.code, message: error.message } });
