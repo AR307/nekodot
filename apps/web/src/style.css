@@ -1015,6 +1015,137 @@ textarea::placeholder {
   color: var(--ink-2);
   font-size: 12px;
 }
+.group-list {
+  flex: 0 0 auto;
+  max-height: 26vh;
+}
+.group-list-heading {
+  margin-top: 10px;
+}
+.group-avatar-stack {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  width: 46px;
+}
+.group-avatar-stack > svg + svg {
+  margin-left: -16px;
+}
+.empty-group-copy {
+  color: var(--ink-2);
+  font-size: 11px;
+  margin: 4px 18px 12px;
+}
+.new-group-wide {
+  margin-bottom: 0;
+}
+.group-member-picker {
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+.group-member-picker legend {
+  font-weight: 700;
+}
+.group-member-picker legend small {
+  color: var(--ink-2);
+  margin-left: 8px;
+}
+.group-member-picker > p {
+  font-size: 12px;
+  margin: 4px 0 10px;
+}
+.group-member-picker .member-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  margin-bottom: 5px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.group-member-picker .member-option.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.member-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+.member-option span {
+  display: grid;
+}
+.member-option small {
+  color: var(--ink-2);
+}
+.group-dialog select {
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 12px;
+  width: 100%;
+}
+.mention-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  max-height: 250px;
+  overflow: auto;
+  width: min(300px, 100%);
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 10px 35px #0002;
+  z-index: 6;
+}
+.mention-menu button {
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  text-align: left;
+  align-items: center;
+  background: transparent;
+  padding: 9px;
+  border-radius: 8px;
+}
+.mention-menu button:hover,
+.mention-menu button:focus {
+  background: var(--surface-2);
+}
+.mention-menu span {
+  display: grid;
+}
+.mention-menu small {
+  color: var(--ink-2);
+}
+.chain-progress {
+  color: var(--accent-text);
+  font-size: 11px;
+  text-align: center;
+  margin: 14px 0 5px;
+}
+.handoff-tag {
+  display: inline-flex;
+  font-size: 11px;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin: 8px 5px 0 0;
+  align-items: center;
+  gap: 5px;
+}
+.card-author {
+  display: block;
+  color: var(--ink-2);
+  font-size: 10px;
+  padding: 8px 12px 0;
+}
 .inline-error {
   display: flex;
   justify-content: space-between;

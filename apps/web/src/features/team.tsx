@@ -1,31 +1,43 @@
 import { useState } from 'react';
 import { AnimatePresence } from 'motion/react';
-import type { Bot, Conversation, Message } from '@nekodot/protocol';
+import type { Bot, Conversation, Group, Message } from '@nekodot/protocol';
 import { loadConversation } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
 import { BotDialog } from './bots';
 import { ChatView } from './chat';
 import { BotAvatar, Icon, Wordmark, SpinnerDots } from '../ui';
 import { avatarColors, type Texts } from '../shared';
+import { GroupDialog } from './groups';
+import { GroupChatView } from './group-chat';
 
 export function TeamPage({ t, nodeName }: { t: Texts; nodeName: string }) {
   const me = useAppStore((state) => state.me);
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const node = useAppStore(selectNodeData);
+  const activeBots = node.bots.filter((bot) => !bot.archived);
   const selectedConversationId = useAppStore((state) => state.selectedConversationId);
   const setConversation = useAppStore((state) => state.setSelectedConversation);
   const setScreen = useAppStore((state) => state.setScreen);
   const [botModal, setBotModal] = useState<Bot | 'new' | null>(null);
+  const [groupModal, setGroupModal] = useState<Group | 'new' | null>(null);
   const [mobileChat, setMobileChat] = useState(Boolean(selectedConversationId));
   const conversations = node.conversations.filter(
-    (item) => item.kind === 'dm' && node.bots.some((bot) => bot.botId === item.botId),
+    (item) => item.kind === 'dm' && activeBots.some((bot) => bot.botId === item.botId),
   );
+  const groupConversations = node.conversations.filter(
+    (item) => item.kind === 'group' && node.groups.some((group) => group.groupId === item.groupId),
+  );
+  const allConversations = [...conversations, ...groupConversations];
   const conversation =
-    conversations.find((item) => item.conversationId === selectedConversationId) ??
-    conversations[0];
+    allConversations.find((item) => item.conversationId === selectedConversationId) ??
+    allConversations[0];
   const bot =
     conversation?.kind === 'dm'
       ? node.bots.find((item) => item.botId === conversation.botId)
+      : undefined;
+  const group =
+    conversation?.kind === 'group'
+      ? node.groups.find((item) => item.groupId === conversation.groupId)
       : undefined;
   const online = node.online;
 
@@ -83,12 +95,12 @@ export function TeamPage({ t, nodeName }: { t: Texts; nodeName: string }) {
           </button>
         </div>
         <div className="bot-list">
-          {node.bots.map((item) => {
+          {activeBots.map((item) => {
             const chat = node.conversations.find(
               (entry) => entry.kind === 'dm' && entry.botId === item.botId,
             );
             const last = chat ? node.messages[chat.conversationId]?.at(-1) : undefined;
-            const state = chat ? node.activity[chat.conversationId] : 'idle';
+            const state = chat ? (node.activity[chat.conversationId]?.state ?? 'idle') : 'idle';
             const active = chat?.conversationId === conversation?.conversationId;
             return (
               <button
@@ -115,7 +127,7 @@ export function TeamPage({ t, nodeName }: { t: Texts; nodeName: string }) {
               </button>
             );
           })}
-          {!node.bots.length && (
+          {!activeBots.length && (
             <div className="empty-bots">
               <BotAvatar color={avatarColors[0]!} size={60} />
               <p>{node.online ? t.noBots : t.offline}</p>
@@ -126,6 +138,63 @@ export function TeamPage({ t, nodeName }: { t: Texts; nodeName: string }) {
             </div>
           )}
         </div>
+        <div className="bot-list-heading group-list-heading">
+          <span>{t.groups}</span>
+          <button
+            className="tiny-icon"
+            onClick={() => setGroupModal('new')}
+            aria-label={t.newGroup}
+            disabled={activeBots.length < 2 || !online}
+          >
+            <Icon name="plus" />
+          </button>
+        </div>
+        <div className="bot-list group-list">
+          {node.groups.map((item) => {
+            const chat = node.conversations.find(
+              (entry) => entry.kind === 'group' && entry.groupId === item.groupId,
+            );
+            if (!chat) return null;
+            const active = chat.conversationId === conversation?.conversationId;
+            const state = node.activity[chat.conversationId];
+            return (
+              <button
+                className={`bot-row group-row${active ? ' active' : ''}`}
+                key={item.groupId}
+                onClick={() => openConversation(chat)}
+              >
+                <span className="group-avatar-stack">
+                  {item.botIds.slice(0, 3).map((botId) => {
+                    const member = node.bots.find((entry) => entry.botId === botId);
+                    return member ? (
+                      <BotAvatar key={botId} color={member.avatar.color} size={27} />
+                    ) : null;
+                  })}
+                </span>
+                <span className="bot-row-info">
+                  <strong>{item.name}</strong>
+                  <small>
+                    {state?.chain && state.state !== 'idle'
+                      ? `${t.relayProgress} ${state.chain.count}/${state.chain.max}`
+                      : t.groupChat}
+                  </small>
+                </span>
+                {state?.state === 'waiting_approval' && (
+                  <span className="needs-you">{t.waitingApproval}</span>
+                )}
+              </button>
+            );
+          })}
+          {!node.groups.length && <p className="empty-group-copy">{t.noGroups}</p>}
+        </div>
+        <button
+          className="new-bot-wide new-group-wide"
+          onClick={() => setGroupModal('new')}
+          disabled={activeBots.length < 2 || !online}
+        >
+          <Icon name="plus" />
+          {t.newGroup}
+        </button>
         <button className="new-bot-wide" onClick={newBot}>
           <Icon name="plus" />
           {t.newBot}
@@ -149,10 +218,23 @@ export function TeamPage({ t, nodeName }: { t: Texts; nodeName: string }) {
             bot={bot}
             conversation={conversation}
             messages={node.messages[conversation.conversationId] ?? []}
-            activity={node.activity[conversation.conversationId] ?? 'idle'}
+            activity={node.activity[conversation.conversationId]?.state ?? 'idle'}
             online={online}
             onBack={() => setMobileChat(false)}
             onEdit={() => setBotModal(bot)}
+          />
+        ) : conversation && group ? (
+          <GroupChatView
+            key={conversation.conversationId}
+            t={t}
+            group={group}
+            conversation={conversation}
+            bots={node.bots}
+            messages={node.messages[conversation.conversationId] ?? []}
+            activity={node.activity[conversation.conversationId] ?? { state: 'idle' }}
+            online={online}
+            onBack={() => setMobileChat(false)}
+            onEdit={() => setGroupModal(group)}
           />
         ) : (
           <div className="welcome-panel">
@@ -160,9 +242,9 @@ export function TeamPage({ t, nodeName }: { t: Texts; nodeName: string }) {
             <span className="eyebrow">
               <i /> {online ? t.connected.toUpperCase() : t.offline.toUpperCase()}
             </span>
-            <h2>{node.bots.length ? t.chooseComputer : t.teamEmpty}</h2>
-            <p className="muted">{node.bots.length ? t.lastMessage : t.tagline}</p>
-            {!node.bots.length && (
+            <h2>{activeBots.length ? t.chooseComputer : t.teamEmpty}</h2>
+            <p className="muted">{activeBots.length ? t.lastMessage : t.tagline}</p>
+            {!activeBots.length && (
               <button className="primary-button" disabled={!online} onClick={newBot}>
                 {t.createBot}
                 <Icon name="arrow" />
@@ -182,12 +264,21 @@ export function TeamPage({ t, nodeName }: { t: Texts; nodeName: string }) {
               setBotModal(null);
               if (chat) openConversation(chat);
               else if (item) {
-                const existing = node.conversations.find(
+                const existing = selectNodeData(useAppStore.getState()).conversations.find(
                   (entry) => entry.kind === 'dm' && entry.botId === item.botId,
                 );
                 if (existing) openConversation(existing);
               }
             }}
+          />
+        )}
+        {groupModal && (
+          <GroupDialog
+            key={groupModal === 'new' ? 'new-group' : groupModal.groupId}
+            t={t}
+            value={groupModal === 'new' ? undefined : groupModal}
+            onClose={() => setGroupModal(null)}
+            onSaved={() => setGroupModal(null)}
           />
         )}
       </AnimatePresence>

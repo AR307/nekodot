@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import type { Bot, Conversation, Message } from '@nekodot/protocol';
+import type { Bot, Conversation, Group, Message } from '@nekodot/protocol';
 import { callNode, loadConversation } from '../relay-connection';
 import { useAppStore } from '../store';
 import { BotAvatar, Icon, SpinnerDots } from '../ui';
@@ -9,6 +9,9 @@ import type { Texts } from '../shared';
 export function ChatView({
   t,
   bot,
+  bots = [bot],
+  group,
+  chain,
   conversation,
   messages,
   activity,
@@ -18,6 +21,9 @@ export function ChatView({
 }: {
   t: Texts;
   bot: Bot;
+  bots?: Bot[];
+  group?: Group;
+  chain?: { count: number; max: number };
   conversation: Conversation;
   messages: Message[];
   activity: 'thinking' | 'tool' | 'waiting_approval' | 'idle';
@@ -26,6 +32,8 @@ export function ChatView({
   onEdit(): void;
 }) {
   const [draft, setDraft] = useState('');
+  const [caret, setCaret] = useState(0);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
   const [instructionAdded, setInstructionAdded] = useState(false);
@@ -38,6 +46,23 @@ export function ChatView({
   const lastText = lastMessage?.kind === 'text' ? lastMessage.content.text : '';
   const reduceMotion = useReducedMotion();
   const running = activity !== 'idle';
+  const members = group ? bots.filter((member) => group.botIds.includes(member.botId)) : [];
+  const mentionMatch = group ? /(?:^|\s)@([a-z0-9-]*)$/.exec(draft.slice(0, caret)) : null;
+  const mentionOptions = mentionMatch
+    ? members.filter((member) => member.handle.startsWith(mentionMatch[1]!))
+    : [];
+
+  function insertMention(member: Bot) {
+    const start = draft.lastIndexOf('@', caret - 1);
+    const text = draft.slice(0, start) + '@' + member.handle + ' ' + draft.slice(caret);
+    const nextCaret = start + member.handle.length + 2;
+    setDraft(text);
+    setCaret(nextCaret);
+    requestAnimationFrame(() => {
+      composerRef.current?.focus();
+      composerRef.current?.setSelectionRange(nextCaret, nextCaret);
+    });
+  }
 
   useEffect(() => {
     if (loadingEarlierRef.current) return;
@@ -111,8 +136,12 @@ export function ChatView({
         </button>
         <BotAvatar color={bot.avatar.color} size={42} working={running} />
         <button className="chat-title" onClick={onEdit}>
-          <strong>{bot.displayName}</strong>
-          <small>{bot.handle.startsWith('@') ? bot.handle : '@' + bot.handle}</small>
+          <strong>{group?.name ?? bot.displayName}</strong>
+          <small>
+            {group
+              ? `${t.leadBot}: ${bots.find((member) => member.botId === group.leadBotId)?.displayName}`
+              : '@' + bot.handle}
+          </small>
         </button>
         <div className={`chat-status ${online ? 'online' : 'offline'}`}>
           <i />
@@ -142,7 +171,7 @@ export function ChatView({
           )}
           <div className="chat-date">
             <span>
-              {t.dm} · {bot.model}
+              {group ? `${t.groupChat} · ${members.length} ${t.members}` : `${t.dm} · ${bot.model}`}
             </span>
           </div>
           <AnimatePresence initial={false}>
@@ -150,7 +179,8 @@ export function ChatView({
               <MessageView
                 key={message.messageId}
                 t={t}
-                bot={bot}
+                bot={bots.find((member) => member.botId === message.author.id) ?? bot}
+                members={group ? members : undefined}
                 message={message}
                 onRetry={setDraft}
               />
@@ -165,6 +195,11 @@ export function ChatView({
                 </small>
                 <SpinnerDots />
               </div>
+            </div>
+          )}
+          {group && running && chain && (
+            <div className="chain-progress" role="status">
+              {t.relayProgress} {chain.count} / {chain.max}
             </div>
           )}
           <div ref={tailRef} />
@@ -184,7 +219,7 @@ export function ChatView({
             </span>
             <button className="stop-button" onClick={() => void stop()}>
               <Icon name="stop" />
-              {t.stop}
+              {group ? t.stopAll : t.stop}
             </button>
           </div>
         )}
@@ -200,15 +235,44 @@ export function ChatView({
           </div>
         )}
         <form className="composer" onSubmit={(event) => void send(event)}>
+          {mentionOptions.length > 0 && (
+            <div className="mention-menu" role="listbox" aria-label={t.mentionMember}>
+              {mentionOptions.map((member) => (
+                <button
+                  key={member.botId}
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => insertMention(member)}
+                >
+                  <BotAvatar color={member.avatar.color} size={28} />
+                  <span>
+                    {member.displayName}
+                    <small>@{member.handle}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
           <textarea
+            ref={composerRef}
             aria-label={running ? t.supplement : t.typeMessage}
             placeholder={running ? t.supplement : t.typeMessage}
             rows={1}
             value={draft}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              setCaret(event.target.selectionStart);
+            }}
+            onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
+                if (mentionOptions[0]) {
+                  insertMention(mentionOptions[0]);
+                  return;
+                }
                 event.currentTarget.form?.requestSubmit();
               }
             }}
@@ -233,15 +297,25 @@ function MessageView({
   t,
   bot,
   message,
+  members,
   onRetry,
 }: {
   t: Texts;
   bot: Bot;
   message: Message;
+  members?: Bot[];
   onRetry(text: string): void;
 }) {
   const reduceMotion = useReducedMotion();
   const [expanded, setExpanded] = useState(false);
+  const handoffs =
+    members && message.kind === 'text' && message.status === 'done' && message.author.type === 'bot'
+      ? members.filter(
+          (member) =>
+            member.botId !== message.author.id &&
+            new RegExp(`(?:^|[^\\w@-])@${member.handle}(?![a-z0-9-])`).test(message.content.text),
+        )
+      : [];
   if (
     (message.kind === 'text' || message.kind === 'commentary') &&
     message.author.type === 'bot' &&
@@ -269,6 +343,9 @@ function MessageView({
                   {t.prepareResend}
                 </button>
               </>
+            ) : message.content.text ===
+              'Relay paused after 6 turns. Mention a group member to continue.' ? (
+              t.relayPaused
             ) : (
               message.content.text
             ))}
@@ -283,7 +360,10 @@ function MessageView({
                 working={message.status === 'streaming'}
               />
               <div className="bot-message-body">
-                <span className="message-author">{bot.displayName}</span>
+                <span className="message-author">
+                  {bot.displayName}
+                  {members ? ` @${bot.handle}` : ''}
+                </span>
                 <div className={message.kind === 'commentary' ? 'commentary-copy' : 'bot-copy'}>
                   {message.content.text}
                   {message.status === 'streaming' && <span className="stream-cursor">▍</span>}
@@ -294,11 +374,33 @@ function MessageView({
                     <small className="message-state"> · {t.stopped}</small>
                   )}
                 </div>
+                {handoffs?.map((member) => (
+                  <motion.span
+                    className="handoff-tag"
+                    key={member.botId}
+                    initial={{ opacity: 0, x: reduceMotion ? 0 : -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: reduceMotion ? 0.1 : 0.2 }}
+                  >
+                    <motion.span
+                      animate={{ y: reduceMotion ? 0 : [0, -4, 0] }}
+                      transition={{ duration: reduceMotion ? 0.1 : 0.3 }}
+                    >
+                      <BotAvatar color={member.avatar.color} size={18} />
+                    </motion.span>
+                    → {t.handoffTo} @{member.handle}
+                  </motion.span>
+                ))}
               </div>
             </>
           )}
           {message.kind === 'tool' && (
             <div className={`tool-card${message.content.error ? ' tool-error' : ''}`}>
+              {members && (
+                <small className="card-author">
+                  {bot.displayName} @{bot.handle}
+                </small>
+              )}
               <button className="tool-summary" onClick={() => setExpanded(!expanded)}>
                 <span className={`tool-check ${message.status === 'streaming' ? 'spinning' : ''}`}>
                   {message.status === 'streaming'
@@ -351,7 +453,13 @@ function MessageView({
               </AnimatePresence>
             </div>
           )}
-          {message.kind === 'approval' && <ApprovalCard t={t} message={message} />}
+          {message.kind === 'approval' && (
+            <ApprovalCard
+              t={t}
+              message={message}
+              author={members ? `${bot.displayName} @${bot.handle}` : undefined}
+            />
+          )}
         </>
       )}
     </motion.article>
@@ -361,9 +469,11 @@ function MessageView({
 function ApprovalCard({
   t,
   message,
+  author,
 }: {
   t: Texts;
   message: Extract<Message, { kind: 'approval' }>;
+  author?: string;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -390,6 +500,7 @@ function ApprovalCard({
             : '';
   return (
     <div className="approval-card">
+      {author && <small className="card-author">{author}</small>}
       <div className="approval-title">
         <span className="approval-mark">!</span>
         <strong>{status || t.approvalTitle}</strong>

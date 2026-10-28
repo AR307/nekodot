@@ -20,7 +20,11 @@ export interface NodeState {
   platform: string;
   computerUse: boolean;
 }
-type ActivityState = 'thinking' | 'tool' | 'waiting_approval' | 'idle';
+export type ActivityState = {
+  botId?: string;
+  state: 'thinking' | 'tool' | 'waiting_approval' | 'idle';
+  chain?: { count: number; max: number };
+};
 export interface TeamState extends Omit<NodeState, 'activity'> {
   activity: Record<string, ActivityState>;
 }
@@ -189,7 +193,9 @@ export const useAppStore = create<AppState>((set) => ({
           next.bots = [...node.bots.filter((bot) => bot.botId !== event.data.botId), event.data];
           break;
         case 'bot.archived':
-          next.bots = node.bots.filter((bot) => bot.botId !== event.data.botId);
+          next.bots = node.bots.map((bot) =>
+            bot.botId === event.data.botId ? { ...bot, archived: true } : bot,
+          );
           break;
         case 'conversation.upserted':
           next.conversations = [
@@ -232,7 +238,14 @@ export const useAppStore = create<AppState>((set) => ({
             ...state.nodes,
             [nodeId]: {
               ...node,
-              activity: { ...node.activity, [event.conversationId]: event.state },
+              activity: {
+                ...node.activity,
+                [event.conversationId]: {
+                  state: event.state,
+                  botId: event.botId,
+                  chain: event.chain,
+                },
+              },
             },
           },
         };
