@@ -13,7 +13,6 @@ import type { HermesRuntime } from '../../apps/node/src/hermes/runtime';
 
 test('Edge creates and edits a group, relays recorded members, resumes approvals, steers, stops, and archives', async ({
   page,
-  context,
 }) => {
   test.setTimeout(240000);
   const relayUrl = 'http://127.0.0.1:4340';
@@ -40,7 +39,6 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     publicUrl: relayUrl,
     webDirectory: join(process.cwd(), 'apps/web/dist'),
   });
-  await context.addInitScript((url) => localStorage.setItem('nekodot-relay-url', url), relayUrl);
   await relay.app.listen({ host: '127.0.0.1', port: 4340 });
   let app: NodeApplication | undefined;
   let connection: ReturnType<typeof connectRelay> | undefined;

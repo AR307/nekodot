@@ -343,6 +343,10 @@ textarea::placeholder {
   flex-direction: column;
   gap: 4px;
   background: var(--surface);
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
 }
 .choice-card.active {
   border: 1.5px solid var(--accent);

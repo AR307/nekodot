@@ -11,11 +11,6 @@ import {
 import { cancelRpcRequests, newEnvelope, resolveRpc, rpc } from './api';
 import { useAppStore } from './store';
 
-const relayUrl = (
-  localStorage.getItem('nekodot-relay-url') ??
-  import.meta.env.VITE_RELAY_URL ??
-  window.location.origin
-).replace(/\/$/, '');
 let activeSocket: WebSocket | null = null;
 
 export function callNode<M extends RpcMethod>(method: M, params: RpcParams<M>) {
@@ -100,7 +95,7 @@ export function RelayConnection() {
 
     const connect = () => {
       if (stopped) return;
-      socket = new WebSocket(relayUrl.replace(/^http/, 'ws') + '/ws/client');
+      socket = new WebSocket(window.location.origin.replace(/^http/, 'ws') + '/ws/client');
       activeSocket = socket;
       socket.onopen = () => socket?.send(JSON.stringify(newEnvelope('hello', { token })));
       socket.onmessage = (event) => {
@@ -138,10 +133,23 @@ export function RelayConnection() {
       };
       socket.onerror = () => socket?.close();
     };
+    const resumeConnection = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (socket?.readyState === WebSocket.OPEN) {
+        reconnectDelay = 1000;
+        socket.close(1001, 'Client resumed');
+      } else if (socket?.readyState !== WebSocket.CONNECTING) connect();
+    };
     connect();
+    window.addEventListener('pageshow', resumeConnection);
+    window.addEventListener('online', resumeConnection);
+    document.addEventListener('visibilitychange', resumeConnection);
     return () => {
       stopped = true;
       window.clearTimeout(timer);
+      window.removeEventListener('pageshow', resumeConnection);
+      window.removeEventListener('online', resumeConnection);
+      document.removeEventListener('visibilitychange', resumeConnection);
       if (activeSocket === socket) activeSocket = null;
       socket?.close();
       cancelRpcRequests();

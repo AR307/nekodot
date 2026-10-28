@@ -70,6 +70,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await page.getByRole('button', { name: '继续' }).click();
 
   await expect(page.getByRole('heading', { name: '添加电脑' })).toBeVisible();
+  await expect(page.locator('.pair-wait')).toContainText(/[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}/);
   const pairText = await page.locator('.pair-wait').innerText();
   const code = pairText.match(/[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}/)?.[0];
   expect(code).toBeTruthy();
@@ -322,6 +323,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await page.locator('.floating-actions button[aria-label="Settings"]').click();
   await page.getByRole('button', { name: 'Add computer', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Add computer', exact: true })).toBeVisible();
+  await expect(page.locator('.pair-wait')).toContainText(/[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}/);
   const secondPairText = await page.locator('.pair-wait').innerText();
   const secondCode = secondPairText.match(/[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}/)?.[0];
   expect(secondCode).toBeTruthy();

@@ -37,20 +37,31 @@ pnpm dev
 Relay 可选环境变量：PORT、HOST、PUBLIC_URL、DATA_DIR；默认只监听 loopback。
 构建后可设置 WEB_DIR=apps/web/dist，运行 `node apps/relay/dist/index.js`，以同源方式提供网页与 WebSocket。
 
+开发连接远程 VPS Relay 时，使用现有 Windows SSH profile：
+
+```powershell
+pnpm dev:remote --ssh <SSH目标>
+```
+
+它在本机 127.0.0.1:4329 建立至远程 Relay loopback 的 SSH 隧道，并在 4318 启动并打开 Web。
+浏览器的 API、WebSocket 和节点安装包下载统一经 Web 同源代理。退出命令会关闭所启动的 Web 与 SSH。
+`--lan` 可让同一局域网内的手机访问本地 Web；Relay 隧道始终只绑定 loopback。
+
 ## 第一次使用
 
-1. 网页注册账号，复制“添加电脑”页生成的本地配对命令，在独立 WSL Ubuntu 24.04 检出目录执行。
-2. 按官方 PM 方式准备 Hermes 与隔离 runtime。已有官方 CLI 时运行 `pnpm node:run`；源码模式使用：
+1. 网页注册账号，选择“这台电脑”或“云端服务器”，复制相应配对安装命令。
+2. Windows 用户在启用 systemd 的 WSL2 Ubuntu 24.04 内执行“这台电脑”的命令；远程服务器用户在目标 Linux x64 SSH 会话中执行“云端服务器”的命令。安装器将只在 `~/.nekodot` 下安装 Node/Hermes、保存节点数据并注册 systemd user service。
+3. 开发期间使用的源码模式仍可按官方 PM 方式准备 Hermes 与隔离 runtime。已有官方 CLI 时运行 `pnpm node:run`；源码模式使用：
 
    ```bash
    pnpm node:pair --relay http://127.0.0.1:4319 --code XXXX-XXXX
    pnpm node:run --hermes-source /path/to/hermes-source --hermes-runtime /path/to/pm-runtime
    ```
 
-3. 网页看到电脑上线后，进入设置，填写自定义 OpenAI-compatible 地址、API key 和模型，或选择 OpenRouter。
-4. 返回团队，新建 bot，选择 Hermes 模型目录中的模型或明确填写自定义模型 ID，开始私聊。
-5. 运行中发送会补充当前 run；审批时可以写草稿，允许一次、拒绝或停止后再继续发送。
-6. 创建 2–6 位成员的群组并选择主答。无有效提及由主答开始；用户和 Bot 最终回复中的成员 @handle 按顺序触发接力，每条消息最多 6 回合。
+4. 网页看到电脑上线后，进入设置，填写自定义 OpenAI-compatible 地址、API key 和模型，或选择 OpenRouter。
+5. 返回团队，新建 bot，选择 Hermes 模型目录中的模型或明确填写自定义模型 ID，开始私聊。
+6. 运行中发送会补充当前 run；审批时可以写草稿，允许一次、拒绝或停止后再继续发送。
+7. 创建 2–6 位成员的群组并选择主答。无有效提及由主答开始；用户和 Bot 最终回复中的成员 @handle 按顺序触发接力，每条消息最多 6 回合。
 
 群内一次运行一个 Bot，不同群可同时工作。运行中补充指令由当前 Bot 的同一个 run 接收，接受后清空尚未执行的接力队列；“全部停止”取消当前 run 并清空队列。
 编辑群组从下一条新消息生效；归档群组保留历史。Bot 需要先退出活跃群组才能归档。
@@ -72,4 +83,4 @@ Windows/Linux 各自安装 node_modules，不共享依赖，也不修改全局 s
 原 HTML 原件与九块静态参考已保留；原稿视觉核对仍受查看方式限制。
 新产品页面已在实际 Edge 检查 390、768、1440px、中英、浅深色及 reduced-motion。
 OpenRouter 配置和托管文件路径已测，未声称进行其付费模型调用。
-远程一键安装、PWA 安装和屏幕接管留待后续阶段。
+PWA 安装和屏幕接管留待后续阶段。

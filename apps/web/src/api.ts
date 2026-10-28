@@ -9,12 +9,7 @@ import {
 } from '@nekodot/protocol';
 
 export async function relayRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const relayUrl = (
-    localStorage.getItem('nekodot-relay-url') ??
-    import.meta.env.VITE_RELAY_URL ??
-    ''
-  ).replace(/\/$/, '');
-  const response = await fetch(relayUrl + '/api' + path, {
+  const response = await fetch('/api' + path, {
     ...init,
     headers: {
       ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),

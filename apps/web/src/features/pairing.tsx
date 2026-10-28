@@ -20,6 +20,16 @@ export function PairScreen({ t, onBack }: { t: Texts; onBack(): void }) {
   const [connectedNode, setConnectedNode] = useState<string | null>(null);
   const reduceMotion = useReducedMotion();
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [pairTarget, setPairTarget] = useState<'local' | 'cloud'>('cloud');
+  const shellQuote = (value: string) => `'${value.replaceAll("'", "'\"'\"'")}'`;
+  const localInstallCommand = pairing
+    ? import.meta.env.VITE_NEKODOT_RELAY_SSH &&
+      import.meta.env.VITE_NEKODOT_RELAY_SSH_IDENTITY &&
+      import.meta.env.VITE_NEKODOT_RELAY_SSH_KNOWN_HOSTS
+      ? `/mnt/c/Windows/System32/OpenSSH/ssh.exe -o BatchMode=yes -o StrictHostKeyChecking=yes ${import.meta.env.VITE_NEKODOT_RELAY_SSH} 'curl -fsSL http://127.0.0.1:4329/install.sh' | bash -s -- --pair ${pairing.code} --relay http://127.0.0.1:4329 --relay-ssh ${import.meta.env.VITE_NEKODOT_RELAY_SSH} --relay-ssh-key ${shellQuote(import.meta.env.VITE_NEKODOT_RELAY_SSH_IDENTITY)} --relay-ssh-known-hosts ${shellQuote(import.meta.env.VITE_NEKODOT_RELAY_SSH_KNOWN_HOSTS)}`
+      : t.localInstallUnavailable
+    : null;
+  const installCommand = pairTarget === 'local' ? localInstallCommand : pairing?.installCommand;
 
   async function generate() {
     setBusy(true);
@@ -111,32 +121,46 @@ export function PairScreen({ t, onBack }: { t: Texts; onBack(): void }) {
         <h1>{t.addComputer}</h1>
         <p className="muted pair-lead">{t.pairHint}</p>
         <div className="pair-choices">
-          <div className="choice-card active">
+          <button
+            type="button"
+            className={`choice-card${pairTarget === 'local' ? ' active' : ''}`}
+            aria-pressed={pairTarget === 'local'}
+            onClick={() => {
+              setCopied(false);
+              setPairTarget('local');
+            }}
+          >
             <span className="choice-icon">
               <Icon name="laptop" />
             </span>
             <strong>{t.localComputer}</strong>
-            <small>{t.chooseComputer}</small>
-          </div>
-          <div className="choice-card disabled">
+            <small>{t.localTargetHelp}</small>
+          </button>
+          <button
+            type="button"
+            className={`choice-card${pairTarget === 'cloud' ? ' active' : ''}`}
+            aria-pressed={pairTarget === 'cloud'}
+            onClick={() => {
+              setCopied(false);
+              setPairTarget('cloud');
+            }}
+          >
             <span className="choice-icon">
               <Icon name="laptop" />
             </span>
             <strong>{t.cloudComputer}</strong>
-            <small>{t.waiting}</small>
-          </div>
+            <small>{t.cloudTargetHelp}</small>
+          </button>
         </div>
         <div className="command-box">
           <span className="command-label">{t.addComputer}</span>
-          <code>{pairing?.installCommand ?? t.preparingCommand}</code>
+          <code>{installCommand ?? t.preparingCommand}</code>
           <button
             className="copy-button"
-            disabled={!pairing}
+            disabled={!installCommand || installCommand === t.localInstallUnavailable}
             onClick={() => {
-              if (pairing)
-                void navigator.clipboard
-                  .writeText(pairing.installCommand)
-                  .then(() => setCopied(true));
+              if (installCommand && installCommand !== t.localInstallUnavailable)
+                void navigator.clipboard.writeText(installCommand).then(() => setCopied(true));
             }}
           >
             {copied ? t.copied : t.copyCommand}

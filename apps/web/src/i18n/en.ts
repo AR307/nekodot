@@ -22,6 +22,10 @@ const en = {
   cloudComputer: 'Cloud server',
   stepOf: 'Step 2 of 3',
   pairHint: 'Run this command on the computer you want to connect.',
+  localTargetHelp: 'WSL2 Ubuntu 24.04 · SSH access to Relay required',
+  cloudTargetHelp: 'Linux x64 · run in an SSH session on the Relay host',
+  localInstallUnavailable:
+    'Start the development page with pnpm dev:remote --ssh <target> to install local WSL2.',
   copyCommand: 'Copy command',
   copied: 'Copied',
   waiting: 'Waiting for your computer…',
