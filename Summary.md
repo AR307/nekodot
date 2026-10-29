@@ -246,3 +246,9 @@ Node 以官方 CLI/API 管理 Hermes。Node 是本地业务状态的唯一数据
 - 增加按 Bot 的原生 display 状态、启动、停止、观察和控制权适配；复用管理连接与 Operations，不改变 Hermes agent、工具或审批。
 - 配置 profile 的有界面浏览器、1440×900 和 computer_use；sync 能力按实际宿主平台返回。安装器增加 `--with-computer`，通过官方 CLI/PM 安装驱动和屏幕，补齐实测缺少的 Chromium 系统音频库。
 - 隔离 Ubuntu 环境已启动两个独立原生屏幕，采集脱敏状态；Node 24 typecheck、既有 21 项测试和构建通过。真实模型及恢复仍继续验收，详见阶段记录。
+
+### 2026-10-29 / Phase 4 Relay 屏幕通道
+
+- 增加认证 `/api/tunnels`、60 秒单次票据、浏览器与节点出站 WebSocket 配对；屏幕会话按账号、节点和 Bot 隔离，解绑关闭通道。
+- 二进制转发保留主动关闭、异常断流和原生 control-taken 的差异，不记录画面和输入；真实 Edge 已通过 Node 看到原生 Xfce。
+- 实际 HTTP/WS 测试覆盖归属、离线、单次票据、双向字节、4000、1000、1006、重连与解绑。回放服务新增真实原生状态录制支持，作为离线测试依赖。

@@ -6,6 +6,7 @@ import { HttpFault, registerAuth } from './auth';
 import { registerRouting } from './routing';
 import { registerDownloads } from './downloads';
 import { registerFileTransfer } from './files';
+import { registerTunnels } from './tunnels';
 
 export interface RelayOptions {
   dataDir: string;
@@ -30,6 +31,7 @@ export async function createRelay(options: RelayOptions) {
     (id) => routing.revoke(id),
   );
   const routing = registerRouting(app.server, database, auth.authenticateToken);
+  const tunnels = registerTunnels(app, database, auth.authenticate, routing);
   registerFileTransfer(app, auth.authenticate, routing.transfer, (userId, nodeId) =>
     database.owns(userId, nodeId),
   );
@@ -53,7 +55,10 @@ export async function createRelay(options: RelayOptions) {
         : reply.code(404).send({ error: { code: 'not_found', message: 'Route not found' } }),
     );
   }
-  app.addHook('preClose', async () => routing.close());
+  app.addHook('preClose', async () => {
+    tunnels.close();
+    routing.close();
+  });
   app.addHook('onClose', async () => database.db.close());
   return { app, database, routing };
 }

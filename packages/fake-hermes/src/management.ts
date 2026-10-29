@@ -2,6 +2,7 @@ import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { WebSocketServer } from 'ws';
+import { createHash, randomBytes } from 'node:crypto';
 
 /** Native response recording, used only by offline product journey tests. */
 export async function managementReplay(fixturesDirectory: string, apiKey: string) {
@@ -17,6 +18,22 @@ export async function managementReplay(fixturesDirectory: string, apiKey: string
     pending: string;
   };
   const documents = new Map<string, typeof fixture.documents>();
+  const displayFixture = JSON.parse(
+    await readFile(join(fixturesDirectory, 'display-native.json'), 'utf8'),
+  ) as {
+    records: { result: Record<string, unknown> & { lease: Record<string, unknown> } }[];
+  };
+  const displays = new Map<string, Record<string, unknown> & { lease: Record<string, unknown> }>();
+  function display(profile: string) {
+    let state = displays.get(profile);
+    if (!state) {
+      state = structuredClone(displayFixture.records[1]!.result);
+      state.profile_key = '/isolated/hermes/profiles/' + profile;
+      state.profile = profile;
+      displays.set(profile, state);
+    }
+    return state;
+  }
   const profiles = new Map<
     string,
     { skills: Record<string, unknown>[]; plugins: Record<string, unknown>[] }
@@ -104,6 +121,44 @@ export async function managementReplay(fixturesDirectory: string, apiKey: string
           params: Record<string, unknown>;
         };
         let result: unknown = {};
+        if (req.method.startsWith('display.')) {
+          const state = display(String(req.params.profile));
+          if (req.method === 'display.start') state.running = true;
+          if (req.method === 'display.stop') state.running = false;
+          result = structuredClone(state);
+          if (req.method === 'display.observe')
+            result = {
+              ...structuredClone(state),
+              ticket: randomBytes(16).toString('hex'),
+              viewer_id: req.params.viewer_id ?? randomBytes(16).toString('hex'),
+              path: '/api/display/ws',
+            };
+          if (req.method === 'display.lease.acquire' || req.method === 'display.lease.release') {
+            const human = req.method.endsWith('acquire');
+            state.lease = {
+              ...state.lease,
+              holder: human ? 'human' : 'agent',
+              viewer_hash: human
+                ? createHash('sha256')
+                    .update(String(req.params.viewer_id))
+                    .digest('hex')
+                    .slice(0, 12)
+                : null,
+              epoch: Number(state.lease.epoch) + 1,
+            };
+            result = { lease: structuredClone(state.lease) };
+            for (const client of wss.clients)
+              client.send(
+                JSON.stringify({
+                  method: 'event',
+                  params: {
+                    type: 'display.lease',
+                    payload: { profile_key: state.profile_key, lease: state.lease },
+                  },
+                }),
+              );
+          }
+        }
         if (req.method === 'session.resume') result = { session_id: 'recorded-session' };
         if (req.method === 'slash.exec') result = { output: fixture.pending };
         if (req.method === 'plugins.manage') {

@@ -34,6 +34,7 @@ export function registerRouting(
   const wss = new WebSocketServer({ noServer: true });
   const clients = new Set<Client>();
   const nodes = new Map<string, WebSocket>();
+  const offlineListeners = new Set<(nodeId: string) => void>();
   const transfers = new Map<
     string,
     { nodeId: string; resolve(value: TransferResponse): void; reject(error: Error): void }
@@ -46,6 +47,7 @@ export function registerRouting(
     for (const client of clients) if (client.userId === userId) send(client.socket, value);
   }
   function clearPending(nodeId: string) {
+    for (const listener of offlineListeners) listener(nodeId);
     for (const [id, p] of transfers)
       if (p.nodeId === nodeId) {
         transfers.delete(id);
@@ -66,6 +68,8 @@ export function registerRouting(
       }
   }
   server.on('upgrade', (request, socket, head) => {
+    const path = request.url?.split('?')[0];
+    if (path === '/ws/tunnel' || path === '/ws/tunnel-node') return;
     if (!['/ws/client', '/ws/node'].includes(request.url ?? '')) {
       socket.destroy();
       return;
@@ -182,6 +186,12 @@ export function registerRouting(
     socket.on('error', () => socket.terminate());
   });
   return {
+    offlineListeners,
+    notifyNode: (nodeId: string, type: Envelope['type'], payload: unknown) => {
+      const socket = nodes.get(nodeId);
+      if (!socket || socket.readyState !== WebSocket.OPEN) throw new Error('Node is offline');
+      send(socket, frame(type, payload, nodeId));
+    },
     transfer: async (userId: string, nodeId: string, payload: TransferRequest) => {
       if (!database.owns(userId, nodeId)) throw new Error('Node is not yours');
       const socket = nodes.get(nodeId);
