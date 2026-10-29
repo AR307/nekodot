@@ -23,15 +23,27 @@
 ```sh
 hermes computer-use screen install --yes
 hermes computer-use install
-hermes tools post-setup chromium
+hermes pm install chromium
 ```
 
 全部经过官方 CLI/PM。系统依赖必须先装：反向执行时 driver 因缺少 `libXi.so.6` 无法运行。Hermes 的屏幕包未包含 Chromium 的音频库；干净 Ubuntu 24.04 上实测浏览器退出 127，`ldd` 指向缺少 `libasound.so.2`，需系统包 `libasound2t64`。安装器补齐这一系统库或打印管理员命令，不安装另一份 Chromium。
 
+独立用户全新安装核实：官方稳定版 `bf0203a794` 的 post-setup 列表没有 `chromium`，直接使用官方 `pm install chromium`。本地参考源码的较新 post-setup 名称不能作为该稳定版的安装依据。
+
 缺少权限时不收集系统密码、不增加 sudo 配置。WSL、Windows、macOS 本阶段仅提供聊天。
+
+## Runs 工具与浏览器资料
+
+- `screen.start` 配置 `browser.headed=true`、`browser.auto_start=false` 和原生 geometry；Runs 使用的工具集位于 `platform_toolsets.api_server`，在既有集合中加入 `computer_use`。通用 `toolsets` 不是该 API 适配器的读取入口，首轮真实调用因此没有获得工具；修正后通过原生审批完成桌面输入与保存。
+- 配置不重建运行中的 agent；新的工具配置供后续回合使用。屏幕仍由用户手动启动。
+- 稳定版实测中，回合结束或节点服务退出可能关闭 agent 创建的浏览器窗口。nekodot 不另加浏览器生命周期；不能将持久资料保留表述为标签页一直存在。
+- 两个 profile 的 cookie/localStorage 测试标记相互隔离。Node 重启后，同 profile 的新原生浏览器回合仍读到旧标记，另一 Bot 读到空值；测试只访问本地无害表单，没有使用网站账号。
+- 同 run 接管使用正在执行的原生浏览器。人工输入后交还，Bot 读取原值并提交一次；若 Hermes 已结束回合，则由用户聊天发送“继续”，页面不自动重跑。
 
 ## 证据
 
 - `docs/fixtures/display-native.json`：真实原生 runtime/lease 快照，与 `display.status` 字段一致，包含停止的 hub 和两个运行中的独立 Bot；个人路径已替换。
 - `docs/evidence/phase4-screen-*.png`：Edge 真实 Xfce/RFB 与双客户端接管。转发测试中的模拟字节不算真实画面验收。
+- `docs/fixtures/screen-handover.sse` 与 `screen-handover-state.json`：真实同 run 接管的事件和 completed 状态。提供方地址、模型配置、密钥与个人路径已脱敏。
+- 桌面首次完成后的 run 在 gateway 重启后已不在原生内存 Runs 列表，未将事后生成内容冒充原始 SSE。真实工具过程、网页画面、实际文件与后续只读 GUI 复核共同记录这一项。
 - 真实模型、恢复、全新检出及未完成项目见 `docs/progress.md`。

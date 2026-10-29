@@ -352,7 +352,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await expect(page.locator('.chat-header')).toContainText('Mochi restored');
   await expect(page.locator('.bot-copy').filter({ hasText: 'NEKODOT_STEER_OK' })).toBeVisible();
   await page.locator('.sidebar-header button[aria-label="设置"]').click();
-  await page.getByRole('button', { name: '切换主题' }).click();
+  await page.getByLabel('切换主题', { exact: true }).click();
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.getByRole('button', { name: 'English', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Model provider', exact: true })).toBeVisible();

@@ -1,0 +1,22 @@
+{
+  "object": "hermes.run",
+  "model": "hermes-agent",
+  "runtime": {
+    "provider": "",
+    "model": "",
+    "route_source": "global"
+  },
+  "created_at": 1793266671.6209607,
+  "pending_controls": [],
+  "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16",
+  "status": "completed",
+  "session_id": "nk_dm_b960de7c-ad15-4adc-8961-c76d3c01a829",
+  "admission_id": "5c55b8a399b24a0cbdb45a72e2411f13",
+  "execution_generation": 7,
+  "output": "ACTIVE_HANDOVER_OK Maple-agent HUMAN-TAKEOVER 🐴 Handover complete",
+  "usage": {
+    "input_tokens": 299370,
+    "output_tokens": 521,
+    "total_tokens": 299891
+  }
+}

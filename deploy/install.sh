@@ -165,7 +165,7 @@ if [ "$with_computer" = true ]; then
     exit 1
   fi
   (cd "$source_dir" && bash scripts/run-in-hermes-env python hermes computer-use install)
-  (cd "$source_dir" && bash scripts/run-in-hermes-env python hermes tools post-setup chromium)
+  (cd "$source_dir" && bash scripts/run-in-hermes-env python hermes pm install chromium)
   # The native screen package set does not include Chromium's audio shared library.
   if command -v apt-get >/dev/null && ! ldconfig -p 2>/dev/null | grep -qF 'libasound.so.2'; then
     . /etc/os-release

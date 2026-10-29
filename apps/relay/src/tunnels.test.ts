@@ -55,7 +55,7 @@ it('opens owner-only single-use screen tickets, forwards bytes and preserves nat
     expect((await post('/api/tunnels', request)).statusCode).toBe(401);
     expect((await post('/api/tunnels', request, other.json().token)).statusCode).toBe(403);
     expect((await post('/api/tunnels', request, token)).statusCode).toBe(503);
-    const node = await open('/ws/node');
+    let node = await open('/ws/node');
     let response = once(node, 'message');
     node.send(
       JSON.stringify({
@@ -129,6 +129,25 @@ it('opens owner-only single-use screen tickets, forwards bytes and preserves nat
       (await post('/api/tunnels', { ...request, sessionId: finalTicket.sessionId }, token))
         .statusCode,
     ).toBe(200);
+    node.terminate();
+    await expect
+      .poll(async () => (await post('/api/tunnels', request, token)).statusCode)
+      .toBe(503);
+    node = await open('/ws/node');
+    response = once(node, 'message');
+    node.send(
+      JSON.stringify({
+        v: 1,
+        id: randomUUID(),
+        type: 'hello',
+        payload: { nodeToken: credentials.nodeToken, version: 'test' },
+      }),
+    );
+    await response;
+    expect(
+      (await post('/api/tunnels', { ...request, sessionId: finalTicket.sessionId }, token)).json()
+        .sessionId,
+    ).toBe(finalTicket.sessionId);
     const revoked = once(node, 'close');
     await relay.app.inject({
       method: 'DELETE',

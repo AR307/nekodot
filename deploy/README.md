@@ -1,4 +1,4 @@
-# Phase 3 deployment
+# Relay and node deployment
 
 The product page runs locally. The remote machine hosts only Relay and the node installer/downloads, on loopback. No domain, public web hosting or PWA is required.
 
@@ -50,3 +50,17 @@ curl -fsSL http://127.0.0.1:4329/install.sh | bash -s -- --uninstall
 Do not run the foreground command while the service is active. Uninstall stops/disables the service and retains all files, profiles and history. Reinstall starts the existing node again.
 
 This phase supports Linux/WSL2 x64 only. macOS, ARM, full-machine reboot acceptance and real phone acceptance must not be reported as passed without their corresponding environment and evidence.
+
+## Native Linux screen
+
+Add `--with-computer` to the downloaded installer command on a Linux VPS:
+
+```sh
+curl -fsSL http://127.0.0.1:4329/install.sh | bash -s -- --pair ABCD-2345 --with-computer
+```
+
+For an already paired node, rerun with `--with-computer` and omit `--pair`. The installer retains the node identity, database, Hermes profiles and browser data. It uses the official Hermes CLI/PM to install the screen packages, computer-use driver and Chromium; it does not change the system Node or configure sudo. Missing administrator privileges produce an installation command to run separately.
+
+Open a Bot's screen in the web page and choose **Start screen**. Hermes owns its 1440×900 desktop, browser and control lease. The node connects out through the authenticated Relay screen channel; VNC and CDP do not need public ports. The existing development proxy and SSH tunnel also carry `/ws/tunnel`.
+
+WSL, Windows and macOS screens are not supported in this phase. Use the local loopback web page for screen access; ordinary LAN HTTP is not a secure context. See [native observations](../docs/hermes-screen-notes.md) and [acceptance results](../docs/phase4-acceptance.md).

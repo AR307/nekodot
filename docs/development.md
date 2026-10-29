@@ -67,11 +67,14 @@ pnpm dev:remote --ssh <your-ssh-alias>
 
 - 自动化测试不调用付费模型：`packages/fake-hermes` 通过 HTTP 回放 `docs/fixtures` 中录制的真实 Hermes SSE 与状态。该包只作为开发依赖，产品代码不引用。
 - 产品运行时始终使用真实的 Hermes CLI 与 API。真实模型的验收与回放验收分开记录，见 [实施进度](progress.md)。
+- `tests/browser/screens-live.spec.ts` 只在提供本地 `NEKODOT_SCREEN_ACCEPTANCE_FILE` 时运行，连接独立的真实 Linux 节点。文件包含 `url`、登录 `token`、`nodeId` 及 `bots[].bot.botId` / `bots[].conversation.conversationId`，不得提交。普通 E2E 明确跳过这一项，不以回放替代屏幕验收。
 
 ## 文档索引
 
 - [实施进度与验收记录](progress.md)
 - [Hermes 接入调研与命令](hermes-notes.md)
+- [原生屏幕接口与限制](hermes-screen-notes.md)
+- [Phase 4 真实验收](phase4-acceptance.md)
 - [原始技术与视觉参考](references/README.md)
 - [设计画板](../design/)
 - [更新记录](../Summary.md)

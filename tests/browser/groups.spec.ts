@@ -234,7 +234,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.locator('.sidebar-header button[aria-label="设置"]').click();
-    await page.getByRole('button', { name: '切换主题' }).click();
+    await page.getByLabel('切换主题', { exact: true }).click();
     await page.getByRole('button', { name: '返回团队' }).click();
     await page.locator('.language-button').click();
     await expect(page.locator('.chat-title')).toContainText('Lead: Writer');

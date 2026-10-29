@@ -192,7 +192,7 @@
     border: 0;
   }
   .screen-viewport {
-    height: min(62dvh, 540px);
+    height: min(62dvh, 62.5vw);
   }
 }
 @media (prefers-reduced-motion: reduce) {

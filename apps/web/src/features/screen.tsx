@@ -174,7 +174,10 @@ export function ScreenPanel({
             key={operation.operationId}
             initial={operation}
             t={t}
-            onFinished={refresh}
+            onFinished={(operation) => {
+              setOperation(operation);
+              void refresh();
+            }}
           />
         )}
       </div>

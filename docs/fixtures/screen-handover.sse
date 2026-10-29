@@ -1,0 +1,130 @@
+: open
+
+id: 0
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266675.8948934, "delta": "I", "seq": 0}
+
+id: 1
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266675.895333, "delta": "\u2019ll", "seq": 1}
+
+id: 2
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266675.89595, "delta": " fill", "seq": 2}
+
+id: 3
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266675.9453528, "delta": " Display", "seq": 3}
+
+id: 4
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266675.9462435, "delta": " name", "seq": 4}
+
+id: 5
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266675.9469194, "delta": ",", "seq": 5}
+
+id: 6
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266676.0325289, "delta": " pause", "seq": 6}
+
+id: 7
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266676.03473, "delta": " one", "seq": 7}
+
+id: 8
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266676.0437255, "delta": " minute", "seq": 8}
+
+id: 9
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266676.4222977, "delta": ",", "seq": 9}
+
+id: 10
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266676.423025, "delta": " then", "seq": 10}
+
+id: 11
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266676.423567, "delta": " check", "seq": 11}
+
+id: 12
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266676.4241061, "delta": " both", "seq": 12}
+
+id: 13
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266676.4828916, "delta": " fields", "seq": 13}
+
+id: 14
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266676.4922163, "delta": ".", "seq": 14}
+
+id: 15
+data: {"event": "tool.started", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266677.1053255, "tool": "browser_exec", "preview": "Opening the form and filling only Display name", "tool_call_id": "call_zjnw0WOitIkkzYO1uXdCvbyR", "seq": 15}
+
+id: 16
+data: {"event": "tool.completed", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266685.8320296, "tool": "browser_exec", "duration": 0, "error": false, "tool_call_id": "call_zjnw0WOitIkkzYO1uXdCvbyR", "preview": "", "seq": 16}
+
+id: 17
+data: {"event": "tool.started", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266690.1129885, "tool": "terminal", "preview": "sleep 60", "tool_call_id": "call_Y6CtC0lqjtNUYSXB6oBKvoEL", "seq": 17}
+
+id: 18
+data: {"event": "tool.completed", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266750.7716305, "tool": "terminal", "duration": 0, "error": false, "tool_call_id": "call_Y6CtC0lqjtNUYSXB6oBKvoEL", "preview": "", "seq": 18}
+
+id: 19
+data: {"event": "tool.started", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266754.13639, "tool": "browser_exec", "preview": "Checking the same page after the human takeover pause", "tool_call_id": "call_BTgpPeAOdykZlZJIVEg7v7je", "seq": 19}
+
+id: 20
+data: {"event": "tool.completed", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266754.90913, "tool": "browser_exec", "duration": 0, "error": false, "tool_call_id": "call_BTgpPeAOdykZlZJIVEg7v7je", "preview": "", "seq": 20}
+
+id: 21
+data: {"event": "tool.started", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266759.526158, "tool": "browser_exec", "preview": "Clicking Save demo once after verifying both field values", "tool_call_id": "call_On6HvQ1V05VfCJUJmVD30Jcr", "seq": 21}
+
+id: 22
+data: {"event": "tool.completed", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266760.8429742, "tool": "browser_exec", "duration": 0, "error": false, "tool_call_id": "call_On6HvQ1V05VfCJUJmVD30Jcr", "preview": "", "seq": 22}
+
+id: 23
+data: {"event": "tool.started", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266764.8704877, "tool": "browser_exec", "preview": "Reading the saved result without clicking again", "tool_call_id": "call_grd7MTA36fVJ61jZiAeBlGmY", "seq": 23}
+
+id: 24
+data: {"event": "tool.completed", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266765.4806924, "tool": "browser_exec", "duration": 0, "error": false, "tool_call_id": "call_grd7MTA36fVJ61jZiAeBlGmY", "preview": "", "seq": 24}
+
+id: 25
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266769.0486262, "delta": "\n\nACTIVE", "seq": 25}
+
+id: 26
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266769.049255, "delta": "_HAND", "seq": 26}
+
+id: 27
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266769.0646749, "delta": "OVER", "seq": 27}
+
+id: 28
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266769.0728896, "delta": "_OK", "seq": 28}
+
+id: 29
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266769.1623118, "delta": " Maple", "seq": 29}
+
+id: 30
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266769.1630468, "delta": "-agent", "seq": 30}
+
+id: 31
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266769.1636147, "delta": " HUMAN", "seq": 31}
+
+id: 32
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266769.16432, "delta": "-", "seq": 32}
+
+id: 33
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266769.247164, "delta": "TA", "seq": 33}
+
+id: 34
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266769.2672486, "delta": "KE", "seq": 34}
+
+id: 35
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266769.2682893, "delta": "OVER", "seq": 35}
+
+id: 36
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266769.269608, "delta": " \ud83d\udc34", "seq": 36}
+
+id: 37
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266769.271321, "delta": " H", "seq": 37}
+
+id: 38
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266769.2819932, "delta": "ando", "seq": 38}
+
+id: 39
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266769.3451748, "delta": "ver", "seq": 39}
+
+id: 40
+data: {"event": "message.delta", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266769.5300424, "delta": " complete", "seq": 40}
+
+id: 41
+data: {"event": "run.completed", "run_id": "run_2a173b0bbe4c426b8b7f056b7bbcbc16", "timestamp": 1793266769.8109725, "output": "ACTIVE_HANDOVER_OK Maple-agent HUMAN-TAKEOVER \ud83d\udc34 Handover complete", "usage": {"input_tokens": 299370, "output_tokens": 521, "total_tokens": 299891}, "runtime": {"provider": "", "model": "", "route_source": "global"}, "completed": true, "partial": false, "interrupted": false, "seq": 41}
+
+: stream closed
+

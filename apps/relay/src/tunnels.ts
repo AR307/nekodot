@@ -36,7 +36,9 @@ export function registerTunnels(
       const tunnel = session.tunnelId ? tunnels.get(session.tunnelId) : undefined;
       tunnel?.client.terminate();
       tunnel?.node?.terminate();
-      sessions.delete(id);
+      session.tunnelId = undefined;
+      // A broken node transport does not invalidate its native viewer identity.
+      if (!database.owns(session.userId, nodeId)) sessions.delete(id);
     }
   }
   routing.offlineListeners.add(closeNode);

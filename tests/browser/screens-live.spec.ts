@@ -125,6 +125,16 @@ test('real Linux screen: watch, two native viewers, handback, offline reconnect 
     await expect(first.page.locator('.screen-control-bar')).toContainText('Bot has control', {
       timeout: 40_000,
     });
+    await first.page.getByRole('button', { name: 'Stop screen', exact: true }).click();
+    const start = first.page.getByRole('button', { name: 'Start screen', exact: true });
+    await expect(start).toBeEnabled({ timeout: 40_000 });
+    await start.click();
+    await expect(first.page.locator('.screen-control-bar')).toContainText('Bot has control', {
+      timeout: 60_000,
+    });
+    await expect(
+      first.page.getByRole('button', { name: 'Stop screen', exact: true }),
+    ).toBeEnabled();
     expect(errors).toEqual([]);
   } finally {
     for (const context of contexts) await context.close();
