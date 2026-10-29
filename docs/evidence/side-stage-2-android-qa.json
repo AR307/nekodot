@@ -1,0 +1,21 @@
+{
+  "origin": "https://tauri.localhost",
+  "secureContext": true,
+  "nativeHost": true,
+  "platform": true,
+  "horizontalOverflow": false,
+  "calls": {
+    "take_notification": {
+      "ok": true,
+      "result": {}
+    },
+    "focus_conversation": {
+      "ok": true,
+      "result": null
+    },
+    "push_token": {
+      "ok": false,
+      "error": "Firebase configuration is missing from this build"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+# Add this independent site block to the existing Caddy configuration.
+# Replace the hostname with the DNS name supplied for this product.
+nekodot.your-domain.example {
+    encode zstd gzip
+    reverse_proxy nekodot-product-relay:4329
+}

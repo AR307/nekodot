@@ -1,8 +1,25 @@
 import { readFile } from 'node:fs/promises';
+import { createReadStream, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 
 export function registerDownloads(app: FastifyInstance, directory: string, publicUrl: string) {
+  for (const [name, mime] of [
+    ['nekodot-windows-x64.exe', 'application/vnd.microsoft.portable-executable'],
+    ['nekodot-android-arm64.apk', 'application/vnd.android.package-archive'],
+  ] as const) {
+    app.get('/downloads/' + name, (_request, reply) => {
+      const path = join(directory, name);
+      if (!existsSync(path))
+        return reply.code(404).send({
+          error: { code: 'not_found', message: 'This client build has not been published' },
+        });
+      return reply
+        .header('Content-Disposition', `attachment; filename="${name}"`)
+        .type(mime)
+        .send(createReadStream(path));
+    });
+  }
   app.get('/install.sh', async (_request, reply) => {
     const script = await readFile(join(directory, 'install.sh'), 'utf8');
     return reply

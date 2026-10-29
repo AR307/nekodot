@@ -1,12 +1,14 @@
 import Fastify from 'fastify';
 import rateLimit from '@fastify/rate-limit';
 import staticFiles from '@fastify/static';
+import cors from '@fastify/cors';
 import { RelayDatabase } from './database';
 import { HttpFault, registerAuth } from './auth';
 import { registerRouting } from './routing';
 import { registerDownloads } from './downloads';
 import { registerFileTransfer } from './files';
 import { registerTunnels } from './tunnels';
+import { registerNotifications } from './notifications';
 
 export interface RelayOptions {
   dataDir: string;
@@ -15,12 +17,19 @@ export interface RelayOptions {
   webDirectory?: string;
   distributionDirectory?: string;
   logger?: boolean;
+  clientOrigins?: string[];
+  firebaseCredentials?: string;
 }
 export async function createRelay(options: RelayOptions) {
   const app = Fastify({
     logger: options.logger ? { redact: ['req.headers.authorization'] } : false,
   });
   const database = new RelayDatabase(options.dataDir);
+  await app.register(cors, {
+    origin: options.clientOrigins ?? [],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Authorization', 'Content-Type'],
+  });
   await app.register(rateLimit, { global: false });
   const auth = registerAuth(
     app,
@@ -30,12 +39,18 @@ export async function createRelay(options: RelayOptions) {
     (id) => routing.online(id),
     (id) => routing.revoke(id),
   );
-  const routing = registerRouting(app.server, database, auth.authenticateToken);
+  const notify = registerNotifications(
+    app,
+    database,
+    auth.authenticate,
+    options.firebaseCredentials,
+  );
+  const routing = registerRouting(app.server, database, auth.authenticateToken, notify);
   const tunnels = registerTunnels(app, database, auth.authenticate, routing);
   registerFileTransfer(app, auth.authenticate, routing.transfer, (userId, nodeId) =>
     database.owns(userId, nodeId),
   );
-  app.get('/health', () => ({ service: 'nekodot-relay', phase: 3, status: 'ok' }));
+  app.get('/health', () => ({ service: 'nekodot-relay', status: 'ok' }));
   if (options.distributionDirectory)
     registerDownloads(app, options.distributionDirectory, options.publicUrl);
   app.setErrorHandler((error, _request, reply) => {

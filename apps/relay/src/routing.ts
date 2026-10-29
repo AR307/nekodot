@@ -9,6 +9,8 @@ import {
   type Envelope,
   type TransferRequest,
   type TransferResponse,
+  notificationSchema,
+  type TaskNotification,
 } from '@nekodot/protocol';
 import type { RelayDatabase, NodeRow } from './database';
 
@@ -30,6 +32,7 @@ export function registerRouting(
   server: Server,
   database: RelayDatabase,
   authenticate: (token: string) => Promise<{ user_id: string }>,
+  notify: (userId: string, nodeId: string, signal: TaskNotification) => Promise<boolean>,
 ) {
   const wss = new WebSocketServer({ noServer: true });
   const clients = new Set<Client>();
@@ -163,6 +166,14 @@ export function registerRouting(
             transfers.delete(envelope.replyTo!);
             p.resolve(transferResponseSchema.parse(envelope.payload));
           }
+        } else if (node && envelope.type === 'notify') {
+          const signal = notificationSchema.parse(envelope.payload);
+          if (await notify(node.user_id, node.node_id, signal))
+            broadcast(node.user_id, { ...envelope, nodeId: node.node_id, payload: signal });
+          send(
+            socket,
+            frame('notify.ack', { notificationId: signal.notificationId }, node.node_id),
+          );
         } else if (node && ['event', 'live'].includes(envelope.type)) {
           broadcast(node.user_id, { ...envelope, nodeId: node.node_id });
         } else throw new Error('Invalid direction');

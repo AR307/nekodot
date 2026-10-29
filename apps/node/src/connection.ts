@@ -12,6 +12,8 @@ import {
   type TransferResponse,
   tunnelOpenSchema,
   type TunnelOpen,
+  type TaskNotification,
+  payloadSchemas,
 } from '@nekodot/protocol';
 
 export interface NodeCredentials {
@@ -26,6 +28,7 @@ export interface NodeConnectionOptions {
   onReady?: () => void;
   onStatus?: (online: boolean) => void;
   onTunnel?: (request: TunnelOpen) => void;
+  onNotifyAck?: (id: string) => void;
 }
 export function connectRelay(options: NodeConnectionOptions) {
   let socket: WebSocket;
@@ -76,6 +79,11 @@ export function connectRelay(options: NodeConnectionOptions) {
           options.onTunnel?.(tunnelOpenSchema.parse(envelope.payload));
           return;
         }
+        if (envelope.type === 'notify.ack') {
+          const value = payloadSchemas['notify.ack'].parse(envelope.payload);
+          options.onNotifyAck?.(value.notificationId);
+          return;
+        }
         if (envelope.type !== 'rpc.req') return;
         const parsed = rpcRequestSchema.safeParse(envelope.payload);
         let payload: unknown;
@@ -109,6 +117,7 @@ export function connectRelay(options: NodeConnectionOptions) {
   return {
     event: (event: PersistedEvent) => send(frame('event', event)),
     live: (live: LiveEvent) => send(frame('live', live)),
+    notify: (value: TaskNotification) => send(frame('notify', value)),
     close: () => {
       closing = true;
       clearTimeout(timer);

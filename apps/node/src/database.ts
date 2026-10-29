@@ -24,6 +24,8 @@ export interface RunRecord {
 }
 
 export interface GroupChainRecord {
+  notificationId: string;
+  failed?: boolean;
   conversationId: string;
   group: Group;
   roster: Bot[];

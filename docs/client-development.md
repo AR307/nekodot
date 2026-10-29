@@ -13,7 +13,7 @@ pnpm client:windows
 pnpm client:android
 ```
 
-生产构建要求 HTTPS Relay origin，不接受页面地址、HTTP 公网地址或 SSH 参数。Web 回归输出在 `apps/web/dist`，原生包资源输出在 `apps/client/dist`，两者不会覆盖。Windows 产物为 NSIS x64 EXE；未配置发布证书时没有 Authenticode 签名。
+生产构建要求 HTTPS Relay origin，不接受页面地址、HTTP 公网地址或 SSH 参数。Web 回归输出在 `apps/web/dist`，原生包资源输出在每次构建独立的 `.runtime/side-stage-2/frontend-*`，两者不会覆盖。Windows 产物为 NSIS x64 EXE；未配置发布证书时没有 Authenticode 签名。
 
 Android 固定 `app.nekodot.client`，最低 API 29。首次在干净检出初始化 Android 工具链时可执行 `pnpm --filter @nekodot/client tauri android init`；仓库已保留 Android 工程和项目配置，**不要用重新生成的模板覆盖 Gradle 签名和原生配置**。常规构建直接使用 `client:android`。
 

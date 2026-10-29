@@ -5,7 +5,12 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { describe, expect, it } from 'vitest';
 import { startFakeHermes, recordedManagementRuntime } from '@nekodot/fake-hermes';
-import { rpcRequestSchema, type Bot, type Conversation } from '@nekodot/protocol';
+import {
+  rpcRequestSchema,
+  type Bot,
+  type Conversation,
+  type TaskNotification,
+} from '@nekodot/protocol';
 import { NodeApplication } from './app';
 import { HermesApi } from './hermes/api';
 import type { HermesRuntime, ProviderInput } from './hermes/runtime';
@@ -51,6 +56,8 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
       models: async () => new HermesApi(relay.url + '/p/default', testKey).models(),
     };
     const app = new NodeApplication(home, runtime);
+    const notifications: TaskNotification[] = [];
+    app.notifications.onSend = (signal) => notifications.push(signal);
     const request = (method: string, params: unknown) => rpcRequestSchema.parse({ method, params });
     try {
       expect((await app.extensions.list('skills')).entries.length).toBeGreaterThan(0);
@@ -134,6 +141,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
       expect(messages().find((message) => message.messageId === basic.messageId)?.author.type).toBe(
         'user',
       );
+      expect(notifications.map((signal) => signal.kind)).toEqual(['completed']);
 
       const toolScenario = await send('runs-tools-approval');
       void toolScenario;
@@ -144,6 +152,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
         (message) => message.kind === 'approval' && message.status === 'streaming',
       );
       expect(pending?.kind).toBe('approval');
+      expect(notifications.at(-1)?.kind).toBe('approval');
       if (pending?.kind !== 'approval') throw new Error('Approval card was not created.');
       await app.handle(
         request('approvals.respond', { messageId: pending.messageId, choice: 'once' }),
@@ -186,6 +195,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
         messages().find((message) => message.messageId === denied.messageId)?.content,
       ).toMatchObject({ choice: 'deny' });
 
+      const noticesBeforeStop = notifications.length;
       await send('runs-stop');
       await waitFor(() =>
         messages().some(
@@ -203,6 +213,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
       expect(
         messages().some((message) => message.kind === 'text' && message.status === 'cancelled'),
       ).toBe(true);
+      expect(notifications).toHaveLength(noticesBeforeStop);
 
       const steer = await send('same run steer approval');
       const steerMessage = steer as { messageId: string };

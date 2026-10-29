@@ -28,6 +28,11 @@ it('downloads the installer and standalone node, then pairs outside the checkout
   });
   const base = await relay.app.listen({ host: '127.0.0.1', port: 0 });
   try {
+    for (const name of ['nekodot-windows-x64.exe', 'nekodot-android-arm64.apk']) {
+      const unpublished = await fetch(base + '/downloads/' + name);
+      expect(unpublished.status).toBe(404);
+      expect(await unpublished.json()).toMatchObject({ error: { code: 'not_found' } });
+    }
     const signup = await fetch(base + '/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

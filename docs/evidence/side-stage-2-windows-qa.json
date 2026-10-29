@@ -1,0 +1,16 @@
+{
+  "platform": "windows-x64",
+  "build": "debug-nsis",
+  "productEndpointConfigured": false,
+  "localBundledResources": true,
+  "secureContext": true,
+  "origin": "https://tauri.localhost",
+  "closeKeepsProcess": true,
+  "secondLaunchRestoresSingleWindow": true,
+  "systemSaveDialog": true,
+  "unicodeFilename": true,
+  "writtenContentReadBack": true,
+  "cleanUserInstallTested": false,
+  "trayQuitTested": false,
+  "publicRemoteJourneyTested": false
+}

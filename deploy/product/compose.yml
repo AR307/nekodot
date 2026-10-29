@@ -1,0 +1,21 @@
+name: nekodot-product
+services:
+  relay:
+    image: nekodot-relay:product-0.1.0
+    container_name: nekodot-product-relay
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - '127.0.0.1:4349:4329'
+    volumes:
+      - ./data:/data
+      - ./downloads:/app/distribution:ro
+      - ./private:/run/nekodot-private:ro
+    networks:
+      default: {}
+      ingress:
+        aliases: [nekodot-product-relay]
+networks:
+  ingress:
+    external: true
+    name: getplus_default

@@ -57,11 +57,16 @@ async function main() {
       handleRpc: (request) => app.handle(request),
       handleTransfer: (request) => app.files.transfer(request),
       onTunnel: (request) => app.screens.openTunnel(credentials, request),
-      onReady: () => app.activities(),
+      onReady: () => {
+        app.activities();
+        app.notifications.flush();
+      },
+      onNotifyAck: (id) => app.notifications.acknowledge(id),
       onStatus: (online) => log.info({ service: 'nekodot-node', online }),
     });
     app.onEvent = connection.event;
     app.onLive = connection.live;
+    app.notifications.onSend = connection.notify;
     await app.resume();
     let closing = false;
     for (const signal of ['SIGINT', 'SIGTERM'] as const)

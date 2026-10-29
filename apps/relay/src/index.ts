@@ -9,6 +9,8 @@ const { app } = await createRelay({
   publicUrl: process.env.PUBLIC_URL ?? `http://127.0.0.1:${port}`,
   logger: true,
   distributionDirectory: resolve(process.env.DISTRIBUTION_DIR ?? 'dist/distribution'),
+  clientOrigins: (process.env.CLIENT_ORIGINS ?? '').split(',').filter(Boolean),
+  firebaseCredentials: process.env.GOOGLE_APPLICATION_CREDENTIALS,
   ...(process.env.WEB_DIR ? { webDirectory: resolve(process.env.WEB_DIR) } : {}),
 });
 await app.listen({ host: process.env.HOST ?? '127.0.0.1', port });

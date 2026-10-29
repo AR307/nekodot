@@ -1,0 +1,21 @@
+[Unit]
+Description=nekodot product Node and native Hermes services
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nekodot-product
+Group=nekodot-product
+WorkingDirectory=/home/nekodot-product
+Environment=NEKODOT_HOME=/home/nekodot-product/.nekodot
+Environment=NEKODOT_HERMES_API_PORT=19042
+Environment=NEKODOT_HERMES_MANAGEMENT_PORT=19043
+ExecStart=/home/nekodot-product/.nekodot/bin/nekodot-node run
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

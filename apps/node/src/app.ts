@@ -22,6 +22,7 @@ import { BotManagement } from './bot-management';
 import { FileLibrary } from './files';
 import { Extensions } from './extensions';
 import { BotScreens } from './screens';
+import { Notifications } from './notifications';
 
 type HermesEvent = SseFrame['data'] & {
   event: string;
@@ -57,6 +58,7 @@ export class NodeApplication {
   readonly files: FileLibrary;
   readonly extensions: Extensions;
   readonly screens: BotScreens;
+  readonly notifications: Notifications;
   onEvent: (event: PersistedEvent) => void = () => {};
   onLive: (event: LiveEvent) => void = () => {};
   private readonly consumers = new Map<string, AbortController>();
@@ -70,6 +72,7 @@ export class NodeApplication {
     readonly hermes: HermesRuntime,
   ) {
     this.database = new NodeDatabase(home);
+    this.notifications = new Notifications(this.database);
     this.bots = new BotService(this.database, hermes);
     this.groups = new GroupService(this.database);
     this.operations = new Operations(this.database);
@@ -419,6 +422,7 @@ export class NodeApplication {
     }
     const mentioned = mentionedBots(params.text, roster);
     const chain: GroupChainRecord = {
+      notificationId: userMessage.messageId,
       conversationId: conversation.conversationId,
       group,
       roster,
@@ -435,6 +439,12 @@ export class NodeApplication {
   }
 
   private async startNextGroupRun(chain: GroupChainRecord) {
+    if (chain.count >= MAX_CHAIN || !chain.queue.length)
+      this.notifications.send({
+        notificationId: `chain:${chain.notificationId}`,
+        conversationId: chain.conversationId,
+        kind: chain.failed ? 'failed' : 'completed',
+      });
     if (chain.count >= MAX_CHAIN) {
       this.groupNotice(chain, 'Relay paused after 6 turns. Mention a group member to continue.');
       this.database.clearChain(chain.conversationId);
@@ -535,6 +545,11 @@ export class NodeApplication {
       if (run.groupId) await this.finishGroupRun(run, 'failed', failed.content.text);
       else {
         this.database.putMessage(failed, { runId: run.runId }, idle);
+        this.notifications.send({
+          notificationId: `request:${run.inputMessageId}`,
+          conversationId: run.conversationId,
+          kind: 'failed',
+        });
         this.end(idle);
       }
     }
@@ -705,6 +720,11 @@ export class NodeApplication {
       run.state = 'waiting_approval';
       run.lastSeq = event.seq;
       this.database.putMessage(approval, { runId }, run);
+      this.notifications.send({
+        notificationId: `approval:${runId}:${pending.prompt_id}`,
+        conversationId: run.conversationId,
+        kind: 'approval',
+      });
       this.publishActivity(run);
       return;
     }
@@ -732,6 +752,11 @@ export class NodeApplication {
       this.pendingInstruction(run, state.pending_steer);
       if (run.groupId) await this.finishGroupRun(run, 'completed', reply.content.text);
       else {
+        this.notifications.send({
+          notificationId: `run:${runId}`,
+          conversationId: run.conversationId,
+          kind: 'completed',
+        });
         this.end(run);
       }
       return;
@@ -772,6 +797,12 @@ export class NodeApplication {
           reply.content.text,
         );
       else {
+        if (event.event !== 'run.cancelled')
+          this.notifications.send({
+            notificationId: `run:${runId}`,
+            conversationId: run.conversationId,
+            kind: 'failed',
+          });
         this.end(run);
       }
       return;
@@ -800,6 +831,7 @@ export class NodeApplication {
       this.publishGroupIdle(run.conversationId);
       return;
     }
+    if (status === 'failed') chain.failed = true;
     if (status === 'failed')
       this.groupNotice(
         chain,
@@ -1004,6 +1036,12 @@ export class NodeApplication {
       this.persistText(run, reply, run.lastSeq);
     }
     this.pendingInstruction(run, pendingSteer);
+    if (status !== 'cancelled')
+      this.notifications.send({
+        notificationId: `run:${run.runId}`,
+        conversationId: run.conversationId,
+        kind: status === 'completed' ? 'completed' : 'failed',
+      });
     this.end(run);
   }
 
@@ -1018,5 +1056,10 @@ export class NodeApplication {
     }
     this.activeRuns.delete(run.conversationId);
     this.publishActivity(this.idle(run));
+    this.notifications.send({
+      notificationId: `run:${run.runId}`,
+      conversationId: run.conversationId,
+      kind: 'failed',
+    });
   }
 }

@@ -1,0 +1,6 @@
+{
+  "background": true,
+  "processRetained": true,
+  "draftRetained": true,
+  "events": ["pause", "resume"]
+}
