@@ -38,18 +38,21 @@ textarea:focus-visible {
   height: 20px;
   flex: none;
 }
+::selection {
+  background: var(--accent-soft);
+}
 .wordmark {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   color: var(--ink);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
-  letter-spacing: -0.8px;
+  letter-spacing: -0.02em;
 }
 .brand-cat {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   overflow: visible;
 }
 .brand-cat polygon,
@@ -59,16 +62,13 @@ textarea:focus-visible {
 .brand-eyes ellipse {
   fill: var(--accent);
 }
-.brand-period {
-  color: var(--accent);
-}
 .eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   color: var(--accent-text);
-  font-size: 10px;
-  letter-spacing: 1.8px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
   font-weight: 800;
 }
 .eyebrow i {
@@ -81,22 +81,36 @@ textarea:focus-visible {
 .muted {
   color: var(--ink-2);
 }
+
+/* buttons: ink primary, outlined secondary, quiet ghost; all press down slightly */
 .primary-button,
 .secondary-button,
 .quiet-button,
 .danger-button {
   min-height: 44px;
   border-radius: var(--radius-btn);
-  padding: 0 17px;
+  padding: 0 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  font-weight: 700;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  transition:
+    transform 160ms var(--ease),
+    box-shadow 160ms var(--ease),
+    background-color 160ms var(--ease),
+    border-color 160ms var(--ease),
+    color 160ms var(--ease);
 }
 .primary-button {
   background: var(--ink);
   color: var(--bg);
+}
+.primary-button:not(:disabled):hover {
+  box-shadow: var(--shadow-2);
+  transform: translateY(-1px);
 }
 .primary-button .icon {
   color: var(--accent);
@@ -104,6 +118,9 @@ textarea:focus-visible {
 .secondary-button {
   background: transparent;
   border: 1.5px solid var(--ink);
+}
+.secondary-button:not(:disabled):hover {
+  background: var(--hover);
 }
 .quiet-button {
   background: transparent;
@@ -114,20 +131,46 @@ textarea:focus-visible {
   color: var(--danger);
   background: transparent;
 }
+.primary-button:not(:disabled):active,
+.secondary-button:not(:disabled):active,
+.quiet-button:not(:disabled):active,
+.danger-button:not(:disabled):active,
+.icon-button:not(:disabled):active,
+.tiny-icon:not(:disabled):active {
+  transform: scale(0.97);
+}
 .icon-button,
 .tiny-icon {
   min-width: 44px;
   min-height: 44px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
+  border-radius: var(--radius-btn);
   background: transparent;
   color: var(--ink-2);
+  transition:
+    transform 160ms var(--ease),
+    background-color 160ms var(--ease),
+    color 160ms var(--ease);
 }
-.icon-button:hover,
-.tiny-icon:hover,
-.quiet-button:hover {
-  background: var(--surface-2);
+.icon-button.bordered {
+  background: var(--raised);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+.tiny-icon {
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 10px;
+}
+.tiny-icon .icon {
+  width: 16px;
+  height: 16px;
+}
+.icon-button:not(:disabled):hover,
+.tiny-icon:not(:disabled):hover,
+.quiet-button:not(:disabled):hover {
+  background: var(--hover);
   color: var(--ink);
 }
 .text-button {
@@ -135,6 +178,10 @@ textarea:focus-visible {
   color: var(--accent-text);
   font-weight: 700;
   padding: 10px 0;
+}
+.text-button:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .full-button {
   width: 100%;
@@ -147,6 +194,144 @@ textarea:focus-visible {
 .success-message {
   color: var(--ok);
   font-size: 12px;
+}
+.needs-you {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: 600 11px/1 var(--font-ui);
+  box-shadow: 0 1px 0 var(--line);
+}
+
+/* status dot: ok pulses outward, connecting spins an amber ring */
+.status-dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  display: inline-block;
+}
+.status-dot i,
+.status-dot::before,
+.status-dot::after {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+.status-dot i {
+  background: var(--ink-3);
+  transition: background-color 240ms var(--ease);
+}
+.status-dot.is-ok i {
+  background: var(--ok);
+}
+.status-dot.is-ok::before {
+  content: '';
+  background: var(--ok);
+  animation: status-pulse 1.4s ease-out infinite;
+}
+.status-dot.is-connecting i {
+  background: var(--warn);
+}
+.status-dot.is-connecting::after {
+  content: '';
+  inset: -4px;
+  border: 1.5px solid transparent;
+  border-top-color: var(--warn);
+  animation: spin 1s linear infinite;
+}
+@keyframes status-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  to {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* stacked group colour dots */
+.group-dots {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding-right: calc(var(--dot) * 0.4);
+}
+.group-dots i {
+  width: var(--dot);
+  height: var(--dot);
+  border-radius: 50%;
+  border: 2px solid var(--dot-ring, var(--bg));
+  margin-right: calc(var(--dot) * -0.42);
+  box-sizing: border-box;
+}
+
+/* segmented control with a gliding thumb */
+.segmented {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 14px;
+  background: var(--press);
+}
+.segmented button {
+  position: relative;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 700;
+  transition: color 160ms var(--ease);
+}
+.segmented button:hover,
+.segmented button[aria-current='page'] {
+  color: var(--ink);
+}
+.segmented button > :not(.segmented-thumb) {
+  position: relative;
+}
+.segmented .icon {
+  width: 16px;
+  height: 16px;
+}
+.segmented-thumb {
+  position: absolute;
+  inset: 0;
+  border-radius: 11px;
+  background: var(--raised);
+  box-shadow: var(--shadow-1);
 }
 .boot-screen {
   min-height: 100vh;
