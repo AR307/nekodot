@@ -1,0 +1,54 @@
+{
+  "phase": 4,
+  "date": "2026-10-29",
+  "sourceCommit": "cabd55a",
+  "environment": {
+    "node": "24.22.1",
+    "pnpm": "10.34.5",
+    "browser": "Microsoft Edge",
+    "checkout": "independent clone, updated to the final source commit",
+    "copiedEnv": false,
+    "copiedNodeModules": false
+  },
+  "checks": {
+    "frozenInstall": "passed",
+    "lint": "passed",
+    "typecheck": "passed",
+    "test": { "filesPassed": 11, "testsPassed": 23 },
+    "build": "passed",
+    "edge": {
+      "passed": 4,
+      "skipped": 1,
+      "skipReason": "Live Linux screen requires the separate private acceptance account."
+    }
+  },
+  "separateLiveLinuxScreen": {
+    "passed": 1,
+    "recordedReplay": false,
+    "nativeHermesVersion": "bf0203a794",
+    "driverVersion": "0.21.0",
+    "watchAndTwoViewers": "passed",
+    "nativeTakeoverAndHandback": "passed",
+    "offlineReconnect": "passed",
+    "lostViewerForceHandback": "passed",
+    "refreshAndNormalClose": "passed",
+    "stopThenStart": "passed",
+    "responsiveWidths": [390, 768, 1440]
+  },
+  "realModelEvidence": {
+    "handoverRunCount": 1,
+    "handoverFinalStatus": "completed",
+    "handoverToolStarts": 5,
+    "handoverToolCompletions": 5,
+    "desktopFileChecked": true,
+    "profileStorageIsolatedAndRetained": true,
+    "recoveryAutomaticNewRuns": 0,
+    "details": "../phase4-acceptance.md"
+  },
+  "remaining": [
+    "Real phone screen and HTTPS",
+    "Screens on WSL, Windows and macOS",
+    "Phase 3 long-lived Relay path and real device background recovery",
+    "Deliberate memory exhaustion was not performed"
+  ]
+}

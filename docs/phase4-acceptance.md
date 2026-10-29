@@ -51,7 +51,8 @@
 
 - 实际 Relay HTTP/WS 场景覆盖账号归属、离线、单次票据、双向数据、原生 4000、正常 1000、异常断流、节点重连复用身份和解绑。
 - `display-native.json` 为录制状态，用于适配测试；`screen-handover.sse` / `screen-handover-state.json` 为真实模型证据。模拟路由字节与回放成功不替代上面的真实屏幕旅程。
-- 工作区的 lint、typecheck、23 项测试与构建通过；常规 4 条 Edge 旅程及独立真实屏幕旅程分别执行。全新检出的最终代码复核记录见 [进度](progress.md)。
+- 工作区的 lint、typecheck、23 项测试与构建通过；常规 4 条 Edge 旅程及独立真实屏幕旅程分别执行。
+- 独立全新检出未复制 `.env` 或 `node_modules`，更新到最终代码 `cabd55a` 后再次执行 frozen install、lint、typecheck、23 项测试、build 和 4 条 Edge 旅程，全部通过。真实屏幕项在普通 E2E 明确跳过，另在独立 Linux 节点执行通过。详见 [结构化记录](evidence/phase4-clean-checkout-report.json) 与 [进度](progress.md)。
 
 ## 保留的限制
 

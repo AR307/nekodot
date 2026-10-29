@@ -267,3 +267,10 @@ Node 以官方 CLI/API 管理 Hermes。Node 是本地业务状态的唯一数据
 - 独立 Linux 用户完成下载安装、重复安装、无权限提示与保留数据停用；稳定版 Chromium 安装入口改为官方 `hermes pm install chromium`。
 - Node/管理后端重启及 SSH 中断后，历史、run 数量、测试文件和两个 profile 浏览器资料保留；不自动新增模型执行。真实模型验证了 profile 隔离与重启后浏览器资料可读。
 - 补充真实同 run SSE/state、12 种 Edge 布局及桌面/群聊/接管截图；公开文档同步屏幕用法和原生窗口生命周期限制。详见 `docs/phase4-acceptance.md`，最终清洁检出结果另记。
+
+### 2026-10-29 / Phase 4 最终代码检出复核
+
+- 独立检出更新到代码提交 `cabd55a`，未复制 `.env` 或 `node_modules`；Node 24.22.1 / pnpm 10.34.5 的 frozen install、lint、typecheck、11 文件 23 项测试、build 和 4 条 Edge 旅程全部通过。
+- 真实 Linux 屏幕旅程独立通过，包含双 viewer 原生接管、离线恢复、身份丢失、强制交还、刷新、主动关闭和停止/再启动。普通 E2E 对此明确 skip，不把缺少私有现场算作真实通过。
+- 真实接管 fixture 核对为单一 run、5 次工具开始/完成及 completed 终态；文档引用可解析，提交内容未包含本地提供方配置值。验收结果见 `docs/evidence/phase4-clean-checkout-report.json`。
+- 现有 UI 改版的未提交文件与所有私有验收现场保留；本阶段按模块本地提交，未推送，也未重启其他产品或整机。
