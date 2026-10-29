@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import { AnimatePresence } from 'motion/react';
 import type { Bot, Conversation, Group, Message } from '@nekodot/protocol';
-import { loadConversation } from '../relay-connection';
+import { callNode, loadConversation } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
 import { BotDialog } from './bots';
 import { ChatView } from './chat';
@@ -10,6 +10,9 @@ import { avatarColors, type Texts } from '../shared';
 import { GroupDialog } from './groups';
 import { GroupChatView } from './group-chat';
 import { NodePicker } from './node-picker';
+import { BotDetails } from './bot-details';
+import { ExtensionsPage } from './extensions';
+import { readableMessageText } from './files';
 
 export function TeamPage({
   t,
@@ -28,6 +31,8 @@ export function TeamPage({
   const setScreen = useAppStore((state) => state.setScreen);
   const [botModal, setBotModal] = useState<Bot | 'new' | null>(null);
   const [groupModal, setGroupModal] = useState<Group | 'new' | null>(null);
+  const [detailBotId, setDetailBotId] = useState<string | null>(null);
+  const [view, setView] = useState<'chats' | 'skills' | 'plugins'>('chats');
   const [mobileChat, setMobileChat] = useState(Boolean(selectedConversationId));
   const [sidebarWidth, setSidebarWidth] = useState(
     Number(localStorage.getItem('nekodot-sidebar-width')) || 280,
@@ -58,6 +63,7 @@ export function TeamPage({
   const online = node.online;
 
   function openConversation(item: Conversation) {
+    setView('chats');
     setConversation(item.conversationId);
     setMobileChat(true);
     void loadConversation(item.conversationId).catch(() => {
@@ -85,6 +91,35 @@ export function TeamPage({
           </button>
         </header>
         <NodePicker t={t} />
+        <nav className="app-navigation" aria-label="nekodot">
+          <button
+            aria-current={view === 'chats' ? 'page' : undefined}
+            onClick={() => setView('chats')}
+          >
+            <Icon name="chat" />
+            {t.chatsPage}
+          </button>
+          <button
+            aria-current={view === 'skills' ? 'page' : undefined}
+            onClick={() => {
+              setView('skills');
+              setMobileChat(true);
+            }}
+          >
+            <Icon name="spark" />
+            {t.skillsPage}
+          </button>
+          <button
+            aria-current={view === 'plugins' ? 'page' : undefined}
+            onClick={() => {
+              setView('plugins');
+              setMobileChat(true);
+            }}
+          >
+            <Icon name="plugin" />
+            {t.pluginsPage}
+          </button>
+        </nav>
         <div className="sidebar-conversations">
           <div className="bot-list-heading">
             <span>{t.dm}</span>
@@ -232,7 +267,21 @@ export function TeamPage({
         />
       </aside>
       <section className="conversation-area">
-        {conversation && bot ? (
+        {view !== 'chats' ? (
+          <>
+            <button
+              className="icon-button back-button extension-back"
+              aria-label={t.home}
+              onClick={() => {
+                setView('chats');
+                setMobileChat(false);
+              }}
+            >
+              <Icon name="chevron" />
+            </button>
+            <ExtensionsPage key={view} kind={view} t={t} />
+          </>
+        ) : conversation && bot ? (
           <ChatView
             key={conversation.conversationId}
             t={t}
@@ -242,7 +291,7 @@ export function TeamPage({
             activity={node.activity[conversation.conversationId]?.state ?? 'idle'}
             online={online}
             onBack={() => setMobileChat(false)}
-            onEdit={() => setBotModal(bot)}
+            onEdit={() => setDetailBotId(bot.botId)}
           />
         ) : conversation && group ? (
           <GroupChatView
@@ -275,6 +324,38 @@ export function TeamPage({
         )}
       </section>
       <AnimatePresence>
+        {detailBotId && node.bots.find((item) => item.botId === detailBotId) && (
+          <BotDetails
+            bot={node.bots.find((item) => item.botId === detailBotId)!}
+            t={t}
+            onClose={() => setDetailBotId(null)}
+            onEdit={() => {
+              setBotModal(node.bots.find((item) => item.botId === detailBotId)!);
+              setDetailBotId(null);
+            }}
+            onSource={(file) => {
+              setDetailBotId(null);
+              setView('chats');
+              setConversation(file.conversationId);
+              setMobileChat(true);
+              const nodeId = useAppStore.getState().selectedNodeId!;
+              void callNode('messages.list', {
+                conversationId: file.conversationId,
+                aroundMessageId: file.messageId,
+                limit: 50,
+              }).then((value) => {
+                useAppStore.getState().setMessages(nodeId, file.conversationId, value.messages);
+                window.setTimeout(
+                  () =>
+                    document
+                      .getElementById('message-' + file.messageId)
+                      ?.scrollIntoView({ block: 'center' }),
+                  100,
+                );
+              });
+            }}
+          />
+        )}
         {botModal && (
           <BotDialog
             key={botModal === 'new' ? 'new' : botModal.botId}
@@ -309,7 +390,7 @@ export function TeamPage({
 
 function messagePreview(message: Message, t: Texts) {
   if (message.kind === 'text' || message.kind === 'commentary' || message.kind === 'system')
-    return message.content.text.slice(0, 52);
+    return readableMessageText(message.content.text).slice(0, 52);
   if (message.kind === 'tool') return message.content.tool;
   return t.approvalTitle;
 }

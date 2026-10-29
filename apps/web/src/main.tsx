@@ -4,6 +4,7 @@ import { App } from './team-app';
 import './styles/tokens.css';
 import './styles/fonts.css';
 import './style.css';
+import './styles/capabilities.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

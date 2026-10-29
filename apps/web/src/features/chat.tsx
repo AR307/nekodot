@@ -5,6 +5,7 @@ import { callNode, loadConversation } from '../relay-connection';
 import { useAppStore } from '../store';
 import { BotAvatar, Icon, SpinnerDots } from '../ui';
 import type { Texts } from '../shared';
+import { MessageFiles, readableMessageText } from './files';
 
 export function ChatView({
   t,
@@ -324,15 +325,21 @@ function MessageView({
             new RegExp(`(?:^|[^\\w@-])@${member.handle}(?![a-z0-9-])`).test(message.content.text),
         )
       : [];
+  const displayText =
+    message.kind === 'text' || message.kind === 'commentary'
+      ? readableMessageText(message.content.text)
+      : '';
   if (
     (message.kind === 'text' || message.kind === 'commentary') &&
     message.author.type === 'bot' &&
     message.status === 'done' &&
-    !message.content.text.trim()
+    !displayText &&
+    !(message.kind === 'text' && message.content.files?.length)
   )
     return null;
   return (
     <motion.article
+      id={'message-' + message.messageId}
       className={`message message-${message.kind}${message.author.type === 'user' ? ' from-user' : ''}`}
       initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -378,7 +385,7 @@ function MessageView({
                   {members ? ` @${bot.handle}` : ''}
                 </span>
                 <div className={message.kind === 'commentary' ? 'commentary-copy' : 'bot-copy'}>
-                  {message.content.text}
+                  {displayText}
                   {message.status === 'streaming' && <span className="stream-cursor">▍</span>}
                   {message.status === 'failed' && (
                     <small className="message-state failed-state"> · {t.failed}</small>
@@ -387,6 +394,9 @@ function MessageView({
                     <small className="message-state"> · {t.stopped}</small>
                   )}
                 </div>
+                {message.kind === 'text' && Boolean(message.content.files?.length) && (
+                  <MessageFiles botId={bot.botId} messageId={message.messageId} t={t} />
+                )}
                 {handoffs?.map((member) => (
                   <motion.span
                     className="handoff-tag"

@@ -364,6 +364,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await page.getByRole('button', { name: 'Back to team' }).click();
   await page.screenshot({ path: 'docs/evidence/phase1-chat-dark-en.png', animations: 'disabled' });
   await page.locator('.chat-title').click();
+  await page.locator('.bot-details').getByRole('button', { name: 'Edit bot', exact: true }).click();
   await page.getByLabel('Name', { exact: true }).fill('Mochi edited');
   await page.locator('.color-swatches button').nth(1).click();
   const permissionSelect = page.locator('.bot-dialog select').last();
@@ -372,6 +373,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await expect(page.locator('.chat-title')).toContainText('Mochi edited');
   expect(permissionModes.get(bot.botId)).toBe('off');
   await page.locator('.chat-title').click();
+  await page.locator('.bot-details').getByRole('button', { name: 'Edit bot', exact: true }).click();
   await expect(page.locator('.bot-dialog select').last()).toHaveValue('off');
   await page.locator('.bot-dialog select').last().selectOption('manual');
   await page.locator('.bot-dialog').getByRole('button', { name: 'Save', exact: true }).click();
@@ -435,6 +437,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await expect(page.locator('.node-row')).toHaveCount(1);
   await page.getByRole('button', { name: 'Back to team' }).click();
   await page.locator('.chat-title').click();
+  await page.locator('.bot-details').getByRole('button', { name: 'Edit bot', exact: true }).click();
   await page.locator('.bot-dialog').getByRole('button', { name: 'Archive', exact: true }).click();
   await expect(page.locator('.bot-row')).toHaveCount(0);
   await page.reload();

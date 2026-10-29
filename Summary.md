@@ -175,7 +175,6 @@ Node 以官方 CLI/API 管理 Hermes。Node 是本地业务状态的唯一数据
 - 尚未在手机真机后台/唤醒流程和全新 WSL 配对现场验收；开发脚本自建 SSH 隧道的断线重连分支也未单独触发。
 - Phase 3 提交后另建独立本地克隆，不复制 `.env`、账号或 `node_modules`；Node 24.22.1 / pnpm 10.34.5 的 frozen install、lint、typecheck、21 项测试、build 和独立端口 4368 的 3 条 Edge E2E 全部通过。
 
-
 ### 2026-10-29 / Side Phase 原生管理与记忆
 
 - 增加 loopback 官方 `hermes serve --isolated` 管理进程，复用项目 home、PM runtime 和显式 profile；聊天仍走原 Runs API。Node 管理模块为 `hermes/management.ts`、`bot-management.ts`、`operations.ts`。
@@ -184,10 +183,16 @@ Node 以官方 CLI/API 管理 Hermes。Node 是本地业务状态的唯一数据
 - 实际网页保存 USER 偏好、原生 memory 工具保存任务经验及 `/refine` 完成；独立原生会话读取偏好且另一 Bot 未读到该偏好。聊天创建的一次性任务在详情可读，Node 重启后任务文件仍只有一次写入。
 - Node 24 当前工作区 lint、typecheck、21 项场景、build 和 4 条 Edge 旅程通过；完整清洁检出终验在后续提交记录。
 
-
 ### 2026-10-29 / Side Phase 文件交付与资料库传输
 
 - 增加 `files.ts`、附件元数据和交付副本，按实际发送 Bot、会话和消息收录 MEDIA 与文件链接；历史补录按消息及引用去重，不合并同名新版本。
 - Relay 通过既有 Node 出站连接分块转发认证上传和下载，Node 不新增公网监听，Relay 不保存文件正文。
 - 真实私聊生成文本、SVG、PDF、二进制文件；真实群聊四类交付归属发送 Bot。Edge 已核对卡片、资料库、预览、下载、来源跳转、同名版本、补录去重和刷新。
 - 修复消息查询时流式缓存丢弃附件标识的问题，群聊真实回复和刷新复验通过。修改原工作文件后交付副本未变；Node 重启后附件仍保留。
+
+### 2026-10-29 / Side Phase Bot 详情与扩展中心
+
+- Web 增加 Bot 详情、原生记忆和资料库三部分；展示 Hermes profile 定时任务和运行记录，编辑 SOUL、MEMORY、USER，调用原生 `/refine` 并呈现操作状态。
+- Skills 与插件页面读取当前节点 Hermes 目录，支持搜索、分类、原生说明、Bot 安装状态、启停、Git 安装、本地文件/目录/ZIP 导入及插件配置。secret 由 Hermes profile 的 `.env` 保存，界面不回显完整值。
+- 文件卡片接入私聊与群聊，资料库支持搜索、类型筛选、预览、下载、来源消息及历史补录；文件内容留在 Node，Relay 只做认证传输。
+- Edge 完整浏览器旅程覆盖详情/记忆保存、资料库预览下载、Skills 内容与启停、插件目录及 390/768/1440px 页面；真实 Hermes 与自定义 API 的能力证据见 `docs/evidence/sidephase-*.png`。

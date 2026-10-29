@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { ApprovalMode, Bot, Conversation } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
@@ -33,6 +33,7 @@ export function BotDialog({
   const [name, setName] = useState(value?.displayName ?? '');
   const [handle, setHandle] = useState(value?.handle ?? '');
   const [role, setRole] = useState(value?.role ?? '');
+  const loadedRole = useRef(value?.role ?? '');
   const [model, setModel] = useState(value?.model ?? '');
   const [color, setColor] = useState(value?.avatar.color ?? avatarColors[0]!);
   const [advanced, setAdvanced] = useState(false);
@@ -45,8 +46,17 @@ export function BotDialog({
 
   useEffect(() => {
     if (!value) return;
-    void callNode('bots.permissions.get', { botId: value.botId })
-      .then(({ mode }) => {
+    void Promise.all([
+      callNode('bots.permissions.get', { botId: value.botId }),
+      callNode('memory.get', { botId: value.botId }),
+    ])
+      .then(([{ mode }, memory]) => {
+        const soul = memory.documents.find((doc) => doc.name === 'SOUL.md')!;
+        const identity = soul.content
+          .replace(/<!-- nekodot managed:[\s\S]*?<!-- end nekodot managed -->\n?/, '')
+          .trimEnd();
+        loadedRole.current = identity;
+        setRole(identity);
         setApprovalMode(mode);
         setPermissionsReady(true);
       })
@@ -60,11 +70,12 @@ export function BotDialog({
     try {
       const effectiveHandle = handle || handleFromName(name);
       if (value) {
+        if (role !== loadedRole.current)
+          await callNode('memory.save', { botId: value.botId, name: 'SOUL.md', content: role });
         const result = await callNode('bots.update', {
           botId: value.botId,
           displayName: name,
           handle: effectiveHandle,
-          role,
           model,
           approvalMode,
           avatar: { shape: 'dot', color },

@@ -189,7 +189,6 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 证据文件 `docs/evidence/phase3-live-acceptance.json` 不记录账号、密钥、endpoint、model 名或 SSH 目标；既有 provider `.env`、账号、profile 和临时现场均留在本地。
 - 提交 `fb5f8b6` 后另建独立本地克隆 `.runtime/phase3-clean-20261028`，不复制 `.env`、账号或 `node_modules`；Node 24.22.1 / pnpm 10.34.5 的 frozen install、lint、typecheck、21 项测试、build 和 `CI=true PLAYWRIGHT_WEB_PORT=4368 pnpm test:e2e` 均通过。新检出现场保留。
 
-
 ### 2026-10-29 / Side Phase 原生管理与记忆
 
 - 增加 loopback 官方 `hermes serve --isolated` 管理进程，复用项目 home、PM runtime 和显式 profile；聊天仍走原 Runs API。Node 管理模块为 `hermes/management.ts`、`bot-management.ts`、`operations.ts`。
@@ -198,10 +197,16 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 实际网页保存 USER 偏好、原生 memory 工具保存任务经验及 `/refine` 完成；独立原生会话读取偏好且另一 Bot 未读到该偏好。聊天创建的一次性任务在详情可读，Node 重启后任务文件仍只有一次写入。
 - Node 24 当前工作区 lint、typecheck、21 项场景、build 和 4 条 Edge 旅程通过；完整清洁检出终验在后续提交记录。
 
-
 ### 2026-10-29 / Side Phase 文件交付与资料库传输
 
 - 增加 `files.ts`、附件元数据和交付副本，按实际发送 Bot、会话和消息收录 MEDIA 与文件链接；历史补录按消息及引用去重，不合并同名新版本。
 - Relay 通过既有 Node 出站连接分块转发认证上传和下载，Node 不新增公网监听，Relay 不保存文件正文。
 - 真实私聊生成文本、SVG、PDF、二进制文件；真实群聊四类交付归属发送 Bot。Edge 已核对卡片、资料库、预览、下载、来源跳转、同名版本、补录去重和刷新。
 - 修复消息查询时流式缓存丢弃附件标识的问题，群聊真实回复和刷新复验通过。修改原工作文件后交付副本未变；Node 重启后附件仍保留。
+
+### 2026-10-29 / Side Phase Bot 详情、Skills 与插件
+
+- Bot 详情面板提供只读 Hermes 定时任务与执行历史、SOUL/MEMORY/USER 原生文档编辑、`/refine` 操作状态和待审核记忆/技能变更；Bot 角色编辑与 SOUL 共用保存内容。审核动作复用 Hermes 原生命令，按钮文案明确为“应用变更”。
+- 应用导航增加节点隔离的 Skills 和插件目录；展示官方/社区/本地来源、说明、平台与依赖、Bot 安装状态及 Hermes 返回的生效信息。支持官方/Git 安装、本地 SKILL.md/目录/ZIP 导入、多 Bot 安装、原生启停、插件配置和所需密钥输入。
+- Edge 验证覆盖 Bot 详情、记忆保存、文件预览/下载、Skills 内容/停用、800+ 插件目录和 390/768/1440px 无横向溢出；截图保留在 `docs/evidence/sidephase-*.png`。此前真实 Hermes 验收截图记录了 `/refine`、记忆审核、定时任务、技能脚本与插件工具运行。
+- Node 24.22.1 下本轮 `pnpm test` 为 9 个文件、21 项通过，`pnpm typecheck`、`pnpm build` 及 4 条 Edge E2E 通过。格式检查发现摘要/进度 Markdown 未符合 Prettier，本轮统一格式后复验。

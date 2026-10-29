@@ -20,6 +20,7 @@ import { groupPrompt, MAX_CHAIN, mentionedBots } from './group-routing';
 import { Operations } from './operations';
 import { BotManagement } from './bot-management';
 import { FileLibrary } from './files';
+import { Extensions } from './extensions';
 
 type HermesEvent = SseFrame['data'] & {
   event: string;
@@ -53,6 +54,7 @@ export class NodeApplication {
   readonly operations: Operations;
   readonly management: BotManagement;
   readonly files: FileLibrary;
+  readonly extensions: Extensions;
   onEvent: (event: PersistedEvent) => void = () => {};
   onLive: (event: LiveEvent) => void = () => {};
   private readonly consumers = new Map<string, AbortController>();
@@ -71,6 +73,7 @@ export class NodeApplication {
     this.operations = new Operations(this.database);
     this.management = new BotManagement(this.database, this.bots, hermes, this.operations);
     this.files = new FileLibrary(this.database, hermes, this.operations);
+    this.extensions = new Extensions(this.database, this.bots, hermes, this.operations);
     this.database.onEvent = (event) => this.onEvent(event);
   }
 
@@ -101,6 +104,16 @@ export class NodeApplication {
         return this.files.backfill(request.params.botId);
       case 'imports.create':
         return this.files.createImport();
+      case 'extensions.list':
+        return this.extensions.list(request.params.kind);
+      case 'extensions.content':
+        return this.extensions.content(request.params);
+      case 'extensions.install':
+        return this.extensions.install(request.params);
+      case 'extensions.toggle':
+        return this.extensions.toggle(request.params);
+      case 'extensions.configure':
+        return this.extensions.configure(request.params);
       case 'sync.snapshot':
         this.activities();
         return {

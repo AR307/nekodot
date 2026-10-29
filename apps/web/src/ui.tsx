@@ -84,9 +84,32 @@ export function SpinnerDots() {
 export function Icon({
   name,
 }: {
-  name: 'plus' | 'arrow' | 'settings' | 'laptop' | 'send' | 'stop' | 'close' | 'chevron';
+  name:
+    | 'plus'
+    | 'arrow'
+    | 'settings'
+    | 'laptop'
+    | 'send'
+    | 'stop'
+    | 'close'
+    | 'chevron'
+    | 'spark'
+    | 'plugin'
+    | 'chat';
 }) {
   const paths: Record<typeof name, React.ReactNode> = {
+    spark: (
+      <>
+        <path d="m12 3 2.8 6.2L21 12l-6.2 2.8L12 21l-2.8-6.2L3 12l6.2-2.8L12 3Z" />
+        <path d="m20 2 .7 1.3L22 4l-1.3.7L20 6l-.7-1.3L18 4l1.3-.7Z" />
+      </>
+    ),
+    plugin: (
+      <path d="M8 3h3a2.5 2.5 0 1 1 5 0h3v5a2.5 2.5 0 1 0 0 5v6h-6a2.5 2.5 0 1 0-5 0H3v-6a2.5 2.5 0 1 0 0-5V3h5Z" />
+    ),
+    chat: (
+      <path d="M20 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2v-10.5A8.5 8.5 0 0 1 20 11.5ZM7 9h8M7 13h5" />
+    ),
     plus: <path d="M12 5v14M5 12h14" />,
     arrow: <path d="M5 12h14m-6-6 6 6-6 6" />,
     settings: (

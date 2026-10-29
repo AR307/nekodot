@@ -53,6 +53,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
     const app = new NodeApplication(home, runtime);
     const request = (method: string, params: unknown) => rpcRequestSchema.parse({ method, params });
     try {
+      expect((await app.extensions.list('skills')).entries.length).toBeGreaterThan(0);
       const secret = 'provider-secret-never-returned';
       const configured = (await app.handle(
         request('providers.set', {
