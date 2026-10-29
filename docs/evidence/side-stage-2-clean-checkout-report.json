@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-29",
+  "sourceCodeCommit": "fa6e675",
+  "independentCheckout": true,
+  "copiedPrivateConfiguration": false,
+  "copiedNodeModules": false,
+  "node": "24.22.1",
+  "pnpm": "10.34.5",
+  "frozenInstall": true,
+  "lint": true,
+  "typecheck": true,
+  "testFilesPassed": 12,
+  "testsPassed": 24,
+  "build": true,
+  "edge": {
+    "passed": 4,
+    "skipped": 1,
+    "liveScreenJourneyTested": false
+  },
+  "native": {
+    "androidArm64DebugCleanBuild": true,
+    "androidArm64Release": false,
+    "windowsDebugNsisWorktreeBuild": true,
+    "windowsDebugNsisCleanBuild": true,
+    "formalPackagesPublished": false
+  },
+  "liveProduct": {
+    "realPrivateReply": true,
+    "realGroupReplies": 2,
+    "nodeRestartPersistence": true,
+    "https": false,
+    "appRemoteJourney": false,
+    "firebaseDelivery": false
+  },
+  "pending": [
+    "product-domain-and-dns",
+    "firebase-project-configuration",
+    "formal-release-packages",
+    "android-physical-device",
+    "native-dual-client-and-screen-journeys"
+  ],
+  "stageComplete": false
+}

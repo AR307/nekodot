@@ -367,3 +367,21 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 本地 Android 发布密钥和对应四项环境参数已保存在 `.runtime/side-stage-2/private/nekodot-release.p12` 与 `android-signing.json`，没有进入 Git、日志或聊天。该密钥尚未用于正式发布包。
 - 最新产品 Node 更新后，首次探测早于 Hermes 冷启动完成而显示离线；服务随后正常在线，重新真实私聊和两成员定向群聊通过，已有 2 个 Bot、历史及 profile 保留。未新增产品重试机制或重跑未完成用户任务。
 - 用户回复域名与 Firebase 稍后提供，因此公网 HTTPS/WSS、FCM、Windows 正式安装器与 Android 签名 release、真机及双端旅程继续待联调。没有将此阶段整体标记完成。
+
+## 独立检出与交付状态 / 2026-10-29
+
+最终可执行代码 `fa6e675` 在独立检出复核。检出内自行 frozen install，没有复制 `.env`、账号、签名资料、原 `node_modules` 或 native target。
+
+| 检查                            | 结果                                                           |
+| ------------------------------- | -------------------------------------------------------------- |
+| frozen install、lint、typecheck | 通过                                                           |
+| 自动化场景                      | 12 文件、24 项通过                                             |
+| Web / Relay / Node / 分发构建   | 通过                                                           |
+| Edge                            | 4 条通过；真实屏幕项因无私有现场 skip，不视为 App 屏幕验收     |
+| Windows x64 调试 NSIS           | 独立检出标准构建通过，生成 0.1.0 安装器                        |
+| Android arm64 调试 APK          | 独立检出标准构建通过；arm64-v8a，0.1.0 / versionCode 1         |
+| 真实模型                        | 产品 loopback 环境实际私聊、两成员群聊和 Node 重启历史保留通过 |
+| 正式公网与双端 App              | 待域名/DNS；未发布测试占位地址安装包                           |
+| 真实 FCM 与 Android 真机        | 待 Firebase 和设备，未将模拟器或路由测试作为替代               |
+
+完整说明、原生截图与待办见 `side-stage-2-acceptance.md`；机器结果为 `evidence/side-stage-2-clean-checkout-report.json`。Android 私有发布密钥已准备但未用于发布测试包，Windows 未做 Authenticode 签名。现有 UI 修改与所有历史/验收现场继续保留，所有提交均只在本地。

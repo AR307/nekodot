@@ -298,3 +298,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - Android 模拟器实测系统返回进入后台、返回后保留原进程，以及中文文件的系统分享 chooser；没有选择外部应用或发送文件。Windows 系统文件保存已读回核对。
 - 本地私有目录生成首个 Android 发布签名密钥及构建环境参数，不进入 Git、不打印密码，也未发布测试地址安装包。用户确认域名和 Firebase 稍后提供，相关联网、推送与正式交付项目继续待完成。
 - 独立检出已完成 frozen install、lint、typecheck、24 项场景、build 和 4 条 Edge 旅程；本模块提交后的最终检出复核继续记录。
+
+### 2026-10-29 / Side Stage 2 最终可执行检查
+
+- 独立检出更新至 `fa6e675`，未复制私有配置或原依赖；Node 24.22.1 / pnpm 10.34.5 下 frozen install、lint、typecheck、12 文件 24 项场景、build 与 4 条 Edge 旅程通过。缺少私有现场的真实屏幕旅程明确 skip。
+- 同一独立检出通过标准入口生成 Windows x64 NSIS 调试安装器和 Android arm64 调试 APK，不依赖原工作区的 native target 或 node_modules；Android 实际包含 arm64-v8a。
+- 新增 `docs/side-stage-2-acceptance.md` 与机器结果，将原生宿主、真实产品服务、离线回归及待联调部分分开记录。域名/Firebase 已由用户确认稍后提供，正式包、FCM、真机和跨端远程闭环仍待完成。
+- 本阶段所有模块仅本地提交，既有未提交 UI、历史、profiles、原参考资料及验收现场保留；未推送、未重启其他应用或整机。
