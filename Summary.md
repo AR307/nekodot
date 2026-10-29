@@ -347,3 +347,8 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 从源代码独立导出、不复制私有配置或 node_modules，frozen install、lint、typecheck、24 项测试、build 和 4 条 Edge 旅程均通过；真实屏幕回归缺少本次私有运行现场，明确跳过。
 - GitHub 已转为公开，main 展示产品完整源码，hermes-reference 保留原 Hermes 历史；官网主页信息及 README 链接已更新。v0.1.0 使用本模块提交与双端安装包发布，验收范围见 docs/releases/v0.1.0.md。
 - 复核共享服务器其他三个容器身份、启动时间及重启次数均未变化；没有提交密钥、运行数据、Firebase 服务端凭据或签名资料。
+
+### 2026-10-29 / README 发布徽章显示修正
+
+- Edge 复现 GitHub README 的 developer preview 外部徽章未显示；图片源直接请求可返回 SVG，页面中的 GitHub 图片代理未能正常展示。
+- 改用仓库内置的 0.1.0 SVG 徽章并链接到对应 Release，不再依赖该外部静态状态图片。此变更只影响 README 展示，不修改客户端和服务器。

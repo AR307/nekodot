@@ -16,7 +16,7 @@
 <p align="center">
   <a href="https://github.com/AR307/nekodot/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AR307/nekodot/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Node 24 LTS" src="https://img.shields.io/badge/node-24%20LTS-2F9E8F">
-  <img alt="Status: developer preview" src="https://img.shields.io/badge/status-developer%20preview-E8603C">
+  <a href="https://github.com/AR307/nekodot/releases/tag/v0.1.0"><img alt="Release v0.1.0" src="docs/assets/release-0.1.0.svg"></a>
 </p>
 
 <p align="center">

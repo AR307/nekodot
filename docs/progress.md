@@ -453,3 +453,7 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 机器记录为 docs/evidence/release-0.1.0-{site,packages,downloads,verification}.json；Android 真机与 Windows 完整安装等既有未验收项目继续保留，不因 0.1.0 发布改写为通过。
 
 - GitHub Actions 对官网 / MIT 发布准备提交的 lint/test/build 工作流实际完成且结果为 success；最终发布记录提交将另触发同一工作流。
+
+## 2026-10-29 / README 发布徽章
+
+- 修正 GitHub README 中状态徽章缺图：原 Shields 源返回 200/SVG，但 Edge 的 GitHub 页面中图片未显示。改为版本化、随仓库提供的 release v0.1.0 SVG；发布后在实际 GitHub 页面复核。
