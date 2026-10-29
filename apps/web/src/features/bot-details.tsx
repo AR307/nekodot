@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Attachment, Bot, MemoryDocument, Operation, RpcResult } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
-import { BotAvatar, Icon, SpinnerDots } from '../ui';
+import { BotAvatar, Icon, Segmented, SpinnerDots } from '../ui';
 import { selectNodeData, useAppStore } from '../store';
 import type { Texts } from '../shared';
 import { OperationProgress } from './operations';
@@ -55,17 +55,19 @@ export function BotDetails({
             <Icon name="close" />
           </button>
         </header>
-        <nav className="details-tabs" aria-label={t.botDetails}>
-          {(['details', 'memory', 'library'] as const).map((key) => (
-            <button
-              key={key}
-              aria-current={tab === key ? 'page' : undefined}
-              onClick={() => setTab(key)}
-            >
-              {key === 'details' ? t.botDetails : key === 'memory' ? t.botMemory : t.botLibrary}
-            </button>
-          ))}
-        </nav>
+        <div className="details-tabs">
+          <Segmented<typeof tab>
+            id="details-tab"
+            label={t.botDetails}
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'details', label: t.botDetails },
+              { value: 'memory', label: t.botMemory },
+              { value: 'library', label: t.botLibrary },
+            ]}
+          />
+        </div>
         {!online && <p className="offline-strip">{t.offline}</p>}
         <div className="details-scroll">
           {tab === 'details' ? (

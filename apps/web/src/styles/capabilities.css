@@ -4,78 +4,87 @@
   z-index: 60;
   display: flex;
   justify-content: flex-end;
-  background: #1f1b1659;
-  backdrop-filter: blur(4px);
+  background: var(--scrim);
+  animation: details-fade 200ms var(--ease);
 }
 .bot-details {
-  width: min(690px, 100vw);
+  width: min(560px, 100vw);
   height: 100dvh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--bg);
-  box-shadow: -12px 0 60px #0002;
-  min-height: 0;
+  box-shadow: var(--shadow-3);
+  animation: details-in 280ms var(--ease);
+}
+@keyframes details-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes details-in {
+  from {
+    transform: translateX(32px);
+    opacity: 0;
+  }
 }
 .details-header {
+  flex: none;
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 24px 28px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-  flex: none;
+  gap: 12px;
+  padding: 20px 12px 14px 24px;
 }
 .details-header h2 {
-  font-size: 23px;
   margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 .details-header small {
   color: var(--ink-2);
+  font: 12px/1.5 var(--font-mono);
   overflow-wrap: anywhere;
 }
+.details-header > div {
+  flex: 1;
+  min-width: 0;
+}
 .details-header .icon-button {
-  margin-left: auto;
   flex: none;
 }
 .details-tabs {
-  display: flex;
-  gap: 6px;
-  padding: 10px 24px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
   flex: none;
+  padding: 0 24px 12px;
 }
-.details-tabs button,
-.document-tabs button {
-  padding: 9px 18px;
-  background: transparent;
-  border-radius: 10px;
-  color: var(--ink-2);
-}
-.details-tabs [aria-current],
 .document-tabs .selected {
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  font-weight: 800;
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--bg);
 }
 .details-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 24px 28px 48px;
+  padding: 4px 24px 40px;
 }
 .detail-section {
-  padding: 0 0 26px;
-  margin-bottom: 26px;
-  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+  padding: 20px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--line);
+  background: var(--surface);
 }
 .detail-section h3 {
-  font-size: 17px;
-  margin: 0 0 12px;
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 800;
 }
 .detail-section p {
   overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.6;
 }
 .section-heading,
 .section-actions {
@@ -92,11 +101,10 @@
   white-space: pre-wrap;
 }
 .native-card {
-  padding: 18px;
-  margin-top: 14px;
-  border: 1px solid var(--line);
+  margin-top: 12px;
+  padding: 16px;
   border-radius: 14px;
-  background: var(--surface);
+  background: var(--bg);
   overflow-wrap: anywhere;
 }
 .native-card dl {
@@ -126,8 +134,8 @@
 }
 .document-tabs {
   display: flex;
-  gap: 4px;
   flex-wrap: wrap;
+  gap: 6px;
 }
 .document-tabs button {
   padding: 8px 10px;
@@ -136,13 +144,13 @@
 .memory-editor {
   width: 100%;
   min-height: 340px;
-  resize: vertical;
-  font: 13px/1.7 var(--font-mono);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
   padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--bg);
   color: var(--ink);
+  font: 13px/1.7 var(--font-mono);
+  resize: vertical;
 }
 .detail-section label {
   display: grid;
@@ -173,11 +181,11 @@
   width: auto;
 }
 .operation-card {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 16px;
-  background: var(--surface);
   margin-top: 16px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
   font-size: 12px;
   overflow-wrap: anywhere;
 }
@@ -197,30 +205,35 @@
   border-color: var(--ok);
 }
 .empty-state {
+  margin: 0;
   padding: 28px 16px;
+  border-radius: 14px;
   border: 1px dashed var(--line);
-  border-radius: 12px;
-  text-align: center;
   color: var(--ink-2);
+  font-size: 13px;
+  text-align: center;
 }
 .offline-strip {
-  margin: 0;
+  margin: 0 24px 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
   background: var(--accent-soft);
-  padding: 8px 24px;
   color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 800;
 }
 @media (max-width: 767px) {
   .details-header {
-    padding: 20px 18px;
+    padding: 16px 8px 12px 18px;
   }
   .details-header h2 {
     font-size: 20px;
   }
   .details-tabs {
-    padding: 8px 14px;
+    padding: 0 18px 12px;
   }
   .details-scroll {
-    padding: 20px 18px 40px;
+    padding: 4px 18px 40px;
   }
   .memory-editor {
     min-height: 42dvh;
@@ -234,34 +247,6 @@
   .section-heading {
     align-items: flex-start;
   }
-}
-.app-navigation {
-  display: flex;
-  gap: 4px;
-  padding: 8px 16px 14px;
-  border-bottom: 1px solid var(--line);
-  flex: none;
-}
-.app-navigation button {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  padding: 9px 4px;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--ink-2);
-  font-size: 12px;
-}
-.app-navigation .icon {
-  width: 16px;
-  height: 16px;
-}
-.app-navigation [aria-current] {
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  font-weight: 800;
 }
 .extensions-page {
   width: 100%;
@@ -278,12 +263,16 @@
   align-items: center;
 }
 .extensions-header h1 {
-  font-size: 34px;
-  margin: 8px 0;
+  margin: 6px 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 .extensions-header p {
   max-width: 620px;
   margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
 }
 .extensions-header .primary-button {
   flex: none;
@@ -318,26 +307,26 @@
 }
 .extension-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
-  gap: 18px;
-  margin-top: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+  margin-top: 20px;
 }
 .extension-card {
-  text-align: left;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 21px;
+  min-width: 0;
+  min-height: 220px;
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  min-height: 240px;
+  padding: 18px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  text-align: left;
   transition:
-    border-color 0.15s,
-    transform 0.15s;
+    box-shadow 180ms var(--ease),
+    transform 180ms var(--ease);
 }
 .extension-card:hover {
-  border-color: var(--accent);
+  box-shadow: var(--shadow-2);
   transform: translateY(-2px);
 }
 .extension-card-heading {
@@ -346,11 +335,11 @@
   justify-content: space-between;
 }
 .extension-mark {
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--accent-soft);
   color: var(--accent-text);
 }
@@ -369,20 +358,21 @@
   color: var(--ink-2);
 }
 .extension-card h3 {
+  margin: 14px 0 6px;
   font-size: 16px;
+  font-weight: 800;
   overflow-wrap: anywhere;
-  margin: 17px 0 8px;
 }
 .extension-card > p {
-  font-size: 12px;
-  color: var(--ink-2);
-  overflow-wrap: anywhere;
   display: -webkit-box;
+  margin: 0 0 16px;
+  overflow: hidden;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
-  overflow: hidden;
-  margin: 0 0 20px;
-  line-height: 1.7;
 }
 .extension-card footer {
   display: flex;
@@ -391,8 +381,9 @@
   margin-top: auto;
   padding-top: 12px;
   border-top: 1px solid var(--line);
-  font-size: 10px;
   color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 700;
   overflow-wrap: anywhere;
 }
 .extension-overlay,
@@ -403,16 +394,17 @@
   z-index: 62;
 }
 .extension-detail {
-  width: 740px;
+  width: 720px;
   max-width: 100%;
   max-height: 90dvh;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-panel);
   background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  min-height: 0;
-  min-width: 0;
+  box-shadow: var(--shadow-3);
 }
 .extension-detail > header,
 .extension-import > header {
@@ -435,11 +427,15 @@
   overflow-wrap: anywhere;
 }
 .extension-detail-scroll h2 {
-  font-size: 27px;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 }
 .extension-detail-scroll h3 {
-  margin-top: 24px;
+  margin: 24px 0 4px;
+  font-size: 15px;
+  font-weight: 800;
 }
 .extension-bot-state {
   display: flex;
@@ -460,13 +456,13 @@
   margin-left: auto;
 }
 .skill-content {
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
   font: 12px/1.8 var(--font-mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  padding: 20px;
-  border-radius: 12px;
 }
 .plugin-configuration {
   padding-top: 12px;
@@ -486,18 +482,20 @@
   z-index: 65;
 }
 .extension-import {
-  background: var(--bg);
-  border-radius: 20px;
+  width: 600px;
+  max-width: 100%;
   max-height: 90dvh;
   display: flex;
   flex-direction: column;
-  width: 600px;
-  max-width: 100%;
-  border: 1px solid var(--line);
+  overflow: hidden;
+  border-radius: var(--radius-panel);
+  background: var(--bg);
+  box-shadow: var(--shadow-3);
 }
 .extension-import h2 {
-  font-size: 20px;
   margin: 0;
+  font-size: 20px;
+  font-weight: 800;
 }
 .extension-import-body {
   overflow-y: auto;
@@ -535,10 +533,11 @@
   border-top: 1px solid var(--line);
 }
 .restart-notice {
-  border: 1px solid var(--warn);
-  border-radius: 10px;
-  padding: 15px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--warn) 14%, var(--surface));
   font-size: 12px;
+  font-weight: 700;
 }
 .restart-notice button {
   margin-left: 12px;
@@ -551,14 +550,18 @@
 }
 .file-card {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 14px;
   background: var(--surface);
-  margin-top: 12px;
+  transition: box-shadow 160ms var(--ease);
+}
+.file-card:hover {
+  box-shadow: var(--shadow-1);
 }
 .file-kind {
   font: 10px var(--font-mono);
@@ -579,12 +582,13 @@
   gap: 3px;
 }
 .file-info strong {
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 800;
   overflow-wrap: anywhere;
 }
 .file-info small {
-  font-size: 10px;
   color: var(--ink-2);
+  font-size: 11px;
 }
 .file-actions {
   display: flex;
@@ -592,7 +596,7 @@
   flex-wrap: wrap;
 }
 .file-actions button {
-  font-size: 11px;
+  font-size: 12px;
 }
 .library-filters {
   display: flex;
@@ -616,11 +620,12 @@
 .file-preview {
   width: min(1000px, 100%);
   height: 90dvh;
-  background: var(--bg);
-  border-radius: 14px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border-radius: var(--radius-panel);
+  background: var(--bg);
+  box-shadow: var(--shadow-3);
 }
 .file-preview header {
   display: flex;
@@ -713,6 +718,10 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .details-backdrop,
+  .bot-details {
+    animation: none;
+  }
   .extension-card {
     transition: none;
   }

@@ -132,7 +132,7 @@
 .screen-body > .offline-strip {
   margin: 12px 16px;
 }
-.offline-strip {
+.screen-panel .offline-strip {
   padding: 8px 12px;
   border-radius: 10px;
   background: color-mix(in srgb, var(--warn) 18%, transparent);
