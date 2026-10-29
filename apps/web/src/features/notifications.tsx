@@ -203,11 +203,17 @@ export function NotificationSettings({ t }: { t: Texts }) {
   }
   return (
     <section className="settings-card">
-      <h2>{t.notifications}</h2>
-      <p>{enabled ? t.notificationEnabled : t.notificationUnavailable}</p>
-      <button className="secondary-button" onClick={() => void enable()}>
-        {t.enableNotifications}
-      </button>
+      <div className="settings-card-heading">
+        <div>
+          <h2>{t.notifications}</h2>
+          <p>{enabled ? t.notificationEnabled : t.notificationUnavailable}</p>
+        </div>
+        {!enabled && (
+          <button className="secondary-button" onClick={() => void enable()}>
+            {t.enableNotifications}
+          </button>
+        )}
+      </div>
       {error && (
         <p role="alert" className="form-error">
           {error}

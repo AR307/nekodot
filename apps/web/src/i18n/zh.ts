@@ -1,8 +1,8 @@
 import { screenZh } from './screen';
 import { clientZh } from './client';
 const zh = {
-  ...screenZh,
   ...clientZh,
+  ...screenZh,
   appName: 'nekodot',
   team: '团队',
   settings: '设置',
@@ -295,5 +295,17 @@ const zh = {
   expiresIn: '配对码 {code} · {time} 后过期',
   codeExpired: '配对码已过期，重新生成一个就好。',
   pairWelcome: '{name} 已经连上，马上回到你的团队。',
+  accountSection: '账号',
+  themeLight: '浅色',
+  themeDark: '深色',
+  languageLabel: '语言',
+  signedInAs: '当前登录',
+  copyRunCommand: '复制运行命令',
+  unpairConfirm: '解绑后这台电脑会立刻断开，bot 和历史仍保存在电脑上。',
+  authHeadline: '一个会干活的 AI 小队，住在你自己的电脑里。',
+  authBody: '创建几只有名字的 bot，私聊或拉进群里协作。它们在你的电脑上运行，数据不离开你的机器。',
+  authPoint1: '模型随你选，也能接自己的接口',
+  authPoint2: '不用开端口，手机直接访问',
+  authPoint3: '重要操作都先问你',
 };
 export default zh;

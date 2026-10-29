@@ -298,6 +298,11 @@
   flex: 1;
   min-width: 0;
 }
+.extensions-toolbar select,
+.library-filters select {
+  flex: none;
+  width: auto;
+}
 .extensions-toolbar input,
 .extensions-toolbar select,
 .library-filters input,

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Icon } from '../ui';
+import { writeClipboard } from '../native';
 
 /**
  * Small, safe Markdown subset for bot replies: fenced code, headings, lists, quotes,
@@ -230,7 +231,7 @@ function CodeBlock({
         <button
           type="button"
           onClick={() => {
-            void navigator.clipboard.writeText(code).then(() => {
+            void writeClipboard(code).then(() => {
               setCopied(true);
               window.setTimeout(() => setCopied(false), 1600);
             });

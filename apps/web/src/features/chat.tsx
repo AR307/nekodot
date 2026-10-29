@@ -16,6 +16,7 @@ import { fill, type Texts } from '../shared';
 import { MessageFiles, readableMessageText } from './files';
 import { Markdown, MentionText } from './markdown';
 import { useDrafts } from '../drafts';
+import { writeClipboard } from '../native';
 
 type Activity = 'thinking' | 'tool' | 'waiting_approval' | 'idle';
 
@@ -787,7 +788,7 @@ function CopyButton({ t, text }: { t: Texts; text: string }) {
         aria-label={copied ? t.copied : t.copyText}
         title={copied ? t.copied : t.copyText}
         onClick={() =>
-          void navigator.clipboard.writeText(text).then(() => {
+          void writeClipboard(text).then(() => {
             setCopied(true);
             window.setTimeout(() => setCopied(false), 1600);
           })

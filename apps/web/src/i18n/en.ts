@@ -135,7 +135,7 @@ const en = {
   loadEarlier: 'Load earlier messages',
   yourAiTeam: 'YOUR AI TEAM',
   yourComputer: 'Your computer',
-  privateByDesign: 'PRIVATE BY DESIGN',
+  privateByDesign: 'Private by design: your data stays with you',
   approvalDraftHint: 'Write a draft now. Resolve the approval or stop before sending.',
   waitingForProvider: 'Configure a model provider first.',
   close: 'Close',
@@ -302,5 +302,18 @@ const en = {
   expiresIn: 'Code {code} · expires in {time}',
   codeExpired: 'This pairing code expired. Generate a fresh one.',
   pairWelcome: '{name} is connected. Taking you back to your team.',
+  accountSection: 'Account',
+  themeLight: 'Light',
+  themeDark: 'Dark',
+  languageLabel: 'Language',
+  signedInAs: 'Signed in as',
+  copyRunCommand: 'Copy run command',
+  unpairConfirm: 'The computer disconnects right away. Its bots and history stay on that machine.',
+  authHeadline: 'A working AI team that lives on your own computer.',
+  authBody:
+    'Create a few named bots, chat one-on-one or bring them into a group. They run on your machine, so your data stays there.',
+  authPoint1: 'Pick any model, including your own endpoint',
+  authPoint2: 'No ports to open, works from your phone',
+  authPoint3: 'Asks before anything sensitive',
 };
 export default en;

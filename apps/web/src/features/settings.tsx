@@ -1,12 +1,14 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { RpcResult } from '@nekodot/protocol';
 import { fetchMe, relayRequest } from '../api';
 import { callNode } from '../relay-connection';
 import { useAppStore } from '../store';
-import { Icon, SpinnerDots, Wordmark } from '../ui';
+import { Icon, SpinnerDots, StatusDot, ease } from '../ui';
 import type { Texts } from '../shared';
 import { ModelPicker, useModelOptions } from './models';
 import { NotificationSettings } from './notifications';
+import { writeClipboard } from '../native';
 type Provider = NonNullable<RpcResult<'providers.get'>>;
 
 export function SettingsPage({
@@ -36,6 +38,7 @@ export function SettingsPage({
   const [nodeError, setNodeError] = useState('');
   const [copied, setCopied] = useState('');
   const [confirmArchive, setConfirmArchive] = useState<string | null>(null);
+  const reduceMotion = useReducedMotion();
   const selectedNode = me?.nodes.find((item) => item.nodeId === selectedNodeId);
   const catalog = useModelOptions(Boolean(selectedNode?.online));
 
@@ -111,115 +114,126 @@ export function SettingsPage({
 
   return (
     <main className="settings-page">
-      <header className="settings-header">
+      <header className="page-top">
         <button className="icon-button" onClick={onHome} aria-label={t.home}>
-          <Icon name="chevron" />
+          <Icon name="back" />
         </button>
-        <Wordmark />
-        <span>{t.settingsTitle}</span>
-        <button
-          className="quiet-button language-button"
-          onClick={onLanguage}
-          aria-label={t.language}
-        >
+        <span className="page-top-spacer" />
+        <button className="quiet-button language-button" onClick={onLanguage}>
+          <Icon name="globe" />
           {t.language}
         </button>
       </header>
-      <section className="settings-body">
-        <span className="eyebrow">
-          <i /> NEKODOT · SETTINGS
-        </span>
+      <motion.div
+        className="settings-body"
+        initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.32, ease }}
+      >
         <h1>{t.settingsTitle}</h1>
-        <form className="settings-card" onSubmit={(event) => void saveProvider(event)}>
-          <div className="settings-card-heading">
-            <div>
-              <h2>{t.provider}</h2>
-              <p>{t.providerHelp}</p>
+        <SettingsCard title={t.provider} help={t.providerHelp}>
+          <form className="provider-form" onSubmit={(event) => void saveProvider(event)}>
+            <div className="provider-switch" role="group" aria-label={t.provider}>
+              {(['openrouter', 'custom'] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  aria-pressed={kind === option}
+                  className={kind === option ? 'selected' : ''}
+                  onClick={() => setKind(option)}
+                >
+                  {kind === option && (
+                    <motion.span
+                      className="segmented-thumb"
+                      layoutId="provider-kind"
+                      transition={
+                        reduceMotion
+                          ? { duration: 0 }
+                          : { type: 'spring', stiffness: 500, damping: 38 }
+                      }
+                    />
+                  )}
+                  <span>{option === 'openrouter' ? t.openrouter : t.customProvider}</span>
+                </button>
+              ))}
             </div>
-            <span className="settings-mark">↗</span>
-          </div>
-          <div className="provider-switch">
-            <button
-              type="button"
-              className={kind === 'openrouter' ? 'selected' : ''}
-              onClick={() => setKind('openrouter')}
-            >
-              {t.openrouter}
-            </button>
-            <button
-              type="button"
-              className={kind === 'custom' ? 'selected' : ''}
-              onClick={() => setKind('custom')}
-            >
-              {t.customProvider}
-            </button>
-          </div>
-          {kind === 'custom' && (
+            {kind === 'custom' && (
+              <label>
+                {t.baseUrl}
+                <input
+                  type="url"
+                  required
+                  value={baseUrl}
+                  onChange={(event) => setBaseUrl(event.target.value)}
+                  placeholder="https://api.example.com/v1"
+                />
+              </label>
+            )}
             <label>
-              {t.baseUrl}
+              {t.apiKey}
               <input
-                type="url"
-                required
-                value={baseUrl}
-                onChange={(event) => setBaseUrl(event.target.value)}
-                placeholder="https://api.example.com/v1"
+                type="password"
+                required={provider?.kind !== kind}
+                value={key}
+                onChange={(event) => setKey(event.target.value)}
+                placeholder={provider ? `••••••••${provider.apiKeyLast4}` : t.keyPlaceholder}
+                autoComplete="new-password"
               />
             </label>
-          )}
-          <label>
-            {t.apiKey}
-            <input
-              type="password"
-              required={provider?.kind !== kind}
-              value={key}
-              onChange={(event) => setKey(event.target.value)}
-              placeholder={provider ? `••••••••${provider.apiKeyLast4}` : t.keyPlaceholder}
-              autoComplete="new-password"
+            {provider && (
+              <p className="saved-key">
+                <Icon name="check" />
+                <span>
+                  {t.keySaved} ····{provider.apiKeyLast4}
+                </span>
+                {provider.kind === kind && <small>{t.keepKeyHint}</small>}
+              </p>
+            )}
+            <ModelPicker
+              t={t}
+              label={t.defaultModel}
+              value={defaultModel}
+              onChange={setDefaultModel}
+              catalog={catalog}
+              disabled={!selectedNode?.online || !provider}
             />
-          </label>
-          {provider?.kind === kind && <small className="muted">{t.keepKeyHint}</small>}
-          <ModelPicker
-            t={t}
-            label={t.defaultModel}
-            value={defaultModel}
-            onChange={setDefaultModel}
-            catalog={catalog}
-            disabled={!selectedNode?.online || !provider}
-          />
-          {provider && (
-            <p className="saved-key">
-              {t.keySaved} ····{provider.apiKeyLast4}
-            </p>
-          )}
-          {message && <p className="success-message">{message}</p>}
-          {error && <p className="form-error">{error}</p>}
-          <div className="settings-card-footer">
-            <button
-              className="primary-button"
-              disabled={saving || (!key && provider?.kind !== kind) || !selectedNode?.online}
-            >
-              {saving ? <SpinnerDots /> : t.saveProvider}
-              <Icon name="arrow" />
-            </button>
-          </div>
-          {!selectedNode?.online && <p className="form-error">{t.offlineCreateHint}</p>}
-        </form>
-        <section className="settings-card">
-          <div className="settings-card-heading">
-            <div>
-              <h2>{t.nodesTitle}</h2>
-              <p>{t.chooseComputer}</p>
+            {error && <p className="form-error">{error}</p>}
+            {!selectedNode?.online && <p className="form-error">{t.offlineCreateHint}</p>}
+            <div className="settings-card-footer">
+              {message && (
+                <p className="success-message">
+                  <Icon name="check" />
+                  {message}
+                </p>
+              )}
+              <button
+                className="primary-button"
+                disabled={saving || (!key && provider?.kind !== kind) || !selectedNode?.online}
+              >
+                {saving && <SpinnerDots />}
+                {t.saveProvider}
+              </button>
             </div>
+          </form>
+        </SettingsCard>
+        <SettingsCard
+          title={t.nodesTitle}
+          action={
             <button className="secondary-button" onClick={() => void createPairing()}>
               <Icon name="plus" />
               {t.addComputer}
             </button>
-          </div>
+          }
+        >
           <div className="node-list">
             {me?.nodes.map((item) => (
-              <div className="node-row" key={item.nodeId}>
-                <span className={`node-icon ${item.online ? 'online' : ''}`}>
-                  <Icon name="laptop" />
+              <div
+                className={`node-row${item.nodeId === selectedNodeId ? ' is-current' : ''}`}
+                key={item.nodeId}
+              >
+                <span className="node-icon">
+                  <Icon name={item.platform === 'linux' ? 'server' : 'laptop'} />
+                  <StatusDot state={item.online ? 'ok' : 'offline'} />
                 </span>
                 <span>
                   <strong>{item.name}</strong>
@@ -229,9 +243,10 @@ export function SettingsPage({
                 </span>
                 <button
                   className="quiet-button"
+                  title={t.copyRunCommand}
                   onClick={() => {
                     setCopied(item.nodeId);
-                    void navigator.clipboard.writeText('pnpm node:run');
+                    void writeClipboard('pnpm node:run');
                   }}
                 >
                   {copied === item.nodeId ? t.copied : 'CLI'}
@@ -243,44 +258,94 @@ export function SettingsPage({
             ))}
           </div>
           {nodeError && <p className="form-error">{nodeError}</p>}
-        </section>
-        <section className="settings-card settings-options">
-          <div>
-            <h2>{t.appearance}</h2>
-            <p>{t.appearanceHelp}</p>
+        </SettingsCard>
+        <SettingsCard title={t.appearance} help={t.appearanceHelp}>
+          <div className="theme-row">
+            <span className={dark ? '' : 'is-on'}>{t.themeLight}</span>
+            <button
+              className={`theme-toggle${dark ? ' is-dark' : ''}`}
+              role="switch"
+              aria-checked={dark}
+              onClick={() => setDark(!dark)}
+              aria-label={t.toggleTheme}
+            >
+              <motion.span
+                layout
+                transition={
+                  reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 600, damping: 34 }
+                }
+              >
+                <Icon name={dark ? 'moon' : 'sun'} />
+              </motion.span>
+            </button>
+            <span className={dark ? 'is-on' : ''}>{t.themeDark}</span>
           </div>
-          <button
-            className={`theme-toggle${dark ? ' is-dark' : ''}`}
-            onClick={() => setDark(!dark)}
-            aria-label={t.toggleTheme}
-          >
-            <span />
-          </button>
-        </section>
+        </SettingsCard>
         <NotificationSettings t={t} />
-        <section className="settings-card account-card">
-          <div>
-            <h2>{me?.user.email}</h2>
-            <p>{t.language}</p>
-          </div>
-          <button className="secondary-button" onClick={() => setToken(null)}>
-            {t.logout}
-          </button>
-        </section>
-        {confirmArchive && (
-          <div className="confirm-strip">
+        <SettingsCard title={t.accountSection}>
+          <div className="account-row">
+            <span className="profile-initial">{me?.user.email.slice(0, 1).toUpperCase()}</span>
             <span>
-              {t.unpair} · {me?.nodes.find((item) => item.nodeId === confirmArchive)?.name}
+              <small>{t.signedInAs}</small>
+              <strong>{me?.user.email}</strong>
             </span>
-            <button className="unlink-button" onClick={() => setConfirmArchive(null)}>
+            <button className="secondary-button" onClick={() => setToken(null)}>
+              {t.logout}
+            </button>
+          </div>
+        </SettingsCard>
+      </motion.div>
+      <AnimatePresence>
+        {confirmArchive && (
+          <motion.div
+            className="confirm-strip"
+            role="alertdialog"
+            aria-label={t.unpair}
+            initial={{ opacity: 0, y: 16, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: 12, x: '-50%' }}
+            transition={{ duration: reduceMotion ? 0.1 : 0.22, ease }}
+          >
+            <span>
+              <strong>
+                {t.unpair} · {me?.nodes.find((item) => item.nodeId === confirmArchive)?.name}
+              </strong>
+              <small>{t.unpairConfirm}</small>
+            </span>
+            <button className="quiet-button" onClick={() => setConfirmArchive(null)}>
               {t.cancel}
             </button>
             <button className="danger-button" onClick={() => void unpair(confirmArchive)}>
               {t.unpair}
             </button>
-          </div>
+          </motion.div>
         )}
-      </section>
+      </AnimatePresence>
     </main>
+  );
+}
+
+function SettingsCard({
+  title,
+  help,
+  action,
+  children,
+}: {
+  title: string;
+  help?: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="settings-card">
+      <div className="settings-card-heading">
+        <div>
+          <h2>{title}</h2>
+          {help && <p>{help}</p>}
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
   );
 }
