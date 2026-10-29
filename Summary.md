@@ -339,3 +339,11 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 官网新增 Windows / Android 下载、真实 App 上手流程与 MIT 说明；README、仓库链接及包元数据统一到 AR307/nekodot，新增标准 MIT LICENSE。
 - Edge 完成 12 种尺寸 / 语言 / 主题检查；lint、typecheck、24 项测试、build 和 4 条产品 Edge 旅程通过，真实屏幕旅程因没有本次测试现场明确跳过。公网真实模型回复复核通过。
 - 原 GitHub main 为 Hermes 源码，重命名为 hermes-reference 保留；产品 main 与 0.1.0 正式发布继续执行，安装包及最终发布核对另记。
+
+### 2026-10-29 / 0.1.0 安装包与发布验收
+
+- Windows x64 NSIS 与 Android arm64 签名 release APK 重新构建到 0.1.0；NSIS 包包含 MIT 许可页，Android v2 签名通过且只包含 arm64-v8a，Windows 未带 Authenticode 签名。
+- 两个最新包已上传官网，Edge 实际点击两处下载并保存，文件名与大小正确；之前的产品下载包在服务器另存保留。
+- 从源代码独立导出、不复制私有配置或 node_modules，frozen install、lint、typecheck、24 项测试、build 和 4 条 Edge 旅程均通过；真实屏幕回归缺少本次私有运行现场，明确跳过。
+- GitHub 已转为公开，main 展示产品完整源码，hermes-reference 保留原 Hermes 历史；官网主页信息及 README 链接已更新。v0.1.0 使用本模块提交与双端安装包发布，验收范围见 docs/releases/v0.1.0.md。
+- 复核共享服务器其他三个容器身份、启动时间及重启次数均未变化；没有提交密钥、运行数据、Firebase 服务端凭据或签名资料。

@@ -1,0 +1,33 @@
+{
+  "checkedAt": "2026-10-29T15:28:29.136Z",
+  "sourceCommit": "92ecd4db1856bb9e513654df5ce7aa3cb361e5a8",
+  "cleanSourceExport": true,
+  "privateConfigurationCopied": false,
+  "node": "24.22.1",
+  "pnpm": "10.34.5",
+  "frozenInstall": true,
+  "lint": true,
+  "typecheck": true,
+  "tests": {
+    "files": 12,
+    "passed": 24
+  },
+  "build": true,
+  "edge": {
+    "passed": 4,
+    "skipped": 1,
+    "skipReason": "live Linux screen regression requires separate private runtime"
+  },
+  "publicWebsite": {
+    "cases": 12,
+    "passed": 12
+  },
+  "publicRealModelReply": true,
+  "publicDownloads": true,
+  "unrelatedServerServicesRestarted": false,
+  "githubCI": {
+    "sourceCommit": "92ecd4db1856bb9e513654df5ce7aa3cb361e5a8",
+    "status": "success",
+    "url": "https://github.com/AR307/nekodot/actions/runs/40901019492"
+  }
+}

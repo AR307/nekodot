@@ -443,3 +443,13 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - Edge 的 390/768/1440px、中英、浅深色与 reduced-motion 共 12 组通过；脚本和图片无错误，布局无横向溢出。证据为 release-0.1.0-site-* 及 JSON。
 - 全仓 lint/typecheck/test/build 通过，12 文件 24 项测试、4 条 Edge 旅程通过；真实 Linux 屏幕测试明确 skip。公网 HTTPS/WSS 登录、节点在线、snapshot 与真实模型回复再次通过。
 - GitHub 原 Hermes 分支已保留为 hermes-reference；用户确认此次改为公开仓库。发布包和最终上传状态将在下一个模块记录。
+
+## 2026-10-29 / 0.1.0 发布验收
+
+- 最新 Windows x64 安装器与 Android arm64 签名 APK 均构建成功，MIT 元数据与标准 LICENSE 入库。官网 Edge 实际下载双端安装包成功；Windows 无发布者签名，Android v2 签名与单 arm64 ABI 已确认。
+- 独立源代码导出通过 frozen install、lint、typecheck、12 文件 24 项测试、build、4 条 Edge 旅程；真实 Linux 屏幕回归因缺少此轮私有现场跳过，不冒充真实屏幕验收。
+- 官网 12 组 Edge 布局、真实公网模型回复、产品节点在线和既有 API 均正常。其他产品容器没有被重启；旧安装包另存，数据与 profiles 保留。
+- GitHub AR307/nekodot 已公开，默认 main 为 nekodot 产品，原 Hermes 代码保留为 hermes-reference。官网、下载、MIT、功能和当前平台待验收范围均在 README / release notes 中列出。
+- 机器记录为 docs/evidence/release-0.1.0-{site,packages,downloads,verification}.json；Android 真机与 Windows 完整安装等既有未验收项目继续保留，不因 0.1.0 发布改写为通过。
+
+- GitHub Actions 对官网 / MIT 发布准备提交的 lint/test/build 工作流实际完成且结果为 success；最终发布记录提交将另触发同一工作流。
