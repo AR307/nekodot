@@ -105,7 +105,10 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
       await page.getByLabel('模型', { exact: true }).fill('recorded-model');
       await page.getByRole('button', { name: '高级设置' }).click();
       await page.locator('.advanced-field input').fill(handle!);
-      await page.locator('.bot-dialog').getByRole('button', { name: '创建 bot' }).click();
+      await page
+        .locator('.bot-dialog')
+        .getByRole('button', { name: `创建 ${name!}` })
+        .click();
       await expect(page.locator('.chat-title')).toContainText(name!);
       if (handle === 'researcher') {
         schedule.push('runs-basic');

@@ -185,7 +185,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
     path: 'docs/evidence/fix-bot-dialog-scroll.png',
     animations: 'disabled',
   });
-  await page.locator('.bot-dialog').getByRole('button', { name: '创建 bot' }).click();
+  await page.locator('.bot-dialog').getByRole('button', { name: '创建 Mochi' }).click();
   const bot = services.app.database.bots()[0]!;
   expect(permissionModes.get(bot.botId)).toBe('smart');
   await page.setViewportSize({ width: 1440, height: 900 });

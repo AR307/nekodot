@@ -1,7 +1,18 @@
-import { memo, useEffect, useState, type ReactNode } from 'react';
+import { memo, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 
 export const ease = [0.2, 0.8, 0.2, 1] as const;
+
+export function useMediaQuery(query: string) {
+  return useSyncExternalStore(
+    (notify) => {
+      const list = window.matchMedia(query);
+      list.addEventListener('change', notify);
+      return () => list.removeEventListener('change', notify);
+    },
+    () => window.matchMedia(query).matches,
+  );
+}
 
 export function Wordmark({ compact = false }: { compact?: boolean }) {
   return (

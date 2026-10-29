@@ -6,6 +6,7 @@ import './styles/fonts.css';
 import './style.css';
 import './styles/shell.css';
 import './styles/chat.css';
+import './styles/sheet.css';
 import './styles/capabilities.css';
 
 createRoot(document.getElementById('root')!).render(

@@ -281,5 +281,14 @@ const en = {
   details: 'Details',
   typeMessageTo: 'Message {name}…',
   typeGroupMessage: 'Message the group — @ to pick who answers',
+  createNamed: 'Create {name}',
+  roleHint: 'A sentence or two is enough. You can change it anytime.',
+  handleHint: 'Used to @mention it in groups. Lowercase letters, numbers and - only.',
+  colorNames: ['Orange', 'Teal', 'Blue', 'Amber', 'Purple', 'Green', 'Pink', 'Grey'],
+  selected: 'selected',
+  unnamedBot: 'New bot',
+  unnamedGroup: 'New group',
+  leadHint: 'When nobody is @mentioned, the lead answers first.',
+  leadChip: 'Lead',
 };
 export default en;

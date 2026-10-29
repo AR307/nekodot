@@ -274,5 +274,14 @@ const zh = {
   details: '详情',
   typeMessageTo: '发消息给{name}…',
   typeGroupMessage: '发消息，用 @ 指定谁来回答',
+  createNamed: '创建 {name}',
+  roleHint: '用一两句话说清楚就行，之后随时能改。',
+  handleHint: '在群聊里用 @ 加这个名字叫它，只能用小写字母、数字和 -。',
+  colorNames: ['橙', '青', '蓝', '琥珀', '紫', '绿', '粉', '灰'],
+  selected: '已选',
+  unnamedBot: '新的 bot',
+  unnamedGroup: '新的群组',
+  leadHint: '没有 @ 任何人时，由主答先回答。',
+  leadChip: '主答',
 };
 export default zh;
