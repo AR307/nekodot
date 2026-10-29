@@ -16,6 +16,11 @@ Node 以官方 CLI/API 管理 Hermes。Node 是本地业务状态的唯一数据
 
 ## 更新记录
 
+### 2026-10-29 / UI 画板导出
+
+- 九块设计画板静态展开并由 Edge 截图为 `design/01-home.png` … `09-tokens.png`，未执行原稿脚本；后续 UI 改版逐屏对照这些图。
+- 用户要求在原稿基础上重新设计：更高端、大气、简洁、交互性强并配合恰当动效；原稿 tokens 与 PDF 动效数值作为下限保留。
+
 ### 2026-10-29 / Bot 跨私聊与群聊共享 Hermes 会话
 
 - 同一 Bot 的群聊 Run 复用该 Bot 私聊的 Hermes `session_id`，使 Hermes 原生 transcript 在群聊与私聊之间连续；不添加 nekodot 自建记忆层。
