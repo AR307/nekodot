@@ -332,3 +332,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 构建并发布 Windows x64 release NSIS 和 Android arm64 签名 release APK 0.1.0。Windows release 与 Android 模拟器均从本地内嵌资源直接访问公网产品服务、完成真实私聊，不依赖 Vite 或 SSH 转发。
 - 原生视觉检查发现 Android 15 系统栏覆盖标题；宿主增加 WindowInsets 处理，重建后实际确认系统栏与页面分离。完整手机软键盘、锁屏与划掉后的 FCM、屏幕接管及 Windows 干净用户安装仍明确待验收。
 - 更新 `docs/side-stage-2-acceptance.md` 和脱敏截图/机器结果；起始全仓 lint、typecheck 与 24 项测试通过。收尾新增的并行 `apps/site` 未跟踪文件导致全仓 lint 报错，已独立记录并限定本次检查范围。私有凭据、签名资料、原始日志和其他并行 UI / 网站工作不提交。
+
+### 2026-10-29 / 0.1.0 官网与发布准备
+
+- 将 Claude 的双语静态官网部署至 https://nekodot.com，复用产品 Relay 的 WEB_DIR 与只读目录挂载；保留原有 API、WebSocket、下载和其他站点服务。
+- 官网新增 Windows / Android 下载、真实 App 上手流程与 MIT 说明；README、仓库链接及包元数据统一到 AR307/nekodot，新增标准 MIT LICENSE。
+- Edge 完成 12 种尺寸 / 语言 / 主题检查；lint、typecheck、24 项测试、build 和 4 条产品 Edge 旅程通过，真实屏幕旅程因没有本次测试现场明确跳过。公网真实模型回复复核通过。
+- 原 GitHub main 为 Hermes 源码，重命名为 hermes-reference 保留；产品 main 与 0.1.0 正式发布继续执行，安装包及最终发布核对另记。

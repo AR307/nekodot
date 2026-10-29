@@ -160,12 +160,17 @@ const en = {
   startEyebrow: 'Get started',
   startTitle: 'Three steps<br />to your first chat.',
   startLead:
-    'nekodot is a developer preview. There is no hosted Relay yet, so you deploy one on your own server.',
-  s1Title: 'Deploy the Relay',
-  s1Body: 'Run it with Docker on a Linux server; it only listens on localhost.',
-  s2Title: 'Add a computer',
+    'Download nekodot 0.1.0 and connect straight from the app. Bots run on your paired server; no local development setup is needed.',
+  downloadWindows: 'Download Windows x64',
+  downloadAndroid: 'Download Android APK',
+  downloadNote:
+    'Windows 10 / 11 x64 · Android 10+ arm64. The Windows installer is not publisher-signed; the Android APK is signed. See release notes for tested scope and pending device checks.',
+  s1Title: 'Install the app and sign up',
+  s1Body:
+    'The app includes its interface and connects over HTTPS. No local web server or SSH required.',
+  s2Title: 'Pair your server',
   s2Body:
-    'Copy the one-line command from the app and run it on the target machine. The node installs into <code>~/.nekodot</code>.',
+    'Run the one-line setup command from the app on your Linux server. Signing up does not grant access to anyone else’s node.',
   s3Title: 'Connect a model, create a bot',
   s3Body: 'Paste an OpenRouter or compatible API key, give your bot a name and say what it does.',
   copy: 'Copy',
@@ -183,7 +188,7 @@ const en = {
   r5: 'Skills and plugin center',
   r6: 'Live screen and takeover (Linux VPS)',
   r7: 'Brand-new interface design',
-  r8: 'Windows / Android installers',
+  r8: 'Windows / Android 0.1.0 preview installers',
   r9: 'PWA: add to home screen',
   r10: 'macOS and ARM nodes',
   ctaTitle: 'Build your first AI team.',
@@ -191,7 +196,7 @@ const en = {
   footTag: 'Your AI team, on your own computer.',
   footDev: 'Development guide',
   footFine:
-    'Interface fonts Nunito and JetBrains Mono are licensed under the SIL Open Font License 1.1. No open-source license has been chosen yet. Screenshots use demo data.',
+    'nekodot is MIT licensed. Interface fonts Nunito and JetBrains Mono use the SIL Open Font License 1.1. Screenshots use demo data.',
 };
 
 /* ---------- language ---------- */

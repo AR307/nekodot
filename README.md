@@ -14,12 +14,15 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/AR307/nekodot-app/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AR307/nekodot-app/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/AR307/nekodot/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AR307/nekodot/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Node 24 LTS" src="https://img.shields.io/badge/node-24%20LTS-2F9E8F">
   <img alt="Status: developer preview" src="https://img.shields.io/badge/status-developer%20preview-E8603C">
 </p>
 
 <p align="center">
+  <a href="https://nekodot.com">官网</a> ·
+  <a href="https://github.com/AR307/nekodot/releases/tag/v0.1.0">下载 0.1.0</a> ·
+  <a href="LICENSE">MIT License</a><br>
   <a href="#为什么是-nekodot">为什么是 nekodot</a> ·
   <a href="#功能">功能</a> ·
   <a href="#工作原理">工作原理</a> ·
@@ -158,8 +161,8 @@ App 自带界面，直接通过 HTTPS/WSS 连接远程 Relay；本机不用启�
 2. **打开网页。** 在本机执行：
 
    ```sh
-   git clone https://github.com/AR307/nekodot-app.git
-   cd nekodot-app
+   git clone https://github.com/AR307/nekodot.git
+   cd nekodot
    pnpm install --frozen-lockfile
    pnpm dev:remote --ssh <your-ssh-alias>
    ```
@@ -222,4 +225,4 @@ docs                   开发说明、Hermes 调研、实施记录与截图
 
 ## 许可证
 
-尚未选择开源许可证，正式公开前会补充 `LICENSE` 文件。
+采用 [MIT License](LICENSE)。第三方字体与依赖保留各自的许可证。

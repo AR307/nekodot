@@ -1,0 +1,115 @@
+{
+  "browser": "Microsoft Edge",
+  "url": "https://nekodot.com",
+  "checkedAt": "2026-10-29T15:22:16.072Z",
+  "cases": [
+    {
+      "width": 390,
+      "language": "zh-CN",
+      "theme": "light",
+      "reducedMotion": false,
+      "overflow": false,
+      "imageErrors": 0,
+      "scriptErrors": 0
+    },
+    {
+      "width": 390,
+      "language": "zh-CN",
+      "theme": "dark",
+      "reducedMotion": true,
+      "overflow": false,
+      "imageErrors": 0,
+      "scriptErrors": 0
+    },
+    {
+      "width": 390,
+      "language": "en",
+      "theme": "light",
+      "reducedMotion": false,
+      "overflow": false,
+      "imageErrors": 0,
+      "scriptErrors": 0
+    },
+    {
+      "width": 390,
+      "language": "en",
+      "theme": "dark",
+      "reducedMotion": true,
+      "overflow": false,
+      "imageErrors": 0,
+      "scriptErrors": 0
+    },
+    {
+      "width": 768,
+      "language": "zh-CN",
+      "theme": "light",
+      "reducedMotion": false,
+      "overflow": false,
+      "imageErrors": 0,
+      "scriptErrors": 0
+    },
+    {
+      "width": 768,
+      "language": "zh-CN",
+      "theme": "dark",
+      "reducedMotion": true,
+      "overflow": false,
+      "imageErrors": 0,
+      "scriptErrors": 0
+    },
+    {
+      "width": 768,
+      "language": "en",
+      "theme": "light",
+      "reducedMotion": false,
+      "overflow": false,
+      "imageErrors": 0,
+      "scriptErrors": 0
+    },
+    {
+      "width": 768,
+      "language": "en",
+      "theme": "dark",
+      "reducedMotion": true,
+      "overflow": false,
+      "imageErrors": 0,
+      "scriptErrors": 0
+    },
+    {
+      "width": 1440,
+      "language": "zh-CN",
+      "theme": "light",
+      "reducedMotion": false,
+      "overflow": false,
+      "imageErrors": 0,
+      "scriptErrors": 0
+    },
+    {
+      "width": 1440,
+      "language": "zh-CN",
+      "theme": "dark",
+      "reducedMotion": true,
+      "overflow": false,
+      "imageErrors": 0,
+      "scriptErrors": 0
+    },
+    {
+      "width": 1440,
+      "language": "en",
+      "theme": "light",
+      "reducedMotion": false,
+      "overflow": false,
+      "imageErrors": 0,
+      "scriptErrors": 0
+    },
+    {
+      "width": 1440,
+      "language": "en",
+      "theme": "dark",
+      "reducedMotion": true,
+      "overflow": false,
+      "imageErrors": 0,
+      "scriptErrors": 0
+    }
+  ]
+}

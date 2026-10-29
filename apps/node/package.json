@@ -18,5 +18,6 @@
   },
   "bin": {
     "nekodot-node": "dist/index.cjs"
-  }
+  },
+  "license": "MIT"
 }

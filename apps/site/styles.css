@@ -1784,6 +1784,18 @@ svg[viewBox='0 0 40 40'] {
   gap: 64px;
   align-items: center;
 }
+.download-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 24px 0 12px;
+}
+.download-note {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+  margin-bottom: 28px;
+}
 .steps {
   display: grid;
   gap: 24px;

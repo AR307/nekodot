@@ -29,6 +29,9 @@
   },
   "bundle": {
     "active": true,
+    "license": "MIT",
+    "licenseFile": "../../../LICENSE",
+    "homepage": "https://nekodot.com",
     "targets": ["nsis"],
     "icon": [
       "icons/32x32.png",

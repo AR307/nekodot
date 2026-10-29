@@ -1,5 +1,9 @@
 # nekodot 官网
 
+正式地址：<https://nekodot.com>。源码及版本下载：<https://github.com/AR307/nekodot>。
+
+产品部署将此目录只读挂载到 Relay 的 `/app/site`，设置 `WEB_DIR=/app/site`。既有 API、WebSocket 和下载路由继续由同一 Relay 提供。
+
 纯静态站点：`index.html`、`styles.css`、`main.js` 与 `assets/`，不依赖构建步骤，可直接部署到 GitHub Pages、任意静态托管或 Relay 之外的 CDN。
 
 - 中文写在页面里，英文由 `main.js` 的字典切换；默认跟随浏览器语言，并记住访客的选择。

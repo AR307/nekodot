@@ -2,7 +2,7 @@
 name = "nekodot-client"
 version = "0.1.0"
 description = "nekodot remote Hermes client"
-license = "UNLICENSED"
+license = "MIT"
 edition = "2024"
 rust-version = "1.90"
 

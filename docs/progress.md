@@ -436,3 +436,10 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - eslint 为 `apps/site/**/*.js` 声明浏览器全局与 script 模式；三处 localStorage 读写合并为一个辅助函数，存储被禁用时偏好只在本次访问有效、页面不受影响。上一条记录中被官网阻断的全仓 lint 现已通过。
 - 验收：本地 http 下以 Edge 检查 1440/768/390、浅色/深色、英文，无横向溢出、无控制台错误；私聊剧本结束后状态条隐藏，群聊剧本的交接胶囊与接力进度正确。全仓 lint 与 prettier 通过。
 - 未覆盖：未部署到公网；GitHub 链接沿用 README 的 `AR307/nekodot-app`；尚未选择开源许可证，页尾如实说明。
+
+## 2026-10-29 / 0.1.0 官网部署与开源准备
+
+- 正式官网已通过产品 Relay 发布，默认首页为 Claude 设计的双语站点；下载入口、中英说明与 MIT 许可证已补齐。
+- Edge 的 390/768/1440px、中英、浅深色与 reduced-motion 共 12 组通过；脚本和图片无错误，布局无横向溢出。证据为 release-0.1.0-site-* 及 JSON。
+- 全仓 lint/typecheck/test/build 通过，12 文件 24 项测试、4 条 Edge 旅程通过；真实 Linux 屏幕测试明确 skip。公网 HTTPS/WSS 登录、节点在线、snapshot 与真实模型回复再次通过。
+- GitHub 原 Hermes 分支已保留为 hermes-reference；用户确认此次改为公开仓库。发布包和最终上传状态将在下一个模块记录。
