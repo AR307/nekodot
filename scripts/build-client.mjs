@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile, copyFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join, relative } from 'node:path';
@@ -56,17 +57,21 @@ await run(
 );
 if (platform === 'android') {
   const firebase = join(work, 'private/google-services.json');
-  const settings = JSON.parse(await readFile(firebase, 'utf8'));
-  if (
-    !settings.client.some(
-      (c) => c.client_info?.android_client_info?.package_name === 'app.nekodot.client',
+  if (!existsSync(firebase) && !values.debug)
+    throw new Error('Android release requires .runtime/side-stage-2/private/google-services.json');
+  if (existsSync(firebase)) {
+    const settings = JSON.parse(await readFile(firebase, 'utf8'));
+    if (
+      !settings.client.some(
+        (c) => c.client_info?.android_client_info?.package_name === 'app.nekodot.client',
+      )
     )
-  )
-    throw new Error('Firebase configuration must contain app.nekodot.client');
-  await copyFile(
-    firebase,
-    join(root, 'apps/client/src-tauri/gen/android/app/google-services.json'),
-  );
+      throw new Error('Firebase configuration must contain app.nekodot.client');
+    await copyFile(
+      firebase,
+      join(root, 'apps/client/src-tauri/gen/android/app/google-services.json'),
+    );
+  }
   if (
     !values.debug &&
     !(

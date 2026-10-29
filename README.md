@@ -178,11 +178,15 @@ pnpm test:e2e
 
 自动化测试使用录制的真实 Hermes 事件回放，不调用付费模型。本地运行、远程 Relay 调试、节点数据位置与测试策略见 [开发说明](docs/development.md)。
 
+Windows / Android 原生客户端共用此界面，资源随安装包分发，Bot 运行在远程服务器。客户端工程与原生调试构建已接入，正式联网安装包仍在联调；构建与当前限制见 [客户端说明](docs/client-development.md)。
+
 ```text
 apps/web               React 网页与客户端同步
+apps/client            Tauri 2 Windows / Android 宿主
 apps/relay             账号、配对、WebSocket 路由与文件转发
 apps/node              节点：持久化、Hermes 接入与群聊路由
 packages/protocol      共享协议与 Zod schema
+packages/tauri-plugin-nekodot Android FCM、生命周期与文件分享桥接
 packages/fake-hermes   测试专用：回放录制的真实 Hermes 事件
 deploy                 Relay 镜像、节点安装器与系统服务
 design                 原始视觉参考与九块设计画板
@@ -199,6 +203,7 @@ docs                   开发说明、Hermes 调研、实施记录与截图
 - [ ] 界面全面改版（进行中：设计基础、首页、侧栏与命令面板已完成）
 - [ ] PWA：添加到手机主屏幕
 - [x] 实时画面与接管：Linux VPS 原生浏览器、桌面与人工接管
+- [ ] Windows / Android 正式安装包（原生工程已接入，公网与真机联调待完成）
 - [ ] macOS 与 ARM 节点
 
 ## 致谢

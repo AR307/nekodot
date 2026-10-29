@@ -5,18 +5,19 @@
   "providerSaved": true,
   "realPrivateReply": true,
   "realGroupReplies": 2,
-  "notificationSignals": {
-    "privateCompleted": 1,
-    "groupChainCompleted": 1,
-    "firebaseDeliveryTested": false
-  },
   "screen": {
     "available": true,
     "installed": true,
     "running": false
   },
+  "notificationSignals": {
+    "privateCompleted": 1,
+    "groupChainCompleted": 1,
+    "firebaseDeliveryTested": false
+  },
   "distinctProductProfiles": 2,
   "historySurvivedNodeRestart": true,
   "relayHealth": true,
-  "otherServicesRestarted": false
+  "otherServicesRestarted": false,
+  "latestNodeCode": "0ed55b2"
 }

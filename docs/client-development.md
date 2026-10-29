@@ -25,6 +25,8 @@ Android 固定 `app.nekodot.client`，最低 API 29。首次在干净检出初�
 
 配置、签名文件和密码均不提交。构建成功后将正式产物复制到 `release/` 及 `dist/distribution/`；Relay 下载入口分别为 `/downloads/nekodot-windows-x64.exe`、`/downloads/nekodot-android-arm64.apk`。文件尚未发布时明确返回 404。
 
+不验证推送的 Android 宿主开发可以使用 `pnpm client:android --debug --target x86_64`；arm64 调试使用 `--target aarch64`。调试构建没有 Firebase 文件时保留明确的通知不可用状态，不生成正式发布包；release 仍要求 Firebase 配置和签名。两类构建都需要配置 HTTPS Relay 地址，测试地址构建只能用于宿主检查。
+
 ## 平台行为
 
 - Windows 单实例，关闭窗口隐藏到托盘，托盘明确退出才结束客户端；窗口大小与位置由官方插件保存。

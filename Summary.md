@@ -1,15 +1,17 @@
 # nekodot
 
-面向非技术用户的多智能体产品。Web/PWA 通过 Relay 连接用户自己的 Node，
-Node 以官方 CLI/API 管理 Hermes。Node 是本地业务状态的唯一数据源。
+面向非技术用户的多智能体产品。React 网页及 Windows / Android 客户端通过 Relay 连接 Node，
+Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前只连接远程服务器，不运行本地 Hermes。
 
 ## 架构
 
 - apps/web：React 用户界面。
+- apps/client：共用 React 界面的 Tauri 2 Windows / Android 宿主。
 - apps/relay：连接与路由入口。
 - apps/node：本机代理与 Hermes 集成。
 - 每个 Bot 对应独立 Hermes profile；单 agent 的模型、上下文、记忆、技能和工具循环直接采用 Hermes 原生实现。nekodot 只处理产品状态与群聊接力路由。
 - packages/protocol：Zod 边界协议及 TypeScript 类型。
+- packages/tauri-plugin-nekodot：Android FCM、生命周期、返回键与文件分享桥接。
 - packages/fake-hermes：仅测试使用的真实事件回放服务。
 - scripts：开发和真实 Hermes spike。
 - docs/references、design：完整技术及视觉原件。
@@ -289,3 +291,10 @@ Node 以官方 CLI/API 管理 Hermes。Node 是本地业务状态的唯一数据
 - Node 持久保存待确认通知，连接恢复后发送；审批、完成和失败来自实际 run 状态，群聊在接力结束时发送一次，主动停止不发完成提醒。
 - 产品环境使用现有自定义 API 实际完成私聊与两成员定向群聊，收到一条私聊完成及一条群聊完成通知；Node 服务重启后 Bot 与历史保留。该结果经临时验收通道取得，不作为公网 HTTPS、原生 App 或 FCM 投递通过。
 - Windows 系统保存中文文件后写入/读回一致；Android 模拟器系统文件保存/选择与中文名、后台返回和进程内输入保留通过。域名、Firebase 和真机缺失的项目继续明确待验收。
+
+### 2026-10-29 / Side Stage 2 原生平台与调试构建
+
+- Android arm64 调试 APK 编译通过，实际产物包含 arm64-v8a；标准构建入口支持在无 Firebase 文件时构建调试宿主，保留明确的通知不可用状态，release 仍要求真实配置与签名。
+- Android 模拟器实测系统返回进入后台、返回后保留原进程，以及中文文件的系统分享 chooser；没有选择外部应用或发送文件。Windows 系统文件保存已读回核对。
+- 本地私有目录生成首个 Android 发布签名密钥及构建环境参数，不进入 Git、不打印密码，也未发布测试地址安装包。用户确认域名和 Firebase 稍后提供，相关联网、推送与正式交付项目继续待完成。
+- 独立检出已完成 frozen install、lint、typecheck、24 项场景、build 和 4 条 Edge 旅程；本模块提交后的最终检出复核继续记录。

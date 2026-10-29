@@ -359,3 +359,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - Windows 测试宿主实际保存 `nekodot-中文验收.txt` 并通过官方 fs 插件写入和读回；本地安全 origin、单实例恢复及关闭留驻已实测。干净用户安装、开始菜单、托盘退出、覆盖安装与 Windows 10 尚待正式包验收。
 - Android 15 / x86_64 独立模拟器实际安装和覆盖安装，系统保存/选择中文文件并核对内容；进入后台再返回后进程与无害登录表单输入保留，收到 pause/resume。此处未登录产品账号，不将表单输入保留声称为真实聊天草稿验收。
 - Android 原生桥接在缺少 Firebase 配置时返回明确错误；截图与状态见 `evidence/side-stage-2-android-*`。尚未完成 arm64 release、签名 APK、真机后台推送、真实屏幕触摸及双端远程旅程。
+
+## 原生构建与平台补验 / 2026-10-29
+
+- Android x86_64 与 arm64 调试 APK 编译通过；arm64 包实际仅包含 arm64-v8a 的 `libapp_lib.so`。已通过标准 `scripts/build-client.mjs android --debug --target aarch64` 入口构建，不依赖私有替代构建流程；调试宿主缺少 Firebase 时明确不可用，release 仍要求配置与签名。
+- 模拟器实际按系统返回键后进入后台、再次打开保留进程；系统分享 chooser 正常弹出，未选择任何接收应用。结果见 `evidence/side-stage-2-android-interactions.json`。
+- 本地 Android 发布密钥和对应四项环境参数已保存在 `.runtime/side-stage-2/private/nekodot-release.p12` 与 `android-signing.json`，没有进入 Git、日志或聊天。该密钥尚未用于正式发布包。
+- 最新产品 Node 更新后，首次探测早于 Hermes 冷启动完成而显示离线；服务随后正常在线，重新真实私聊和两成员定向群聊通过，已有 2 个 Bot、历史及 profile 保留。未新增产品重试机制或重跑未完成用户任务。
+- 用户回复域名与 Firebase 稍后提供，因此公网 HTTPS/WSS、FCM、Windows 正式安装器与 Android 签名 release、真机及双端旅程继续待联调。没有将此阶段整体标记完成。
