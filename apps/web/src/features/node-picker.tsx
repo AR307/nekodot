@@ -1,13 +1,14 @@
 import { useRef } from 'react';
 import { useAppStore } from '../store';
-import { Icon } from '../ui';
+import { Icon, StatusDot } from '../ui';
 import type { Texts } from '../shared';
 
-export function NodePicker({ t }: { t: Texts }) {
-  const nodes = useAppStore((state) => state.me?.nodes ?? []);
-  const selectedId = useAppStore((state) => state.selectedNodeId);
+export function NodePicker({ t, state }: { t: Texts; state: 'ok' | 'connecting' | 'offline' }) {
+  const nodes = useAppStore((store) => store.me?.nodes ?? []);
+  const selectedId = useAppStore((store) => store.selectedNodeId);
   const menu = useRef<HTMLDetailsElement>(null);
   const selected = nodes.find((node) => node.nodeId === selectedId);
+  const label = state === 'ok' ? t.synced : state === 'connecting' ? t.reconnecting : t.offline;
   return (
     <details
       className="node-picker"
@@ -23,17 +24,12 @@ export function NodePicker({ t }: { t: Texts }) {
       }}
     >
       <summary aria-label={t.chooseNode}>
-        <span className={`node-icon${selected?.online ? ' online' : ''}`}>
-          <Icon name="laptop" />
-        </span>
+        <StatusDot state={state} />
         <span className="node-picker-copy">
           <strong>{selected?.name ?? t.chooseComputer}</strong>
-          <small className={selected?.online ? 'is-online' : 'is-offline'}>
-            <i />
-            {selected?.online ? t.connected : t.offline}
-          </small>
+          <small>· {label}</small>
         </span>
-        <Icon name="chevron" />
+        <Icon name="chevronDown" />
       </summary>
       <div className="node-menu" role="menu" aria-label={t.chooseComputer}>
         {nodes.map((node) => (
@@ -49,11 +45,15 @@ export function NodePicker({ t }: { t: Texts }) {
             <span className={`node-icon${node.online ? ' online' : ''}`}>
               <Icon name="laptop" />
             </span>
-            <span className="node-picker-copy">
+            <span className="node-menu-copy">
               <strong>{node.name}</strong>
               <small>{node.online ? t.connected : t.offline}</small>
             </span>
-            {selectedId === node.nodeId && <span className="node-selected">✓</span>}
+            {selectedId === node.nodeId && (
+              <span className="node-selected">
+                <Icon name="check" />
+              </span>
+            )}
           </button>
         ))}
         <button
@@ -61,7 +61,9 @@ export function NodePicker({ t }: { t: Texts }) {
           className="node-menu-add"
           onClick={() => useAppStore.getState().setScreen('pair')}
         >
-          <Icon name="plus" />
+          <span className="node-icon">
+            <Icon name="plus" />
+          </span>
           {t.addComputer}
         </button>
       </div>

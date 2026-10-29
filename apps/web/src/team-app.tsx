@@ -90,7 +90,6 @@ export function App() {
         )}
       </div>
     );
-  const selectedNode = me.nodes.find((node) => node.nodeId === selectedNodeId);
   const showPair = screen === 'pair' || me.nodes.length === 0;
   return (
     <div className="app-shell" data-theme={dark ? 'dark' : 'light'}>
@@ -114,7 +113,6 @@ export function App() {
         <TeamPage
           key={selectedNodeId}
           t={t}
-          nodeName={selectedNode?.name ?? t.chooseNode}
           onLanguage={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
         />
       )}

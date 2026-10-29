@@ -53,6 +53,9 @@ interface AppState {
   nodes: Record<string, TeamState>;
   pairing: { code: string; expiresAt: string; installCommand: string } | null;
   authError: string;
+  /** Browser-to-relay socket finished its hello handshake. */
+  socketReady: boolean;
+  setSocketReady(ready: boolean): void;
   setToken(token: string | null): void;
   setMe(me: Me | null): void;
   setScreen(screen: AppState['screen']): void;
@@ -89,6 +92,8 @@ export const useAppStore = create<AppState>((set) => ({
   nodes: {},
   pairing: null,
   authError: '',
+  socketReady: false,
+  setSocketReady: (socketReady) => set({ socketReady }),
   setToken: (token) => {
     if (token) localStorage.setItem('nekodot-token', token);
     else localStorage.removeItem('nekodot-token');

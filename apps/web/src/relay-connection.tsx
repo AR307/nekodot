@@ -75,6 +75,21 @@ export function loadConversation(conversationId: string) {
   });
 }
 
+/** Fetch the newest few messages of conversations not loaded yet, for list previews. */
+function loadPreviews(nodeId: string) {
+  const node = useAppStore.getState().nodes[nodeId];
+  for (const conversation of node?.conversations ?? []) {
+    if (node?.messages[conversation.conversationId]?.length) continue;
+    void callNode('messages.list', { conversationId: conversation.conversationId, limit: 6 })
+      .then(({ messages }) =>
+        useAppStore.getState().setMessages(nodeId, conversation.conversationId, messages),
+      )
+      .catch(() => {
+        // Previews are decorative; the conversation loads in full when opened.
+      });
+  }
+}
+
 export function RelayConnection() {
   const token = useAppStore((state) => state.token);
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
@@ -128,6 +143,7 @@ export function RelayConnection() {
           useAppStore.getState().setSelectedConversation(activeConversation);
           await loadConversation(activeConversation);
         }
+        loadPreviews(selectedNodeId);
         if (activeSocket === currentSocket)
           useAppStore.getState().setNodeOnline(selectedNodeId, true);
         syncing = false;
@@ -163,6 +179,7 @@ export function RelayConnection() {
         } else if (message.type === 'hello.ok') {
           reconnectDelay = 1000;
           setClientReady(currentSocket);
+          useAppStore.getState().setSocketReady(true);
           void synchronize(currentSocket);
         } else if (message.type === 'rpc.res') {
           if (message.replyTo) resolveRpc(message.replyTo, message.payload);
@@ -185,6 +202,7 @@ export function RelayConnection() {
         if (activeSocket !== currentSocket) return;
         activeSocket = null;
         clientReady = false;
+        useAppStore.getState().setSocketReady(false);
         cancelRpcRequests();
         if (!stopped) {
           timer = window.setTimeout(connect, reconnectDelay);
