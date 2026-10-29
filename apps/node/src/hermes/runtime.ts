@@ -13,6 +13,7 @@ import {
   type RpcResult,
 } from '@nekodot/protocol';
 import { HermesApi } from './api';
+import { HermesManagement } from './management';
 import { runHermesCli, spawnHermesCli, type HermesLaunch } from './cli';
 
 export type ProviderInput = RpcParams<'providers.set'>;
@@ -22,16 +23,26 @@ export interface HermesRuntime {
   start(): Promise<void>;
   close(): Promise<void>;
   configureProvider(provider: ProviderInput, bots: Bot[]): Promise<void>;
-  configureBot(bot: Bot, create: boolean, approvalMode?: ApprovalMode): Promise<void>;
+  configureBot(
+    bot: Bot,
+    create: boolean,
+    approvalMode?: ApprovalMode,
+    previousRole?: string,
+  ): Promise<void>;
   approvalMode(profile: string): Promise<ApprovalMode>;
   api(profile: string): Promise<HermesApi>;
   models(refresh?: boolean): Promise<RpcResult<'models.options'>>;
+  management: HermesManagement;
+  profileHome(profile: string): string;
+  cli(profile: string, args: string[]): Promise<string>;
+  restart(): Promise<void>;
 }
 export interface RuntimeOptions {
   home: string;
   source?: string;
   runtime: string;
   apiPort?: number;
+  managementPort?: number;
   onReady?: () => void;
   onLog?: (line: string) => void;
 }
@@ -40,12 +51,20 @@ const end = '# <<< nekodot managed <<<';
 
 export class ManagedHermes implements HermesRuntime {
   private child?: ChildProcess;
+  private managementChild?: ChildProcess;
+  readonly management: HermesManagement;
   private closing = false;
   private launch: HermesLaunch;
   private apiPort: number;
   private secrets = new Set<string>();
   constructor(readonly options: RuntimeOptions) {
     this.apiPort = options.apiPort ?? 18642;
+    const token = randomBytes(32).toString('hex');
+    this.secrets.add(token);
+    this.management = new HermesManagement(
+      'http://127.0.0.1:' + (options.managementPort ?? this.apiPort + 1),
+      token,
+    );
     this.launch = options.source
       ? {
           command: 'bash',
@@ -55,8 +74,9 @@ export class ManagedHermes implements HermesRuntime {
           runtimeDir: options.runtime,
         }
       : { command: 'hermes', cwd: options.home, home: options.home, runtimeDir: options.runtime };
+    this.launch.env = { HERMES_DASHBOARD_SESSION_TOKEN: token };
   }
-  private profileHome(profile: string) {
+  profileHome(profile: string) {
     return profile === 'default' ? this.options.home : join(this.options.home, 'profiles', profile);
   }
   private async env(profile: string) {
@@ -191,14 +211,34 @@ export class ManagedHermes implements HermesRuntime {
       await this.config(bot.botId, provider, bot.model);
     }
   }
-  async configureBot(bot: Bot, create: boolean, approvalMode?: ApprovalMode) {
+  async configureBot(
+    bot: Bot,
+    create: boolean,
+    approvalMode?: ApprovalMode,
+    previousRole?: string,
+  ) {
     if (create) await runHermesCli(this.launch, ['profile', 'create', bot.botId, '--no-alias']);
     const provider = await this.currentProvider();
     if (!provider) throw new Error('Configure a model provider first');
     await this.writeEnv(bot.botId, provider);
     await this.config(bot.botId, provider, bot.model, approvalMode);
     const rules = `<!-- nekodot managed: do not edit below -->\nYou are "${bot.displayName}", a member of the user's nekodot team. Your handle is @${bot.handle}.\n- Reply in the language the user writes in.\n- For passwords, 2FA codes, CAPTCHAs and payments: stop and ask the user to take over the screen. Never type these yourself.\n- In group chats, keep replies short. To hand work to a teammate, write @their-handle and say exactly what you need.\n<!-- end nekodot managed -->\n`;
-    await writeFile(join(this.profileHome(bot.botId), 'SOUL.md'), bot.role + '\n\n' + rules);
+    const path = join(this.profileHome(bot.botId), 'SOUL.md');
+    let soul = create ? bot.role + '\n\n' : await readFile(path, 'utf8');
+    if (!create && previousRole !== undefined) {
+      if (
+        !soul.startsWith(previousRole) ||
+        !/^\s*(?:\r?\n|$)/.test(soul.slice(previousRole.length))
+      )
+        throw new Error(
+          'SOUL.md changed outside the saved role. Review it in Bot memory before changing the role.',
+        );
+      soul = bot.role + soul.slice(previousRole.length);
+    }
+    soul = soul.includes('<!-- nekodot managed:')
+      ? soul.replace(/<!-- nekodot managed:[\s\S]*?<!-- end nekodot managed -->\n?/, rules)
+      : soul.trimEnd() + '\n\n' + rules;
+    await writeFile(path, soul);
     await this.waitHealthy(bot.botId);
   }
   async approvalMode(profile: string): Promise<ApprovalMode> {
@@ -233,6 +273,62 @@ export class ManagedHermes implements HermesRuntime {
     await this.config('default');
     this.launchGateway(1000);
     await this.waitHealthy('default');
+    this.launchManagement(1000);
+    await this.waitManagement();
+  }
+  cli(profile: string, args: string[]) {
+    return runHermesCli(this.launch, ['--profile', profile, ...args]);
+  }
+  private async waitManagement() {
+    for (let attempt = 0; attempt < 90; attempt++) {
+      if (this.closing) throw new Error('Hermes runtime closed');
+      try {
+        await this.management.request('/api/profiles');
+        return;
+      } catch {
+        await delay(500);
+      }
+    }
+    throw new Error('Hermes management did not become healthy');
+  }
+  private launchManagement(backoff: number) {
+    if (this.closing) return;
+    const child = spawnHermesCli(this.launch, [
+      'serve',
+      '--host',
+      '127.0.0.1',
+      '--port',
+      String(this.options.managementPort ?? this.apiPort + 1),
+      '--isolated',
+    ]);
+    this.managementChild = child;
+    const log = (data: Buffer) => {
+      let line = data.toString();
+      for (const secret of this.secrets) line = line.replaceAll(secret, '[redacted]');
+      this.options.onLog?.(line);
+    };
+    child.stdout?.on('data', log);
+    child.stderr?.on('data', log);
+    child.on('error', () => this.options.onLog?.('Hermes management could not start.'));
+    child.once('exit', () => {
+      if (!this.closing && this.managementChild === child)
+        setTimeout(() => this.launchManagement(Math.min(backoff * 2, 30000)), backoff);
+    });
+  }
+  async restart() {
+    const children = [this.child, this.managementChild];
+    this.child = undefined;
+    this.managementChild = undefined;
+    this.management.close();
+    for (const child of children)
+      if (child && child.exitCode === null) {
+        child.kill('SIGTERM');
+        await new Promise<void>((resolve) => child.once('exit', () => resolve()));
+      }
+    this.launchGateway(1000);
+    await this.waitHealthy('default');
+    this.launchManagement(1000);
+    await this.waitManagement();
   }
   private launchGateway(backoff: number) {
     if (this.closing) return;
@@ -249,7 +345,7 @@ export class ManagedHermes implements HermesRuntime {
       this.options.onLog?.('Hermes gateway could not start; check the configured CLI runtime.'),
     );
     child.once('exit', () => {
-      if (!this.closing)
+      if (!this.closing && this.child === child)
         setTimeout(() => {
           this.launchGateway(Math.min(backoff * 2, 30000));
           void this.waitHealthy('default')
@@ -260,14 +356,16 @@ export class ManagedHermes implements HermesRuntime {
   }
   async close() {
     this.closing = true;
-    const child = this.child;
-    if (child && child.exitCode === null) {
-      child.kill('SIGTERM');
-      await Promise.race([
-        new Promise<void>((resolve) => child.once('exit', () => resolve())),
-        delay(10000),
-      ]);
-      if (child.exitCode === null) child.kill('SIGKILL');
+    this.management.close();
+    for (const child of [this.child, this.managementChild]) {
+      if (child && child.exitCode === null) {
+        child.kill('SIGTERM');
+        await Promise.race([
+          new Promise<void>((resolve) => child.once('exit', () => resolve())),
+          delay(10000),
+        ]);
+        if (child.exitCode === null) child.kill('SIGKILL');
+      }
     }
   }
 }

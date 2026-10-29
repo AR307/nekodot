@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
+import { managementReplay } from './management';
 import {
   botSchema,
   hermesApprovalSchema,
@@ -67,6 +68,7 @@ async function body(request: IncomingMessage): Promise<unknown> {
 
 /** Test-only HTTP replay. No provider, shell execution, or product runtime entry point. */
 export async function startFakeHermes(options: FakeHermesOptions) {
+  const management = await managementReplay(options.fixturesDirectory, options.apiKey);
   const fixtures = new Map<string, Fixture>();
   for (const name of [...scenarios, ...(options.additionalFixtures ?? [])]) {
     const raw = await readFile(join(options.fixturesDirectory, name + '.sse'), 'utf8');
@@ -147,6 +149,7 @@ export async function startFakeHermes(options: FakeHermesOptions) {
     run.clients.clear();
   }
   async function route(request: IncomingMessage, response: ServerResponse) {
+    if (await management.route(request, response)) return;
     if (request.headers.authorization !== 'Bearer ' + options.apiKey)
       return json(response, 401, {
         error: { code: 'unauthorized', message: 'Invalid test API key' },
@@ -325,6 +328,7 @@ export async function startFakeHermes(options: FakeHermesOptions) {
       else json(response, 400, { error: { code: 'invalid_request', message: String(error) } });
     });
   });
+  const closeManagement = management.attach(server);
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
     server.listen(0, '127.0.0.1', resolve);
@@ -333,6 +337,7 @@ export async function startFakeHermes(options: FakeHermesOptions) {
   if (!address || typeof address === 'string') throw new Error('Test server has no TCP address');
   return {
     url: 'http://127.0.0.1:' + address.port,
+    pluginCatalog: management.catalog,
     inspectRuns: () =>
       [...runs.entries()].map(([runId, run]) => ({
         runId,
@@ -345,6 +350,7 @@ export async function startFakeHermes(options: FakeHermesOptions) {
         toolStarts: run.toolStarts,
       })),
     close: async () => {
+      closeManagement();
       for (const run of runs.values()) run.release?.();
       server.closeAllConnections();
       await new Promise<void>((resolve, reject) =>

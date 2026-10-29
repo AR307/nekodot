@@ -52,10 +52,16 @@ export class BotService {
   }
   async update(input: RpcParams<'bots.update'>) {
     const { approvalMode, ...fields } = input;
-    const bot = { ...this.get(input.botId), ...fields };
+    const previous = this.get(input.botId);
+    const bot = { ...previous, ...fields };
     if (this.database.handleUsed(bot.handle, bot.botId))
       throw new NodeFault('conflict', 'Handle already used');
-    await this.hermes.configureBot(bot, false, approvalMode);
+    await this.hermes.configureBot(
+      bot,
+      false,
+      approvalMode,
+      fields.role !== undefined && fields.role !== previous.role ? previous.role : undefined,
+    );
     this.database.putBot(bot);
     return { bot };
   }

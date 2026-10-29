@@ -174,3 +174,12 @@ Node 以官方 CLI/API 管理 Hermes。Node 是本地业务状态的唯一数据
 - 最新代码在独立检出通过 frozen install、lint、typecheck、21 项测试、build 与 3 条 Edge E2E；现场截图和首次安装依赖记录保留在 `docs/evidence/`。
 - 尚未在手机真机后台/唤醒流程和全新 WSL 配对现场验收；开发脚本自建 SSH 隧道的断线重连分支也未单独触发。
 - Phase 3 提交后另建独立本地克隆，不复制 `.env`、账号或 `node_modules`；Node 24.22.1 / pnpm 10.34.5 的 frozen install、lint、typecheck、21 项测试、build 和独立端口 4368 的 3 条 Edge E2E 全部通过。
+
+
+### 2026-10-29 / Side Phase 原生管理与记忆
+
+- 增加 loopback 官方 `hermes serve --isolated` 管理进程，复用项目 home、PM runtime 和显式 profile；聊天仍走原 Runs API。Node 管理模块为 `hermes/management.ts`、`bot-management.ts`、`operations.ts`。
+- 增加定时任务只读、三份原生记忆文档、原生 `/refine`、待审核操作及可轮询长操作；操作重启后标为中断并要求核对 Hermes 实际状态。
+- 角色更新保留 SOUL 原生学习内容及托管规则；隔离 profile 的角色编辑保留场景已实测。
+- 实际网页保存 USER 偏好、原生 memory 工具保存任务经验及 `/refine` 完成；独立原生会话读取偏好且另一 Bot 未读到该偏好。聊天创建的一次性任务在详情可读，Node 重启后任务文件仍只有一次写入。
+- Node 24 当前工作区 lint、typecheck、21 项场景、build 和 4 条 Edge 旅程通过；完整清洁检出终验在后续提交记录。

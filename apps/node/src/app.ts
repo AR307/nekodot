@@ -17,6 +17,8 @@ import type { SseFrame } from './hermes/sse';
 import { BotService } from './bots';
 import { GroupService } from './groups';
 import { groupPrompt, MAX_CHAIN, mentionedBots } from './group-routing';
+import { Operations } from './operations';
+import { BotManagement } from './bot-management';
 
 type HermesEvent = SseFrame['data'] & {
   event: string;
@@ -47,6 +49,8 @@ export class NodeApplication {
   readonly database: NodeDatabase;
   readonly bots: BotService;
   readonly groups: GroupService;
+  readonly operations: Operations;
+  readonly management: BotManagement;
   onEvent: (event: PersistedEvent) => void = () => {};
   onLive: (event: LiveEvent) => void = () => {};
   private readonly consumers = new Map<string, AbortController>();
@@ -62,11 +66,31 @@ export class NodeApplication {
     this.database = new NodeDatabase(home);
     this.bots = new BotService(this.database, hermes);
     this.groups = new GroupService(this.database);
+    this.operations = new Operations(this.database);
+    this.management = new BotManagement(this.database, this.bots, hermes, this.operations);
     this.database.onEvent = (event) => this.onEvent(event);
   }
 
   async handle(request: RpcRequest): Promise<unknown> {
     switch (request.method) {
+      case 'bots.jobs':
+        return this.management.jobs(request.params.botId);
+      case 'bots.jobs.runs':
+        return this.management.jobRuns(request.params.botId, request.params.jobId);
+      case 'memory.get':
+        return this.management.memory(request.params.botId);
+      case 'memory.save':
+        return this.management.save(request.params);
+      case 'memory.refine':
+        return this.management.refine(request.params.botId, request.params.focus);
+      case 'memory.review':
+        return this.management.review(request.params);
+      case 'operations.get':
+        return this.operations.get(request.params.operationId);
+      case 'operations.list':
+        return { operations: this.operations.list() };
+      case 'hermes.restart':
+        return this.management.restart();
       case 'sync.snapshot':
         this.activities();
         return {
@@ -82,10 +106,22 @@ export class NodeApplication {
       case 'messages.list':
         return {
           messages: this.database
-            .messages(request.params.conversationId, request.params.beforeSeq, request.params.limit)
+            .messages(
+              request.params.conversationId,
+              request.params.aroundMessageId
+                ? (this.database.message(request.params.aroundMessageId)?.seq ?? 0) + 1
+                : request.params.beforeSeq,
+              request.params.limit,
+            )
             .map((message) =>
               message.kind === 'text' && this.streamingTexts.has(message.messageId)
-                ? { ...message, content: { text: this.streamingTexts.get(message.messageId)! } }
+                ? {
+                    ...message,
+                    content: {
+                      ...message.content,
+                      text: this.streamingTexts.get(message.messageId)!,
+                    },
+                  }
                 : message,
             ),
         };
@@ -760,7 +796,7 @@ export class NodeApplication {
     if (message?.kind !== 'text') return undefined;
     const current = message as TextMessage;
     const buffered = this.streamingTexts.get(current.messageId);
-    if (buffered !== undefined) current.content = { text: buffered };
+    if (buffered !== undefined) current.content = { ...current.content, text: buffered };
     return current;
   }
 

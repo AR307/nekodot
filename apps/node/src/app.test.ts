@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { describe, expect, it } from 'vitest';
-import { startFakeHermes } from '@nekodot/fake-hermes';
+import { startFakeHermes, recordedManagementRuntime } from '@nekodot/fake-hermes';
 import { rpcRequestSchema, type Bot, type Conversation } from '@nekodot/protocol';
 import { NodeApplication } from './app';
 import { HermesApi } from './hermes/api';
@@ -29,6 +29,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
     const profiles = new Set(['default']);
     let provider: ProviderInput | undefined;
     const runtime: HermesRuntime = {
+      ...recordedManagementRuntime(relay.url, testKey, home, relay.pluginCatalog),
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',
@@ -287,6 +288,7 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
     const home = await mkdtemp(join(tmpdir(), 'nekodot-node-group-'));
     const profiles = new Set(['default']);
     const runtime: HermesRuntime = {
+      ...recordedManagementRuntime(relay.url, testKey, home, relay.pluginCatalog),
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',

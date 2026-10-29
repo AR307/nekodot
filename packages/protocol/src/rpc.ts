@@ -13,7 +13,15 @@ import {
 } from './entities';
 import { eventSchema } from './events';
 import { rpcErrorSchema } from './errors';
+import {
+  memoryDocumentSchema,
+  nativeRecordSchema,
+  operationSchema,
+  extensionSchema,
+  attachmentSchema,
+} from './capabilities';
 const empty = z.strictObject({});
+const botTarget = { botId: botSchema.shape.botId };
 const groupCreate = z
   .strictObject(groupFields)
   .refine((g) => g.botIds.includes(g.leadBotId), 'Lead must be a member');
@@ -40,6 +48,97 @@ export const providerOutputSchema = z.strictObject({
   apiKeyLast4: z.string().max(4),
 });
 export const rpcContracts = {
+  'bots.jobs': {
+    params: z.strictObject(botTarget),
+    result: z.strictObject({ jobs: z.array(nativeRecordSchema) }),
+  },
+  'bots.jobs.runs': {
+    params: z.strictObject({ ...botTarget, jobId: idSchema }),
+    result: z.strictObject({ job: nativeRecordSchema, runs: z.array(nativeRecordSchema) }),
+  },
+  'memory.get': {
+    params: z.strictObject(botTarget),
+    result: z.strictObject({
+      documents: z.array(
+        z.strictObject({ name: memoryDocumentSchema, content: z.string(), exists: z.boolean() }),
+      ),
+      pending: z.string(),
+    }),
+  },
+  'memory.save': {
+    params: z.strictObject({ ...botTarget, name: memoryDocumentSchema, content: z.string() }),
+    result: empty,
+  },
+  'memory.refine': {
+    params: z.strictObject({ ...botTarget, focus: z.string() }),
+    result: operationSchema,
+  },
+  'memory.review': {
+    params: z.strictObject({
+      ...botTarget,
+      kind: z.enum(['memory', 'skills']),
+      action: z.enum(['approve', 'reject']),
+      reviewId: z.string().regex(/^[a-zA-Z0-9_-]+$/),
+    }),
+    result: z.strictObject({ output: z.string() }),
+  },
+  'operations.get': { params: z.strictObject({ operationId: z.uuid() }), result: operationSchema },
+  'operations.list': {
+    params: empty,
+    result: z.strictObject({ operations: z.array(operationSchema) }),
+  },
+  'extensions.list': {
+    params: z.strictObject({ kind: z.enum(['skills', 'plugins']) }),
+    result: z.strictObject({ entries: z.array(extensionSchema) }),
+  },
+  'extensions.content': {
+    params: z.strictObject({
+      botId: botSchema.shape.botId.optional(),
+      name: idSchema,
+      identifier: z.string().optional(),
+    }),
+    result: z.strictObject({ content: z.string() }),
+  },
+  'extensions.install': {
+    params: z
+      .strictObject({
+        kind: z.enum(['skills', 'plugins']),
+        botIds: z.array(botSchema.shape.botId).min(1),
+        identifier: z.string().optional(),
+        importId: z.uuid().optional(),
+      })
+      .refine((v) => Boolean(v.identifier) !== Boolean(v.importId), 'Choose one source'),
+    result: operationSchema,
+  },
+  'extensions.toggle': {
+    params: z.strictObject({
+      kind: z.enum(['skills', 'plugins']),
+      botIds: z.array(botSchema.shape.botId).min(1),
+      name: idSchema,
+      enabled: z.boolean(),
+    }),
+    result: operationSchema,
+  },
+  'extensions.configure': {
+    params: z.strictObject({
+      ...botTarget,
+      name: idSchema,
+      values: z.record(z.string(), z.json()),
+    }),
+    result: operationSchema,
+  },
+  'hermes.restart': { params: empty, result: operationSchema },
+  'files.list': {
+    params: z.strictObject({
+      ...botTarget,
+      search: z.string().optional(),
+      type: z.string().optional(),
+      messageId: idSchema.optional(),
+    }),
+    result: z.strictObject({ files: z.array(attachmentSchema) }),
+  },
+  'files.backfill': { params: z.strictObject(botTarget), result: operationSchema },
+  'imports.create': { params: empty, result: z.strictObject({ importId: z.uuid() }) },
   'sync.snapshot': {
     params: empty,
     result: z.strictObject({
@@ -62,6 +161,7 @@ export const rpcContracts = {
     params: z.strictObject({
       conversationId: idSchema,
       beforeSeq: seqSchema.optional(),
+      aroundMessageId: idSchema.optional(),
       limit: z.number().int().min(1).max(50),
     }),
     result: z.strictObject({ messages: z.array(messageSchema) }),

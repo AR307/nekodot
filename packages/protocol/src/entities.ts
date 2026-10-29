@@ -53,7 +53,7 @@ const messageBase = {
   status: z.enum(['streaming', 'done', 'failed', 'cancelled']),
   createdAt: timestampSchema,
 };
-const textContent = z.strictObject({ text: z.string() });
+const textContent = z.strictObject({ text: z.string(), files: z.array(z.uuid()).optional() });
 export const messageSchema = z.discriminatedUnion('kind', [
   z.strictObject({ ...messageBase, kind: z.literal('text'), content: textContent }),
   z.strictObject({ ...messageBase, kind: z.literal('commentary'), content: textContent }),

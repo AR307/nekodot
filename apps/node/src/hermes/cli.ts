@@ -5,11 +5,17 @@ export interface HermesLaunch {
   home: string;
   runtimeDir: string;
   cwd: string;
+  env?: Record<string, string>;
 }
 export function spawnHermesCli(launch: HermesLaunch, args: string[]): ChildProcess {
   return spawn(launch.command, [...(launch.prefixArgs ?? []), ...args], {
     cwd: launch.cwd,
-    env: { ...process.env, HERMES_HOME: launch.home, HERMES_RUNTIME_DIR: launch.runtimeDir },
+    env: {
+      ...process.env,
+      ...launch.env,
+      HERMES_HOME: launch.home,
+      HERMES_RUNTIME_DIR: launch.runtimeDir,
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 }

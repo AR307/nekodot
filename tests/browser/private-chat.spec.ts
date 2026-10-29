@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
-import { startFakeHermes } from '@nekodot/fake-hermes';
+import { startFakeHermes, recordedManagementRuntime } from '@nekodot/fake-hermes';
 import { createRelay } from '../../apps/relay/src/server';
 import { pairNode } from '../../apps/node/src/pair';
 import { NodeApplication } from '../../apps/node/src/app';
@@ -96,6 +96,12 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   const profiles = new Set(['default']);
   const permissionModes = new Map<string, ApprovalMode>();
   const runtime: HermesRuntime = {
+    ...recordedManagementRuntime(
+      services.fake!.url,
+      hermesKey,
+      services.nodeHome!,
+      services.fake!.pluginCatalog,
+    ),
     start: async () => {},
     close: async () => {},
     approvalMode: async (profile) => permissionModes.get(profile) ?? 'manual',

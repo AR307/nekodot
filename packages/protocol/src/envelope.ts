@@ -18,6 +18,8 @@ export const envelopeSchema = z
       'ping',
       'pong',
       'node.status',
+      'transfer.req',
+      'transfer.res',
     ]),
     nodeId: idSchema.optional(),
     replyTo: z.uuidv4().optional(),

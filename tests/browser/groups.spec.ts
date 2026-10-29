@@ -3,7 +3,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { startFakeHermes } from '@nekodot/fake-hermes';
+import { startFakeHermes, recordedManagementRuntime } from '@nekodot/fake-hermes';
 import { createRelay } from '../../apps/relay/src/server';
 import { pairNode } from '../../apps/node/src/pair';
 import { NodeApplication } from '../../apps/node/src/app';
@@ -57,6 +57,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     const home = await mkdtemp(join(tmpdir(), 'nekodot-group-browser-'));
     const credentials = await pairNode(home, relayUrl, code, 'Group test computer');
     const runtime: HermesRuntime = {
+      ...recordedManagementRuntime(fake.url, key, home, fake.pluginCatalog),
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',
