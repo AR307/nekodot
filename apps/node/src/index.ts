@@ -56,6 +56,7 @@ async function main() {
       credentials,
       handleRpc: (request) => app.handle(request),
       handleTransfer: (request) => app.files.transfer(request),
+      onTunnel: (request) => app.screens.openTunnel(credentials, request),
       onReady: () => app.activities(),
       onStatus: (online) => log.info({ service: 'nekodot-node', online }),
     });

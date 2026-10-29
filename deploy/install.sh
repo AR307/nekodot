@@ -9,6 +9,7 @@ relay_ssh=''
 relay_ssh_key=''
 relay_ssh_known_hosts=''
 uninstall=false
+with_computer=false
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --pair|--relay|--relay-ssh|--relay-ssh-key|--relay-ssh-known-hosts)
@@ -22,8 +23,10 @@ while [ "$#" -gt 0 ]; do
       esac
       shift 2 ;;
     --uninstall) uninstall=true; shift ;;
+    --with-computer) with_computer=true; shift ;;
     --help)
       printf '%s\n' 'Usage: install.sh --pair ABCD-2345 [--relay http://127.0.0.1:4329]' \
+        '       install.sh --with-computer  (Linux VPS: install native Hermes screen dependencies)' \
         '       install.sh --uninstall  (stop and disable; retain all files and history)'
       exit 0 ;;
     *) printf 'Unknown option: %s\n' "$1" >&2; exit 2 ;;
@@ -151,6 +154,30 @@ if [ ! -f "$source_dir/scripts/run-in-hermes-env" ]; then
 fi
 printf '%s\n' 'Preparing the official Hermes runtime...'
 (cd "$source_dir" && bash scripts/run-in-hermes-env python hermes --version)
+if [ "$with_computer" = true ]; then
+  if grep -qi microsoft /proc/sys/kernel/osrelease; then
+    printf '%s\n' 'Screen support currently requires a Linux VPS; WSL nodes can still use chat.' >&2
+    exit 1
+  fi
+  printf '%s\n' 'Installing the official Hermes computer-use runtime and screen packages...'
+  if ! (cd "$source_dir" && bash scripts/run-in-hermes-env python hermes computer-use screen install --yes); then
+    printf '%s\n' 'Screen dependencies were not installed. Run the administrator command printed by Hermes, then rerun with --with-computer. Existing data is retained.' >&2
+    exit 1
+  fi
+  (cd "$source_dir" && bash scripts/run-in-hermes-env python hermes computer-use install)
+  (cd "$source_dir" && bash scripts/run-in-hermes-env python hermes tools post-setup chromium)
+  # The native screen package set does not include Chromium's audio shared library.
+  if command -v apt-get >/dev/null && ! ldconfig -p 2>/dev/null | grep -qF 'libasound.so.2'; then
+    . /etc/os-release
+    audio_package=libasound2
+    if [ "$ID" = ubuntu ] && [ "$VERSION_ID" = 24.04 ]; then audio_package=libasound2t64; fi
+    printf 'Chromium requires an OS library. Administrator command: apt-get install -y --no-install-recommends %s\n' "$audio_package"
+    if [ "$(id -u)" -eq 0 ]; then apt-get install -y --no-install-recommends "$audio_package"
+    elif command -v sudo >/dev/null && sudo -n true 2>/dev/null; then sudo -n apt-get install -y --no-install-recommends "$audio_package"
+    else printf '%s\n' 'Ask an administrator to run that command, then rerun --with-computer. Existing data is retained.' >&2; exit 1
+    fi
+  fi
+fi
 curl -fSL --retry 3 --retry-delay 1 "$relay/downloads/nekodot-node.cjs" -o "$home/bin/nekodot-node.cjs"
 cat > "$home/bin/nekodot-node" <<EOF
 #!/usr/bin/env bash

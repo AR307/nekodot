@@ -86,6 +86,7 @@ export class HermesManagement {
         for (const waiter of this.pending.values())
           waiter.reject(new NodeFault('unavailable', 'Hermes management disconnected'));
         this.pending.clear();
+        for (const listener of this.listeners) listener({ type: 'management.disconnected' });
       });
     });
     try {
@@ -119,5 +120,13 @@ export class HermesManagement {
 
   close() {
     this.socket?.close();
+  }
+  displaySocket(ticket: string) {
+    return new WebSocket(
+      this.baseUrl.replace(/^http/, 'ws') +
+        '/api/display/ws?display_ticket=' +
+        encodeURIComponent(ticket),
+      { headers: { 'X-Hermes-Session-Token': this.token }, handshakeTimeout: 10_000 },
+    );
   }
 }

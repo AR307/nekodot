@@ -36,6 +36,7 @@ export interface HermesRuntime {
   profileHome(profile: string): string;
   cli(profile: string, args: string[]): Promise<string>;
   restart(): Promise<void>;
+  configureScreen(profile: string): Promise<void>;
 }
 export interface RuntimeOptions {
   home: string;
@@ -254,6 +255,17 @@ export class ManagedHermes implements HermesRuntime {
   }
   async models(refresh = false) {
     return (await this.api('default')).models(refresh);
+  }
+  async configureScreen(profile: string) {
+    const path = join(this.profileHome(profile), 'config.yaml');
+    const document = parseDocument(await readFile(path, 'utf8'));
+    if (document.errors.length) throw new Error('Hermes config is not valid YAML');
+    document.setIn(['browser', 'headed'], true);
+    document.setIn(['bot_desktop', 'geometry'], '1440x900');
+    document.setIn(['bot_desktop', 'auto_start'], false);
+    const toolsets = document.toJS().toolsets as string[] | undefined;
+    document.set('toolsets', [...new Set([...(toolsets ?? ['hermes-cli']), 'computer_use'])]);
+    await writeFile(path, document.toString(), { mode: 0o600 });
   }
   private async waitHealthy(profile: string) {
     const api = await this.api(profile);

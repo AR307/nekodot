@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { screenStatusSchema } from './screen';
 import {
   botSchema,
   conversationSchema,
@@ -29,6 +30,7 @@ export const eventSchema = z.discriminatedUnion('kind', [
   z.strictObject({ ...eventBase, kind: z.literal('message.upserted'), data: messageSchema }),
 ]);
 export const liveSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('screen'), status: screenStatusSchema }),
   z.strictObject({
     kind: z.literal('delta'),
     conversationId: idSchema,

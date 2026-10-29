@@ -7,6 +7,7 @@ import type {
   Me,
   Message,
   PersistedEvent,
+  ScreenStatus,
 } from '@nekodot/protocol';
 
 export interface NodeState {
@@ -19,6 +20,7 @@ export interface NodeState {
   seq: number;
   platform: string;
   computerUse: boolean;
+  screens: Record<string, ScreenStatus>;
 }
 export type ActivityState = {
   botId?: string;
@@ -38,6 +40,7 @@ const emptyNode = (): TeamState => ({
   seq: 0,
   platform: '',
   computerUse: false,
+  screens: {},
 });
 const initialToken = localStorage.getItem('nekodot-token');
 const initialLanguage = localStorage.getItem('nekodot-language') === 'en' ? 'en' : 'zh';
@@ -237,6 +240,13 @@ export const useAppStore = create<AppState>((set) => ({
   applyLive: (nodeId, event) =>
     set((state) => {
       const node = state.nodes[nodeId] ?? emptyNode();
+      if (event.kind === 'screen')
+        return {
+          nodes: {
+            ...state.nodes,
+            [nodeId]: { ...node, screens: { ...node.screens, [event.status.botId]: event.status } },
+          },
+        };
       if (event.kind === 'activity')
         return {
           nodes: {

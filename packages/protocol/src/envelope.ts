@@ -20,6 +20,7 @@ export const envelopeSchema = z
       'node.status',
       'transfer.req',
       'transfer.res',
+      'tunnel.open',
     ]),
     nodeId: idSchema.optional(),
     replyTo: z.uuidv4().optional(),

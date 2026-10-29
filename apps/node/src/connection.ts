@@ -10,6 +10,8 @@ import {
   transferRequestSchema,
   type TransferRequest,
   type TransferResponse,
+  tunnelOpenSchema,
+  type TunnelOpen,
 } from '@nekodot/protocol';
 
 export interface NodeCredentials {
@@ -23,6 +25,7 @@ export interface NodeConnectionOptions {
   handleTransfer?: (request: TransferRequest) => Promise<TransferResponse>;
   onReady?: () => void;
   onStatus?: (online: boolean) => void;
+  onTunnel?: (request: TunnelOpen) => void;
 }
 export function connectRelay(options: NodeConnectionOptions) {
   let socket: WebSocket;
@@ -67,6 +70,10 @@ export function connectRelay(options: NodeConnectionOptions) {
             };
           }
           send({ ...frame('transfer.res', payload), replyTo: envelope.id });
+          return;
+        }
+        if (envelope.type === 'tunnel.open') {
+          options.onTunnel?.(tunnelOpenSchema.parse(envelope.payload));
           return;
         }
         if (envelope.type !== 'rpc.req') return;

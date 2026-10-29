@@ -21,6 +21,7 @@ import { Operations } from './operations';
 import { BotManagement } from './bot-management';
 import { FileLibrary } from './files';
 import { Extensions } from './extensions';
+import { BotScreens } from './screens';
 
 type HermesEvent = SseFrame['data'] & {
   event: string;
@@ -55,6 +56,7 @@ export class NodeApplication {
   readonly management: BotManagement;
   readonly files: FileLibrary;
   readonly extensions: Extensions;
+  readonly screens: BotScreens;
   onEvent: (event: PersistedEvent) => void = () => {};
   onLive: (event: LiveEvent) => void = () => {};
   private readonly consumers = new Map<string, AbortController>();
@@ -74,11 +76,21 @@ export class NodeApplication {
     this.management = new BotManagement(this.database, this.bots, hermes, this.operations);
     this.files = new FileLibrary(this.database, hermes, this.operations);
     this.extensions = new Extensions(this.database, this.bots, hermes, this.operations);
+    this.screens = new BotScreens(hermes, this.bots, this.operations);
+    this.screens.onStatus = (status) => this.onLive({ kind: 'screen', status });
     this.database.onEvent = (event) => this.onEvent(event);
   }
 
   async handle(request: RpcRequest): Promise<unknown> {
     switch (request.method) {
+      case 'screen.status':
+        return this.screens.status(request.params.botId);
+      case 'screen.start':
+        return this.screens.start(request.params.botId);
+      case 'screen.stop':
+        return this.screens.stop(request.params.botId, request.params.force);
+      case 'screen.control':
+        return this.screens.control(request.params);
       case 'bots.jobs':
         return this.management.jobs(request.params.botId);
       case 'bots.jobs.runs':
@@ -121,7 +133,7 @@ export class NodeApplication {
           groups: this.database.groups(),
           conversations: this.database.conversations(),
           headSeq: this.database.head(),
-          node: { platform: platform(), computerUse: false },
+          node: { platform: platform(), computerUse: this.screens.available },
         } satisfies RpcResult<'sync.snapshot'>;
       case 'sync.since':
         this.activities();
@@ -270,6 +282,7 @@ export class NodeApplication {
   }
 
   async close() {
+    this.screens.close();
     for (const run of this.activeRuns.values())
       this.persistText(run, this.currentText(run), run.lastSeq);
     for (const consumer of this.consumers.values()) consumer.abort();

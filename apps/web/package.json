@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@nekodot/protocol": "workspace:*",
+    "@novnc/novnc": "1.7.0",
     "@tailwindcss/vite": "^4.3.3",
     "motion": "^14.7.0",
     "react": "^19.3.1",

@@ -1,0 +1,104 @@
+{
+  "source": "Hermes bf0203a794 on Ubuntu 24.04 x64; native display snapshot, screen 1440x900",
+  "records": [
+    {
+      "method": "display.status",
+      "params": {
+        "profile": "default"
+      },
+      "result": {
+        "profile": "default",
+        "supported": true,
+        "installed": true,
+        "missing": [],
+        "running": false,
+        "pid": null,
+        "display": null,
+        "socket": null,
+        "geometry": "1440x900",
+        "install_command": null,
+        "browser": "/isolated/hermes-runtime/chromium-1208/chrome-linux64/chrome",
+        "blocker": null,
+        "memory_available_mb": 6150,
+        "memory_limit_mb": 7941,
+        "placement": "gateway",
+        "image_switch": null,
+        "lease": {
+          "holder": "agent",
+          "viewer_id": null,
+          "since": 1793264721.8338947,
+          "reason": "",
+          "epoch": 0,
+          "viewer_hash": null
+        },
+        "profile_key": "/isolated/hermes"
+      }
+    },
+    {
+      "method": "display.status",
+      "params": {
+        "profile": "nk-bwmd7t"
+      },
+      "result": {
+        "profile": "nk-bwmd7t",
+        "supported": true,
+        "installed": true,
+        "missing": [],
+        "running": true,
+        "pid": 1618508,
+        "display": ":20",
+        "socket": "/isolated/hermes/profiles/nk-bwmd7t/bot-desktop/rfb.sock",
+        "geometry": "1440x900",
+        "install_command": null,
+        "browser": "/isolated/hermes-runtime/chromium-1208/chrome-linux64/chrome",
+        "blocker": null,
+        "memory_available_mb": 6150,
+        "memory_limit_mb": 7941,
+        "placement": "gateway",
+        "image_switch": null,
+        "lease": {
+          "holder": "agent",
+          "viewer_id": null,
+          "since": 1793264568.4181762,
+          "reason": "",
+          "epoch": 5,
+          "viewer_hash": null
+        },
+        "profile_key": "/isolated/hermes/profiles/nk-bwmd7t"
+      }
+    },
+    {
+      "method": "display.status",
+      "params": {
+        "profile": "nk-yanfci"
+      },
+      "result": {
+        "profile": "nk-yanfci",
+        "supported": true,
+        "installed": true,
+        "missing": [],
+        "running": true,
+        "pid": 1618566,
+        "display": ":21",
+        "socket": "/isolated/hermes/profiles/nk-yanfci/bot-desktop/rfb.sock",
+        "geometry": "1440x900",
+        "install_command": null,
+        "browser": "/isolated/hermes-runtime/chromium-1208/chrome-linux64/chrome",
+        "blocker": null,
+        "memory_available_mb": 6150,
+        "memory_limit_mb": 7941,
+        "placement": "gateway",
+        "image_switch": null,
+        "lease": {
+          "holder": "agent",
+          "viewer_id": null,
+          "since": 1793264721.8761015,
+          "reason": "",
+          "epoch": 0,
+          "viewer_hash": null
+        },
+        "profile_key": "/isolated/hermes/profiles/nk-yanfci"
+      }
+    }
+  ]
+}

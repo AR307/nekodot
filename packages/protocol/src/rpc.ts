@@ -13,6 +13,7 @@ import {
 } from './entities';
 import { eventSchema } from './events';
 import { rpcErrorSchema } from './errors';
+import { screenStatusSchema } from './screen';
 import {
   memoryDocumentSchema,
   nativeRecordSchema,
@@ -214,8 +215,21 @@ export const rpcContracts = {
     result: z.strictObject({ models: z.array(z.string()), warning: z.string().optional() }),
   },
   'screen.status': {
-    params: empty,
-    result: z.strictObject({ available: z.boolean(), running: z.boolean() }),
+    params: z.strictObject(botTarget),
+    result: screenStatusSchema,
+  },
+  'screen.start': { params: z.strictObject(botTarget), result: operationSchema },
+  'screen.stop': {
+    params: z.strictObject({ ...botTarget, force: z.boolean().optional() }),
+    result: operationSchema,
+  },
+  'screen.control': {
+    params: z.strictObject({
+      ...botTarget,
+      sessionId: z.uuid().optional(),
+      action: z.enum(['take', 'release', 'force-release']),
+    }),
+    result: screenStatusSchema,
   },
 } as const;
 export type RpcMethod = keyof typeof rpcContracts;
