@@ -284,12 +284,17 @@ export class ManagedHermes implements HermesRuntime {
     throw new Error('Hermes profile did not become healthy: ' + profile);
   }
   async start() {
-    await this.writeEnv('default');
-    await this.config('default');
-    this.launchGateway(1000);
-    await this.waitHealthy('default');
-    this.launchManagement(1000);
-    await this.waitManagement();
+    try {
+      await this.writeEnv('default');
+      await this.config('default');
+      this.launchGateway(1000);
+      await this.waitHealthy('default');
+      this.launchManagement(1000);
+      await this.waitManagement();
+    } catch (error) {
+      await this.close();
+      throw error;
+    }
   }
   cli(profile: string, args: string[]) {
     return runHermesCli(this.launch, ['--profile', profile, ...args]);

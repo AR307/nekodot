@@ -27,6 +27,7 @@ export interface NodeConnectionOptions {
   handleTransfer?: (request: TransferRequest) => Promise<TransferResponse>;
   onReady?: () => void;
   onStatus?: (online: boolean) => void;
+  onError?: (message: string) => void;
   onTunnel?: (request: TunnelOpen) => void;
   onNotifyAck?: (id: string) => void;
 }
@@ -104,8 +105,12 @@ export function connectRelay(options: NodeConnectionOptions) {
         send({ ...frame('rpc.res', payload), replyTo: envelope.id });
       }
     });
-    socket.on('error', () => socket.close());
-    socket.on('close', (code) => {
+    socket.on('error', (error) => {
+      options.onError?.(error.message);
+      socket.close();
+    });
+    socket.on('close', (code, reason) => {
+      if (!closing) options.onError?.(`Relay connection closed (${code}): ${reason.toString()}`);
       options.onStatus?.(false);
       if (!closing && code !== 1008) {
         timer = setTimeout(connect, delay);

@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-10-29T16:41:07.670Z",
+  "realLinuxSystemd": true,
+  "serviceType": "notify",
+  "readyOnlyAfterRelayHello": true,
+  "successfulInstallWaitsForOnline": true,
+  "existingNodeIdentityPreserved": true,
+  "invalidHermesConfigRejectedInPreflight": true,
+  "noSuccessMessageOnInstallFailure": true,
+  "configurationRestored": true,
+  "serviceOnlineAfterRestore": true,
+  "isolatedUser": true,
+  "rawLogsRetainedPrivately": true,
+  "publicInstallerUpdated": true,
+  "publicNodeDownloadUpdated": true,
+  "productionServicesRestarted": false,
+  "reportedNodeOriginallyTookSecondsToConnect": 48,
+  "reportedClientObservedSynced": true
+}

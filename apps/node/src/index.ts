@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import pino from 'pino';
+import { execFile } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { readFile, mkdir, appendFile } from 'node:fs/promises';
@@ -49,6 +50,7 @@ async function main() {
         void appendFile(join(home, 'logs', 'hermes.log'), line);
       },
     });
+    log.info({ service: 'nekodot-node' }, 'Starting Hermes before connecting to Relay');
     await runtime.start();
     const app = new NodeApplication(home, runtime);
     appRef.current = app;
@@ -58,11 +60,20 @@ async function main() {
       handleTransfer: (request) => app.files.transfer(request),
       onTunnel: (request) => app.screens.openTunnel(credentials, request),
       onReady: () => {
+        if (process.env.NOTIFY_SOCKET)
+          execFile(
+            'systemd-notify',
+            ['--ready', '--status=Connected to nekodot Relay'],
+            (error) => {
+              if (error) log.error('Could not notify systemd that the node is ready');
+            },
+          );
         app.activities();
         app.notifications.flush();
       },
       onNotifyAck: (id) => app.notifications.acknowledge(id),
       onStatus: (online) => log.info({ service: 'nekodot-node', online }),
+      onError: (message) => log.error({ service: 'nekodot-node', message }),
     });
     app.onEvent = connection.event;
     app.onLive = connection.live;

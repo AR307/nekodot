@@ -51,7 +51,7 @@ if [ "$uninstall" = true ]; then
   printf 'Node service stopped and disabled. All program files, profiles, history and logs remain in %s\n' "$home"
   exit 0
 fi
-for tool in curl tar git; do
+for tool in curl tar git systemd-notify; do
   command -v "$tool" >/dev/null || { printf 'Install %s with your system package manager, then rerun.\n' "$tool" >&2; exit 1; }
 done
 if ! ldconfig -p 2>/dev/null | grep -qF 'libatomic.so.1'; then
@@ -247,6 +247,9 @@ Description=nekodot node
 $node_dependencies
 
 [Service]
+Type=notify
+NotifyAccess=all
+TimeoutStartSec=300
 ExecStart="$home/bin/nekodot-node" run
 WorkingDirectory=$home
 Restart=on-failure
@@ -264,5 +267,12 @@ if [ -n "$relay_ssh" ]; then
   systemctl --user enable --now nekodot-relay-tunnel.service
 fi
 systemctl --user enable nekodot-node.service
-systemctl --user restart nekodot-node.service
-printf '%s\n' 'Node service started. Return to the web app; it will show this computer when connected.'
+printf '%s\n' 'Starting Hermes and waiting for the node to connect to Relay (up to 5 minutes)...'
+if ! systemctl --user restart nekodot-node.service; then
+  printf '%s\n' 'The node has not connected. Pairing and installed files are retained. Startup logs:' >&2
+  journalctl --user -u nekodot-node.service -n 30 --no-pager >&2
+  if [ -f "$home/logs/hermes.log" ]; then tail -n 40 "$home/logs/hermes.log" >&2; fi
+  printf '%s\n' 'After resolving the error, rerun the same install command. Do not delete the installation directory.' >&2
+  exit 1
+fi
+printf '%s\n' 'Node connected to Relay. Return to the app; this server is now online.'

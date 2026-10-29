@@ -8,14 +8,17 @@ export interface HermesLaunch {
   env?: Record<string, string>;
 }
 export function spawnHermesCli(launch: HermesLaunch, args: string[]): ChildProcess {
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    ...launch.env,
+    HERMES_HOME: launch.home,
+    HERMES_RUNTIME_DIR: launch.runtimeDir,
+  };
+  // The Node service reports ready only after its own Relay handshake.
+  delete env.NOTIFY_SOCKET;
   return spawn(launch.command, [...(launch.prefixArgs ?? []), ...args], {
     cwd: launch.cwd,
-    env: {
-      ...process.env,
-      ...launch.env,
-      HERMES_HOME: launch.home,
-      HERMES_RUNTIME_DIR: launch.runtimeDir,
-    },
+    env,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
