@@ -318,3 +318,11 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 同一独立检出通过标准入口生成 Windows x64 NSIS 调试安装器和 Android arm64 调试 APK，不依赖原工作区的 native target 或 node_modules；Android 实际包含 arm64-v8a。
 - 新增 `docs/side-stage-2-acceptance.md` 与机器结果，将原生宿主、真实产品服务、离线回归及待联调部分分开记录。域名/Firebase 已由用户确认稍后提供，正式包、FCM、真机和跨端远程闭环仍待完成。
 - 本阶段所有模块仅本地提交，既有未提交 UI、历史、profiles、原参考资料及验收现场保留；未推送、未重启其他应用或整机。
+
+### 2026-10-29 / Side Stage 2 公网、Firebase 与预览交付
+
+- 用户提供域名及 Firebase 配置后，独立产品 Relay 接通正式 HTTPS/WSS；Caddy 原站点完整保留，只 reload 新增路由，其他服务没有重启。产品 Node 继续直接连接同机 Relay。
+- 实际请求确认 Firebase 服务账号最初缺少消息发送权限；用户修正 IAM 后，真实 FCM token、App 自动设备注册、模型任务完成后的后台系统通知及点击定位会话均在独立 Android 模拟器通过。
+- 构建并发布 Windows x64 release NSIS 和 Android arm64 签名 release APK 0.1.0。Windows release 与 Android 模拟器均从本地内嵌资源直接访问公网产品服务、完成真实私聊，不依赖 Vite 或 SSH 转发。
+- 原生视觉检查发现 Android 15 系统栏覆盖标题；宿主增加 WindowInsets 处理，重建后实际确认系统栏与页面分离。完整手机软键盘、锁屏与划掉后的 FCM、屏幕接管及 Windows 干净用户安装仍明确待验收。
+- 更新 `docs/side-stage-2-acceptance.md` 和脱敏截图/机器结果；起始全仓 lint、typecheck 与 24 项测试通过。收尾新增的并行 `apps/site` 未跟踪文件导致全仓 lint 报错，已独立记录并限定本次检查范围。私有凭据、签名资料、原始日志和其他并行 UI / 网站工作不提交。

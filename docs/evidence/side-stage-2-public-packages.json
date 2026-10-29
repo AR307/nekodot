@@ -1,0 +1,27 @@
+{
+  "checkedAt": "2026-10-29T14:53:27.380Z",
+  "packages": [
+    {
+      "name": "nekodot-windows-x64.exe",
+      "platform": "Windows x64",
+      "version": "0.1.0",
+      "bytes": 3448486,
+      "status": 200,
+      "contentType": "application/vnd.microsoft.portable-executable",
+      "nativeHeader": true,
+      "authenticodeSigned": false
+    },
+    {
+      "name": "nekodot-android-arm64.apk",
+      "platform": "Android arm64",
+      "version": "0.1.0",
+      "bytes": 15153902,
+      "status": 200,
+      "contentType": "application/vnd.android.package-archive",
+      "nativeHeader": true,
+      "apkVersionCode": 1
+    }
+  ],
+  "cleanUserInstallTested": false,
+  "physicalAndroidTested": false
+}

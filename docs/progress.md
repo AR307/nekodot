@@ -417,3 +417,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 
 - U0–U7 全部完成：画板导出、基础层、首页侧栏与命令面板、消息流、屏幕面板、新建编辑面板、添加电脑、设置登录、详情与扩展中心。原 U4 的群聊部分并入 U3，屏幕面板在 GPT 完成功能后按画板 06/07 补做视觉。
 - 未覆盖：真实 Linux 屏幕下的接管态视觉（演示环境只能显示连接中状态）、Windows/Android 原生壳内的实机观感，需在对应设备上复核。
+
+## 2026-10-29 / Side Stage 2 公网联调增量
+
+- 用户补齐域名、Firebase 文件及发送所需 IAM 权限。正式 HTTPS/WSS、HTTP→HTTPS、App CORS 与 Firebase API 均实测通过；其他服务和既有站点保持运行。
+- Windows x64 release 与 Android x86_64 模拟器从内嵌页面直接登录产品服务并完成真实模型回复。真实任务的完成通知经 Node→Relay→FCM 到达 Android 后台，实际点击后回到对应会话。
+- Windows release NSIS 与 Android arm64 签名 release APK 0.1.0 已发布到产品下载入口。Windows 未做 Authenticode 签名，Android arm64 未在手机安装；不将它们标为完整平台验收。
+- 修正 Android 15 状态栏覆盖标题的原生安全区问题，实际截图确认；当前模拟器使用硬件输入浮动工具栏，完整软键盘仍待验收。
+- 起始全仓 lint、typecheck 与 12 文件 / 24 项测试通过；收尾全仓 lint 被并行新增的未跟踪 `apps/site/main.js` 的 49 项浏览器全局/空代码块错误阻断，本轮不修改该网站。未重新跑过完整 Edge 或独立检出。仍需真机权限/锁屏/划掉、双端完整审批/steer/停止/文件/屏幕与恢复、Windows 安装和休眠旅程，详见 `side-stage-2-acceptance.md`。

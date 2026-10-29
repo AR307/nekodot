@@ -1,0 +1,11 @@
+{
+  "checkedAt": "2026-10-29T14:35:06.590Z",
+  "transport": "HTTPS/WSS",
+  "sshUsedForProductTraffic": false,
+  "login": true,
+  "productNodeOnline": true,
+  "snapshot": true,
+  "realModelReply": true,
+  "notificationsConfigured": true,
+  "distinctProductBots": 2
+}

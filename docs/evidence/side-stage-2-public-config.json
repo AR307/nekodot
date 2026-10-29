@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-10-29T14:42:43.735Z",
+  "origin": "https://nekodot.com",
+  "dnsMatches": true,
+  "https": true,
+  "health": {
+    "service": "nekodot-relay",
+    "status": "ok"
+  },
+  "httpRedirect": 308,
+  "redirectToHttps": true,
+  "cors": true,
+  "firebaseOAuth": true,
+  "expiresIn": 3598,
+  "fcmApiDryRun": true,
+  "firebaseProjectMatches": true,
+  "androidApplicationId": "app.nekodot.client",
+  "unrelatedServicesUnchanged": true
+}

@@ -90,7 +90,7 @@ Linux VPS 节点安装时加上 `--with-computer`，就能从私聊、Bot 详情
 
 「交还」释放 Hermes 原生控制权，不会自动重发任务；如果回合已经结束，在聊天中发送“继续”。关闭画面与停止聊天任务是独立操作。浏览器窗口的生命周期遵循 Hermes，持久浏览器资料不会因为关闭面板而清空。
 
-屏幕目前支持 Linux VPS 与本机 loopback 页面。局域网普通 HTTP 页面可聊天，屏幕需要安全上下文；手机真机屏幕与 HTTPS 尚待后续支持。
+屏幕目前支持 Linux VPS，访问页面需要安全上下文。局域网普通 HTTP 页面可聊天；产品 HTTPS 已接通，原生 App 的公网屏幕和手机真机接管仍待完整验收。
 
 ### 在任何屏幕上都好用
 
@@ -137,7 +137,14 @@ Linux VPS 节点安装时加上 `--with-computer`，就能从私聊、Bot 详情
 ## 快速开始
 
 > [!NOTE]
-> nekodot 目前是**开发者预览版**。还没有公共托管的 Relay，需要你自己部署一个；网页暂时以开发模式在本机运行。
+> nekodot 目前是**开发者预览版**。Windows / Android 客户端已提供连接产品服务的预览包；也保留自行部署与本地 Web 开发入口。完整真机与安装验收仍在进行。
+
+### 下载安装预览版
+
+- [Windows x64 安装器](https://nekodot.com/downloads/nekodot-windows-x64.exe)：0.1.0，Windows 10 / 11；目前未做 Authenticode 签名。
+- [Android arm64 APK](https://nekodot.com/downloads/nekodot-android-arm64.apk)：0.1.0，Android 10+；已签名，手机真机验收待完成。
+
+App 自带界面，直接通过 HTTPS/WSS 连接远程 Relay；本机不用启动网页、Node、Hermes 或 SSH。注册不会自动取得其他账号的服务器访问权，仍需配对你自己的远程节点。当前真实验证与待验收范围见 [客户端验收记录](docs/side-stage-2-acceptance.md)。
 
 ### 准备
 
@@ -178,7 +185,7 @@ pnpm test:e2e
 
 自动化测试使用录制的真实 Hermes 事件回放，不调用付费模型。本地运行、远程 Relay 调试、节点数据位置与测试策略见 [开发说明](docs/development.md)。
 
-Windows / Android 原生客户端共用此界面，资源随安装包分发，Bot 运行在远程服务器。客户端工程与原生调试构建已接入，正式联网安装包仍在联调；构建与当前限制见 [客户端说明](docs/client-development.md)。
+Windows / Android 原生客户端共用此界面，资源随安装包分发，Bot 运行在远程服务器。预览安装包、正式 HTTPS/WSS 与模拟器后台 FCM 已接通，完整真机旅程仍在联调；构建与当前限制见 [客户端说明](docs/client-development.md)。
 
 ```text
 apps/web               React 网页与客户端同步
@@ -203,7 +210,7 @@ docs                   开发说明、Hermes 调研、实施记录与截图
 - [ ] 界面全面改版（进行中：设计基础、首页、侧栏与命令面板已完成）
 - [ ] PWA：添加到手机主屏幕
 - [x] 实时画面与接管：Linux VPS 原生浏览器、桌面与人工接管
-- [ ] Windows / Android 正式安装包（原生工程已接入，公网与真机联调待完成）
+- [ ] Windows / Android 完整交付验收（0.1.0 预览包已发布，公网聊天与模拟器后台 FCM 通过，真机等项目待验收）
 - [ ] macOS 与 ARM 节点
 
 ## 致谢
