@@ -1,86 +1,200 @@
-# nekodot
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/nekodot-mark-dark.svg">
+    <img src="docs/assets/nekodot-mark.svg" alt="nekodot" width="72" height="72">
+  </picture>
+</p>
 
-面向非技术用户的个人 bot 小队。已实现注册、配对电脑、提供方与 bot 管理、流式私聊、群聊与 @handle 接力、工具审批、原生 steer、停止与断线恢复。
+<h1 align="center">nekodot</h1>
 
-架构：React Web → Fastify/WebSocket Relay → 本地 Node → 官方 Hermes CLI/API。
-聊天与完整密钥留在 Node；Relay 负责账号、配对、在线状态和连接路由。
+<p align="center">
+  <strong>把你的 AI 小队，带到自己的电脑上。</strong><br>
+  组建一支各有专长的 Bot 团队，单独聊，或拉进群里接力协作。<br>
+  它们运行在你自己的电脑或服务器上，由 <a href="https://hermes-agent.nousresearch.com">Hermes Agent</a> 驱动。
+</p>
 
-每个 Bot 就是一个独立的 Hermes profile。私聊将用户输入直接交给该 profile 的官方 Runs API，
-由 Hermes 自身处理模型调用、会话上下文、记忆、技能和工具执行；新建 profile 使用官方默认技能初始化。
-nekodot 负责界面与消息同步，群聊只增加成员选择、上下文传递和顺序接力，每轮仍交给对应 profile 的 Hermes 执行。
+<p align="center">
+  <a href="https://github.com/AR307/nekodot-app/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AR307/nekodot-app/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="Node 24 LTS" src="https://img.shields.io/badge/node-24%20LTS-2F9E8F">
+  <img alt="Status: developer preview" src="https://img.shields.io/badge/status-developer%20preview-E8603C">
+</p>
+
+<p align="center">
+  <a href="#为什么是-nekodot">为什么是 nekodot</a> ·
+  <a href="#功能">功能</a> ·
+  <a href="#工作原理">工作原理</a> ·
+  <a href="#快速开始">快速开始</a> ·
+  <a href="#路线图">路线图</a>
+</p>
+
+![nekodot 桌面界面：Bot 列表、群聊接力与工具执行进度](docs/evidence/ui-u2-sidebar-1440.png)
+
+<p align="center"><sub>两位 Bot 在群里协作整理周报：一位起草，再交给另一位核对数据来源。截图使用演示数据。</sub></p>
+
+## 为什么是 nekodot
+
+- **模型由你决定。** 接 OpenRouter，或任何 OpenAI 兼容接口，包括你自己平台上的模型。每个 Bot 可以用不同的模型。
+- **数据留在你的机器上。** 聊天记录、Bot 配置和完整密钥都保存在你自己的电脑或服务器。电脑只主动向外连接，不需要开放任何端口。
+- **不用碰配置文件。** 复制一行命令接入电脑，之后的模型、Bot、技能和插件都在网页里完成。浏览器多端同步，断线重连后接着看。
+- **不重新发明 agent。** 每个 Bot 就是一个原生 Hermes profile，记忆、技能和工具循环都由 Hermes 完成。nekodot 专注于易用的界面、多端连接和多 Bot 协作。
+
+## 功能
+
+| 能力               | 说明                                                                                   |
+| ------------------ | -------------------------------------------------------------------------------------- |
+| **Bot 团队**       | 为每个 Bot 设定名字、头像、角色和模型；随时调整，已积累的历史与记忆保留。              |
+| **私聊**           | 流式回复，展开查看工具过程；需要确认的操作有明确的审批卡片；运行中可以补充指令或停止。 |
+| **群聊接力**       | 2–6 个 Bot 组成小组，用 `@handle` 指定谁来做；Bot 之间也能 `@` 对方交接工作。          |
+| **记忆与自我改进** | 直接查看、编辑 Bot 的原生记忆，一键调用 Hermes 整理经验。                              |
+| **定时任务**       | 在聊天里让 Bot 安排任务，在 Bot 详情中查看计划与执行记录。                             |
+| **资料库**         | Bot 交付的文件统一收录，可预览、下载，或跳回当时的对话。                               |
+| **Skills 与插件**  | 浏览 Hermes 扩展目录，按 Bot 安装、启用和配置；也支持从 Git、本地目录或 ZIP 导入。     |
+| **多电脑、多端**   | 一个账号连接多台电脑；手机、平板、电脑上的浏览器看到同一份进度。                       |
+
+### 看得见、管得住的执行过程
+
+对话里不只有回答，还有 Bot 正在做的事。
+
+- **看见过程**：实时文本、工具的开始与完成、等待确认的状态集中呈现。
+- **随时补充**：运行中发送的消息由 Hermes 原生 steer 并入当前回合，已经完成的工作不会白做。
+- **该你拍板时**：遇到需要授权的操作，Bot 会停下等你确认；等待期间你仍可以先写草稿。
+- **随时叫停**：一个按钮停止当前执行；在群里则是「全部停止」，清空待接力的队列。
+- **回来接着看**：刷新、切换设备或网络恢复后，历史与当前运行状态自动同步。
+
+### 把任务交给一个小组
+
+群组可以包含 2–6 个 Bot，并指定一位主答。没有 `@` 任何人时由主答开始；`@` 了谁，就按顺序交给谁。
+
+> 这周的周报，@bibi 先整理草稿；@xiaoyan 帮忙核对数据来源。
+
+Bot 在回复里 `@` 其他成员，就会把工作接力下去。为了避免无限循环，每条消息最多连续执行 6 个 Bot 回合，到上限会暂停并提示你。同一个群内一次只运行一个 Bot，不同群可以同时工作。同一个 Bot 在私聊和群聊之间共享上下文，群里讨论过的事，私聊时它也记得。
+
+### 每个 Bot 都有自己的积累
+
+从 Bot 名字打开详情：
+
+| 页面   | 可以做什么                                                                                                                   |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| 详情   | 基本信息、定时任务的计划与执行记录。                                                                                         |
+| 记忆   | 查看和编辑 `SOUL.md`（自身设定）、`MEMORY.md`（长期经验）、`USER.md`（对你的了解）；「整理记忆」调用 Hermes 原生 `/refine`。 |
+| 资料库 | 搜索、筛选它交付的文件；预览图片、PDF 和文本，下载，或回到来源消息。                                                         |
+
+交付的文件会单独保存一份副本，原工作文件之后再改动，也不会影响已经交付的版本。
+
+### 在任何屏幕上都好用
+
+<table>
+  <tr>
+    <td width="34%" valign="top"><img src="docs/evidence/ui-u2-home-390.png" alt="手机首页：Bot 卡片与群聊列表"></td>
+    <td valign="top"><img src="docs/evidence/ui-u2-palette-1440.png" alt="命令面板：搜索 Bot、群聊与常用操作"></td>
+  </tr>
+  <tr>
+    <td valign="top"><sub>手机上是卡片式首页，右下角一键新建。</sub></td>
+    <td valign="top"><sub>按 <kbd>Ctrl</kbd> <kbd>K</kbd>（macOS 上 <kbd>⌘</kbd> <kbd>K</kbd>）搜索 Bot、群聊和常用操作，回车直达。</sub></td>
+  </tr>
+</table>
+
+支持中文与英文、浅色与深色主题，并遵循系统的「减少动态效果」设置。
+
+## 工作原理
+
+```text
+浏览器（电脑 / 手机）
+      │  HTTP · WebSocket
+      ▼
+   Relay ············ 账号、配对、在线状态与消息路由，不保存聊天内容
+      ▲
+      │  由节点主动连出，无需开放端口
+      │
+   Node ············· 你的电脑或服务器：聊天记录、Bot 配置、交付文件
+      │  官方 CLI / API（仅本机 127.0.0.1）
+      ▼
+   Hermes ··········· 每个 Bot 一个独立 profile：会话、记忆、技能、插件
+```
+
+| 位置           | 保存什么                                                  |
+| -------------- | --------------------------------------------------------- |
+| 浏览器         | 只保存登录状态、语言等偏好；聊天内容从节点同步而来。      |
+| Relay          | 账号与配对信息。消息和文件只经过它转发，不落盘。          |
+| Node           | 聊天历史、运行记录、Bot 配置与交付文件。                  |
+| Hermes profile | 该 Bot 的原生会话、记忆、技能、插件，以及托管的模型密钥。 |
+
+完整的模型密钥只保存在节点上，网页里永远只显示后四位。nekodot 不修改 Hermes，只通过官方 CLI 与 API 集成，Hermes 升级不需要改动 nekodot。
+
+请注意：模型请求会发往你配置的模型服务商。nekodot 让数据留在你自己的机器上，但它不是离线运行，也没有端到端加密。
+
+## 快速开始
+
+> [!NOTE]
+> nekodot 目前是**开发者预览版**。还没有公共托管的 Relay，需要你自己部署一个；网页暂时以开发模式在本机运行。
+
+### 准备
+
+- 一台可以 SSH 登录的 **Linux x64** 服务器（推荐 Ubuntu 24.04），装有 Docker，用来运行 Relay。Bot 也可以直接跑在这台服务器上。
+- 本机安装 **Node 24 LTS**、**pnpm 10.34.5** 和 OpenSSH 客户端。
+- 一个模型服务的 API Key：OpenRouter，或任意 OpenAI 兼容接口。
+
+### 五步上手
+
+1. **部署 Relay。** 构建 Relay 镜像，上传到服务器后 `docker compose up -d`。Relay 只监听服务器的 127.0.0.1，不暴露到公网。详见 [部署文档](deploy/README.md)。
+2. **打开网页。** 在本机执行：
+
+   ```sh
+   git clone https://github.com/AR307/nekodot-app.git
+   cd nekodot-app
+   pnpm install --frozen-lockfile
+   pnpm dev:remote --ssh <your-ssh-alias>
+   ```
+
+   它通过 SSH 隧道连接远端 Relay，并在浏览器中打开 http://127.0.0.1:4318。加上 `--lan`，同一局域网内的手机也能访问。
+
+3. **注册并添加电脑。** 选择「云服务器」或「这台电脑」，复制页面生成的一行安装命令，在目标机器上执行：服务器在 SSH 会话中运行；Windows 在启用了 systemd 的 WSL2 Ubuntu 24.04 中运行。安装器会把独立的 Node 24、Hermes 和节点服务装进 `~/.nekodot`，不改动系统环境。
+4. **连接模型。** 电脑上线后，在设置中填入 OpenRouter Key，或 OpenAI 兼容接口的地址和 Key，获取可用模型。
+5. **创建你的第一个 Bot。** 起个名字、选好头像和模型，写一句它负责什么，就可以开始对话了。需要协作时，再建一个群。
+
+节点目前支持 **Linux x64** 与 **WSL2 Ubuntu 24.04 x64**。只想在本机跑起来看看、或参与开发，请看 [开发说明](docs/development.md)。
 
 ## 开发
 
-要求 Node 24 LTS、pnpm 10.34.5；浏览器验收当前使用本机 Microsoft Edge。
+技术栈：React 19 · TypeScript · Tailwind CSS v4 · motion · Zustand · Fastify · WebSocket · node:sqlite · Zod · Hermes Agent
 
-```
+```sh
 pnpm install --frozen-lockfile
-pnpm lint
-pnpm typecheck
-pnpm test
+pnpm lint && pnpm typecheck && pnpm test
 pnpm build
 pnpm test:e2e
 ```
 
-Web：http://127.0.0.1:4318；Relay：http://127.0.0.1:4319。
-Windows 本机可运行 `. ./scripts/activate.ps1` 激活已保留的独立 Node 24。
-全新检出需要先安装 Node 24 和 pnpm；不要使用系统 Node 22 运行 node:sqlite。
+自动化测试使用录制的真实 Hermes 事件回放，不调用付费模型。本地运行、远程 Relay 调试、节点数据位置与测试策略见 [开发说明](docs/development.md)。
 
-启动 Relay 前，在本地 shell 提供 JWT_SECRET（随机私有值），不要写入源码：
-
-```powershell
-$env:JWT_SECRET = '<本地生成的私有随机值>'
-pnpm dev
+```text
+apps/web               React 网页与客户端同步
+apps/relay             账号、配对、WebSocket 路由与文件转发
+apps/node              节点：持久化、Hermes 接入与群聊路由
+packages/protocol      共享协议与 Zod schema
+packages/fake-hermes   测试专用：回放录制的真实 Hermes 事件
+deploy                 Relay 镜像、节点安装器与系统服务
+design                 原始视觉参考与九块设计画板
+docs                   开发说明、Hermes 调研、实施记录与截图
 ```
 
-`pnpm dev` 启动 Web、Relay 开发入口；真实 Node 在配对后单独启动。
-Relay 可选环境变量：PORT、HOST、PUBLIC_URL、DATA_DIR；默认只监听 loopback。
-构建后可设置 WEB_DIR=apps/web/dist，运行 `node apps/relay/dist/index.js`，以同源方式提供网页与 WebSocket。
+## 路线图
 
-开发连接远程 VPS Relay 时，使用现有 Windows SSH profile：
+- [x] 私聊：流式回复、工具过程、审批、运行中补充指令、停止
+- [x] 群聊：`@` 指定成员、Bot 之间接力、接力上限
+- [x] 一行命令接入电脑（Linux x64 / WSL2），多端同步与断线恢复
+- [x] Bot 详情：原生记忆、定时任务、资料库
+- [x] Skills 与插件中心
+- [ ] 界面全面改版（进行中：设计基础、首页、侧栏与命令面板已完成）
+- [ ] PWA：添加到手机主屏幕
+- [ ] 实时画面与接管：Bot 操作浏览器时可以实时观看，随时接手
+- [ ] macOS 与 ARM 节点
 
-```powershell
-pnpm dev:remote --ssh <SSH目标>
-```
+## 致谢
 
-它在本机 127.0.0.1:4329 建立至远程 Relay loopback 的 SSH 隧道，并在 4318 启动并打开 Web。
-浏览器的 API、WebSocket 和节点安装包下载统一经 Web 同源代理。退出命令会关闭所启动的 Web 与 SSH。
-`--lan` 可让同一局域网内的手机访问本地 Web；Relay 隧道始终只绑定 loopback。
+- [Hermes Agent](https://hermes-agent.nousresearch.com)（Nous Research）：每个 Bot 背后的 agent 引擎。
+- 界面字体 [Nunito](https://fonts.google.com/specimen/Nunito) 与 [JetBrains Mono](https://www.jetbrains.com/lp/mono/)，以 SIL Open Font License 1.1 授权。
 
-## 第一次使用
+## 许可证
 
-1. 网页注册账号，选择“这台电脑”或“云端服务器”，复制相应配对安装命令。
-2. Windows 用户在启用 systemd 的 WSL2 Ubuntu 24.04 内执行“这台电脑”的命令；远程服务器用户在目标 Linux x64 SSH 会话中执行“云端服务器”的命令。安装器将只在 `~/.nekodot` 下安装 Node/Hermes、保存节点数据并注册 systemd user service。
-3. 开发期间使用的源码模式仍可按官方 PM 方式准备 Hermes 与隔离 runtime。已有官方 CLI 时运行 `pnpm node:run`；源码模式使用：
-
-   ```bash
-   pnpm node:pair --relay http://127.0.0.1:4319 --code XXXX-XXXX
-   pnpm node:run --hermes-source /path/to/hermes-source --hermes-runtime /path/to/pm-runtime
-   ```
-
-4. 网页看到电脑上线后，进入设置，填写自定义 OpenAI-compatible 地址、API key 和模型，或选择 OpenRouter。
-5. 返回团队，新建 bot，选择 Hermes 模型目录中的模型或明确填写自定义模型 ID，开始私聊。
-6. 运行中发送会补充当前 run；审批时可以写草稿，允许一次、拒绝或停止后再继续发送。
-7. 创建 2–6 位成员的群组并选择主答。无有效提及由主答开始；用户和 Bot 最终回复中的成员 @handle 按顺序触发接力，每条消息最多 6 回合。
-
-群内一次运行一个 Bot，不同群可同时工作。运行中补充指令由当前 Bot 的同一个 run 接收，接受后清空尚未执行的接力队列；“全部停止”取消当前 run 并清空队列。
-编辑群组从下一条新消息生效；归档群组保留历史。Bot 需要先退出活跃群组才能归档。
-
-Node 数据默认在 `~/.nekodot`；可用 NEKODOT_HOME 指定隔离目录。
-其 Hermes home、profile、SQLite、凭证及日志均在此目录内；gateway 只监听 127.0.0.1:18642。
-完整 provider key 仅存于托管 `.env`，网页与数据库只保留后四位。根 `.env.example` 供独立真实 spike 使用，产品提供方在网页配置。
-Windows/Linux 各自安装 node_modules，不共享依赖，也不修改全局 shell。
-
-## 验证与证据
-
-- `pnpm test:e2e` 使用本机 Microsoft Edge。首次缺浏览器时执行 `pnpm exec playwright install msedge`。
-- 自动化以已录制的真实 Hermes fixture 驱动 HTTP 回放，不调用付费模型；产品启动固定使用真实 CLI/API。
-- 自定义 API 的真实网页文本、工具、审批允许/拒绝、同 run steer、停止与节点重启已实际验收。
-- 群聊另有真实主答、成员定向、Bot 接力、六回合上限、失败后继续、同 run steer 与停止证据。
-- [阶段记录](docs/progress.md)、[Hermes 调研与命令](docs/hermes-notes.md)、[私聊真实验收](docs/evidence/phase1-live-report.json)、[群聊真实验收](docs/evidence/phase2-live-report.json)。
-- 原始技术和视觉文件完整保留，见 [参考索引](docs/references/README.md)。
-
-原 HTML 原件与九块静态参考已保留；原稿视觉核对仍受查看方式限制。
-新产品页面已在实际 Edge 检查 390、768、1440px、中英、浅深色及 reduced-motion。
-OpenRouter 配置和托管文件路径已测，未声称进行其付费模型调用。
-PWA 安装和屏幕接管留待后续阶段。
+尚未选择开源许可证，正式公开前会补充 `LICENSE` 文件。

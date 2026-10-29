@@ -213,6 +213,12 @@ Node 以官方 CLI/API 管理 Hermes。Node 是本地业务状态的唯一数据
 - 文件卡片接入私聊与群聊，资料库支持搜索、类型筛选、预览、下载、来源消息及历史补录；文件内容留在 Node，Relay 只做认证传输。
 - Edge 完整浏览器旅程覆盖详情/记忆保存、资料库预览下载、Skills 内容与启停、插件目录及 390/768/1440px 页面；真实 Hermes 与自定义 API 的能力证据见 `docs/evidence/sidephase-*.png`。
 
+### 2026-10-29 / 公开仓库 README
+
+- 以 `README.draft.md` 为底稿重写 `README.md`，面向 GitHub 公开访客：Logo（浅深色两版）、徽章、定位与主图、“为什么是 nekodot”、功能、工作原理与数据归属、快速开始、开发、路线图、致谢与许可证。
+- 原工程 README 的环境、命令、本地运行、远程 Relay、节点数据与测试策略整理到 `docs/development.md`，内容不丢失。
+- 按代码与部署文档核对说法：当前为开发者预览，需要自托管 Relay（仅 loopback，经 SSH 隧道访问），节点支持 Linux x64 与 WSL2 Ubuntu 24.04 x64。仓库尚无 LICENSE，需在公开前选定。
+
 ### 2026-10-29 / 产品 README 草稿
 
 - 新增 `README.draft.md`，以产品介绍、使用场景和首次使用流程说明 nekodot，保留现有工程 README 供审阅时对照。
