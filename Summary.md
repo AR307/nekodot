@@ -7,6 +7,7 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 
 - apps/web：React 用户界面。
 - apps/client：共用 React 界面的 Tauri 2 Windows / Android 宿主。
+- apps/site：双语静态官网，无构建步骤。
 - apps/relay：连接与路由入口。
 - apps/node：本机代理与 Hermes 集成。
 - 每个 Bot 对应独立 Hermes profile；单 agent 的模型、上下文、记忆、技能和工具循环直接采用 Hermes 原生实现。nekodot 只处理产品状态与群聊接力路由。
@@ -17,6 +18,11 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - docs/references、design：完整技术及视觉原件。
 
 ## 更新记录
+
+### 2026-10-29 / 官网
+
+- 新增 `apps/site` 双语静态官网：首屏产品窗口与手机叠放、私聊审批与群聊接力的脚本化回放、五组功能展示、能力格、原理图、三步开始与路线图；中英文与深浅主题可切换，截图随主题替换。
+- 截图取自演示数据下的真实界面（2x WebP 约 1.2MB）；字体随站点自带，不加载外部资源。eslint 为官网脚本声明浏览器环境，全仓 lint 恢复通过。
 
 ### 2026-10-29 / UI 详情与扩展中心
 

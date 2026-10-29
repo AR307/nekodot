@@ -190,6 +190,7 @@ Windows / Android 原生客户端共用此界面，资源随安装包分发，Bo
 ```text
 apps/web               React 网页与客户端同步
 apps/client            Tauri 2 Windows / Android 宿主
+apps/site              双语静态官网
 apps/relay             账号、配对、WebSocket 路由与文件转发
 apps/node              节点：持久化、Hermes 接入与群聊路由
 packages/protocol      共享协议与 Zod schema
@@ -207,7 +208,8 @@ docs                   开发说明、Hermes 调研、实施记录与截图
 - [x] 一行命令接入电脑（Linux x64 / WSL2），多端同步与断线恢复
 - [x] Bot 详情：原生记忆、定时任务、资料库
 - [x] Skills 与插件中心
-- [ ] 界面全面改版（进行中：设计基础、首页、侧栏与命令面板已完成）
+- [x] 界面全面改版
+- [x] 双语官网（`apps/site`）
 - [ ] PWA：添加到手机主屏幕
 - [x] 实时画面与接管：Linux VPS 原生浏览器、桌面与人工接管
 - [ ] Windows / Android 完整交付验收（0.1.0 预览包已发布，公网聊天与模拟器后台 FCM 通过，真机等项目待验收）
