@@ -290,5 +290,13 @@ const en = {
   unnamedGroup: 'New group',
   leadHint: 'When nobody is @mentioned, the lead answers first.',
   leadChip: 'Lead',
+  pairLead: 'Your bots will work on this computer. It only connects out to us — no ports to open.',
+  localShort: 'WSL2 / Linux, free',
+  cloudShort: 'Online 24/7, recommended',
+  pairStepCloud: 'Sign in to your server (Ubuntu 24.04, 2 cores / 4 GB recommended)',
+  pairStepPaste: 'Copy the line below, paste it in and press Enter',
+  expiresIn: 'Code {code} · expires in {time}',
+  codeExpired: 'This pairing code expired. Generate a fresh one.',
+  pairWelcome: '{name} is connected. Taking you back to your team.',
 };
 export default en;

@@ -1,0 +1,311 @@
+/* full-page flows: add computer */
+.pair-page {
+  min-height: 100dvh;
+  padding: 0 20px 56px;
+  background: var(--bg);
+}
+.page-top {
+  width: min(100%, 640px);
+  margin: 0 auto;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+}
+.page-top .icon-button {
+  margin-left: -10px;
+}
+.step-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: auto;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 700;
+}
+.step-bars {
+  display: inline-flex;
+  gap: 3px;
+}
+.step-bars i {
+  width: 16px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.step-bars i.done {
+  background: var(--ink);
+}
+.pair-content {
+  width: min(100%, 560px);
+  margin: 12px auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.pair-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pair-heading h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.pair-heading p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.pair-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.choice-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 16px 14px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  text-align: left;
+  transition:
+    box-shadow 160ms var(--ease),
+    transform 160ms var(--ease);
+}
+.choice-card:hover {
+  box-shadow: var(--shadow-1);
+}
+.choice-card:active {
+  transform: scale(0.985);
+}
+.choice-card > :not(.choice-ring) {
+  position: relative;
+}
+.choice-ring {
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--radius-card);
+  border: 2px solid var(--ink);
+}
+.choice-card .icon {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 2px;
+}
+.choice-card strong {
+  font-size: 16px;
+  font-weight: 800;
+}
+.choice-card small {
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.pair-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pair-steps li {
+  display: flex;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.pair-steps li > span {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 12px;
+  font-weight: 800;
+}
+.command-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--radius-card);
+  background: #1f1b16;
+  color: #faf7f2;
+  box-shadow: var(--shadow-2);
+}
+:root[data-theme='dark'] .command-box {
+  background: #0e0c09;
+  border: 1px solid var(--line);
+}
+.command-box code {
+  max-height: 168px;
+  overflow: auto;
+  font: 12px/1.7 var(--font-mono);
+  word-break: break-all;
+}
+.command-box mark {
+  padding: 1px 3px;
+  border-radius: 4px;
+  background: rgb(240 122 85 / 22%);
+  color: #f59a7a;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.copy-button {
+  align-self: flex-start;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: #faf7f2;
+  color: #1f1b16;
+  font-size: 14px;
+  font-weight: 800;
+  transition: transform 160ms var(--ease);
+}
+.copy-button:not(:disabled):active {
+  transform: scale(0.96);
+}
+.copy-button .icon {
+  width: 16px;
+  height: 16px;
+}
+.pair-wait,
+.pair-success {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius-card);
+  background: var(--surface-2);
+}
+.pair-wait > div,
+.pair-success > div {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pair-wait strong,
+.pair-success strong {
+  font-size: 14px;
+  font-weight: 800;
+}
+.pair-wait small,
+.pair-success small {
+  color: var(--ink-2);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.pair-wait .thinking-dots i {
+  width: 6px;
+  height: 6px;
+}
+.pair-wait.is-expired {
+  background: var(--accent-soft);
+  flex-wrap: wrap;
+}
+.pair-wait.is-expired > .icon {
+  color: var(--accent-text);
+}
+.pair-wait .secondary-button {
+  min-height: 36px;
+  font-size: 13px;
+}
+.pair-countdown {
+  flex: none;
+  width: 28px;
+  height: 28px;
+}
+.pair-countdown svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.pair-countdown circle {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 3;
+}
+.pair-countdown circle + circle {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-dasharray: 94.25;
+  transition: stroke-dashoffset 1s linear;
+}
+.pair-success {
+  background: color-mix(in srgb, var(--ok) 12%, var(--surface));
+}
+.pair-burst {
+  position: relative;
+  flex: none;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+}
+.pair-burst > span {
+  position: relative;
+  z-index: 1;
+  display: flex;
+}
+.pair-burst i {
+  position: absolute;
+  left: 25px;
+  top: 25px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.paired-nodes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.paired-nodes h2 {
+  margin: 8px 0 6px;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.paired-node {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.paired-node span:not(.status-dot) {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.paired-node small {
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 600;
+}

@@ -283,5 +283,13 @@ const zh = {
   unnamedGroup: '新的群组',
   leadHint: '没有 @ 任何人时，由主答先回答。',
   leadChip: '主答',
+  pairLead: '你的 bot 会在这台电脑上工作。电脑只会主动连我们，不需要开放任何端口。',
+  localShort: 'WSL2 / Linux，零成本',
+  cloudShort: '24 小时在线，推荐',
+  pairStepCloud: '登录你的服务器（推荐 Ubuntu 24.04，2 核 4G）',
+  pairStepPaste: '复制下面这一行，粘贴进去回车',
+  expiresIn: '配对码 {code} · {time} 后过期',
+  codeExpired: '配对码已过期，重新生成一个就好。',
+  pairWelcome: '{name} 已经连上，马上回到你的团队。',
 };
 export default zh;

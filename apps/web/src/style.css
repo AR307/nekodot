@@ -83,7 +83,9 @@ summary:focus-visible,
   color: var(--ink-2);
 }
 
-/* buttons: ink primary, outlined secondary, quiet ghost; all press down slightly */
+/* buttons: ink primary,
+outlined secondary,
+quiet ghost; all press down slightly */
 .primary-button,
 .secondary-button,
 .quiet-button,
@@ -231,7 +233,8 @@ summary:focus-visible,
   box-shadow: 0 1px 0 var(--line);
 }
 
-/* status dot: ok pulses outward, connecting spins an amber ring */
+/* status dot: ok pulses outward,
+connecting spins an amber ring */
 .status-dot {
   position: relative;
   width: 8px;
@@ -365,23 +368,6 @@ summary:focus-visible,
   z-index: 4;
   top: 17px;
   right: 18px;
-}
-.pair-success {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  gap: 12px;
-  margin: 25px auto;
-  color: var(--ok);
-}
-.pair-success i {
-  position: absolute;
-  top: 30px;
-  left: calc(50% - 3px);
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
 }
 .auth-brand-panel {
   padding: 52px clamp(28px, 7vw, 112px);
@@ -526,15 +512,12 @@ legend {
   text-align: center;
 }
 
-/* pairing */
-.pair-page,
 .settings-page {
   min-height: 100vh;
   max-width: 1000px;
   margin: auto;
   padding: 0 32px 60px;
 }
-.page-top,
 .settings-header {
   height: 90px;
   display: flex;
@@ -542,135 +525,13 @@ legend {
   border-bottom: 1px solid var(--line);
   gap: 18px;
 }
-.page-top .wordmark,
 .settings-header .wordmark {
   margin-right: auto;
 }
-.step-label {
-  color: var(--ink-2);
-  font-size: 12px;
-}
-.pair-content {
-  max-width: 700px;
-  margin: 70px auto 0;
-}
-.pair-content h1,
 .settings-body h1 {
   font-size: clamp(36px, 5vw, 54px);
   letter-spacing: -2px;
   margin: 18px 0 8px;
-}
-.pair-lead {
-  font-size: 16px;
-  margin-bottom: 34px;
-}
-.pair-choices {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin: 24px 0;
-}
-.choice-card {
-  min-height: 128px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: var(--surface);
-  color: inherit;
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-}
-.choice-card.active {
-  border: 1.5px solid var(--accent);
-  box-shadow: 0 0 0 4px var(--accent-soft);
-}
-.choice-card.disabled {
-  opacity: 0.5;
-}
-.choice-icon {
-  color: var(--accent);
-  margin-bottom: 10px;
-}
-.choice-card small,
-.paired-node small {
-  color: var(--ink-2);
-}
-.command-box {
-  background: var(--ink);
-  color: var(--bg);
-  border-radius: 12px;
-  padding: 18px;
-  position: relative;
-}
-.command-label {
-  display: block;
-  color: var(--accent);
-  font-size: 10px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  margin-bottom: 12px;
-}
-.command-box code {
-  display: block;
-  font: 12px/1.6 var(--font-mono);
-  word-break: break-all;
-  padding-right: 84px;
-}
-.copy-button {
-  position: absolute;
-  right: 12px;
-  top: 38px;
-  color: var(--accent);
-  background: transparent;
-  font-size: 11px;
-  font-weight: 700;
-}
-.pair-wait {
-  margin: 18px 0;
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  padding: 17px 0;
-  border-bottom: 1px solid var(--line);
-}
-.pair-wait strong,
-.pair-wait small {
-  display: block;
-}
-.pair-wait small {
-  color: var(--ink-2);
-  font: 11px var(--font-mono);
-  margin-top: 3px;
-}
-.online-pulse {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--warn);
-  margin-left: auto;
-  box-shadow: 0 0 0 0 color-mix(in srgb, var(--warn) 40%, transparent);
-  animation: pulse 1.4s infinite;
-}
-.paired-nodes {
-  display: grid;
-  gap: 8px;
-  margin-top: 24px;
-}
-.paired-node {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 10px 12px;
-  background: var(--surface);
-  border-radius: 12px;
-}
-.paired-node span:last-child {
-  display: flex;
-  flex-direction: column;
 }
 
 .thinking-dots {
@@ -930,39 +791,16 @@ legend {
   .auth-form-panel {
     padding: 29px 24px 50px;
   }
-  .pair-page,
   .settings-page {
     padding: 0 20px 44px;
-  }
-  .pair-content {
-    margin-top: 42px;
-  }
-  .pair-choices {
-    gap: 8px;
-  }
-  .choice-card {
-    padding: 14px;
-    min-height: 116px;
-  }
-  .command-box code {
-    padding-right: 0;
-    padding-bottom: 34px;
-  }
-  .copy-button {
-    top: auto;
-    bottom: 13px;
-    left: 18px;
-    right: auto;
   }
   .settings-body {
     margin-top: 38px;
   }
-  .settings-header,
-  .page-top {
+  .settings-header {
     gap: 10px;
   }
-  .settings-header > span:not(.wordmark),
-  .step-label {
+  .settings-header > span:not(.wordmark) {
     display: none;
   }
   .settings-card-heading {
