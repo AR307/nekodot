@@ -16,6 +16,7 @@ import {
 import { avatarColors, fill, listTime, type Texts } from '../shared';
 import { NodePicker } from './node-picker';
 import { readableMessageText } from './files';
+import { plainText } from './markdown';
 
 export type AppView = 'chats' | 'skills' | 'plugins';
 export const modKey = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl';
@@ -207,7 +208,7 @@ function previewMessage(messages: Message[]) {
 
 function previewText(message: Message) {
   if (message.kind === 'text' || message.kind === 'commentary' || message.kind === 'system')
-    return readableMessageText(message.content.text).replace(/\s+/g, ' ').slice(0, 80);
+    return plainText(readableMessageText(message.content.text)).replace(/\s+/g, ' ').slice(0, 80);
   if (message.kind === 'tool') return message.content.tool;
   return message.content.command ?? message.content.prompt;
 }

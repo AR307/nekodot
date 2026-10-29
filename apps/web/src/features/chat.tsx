@@ -1,11 +1,22 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { ApprovalChoice, Bot, Conversation, Group, Message } from '@nekodot/protocol';
 import { callNode, loadConversation } from '../relay-connection';
 import { useAppStore } from '../store';
-import { BotAvatar, Icon, SpinnerDots } from '../ui';
-import type { Texts } from '../shared';
+import { BotAvatar, GroupDots, Icon, SpinnerDots, ease, type IconName } from '../ui';
+import { fill, type Texts } from '../shared';
 import { MessageFiles, readableMessageText } from './files';
+import { Markdown, MentionText } from './markdown';
+
+type Activity = 'thinking' | 'tool' | 'waiting_approval' | 'idle';
 
 export function ChatView({
   t,
@@ -27,13 +38,14 @@ export function ChatView({
   chain?: { count: number; max: number };
   conversation: Conversation;
   messages: Message[];
-  activity: 'thinking' | 'tool' | 'waiting_approval' | 'idle';
+  activity: Activity;
   online: boolean;
   onBack(): void;
   onEdit(): void;
 }) {
   const [draft, setDraft] = useState('');
   const [caret, setCaret] = useState(0);
+  const [mentionIndex, setMentionIndex] = useState(0);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
@@ -41,17 +53,33 @@ export function ChatView({
   const pendingDraft = useRef<{ text: string; clientMsgId: string } | null>(null);
   const [loadingEarlier, setLoadingEarlier] = useState(false);
   const [historyComplete, setHistoryComplete] = useState(false);
-  const loadingEarlierRef = useRef(false);
-  const tailRef = useRef<HTMLDivElement>(null);
-  const lastMessage = messages.at(-1);
-  const lastText = lastMessage?.kind === 'text' ? lastMessage.content.text : '';
   const reduceMotion = useReducedMotion();
   const running = activity !== 'idle';
   const members = group ? bots.filter((member) => group.botIds.includes(member.botId)) : [];
+  const handles = group ? members.map((member) => member.handle) : undefined;
+  const lead = group ? bots.find((member) => member.botId === group.leadBotId) : undefined;
   const mentionMatch = group ? /(?:^|\s)@([a-z0-9-]*)$/.exec(draft.slice(0, caret)) : null;
   const mentionOptions = mentionMatch
     ? members.filter((member) => member.handle.startsWith(mentionMatch[1]!))
     : [];
+  const activeMention = mentionOptions[Math.min(mentionIndex, mentionOptions.length - 1)];
+
+  const {
+    ref: scrollRef,
+    away,
+    unseen,
+    onScroll,
+    keepPosition,
+    stickToBottom,
+    toBottom,
+  } = useChatScroll(messages, activity);
+
+  useLayoutEffect(() => {
+    const element = composerRef.current;
+    if (!element) return;
+    element.style.height = 'auto';
+    element.style.height = Math.min(element.scrollHeight, 168) + 'px';
+  }, [draft]);
 
   function insertMention(member: Bot) {
     const start = draft.lastIndexOf('@', caret - 1);
@@ -65,32 +93,24 @@ export function ChatView({
     });
   }
 
-  useEffect(() => {
-    if (loadingEarlierRef.current) return;
-    tailRef.current?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'end' });
-  }, [messages.length, lastText, activity, reduceMotion]);
-
   async function loadEarlier() {
     const first = messages[0];
     const nodeId = useAppStore.getState().selectedNodeId;
     if (!first || !nodeId || loadingEarlier) return;
     setLoadingEarlier(true);
-    loadingEarlierRef.current = true;
     try {
       const result = await callNode('messages.list', {
         conversationId: conversation.conversationId,
         beforeSeq: first.seq,
         limit: 50,
       });
+      keepPosition();
       useAppStore.getState().setMessages(nodeId, conversation.conversationId, result.messages);
       setHistoryComplete(result.messages.length < 50);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t.sendError);
     } finally {
       setLoadingEarlier(false);
-      window.requestAnimationFrame(() => {
-        loadingEarlierRef.current = false;
-      });
     }
   }
 
@@ -113,6 +133,7 @@ export function ChatView({
       setDraft('');
       pendingDraft.current = null;
       setInstructionAdded(addingToCurrentRun);
+      stickToBottom();
       await loadConversation(conversation.conversationId);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t.sendError);
@@ -129,388 +150,765 @@ export function ChatView({
     }
   }
 
+  const statusText = !online
+    ? t.offline
+    : activity === 'thinking'
+      ? t.thinking
+      : activity === 'tool'
+        ? t.usingTool
+        : activity === 'waiting_approval'
+          ? t.waitingApproval
+          : group
+            ? `${members.length} ${t.members}`
+            : '@' + bot.handle;
+  const bannerText = fill(
+    activity === 'waiting_approval'
+      ? t.botWaitingLine
+      : activity === 'tool'
+        ? t.botToolLine
+        : t.botThinkingLine,
+    { name: bot.displayName },
+  );
+  const blocks = buildBlocks(messages, t);
+  const lastBlock = blocks.at(-1);
+  const lastMessage = messages.at(-1);
+  const streamingTail =
+    lastMessage?.author.type === 'bot' &&
+    lastMessage.author.id === bot.botId &&
+    lastMessage.status === 'streaming' &&
+    lastMessage.kind === 'text';
+  const thinkingInline =
+    activity === 'thinking' &&
+    !streamingTail &&
+    lastBlock?.kind === 'bot' &&
+    lastBlock.botId === bot.botId;
+  const thinkingAlone = activity === 'thinking' && !streamingTail && !thinkingInline;
+  const showIntro = messages.length < 50 || historyComplete;
+
   return (
     <div className="chat-column">
       <header className="chat-header">
         <button className="icon-button back-button" onClick={onBack} aria-label={t.home}>
-          <Icon name="chevron" />
+          <Icon name="back" />
         </button>
-        <BotAvatar color={bot.avatar.color} size={42} working={running} />
         <button className="chat-title" onClick={onEdit}>
-          <strong>{group?.name ?? bot.displayName}</strong>
-          <small>
-            {group
-              ? `${t.leadBot}: ${bots.find((member) => member.botId === group.leadBotId)?.displayName}`
-              : '@' + bot.handle}
-          </small>
+          <span className="chat-title-avatar">
+            {group ? (
+              <GroupDots colors={members.map((member) => member.avatar.color)} size={26} />
+            ) : (
+              <BotAvatar color={bot.avatar.color} size={36} working={running} />
+            )}
+          </span>
+          <span className="chat-title-copy">
+            <strong>{group?.name ?? bot.displayName}</strong>
+            <small>
+              {group && lead && (
+                <span className="chat-lead">
+                  {t.leadBot}: {lead.displayName}
+                </span>
+              )}
+              <span
+                className={`chat-status${online ? ' online' : ''}${running && online ? ' is-busy' : ''}${activity === 'waiting_approval' ? ' is-waiting' : ''}`}
+              >
+                {online && running && activity !== 'waiting_approval' && <SpinnerDots />}
+                {statusText}
+              </span>
+            </small>
+          </span>
         </button>
-        <div className={`chat-status ${online ? 'online' : 'offline'}`}>
-          <i />
-          {!online
-            ? t.offline
-            : activity === 'thinking'
-              ? t.thinking
-              : activity === 'tool'
-                ? t.usingTool
-                : activity === 'waiting_approval'
-                  ? t.waitingApproval
-                  : online
-                    ? t.connected
-                    : t.offline}
-        </div>
         <button
-          className="icon-button"
+          className="icon-button bordered"
           onClick={onEdit}
           aria-label={group ? t.editGroup : t.editBot}
-          title={group ? t.editGroup : t.editBot}
+          title={group ? t.editGroup : t.details}
         >
-          <Icon name="settings" />
+          <Icon name="panel" />
         </button>
       </header>
-      <div className="message-scroll">
+      <div className="message-scroll" ref={scrollRef} onScroll={onScroll}>
         <div className="messages-inner">
           {messages.length >= 50 && !historyComplete && (
             <button
-              className="text-button load-earlier"
+              className="secondary-button load-earlier"
               disabled={loadingEarlier}
               onClick={() => void loadEarlier()}
             >
+              {loadingEarlier ? <SpinnerDots /> : <Icon name="arrowUp" />}
               {t.loadEarlier}
             </button>
           )}
-          <div className="chat-date">
-            <span>
-              {group ? `${t.groupChat} · ${members.length} ${t.members}` : `${t.dm} · ${bot.model}`}
-            </span>
-          </div>
-          <AnimatePresence initial={false}>
-            {messages.map((message) => (
-              <MessageView
-                key={message.messageId}
-                t={t}
-                bot={bots.find((member) => member.botId === message.author.id) ?? bot}
-                members={group ? members : undefined}
-                message={message}
-                onRetry={setDraft}
-              />
-            ))}
-          </AnimatePresence>
-          {activity === 'thinking' && (
-            <div className="bot-thinking">
-              <BotAvatar color={bot.avatar.color} size={36} working />
-              <div>
-                <small>
-                  {bot.displayName} · {t.thinking}
-                </small>
-                <SpinnerDots />
+          {showIntro && (
+            <div className="chat-intro">
+              {group ? (
+                <GroupDots colors={members.map((member) => member.avatar.color)} size={44} />
+              ) : (
+                <BotAvatar color={bot.avatar.color} size={60} />
+              )}
+              <h2>{group?.name ?? bot.displayName}</h2>
+              {!group && bot.role && <p className="chat-intro-role">{bot.role}</p>}
+              <p className="muted">
+                {group
+                  ? fill(t.groupIntro, {
+                      names: members.map((member) => member.displayName).join(t.listSeparator),
+                      lead: lead?.displayName ?? '',
+                    })
+                  : fill(t.dmIntro, { name: bot.displayName })}
+              </p>
+              {!group && (
+                <span className="chat-intro-meta">
+                  @{bot.handle} · {bot.model}
+                </span>
+              )}
+            </div>
+          )}
+          {blocks.map((block) => {
+            if (block.kind === 'divider')
+              return (
+                <div className="day-divider" key={block.key}>
+                  <span>{block.label}</span>
+                </div>
+              );
+            if (block.kind === 'system')
+              return (
+                <Appear key={block.key} id={'message-' + block.message.messageId}>
+                  <SystemLine t={t} message={block.message} onRetry={setDraft} />
+                </Appear>
+              );
+            if (block.kind === 'user')
+              return (
+                <div className="user-block" key={block.key}>
+                  {block.messages.map((message) => (
+                    <Appear key={message.messageId} id={'message-' + message.messageId}>
+                      <div className="message from-user">
+                        <div className="user-bubble">
+                          {message.kind === 'text' && (
+                            <MentionText text={message.content.text} mentions={handles} />
+                          )}
+                        </div>
+                      </div>
+                    </Appear>
+                  ))}
+                </div>
+              );
+            const author = bots.find((member) => member.botId === block.botId) ?? bot;
+            const working =
+              running &&
+              author.botId === bot.botId &&
+              block === lastBlock &&
+              activity !== 'waiting_approval';
+            return (
+              <div
+                className="bot-block"
+                key={block.key}
+                style={{ '--bot': author.avatar.color } as CSSProperties}
+              >
+                <span className="block-avatar">
+                  <BotAvatar color={author.avatar.color} size={32} working={working} />
+                </span>
+                <div className="block-body">
+                  {group && (
+                    <span className="message-author">
+                      <strong>{author.displayName}</strong> <span>@{author.handle}</span>
+                    </span>
+                  )}
+                  {block.messages.map((message) => (
+                    <Appear key={message.messageId} id={'message-' + message.messageId}>
+                      <BotMessage
+                        t={t}
+                        bot={author}
+                        members={group ? members : undefined}
+                        message={message}
+                      />
+                    </Appear>
+                  ))}
+                  {thinkingInline && block === lastBlock && <ThinkingRow />}
+                </div>
+              </div>
+            );
+          })}
+          {thinkingAlone && (
+            <div className="bot-block" style={{ '--bot': bot.avatar.color } as CSSProperties}>
+              <span className="block-avatar">
+                <BotAvatar color={bot.avatar.color} size={32} working />
+              </span>
+              <div className="block-body">
+                {group && (
+                  <span className="message-author">
+                    <strong>{bot.displayName}</strong> <span>@{bot.handle}</span>
+                  </span>
+                )}
+                <ThinkingRow />
               </div>
             </div>
           )}
           {group && running && chain && (
             <div className="chain-progress" role="status">
-              {t.relayProgress} {chain.count} / {chain.max}
+              <span className="chain-steps" aria-hidden="true">
+                {Array.from({ length: chain.max }, (_, index) => (
+                  <i key={index} className={index < chain.count ? 'done' : ''} />
+                ))}
+              </span>
+              {t.relayProgress} {chain.count} / {chain.max} {t.relayRounds}
             </div>
           )}
-          <div ref={tailRef} />
+          <div className="scroll-tail" />
         </div>
       </div>
       <div className="composer-wrap">
-        {running && (
-          <div
-            className={`run-banner ${activity === 'waiting_approval' ? 'approval-waiting' : ''}`}
-          >
-            <span>
-              {activity === 'waiting_approval'
-                ? t.waitingApproval
-                : activity === 'tool'
-                  ? t.usingTool
-                  : t.inputHint}
-            </span>
-            <button className="stop-button" onClick={() => void stop()}>
-              <Icon name="stop" />
-              {group ? t.stopAll : t.stop}
-            </button>
-          </div>
-        )}
+        <AnimatePresence>
+          {away && (
+            <motion.button
+              className="jump-latest"
+              onClick={toBottom}
+              initial={{ opacity: 0, y: 8, x: '-50%' }}
+              animate={{ opacity: 1, y: 0, x: '-50%' }}
+              exit={{ opacity: 0, y: 8, x: '-50%' }}
+              transition={{ duration: reduceMotion ? 0.1 : 0.2, ease }}
+            >
+              <Icon name="arrowDown" />
+              {unseen ? fill(t.newMessagesCount, { count: unseen }) : t.jumpLatest}
+            </motion.button>
+          )}
+        </AnimatePresence>
+        <AnimatePresence initial={false}>
+          {running && (
+            <motion.div
+              className={`run-banner${activity === 'waiting_approval' ? ' approval-waiting' : ''}`}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: reduceMotion ? 0.1 : 0.22, ease }}
+            >
+              <span className="run-banner-copy">
+                {activity === 'waiting_approval' ? (
+                  <Icon name="warning" />
+                ) : (
+                  <BotAvatar color={bot.avatar.color} size={20} working />
+                )}
+                <span>{bannerText}</span>
+                {activity !== 'waiting_approval' && (
+                  <small className="run-banner-hint">· {t.steerHint}</small>
+                )}
+              </span>
+              <button className="stop-button" onClick={() => void stop()}>
+                <i />
+                {group ? t.stopAll : t.stop}
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
         {instructionAdded && (
           <p className="inline-success" role="status">
+            <Icon name="check" />
             {t.currentInstruction}
           </p>
         )}
         {error && (
           <div className="inline-error" role="alert">
-            {error}
+            <Icon name="warning" />
+            <span>{error}</span>
             <button onClick={() => setError('')}>{t.close}</button>
           </div>
         )}
-        <form className="composer" onSubmit={(event) => void send(event)}>
-          {mentionOptions.length > 0 && (
-            <div className="mention-menu" role="listbox" aria-label={t.mentionMember}>
-              {mentionOptions.map((member) => (
-                <button
-                  key={member.botId}
-                  type="button"
-                  role="option"
-                  aria-selected={false}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => insertMention(member)}
-                >
-                  <BotAvatar color={member.avatar.color} size={28} />
-                  <span>
-                    {member.displayName}
-                    <small>@{member.handle}</small>
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
+        <form
+          className={`composer${running ? ' is-running' : ''}`}
+          onSubmit={(event) => void send(event)}
+        >
+          <AnimatePresence>
+            {mentionOptions.length > 0 && (
+              <motion.div
+                className="mention-menu"
+                role="listbox"
+                aria-label={t.mentionMember}
+                initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                transition={{ duration: reduceMotion ? 0.1 : 0.16, ease }}
+              >
+                <span className="mention-heading">{t.mentionMember}</span>
+                {mentionOptions.map((member) => (
+                  <button
+                    key={member.botId}
+                    type="button"
+                    role="option"
+                    aria-selected={member === activeMention}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onMouseMove={() => setMentionIndex(mentionOptions.indexOf(member))}
+                    onClick={() => insertMention(member)}
+                  >
+                    <BotAvatar color={member.avatar.color} size={26} />
+                    <strong>{member.displayName}</strong>
+                    <small>
+                      @{member.handle}
+                      {member.role ? ' · ' + member.role : ''}
+                    </small>
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
           <textarea
             ref={composerRef}
             aria-label={running ? t.supplement : t.typeMessage}
-            placeholder={running ? t.supplement : t.typeMessage}
+            placeholder={
+              running
+                ? t.supplement
+                : group
+                  ? t.typeGroupMessage
+                  : fill(t.typeMessageTo, { name: bot.displayName })
+            }
             rows={1}
             value={draft}
             onChange={(event) => {
               setDraft(event.target.value);
               setCaret(event.target.selectionStart);
+              setMentionIndex(0);
             }}
             onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
+              if (mentionOptions.length && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
                 event.preventDefault();
-                if (mentionOptions[0]) {
-                  insertMention(mentionOptions[0]);
-                  return;
-                }
+                const step = event.key === 'ArrowDown' ? 1 : -1;
+                setMentionIndex(
+                  (mentionOptions.indexOf(activeMention!) + step + mentionOptions.length) %
+                    mentionOptions.length,
+                );
+                return;
+              }
+              if (mentionOptions.length && (event.key === 'Tab' || event.key === 'Enter')) {
+                event.preventDefault();
+                insertMention(activeMention!);
+                return;
+              }
+              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                event.preventDefault();
                 event.currentTarget.form?.requestSubmit();
               }
             }}
           />
-          <button
+          <motion.button
             className="send-button"
             disabled={!draft.trim() || sending || !online || activity === 'waiting_approval'}
             aria-label={t.send}
+            whileTap={reduceMotion ? undefined : { scale: 0.9 }}
           >
-            <Icon name="send" />
-          </button>
+            {sending ? <SpinnerDots /> : <Icon name="arrowUp" />}
+          </motion.button>
         </form>
-        <div className="composer-hint">
-          {activity === 'waiting_approval' ? t.approvalDraftHint : t.inputHint}
-        </div>
+        {activity === 'waiting_approval' && (
+          <div className="composer-hint">{t.approvalDraftHint}</div>
+        )}
       </div>
     </div>
   );
 }
 
-function MessageView({
+type Block =
+  | { kind: 'divider'; key: string; label: string }
+  | { kind: 'system'; key: string; message: Message }
+  | { kind: 'user'; key: string; messages: Message[] }
+  | { kind: 'bot'; key: string; botId?: string; messages: Message[] };
+
+function visible(message: Message) {
+  if (
+    (message.kind === 'text' || message.kind === 'commentary') &&
+    message.author.type === 'bot' &&
+    message.status === 'done' &&
+    !readableMessageText(message.content.text) &&
+    !(message.kind === 'text' && message.content.files?.length)
+  )
+    return false;
+  return true;
+}
+
+/** Groups consecutive messages by author and inserts time dividers on gaps of 30+ minutes. */
+function buildBlocks(messages: Message[], t: Texts): Block[] {
+  const blocks: Block[] = [];
+  let previous: Message | undefined;
+  for (const message of messages.filter(visible)) {
+    const time = new Date(message.createdAt);
+    if (!previous || time.getTime() - new Date(previous.createdAt).getTime() >= 30 * 60_000)
+      blocks.push({
+        kind: 'divider',
+        key: 'divider-' + message.messageId,
+        label: dividerLabel(time, t),
+      });
+    const last = blocks.at(-1);
+    if (message.author.type === 'system')
+      blocks.push({ kind: 'system', key: message.messageId, message });
+    else if (message.author.type === 'user') {
+      if (last?.kind === 'user') last.messages.push(message);
+      else blocks.push({ kind: 'user', key: message.messageId, messages: [message] });
+    } else if (last?.kind === 'bot' && last.botId === message.author.id)
+      last.messages.push(message);
+    else
+      blocks.push({
+        kind: 'bot',
+        key: message.messageId,
+        botId: message.author.id,
+        messages: [message],
+      });
+    previous = message;
+  }
+  return blocks;
+}
+
+function dividerLabel(date: Date, t: Texts) {
+  const locale = t.team === '团队' ? 'zh-CN' : 'en-US';
+  const clock = date.toLocaleTimeString(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const days = Math.round((today - day) / 86_400_000);
+  if (days === 0) return `${t.today} ${clock}`;
+  if (days === 1) return `${t.yesterday} ${clock}`;
+  return (
+    date.toLocaleDateString(locale, { month: 'short', day: 'numeric', weekday: 'short' }) +
+    ' ' +
+    clock
+  );
+}
+
+/** Follows new content only while the reader is at the bottom; otherwise counts what arrived. */
+function useChatScroll(messages: Message[], activity: Activity) {
+  const ref = useRef<HTMLDivElement>(null);
+  const atBottom = useRef(true);
+  const restore = useRef<{ height: number; top: number } | null>(null);
+  const count = useRef(messages.length);
+  const [away, setAway] = useState(false);
+  const [unseen, setUnseen] = useState(0);
+  const reduceMotion = useReducedMotion();
+  const last = messages.at(-1);
+  const lastSize =
+    last && (last.kind === 'text' || last.kind === 'commentary') ? last.content.text.length : 0;
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const added = messages.length - count.current;
+    count.current = messages.length;
+    if (restore.current) {
+      element.scrollTop = restore.current.top + (element.scrollHeight - restore.current.height);
+      restore.current = null;
+      return;
+    }
+    if (atBottom.current) element.scrollTop = element.scrollHeight;
+    else if (added > 0) setUnseen((value) => value + added);
+  }, [messages.length, lastSize, activity, last?.status, messages]);
+
+  useEffect(() => {
+    ref.current?.scrollTo({ top: ref.current.scrollHeight });
+  }, []);
+
+  return {
+    ref,
+    away,
+    unseen,
+    onScroll() {
+      const element = ref.current!;
+      const near = element.scrollHeight - element.scrollTop - element.clientHeight < 96;
+      atBottom.current = near;
+      setAway(!near);
+      if (near) setUnseen(0);
+    },
+    keepPosition() {
+      const element = ref.current;
+      if (element) restore.current = { height: element.scrollHeight, top: element.scrollTop };
+    },
+    stickToBottom() {
+      atBottom.current = true;
+    },
+    toBottom() {
+      atBottom.current = true;
+      setUnseen(0);
+      ref.current?.scrollTo({
+        top: ref.current.scrollHeight,
+        behavior: reduceMotion ? 'auto' : 'smooth',
+      });
+    },
+  };
+}
+
+function Appear({ id, children }: { id: string; children: ReactNode }) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <motion.div
+      id={id}
+      className="appear"
+      initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: reduceMotion ? 0.1 : 0.22, ease }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function ThinkingRow() {
+  return (
+    <div className="thinking-row">
+      <SpinnerDots />
+    </div>
+  );
+}
+
+function SystemLine({
+  t,
+  message,
+  onRetry,
+}: {
+  t: Texts;
+  message: Message;
+  onRetry(text: string): void;
+}) {
+  if (message.kind !== 'system') return null;
+  const text = message.content.text;
+  return (
+    <p className="system-message">
+      <span>
+        {message.content.retryText ? (
+          <>
+            {t.unconsumedInstruction}{' '}
+            <button className="text-button" onClick={() => onRetry(message.content.retryText!)}>
+              {t.prepareResend}
+            </button>
+          </>
+        ) : text === 'Relay paused after 6 turns. Mention a group member to continue.' ? (
+          t.relayPaused
+        ) : text.endsWith(' could not complete this turn.') ? (
+          t.botTurnFailed.replace('{name}', text.slice(0, -' could not complete this turn.'.length))
+        ) : (
+          text
+        )}
+      </span>
+    </p>
+  );
+}
+
+function BotMessage({
   t,
   bot,
   message,
   members,
-  onRetry,
 }: {
   t: Texts;
   bot: Bot;
   message: Message;
   members?: Bot[];
-  onRetry(text: string): void;
 }) {
   const reduceMotion = useReducedMotion();
-  const [expanded, setExpanded] = useState(false);
+  if (message.kind === 'tool') return <ToolCard t={t} message={message} />;
+  if (message.kind === 'approval') return <ApprovalCard t={t} message={message} />;
+  if (message.kind !== 'text' && message.kind !== 'commentary') return null;
+  const displayText = readableMessageText(message.content.text);
   const handoffs =
-    members && message.kind === 'text' && message.status === 'done' && message.author.type === 'bot'
+    members && message.kind === 'text' && message.status === 'done'
       ? members.filter(
           (member) =>
-            member.botId !== message.author.id &&
+            member.botId !== bot.botId &&
             new RegExp(`(?:^|[^\\w@-])@${member.handle}(?![a-z0-9-])`).test(message.content.text),
         )
       : [];
-  const displayText =
-    message.kind === 'text' || message.kind === 'commentary'
-      ? readableMessageText(message.content.text)
-      : '';
-  if (
-    (message.kind === 'text' || message.kind === 'commentary') &&
-    message.author.type === 'bot' &&
-    message.status === 'done' &&
-    !displayText &&
-    !(message.kind === 'text' && message.content.files?.length)
-  )
-    return null;
   return (
-    <motion.article
-      id={'message-' + message.messageId}
-      className={`message message-${message.kind}${message.author.type === 'user' ? ' from-user' : ''}`}
-      initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 0 }}
-      transition={{ duration: reduceMotion ? 0.1 : 0.22, ease: [0.2, 0.8, 0.2, 1] }}
-    >
-      {message.author.type === 'user' ? (
-        <div className="user-bubble">{message.kind === 'text' && message.content.text}</div>
-      ) : message.author.type === 'system' ? (
-        <p className="system-message">
-          {message.kind === 'system' &&
-            (message.content.retryText ? (
-              <>
-                {t.unconsumedInstruction}{' '}
-                <button className="text-button" onClick={() => onRetry(message.content.retryText!)}>
-                  {t.prepareResend}
-                </button>
-              </>
-            ) : message.content.text ===
-              'Relay paused after 6 turns. Mention a group member to continue.' ? (
-              t.relayPaused
-            ) : message.content.text.endsWith(' could not complete this turn.') ? (
-              t.botTurnFailed.replace(
-                '{name}',
-                message.content.text.slice(0, -' could not complete this turn.'.length),
-              )
-            ) : (
-              message.content.text
-            ))}
-        </p>
-      ) : (
-        <>
-          {(message.kind === 'text' || message.kind === 'commentary') && (
-            <>
-              <BotAvatar
-                color={bot.avatar.color}
-                size={32}
-                working={message.status === 'streaming'}
-              />
-              <div className="bot-message-body">
-                <span className="message-author">
-                  {bot.displayName}
-                  {members ? ` @${bot.handle}` : ''}
-                </span>
-                <div className={message.kind === 'commentary' ? 'commentary-copy' : 'bot-copy'}>
-                  {displayText}
-                  {message.status === 'streaming' && <span className="stream-cursor">▍</span>}
-                  {message.status === 'failed' && (
-                    <small className="message-state failed-state"> · {t.failed}</small>
-                  )}
-                  {message.status === 'cancelled' && (
-                    <small className="message-state"> · {t.stopped}</small>
-                  )}
-                </div>
-                {message.kind === 'text' && Boolean(message.content.files?.length) && (
-                  <MessageFiles botId={bot.botId} messageId={message.messageId} t={t} />
-                )}
-                {handoffs?.map((member) => (
-                  <motion.span
-                    className="handoff-tag"
-                    key={member.botId}
-                    initial={{ opacity: 0, x: reduceMotion ? 0 : -12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: reduceMotion ? 0.1 : 0.2 }}
-                  >
-                    <motion.span
-                      animate={{ y: reduceMotion ? 0 : [0, -4, 0] }}
-                      transition={{ duration: reduceMotion ? 0.1 : 0.3 }}
-                    >
-                      <BotAvatar color={member.avatar.color} size={18} />
-                    </motion.span>
-                    → {t.handoffTo} @{member.handle}
-                  </motion.span>
-                ))}
-              </div>
-            </>
-          )}
-          {message.kind === 'tool' && (
-            <div
-              className={`tool-card${message.content.error && message.status !== 'cancelled' ? ' tool-error' : ''}`}
-            >
-              {members && (
-                <small className="card-author">
-                  {bot.displayName} @{bot.handle}
-                </small>
-              )}
-              <button className="tool-summary" onClick={() => setExpanded(!expanded)}>
-                <span className={`tool-check ${message.status === 'streaming' ? 'spinning' : ''}`}>
-                  {message.status === 'streaming'
-                    ? '◌'
-                    : message.status === 'cancelled'
-                      ? '×'
-                      : message.content.error || message.status === 'failed'
-                        ? '!'
-                        : '✓'}
-                </span>
-                <span className="tool-title">
-                  <strong>{message.content.tool}</strong>
-                  <small>{message.content.preview}</small>
-                </span>
-                <span className="tool-status">
-                  {message.status === 'streaming' ? (
-                    <SpinnerDots />
-                  ) : message.status === 'cancelled' ? (
-                    t.stopped
-                  ) : message.status === 'failed' || message.content.error ? (
-                    t.failed
-                  ) : (
-                    t.completed
-                  )}
-                  <Icon name="chevron" />
-                </span>
-              </button>
-              <AnimatePresence>
-                {expanded && (
-                  <motion.div
-                    className="tool-result"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={
-                      reduceMotion
-                        ? { duration: 0.1 }
-                        : { type: 'spring', stiffness: 400, damping: 32 }
-                    }
-                  >
-                    <span>
-                      {t.toolDetails}
-                      {message.content.durationMs
-                        ? ` · ${(message.content.durationMs / 1000).toFixed(1)}s`
-                        : ''}
-                    </span>
-                    <pre>{message.content.resultPreview || message.content.preview}</pre>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
-          {message.kind === 'approval' && (
-            <ApprovalCard
-              t={t}
-              message={message}
-              author={members ? `${bot.displayName} @${bot.handle}` : undefined}
-            />
-          )}
-        </>
+    <div className={`message message-${message.kind}`}>
+      <div className={message.kind === 'commentary' ? 'commentary-copy' : 'bot-copy'}>
+        {message.kind === 'commentary' ? (
+          displayText
+        ) : (
+          <Markdown
+            text={displayText}
+            mentions={members?.map((member) => member.handle)}
+            copyLabel={t.copyText}
+            copiedLabel={t.copied}
+            trailing={message.status === 'streaming' && <span className="stream-cursor">▍</span>}
+          />
+        )}
+        {message.kind === 'commentary' && message.status === 'streaming' && (
+          <span className="stream-cursor">▍</span>
+        )}
+        {message.status === 'failed' && (
+          <small className="message-state failed-state">{t.failed}</small>
+        )}
+        {message.status === 'cancelled' && <small className="message-state">{t.stopped}</small>}
+      </div>
+      {message.kind === 'text' && Boolean(message.content.files?.length) && (
+        <MessageFiles botId={bot.botId} messageId={message.messageId} t={t} />
       )}
-    </motion.article>
+      {handoffs.map((member) => (
+        <motion.span
+          className="handoff-tag"
+          key={member.botId}
+          initial={{ opacity: 0, x: reduceMotion ? 0 : -12 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: reduceMotion ? 0.1 : 0.2, ease }}
+        >
+          <Icon name="arrow" />
+          {t.handoffTo} @{member.handle}
+          <motion.span
+            className="handoff-avatar"
+            animate={{ y: reduceMotion ? 0 : [0, -4, 0] }}
+            transition={{ duration: reduceMotion ? 0.1 : 0.3, delay: 0.16 }}
+          >
+            <BotAvatar color={member.avatar.color} size={16} />
+          </motion.span>
+        </motion.span>
+      ))}
+      {message.kind === 'text' && message.status === 'done' && displayText && (
+        <CopyButton t={t} text={displayText} />
+      )}
+    </div>
+  );
+}
+
+function CopyButton({ t, text }: { t: Texts; text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="message-actions">
+      <button
+        className="tiny-icon"
+        aria-label={copied ? t.copied : t.copyText}
+        title={copied ? t.copied : t.copyText}
+        onClick={() =>
+          void navigator.clipboard.writeText(text).then(() => {
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 1600);
+          })
+        }
+      >
+        <Icon name={copied ? 'check' : 'copy'} />
+      </button>
+    </div>
+  );
+}
+
+function toolIcon(tool: string): IconName {
+  const name = tool.toLowerCase();
+  if (/search|find|grep/.test(name)) return 'search';
+  if (/browser|url|web|fetch|http/.test(name)) return 'globe';
+  if (/terminal|shell|exec|command|code|python/.test(name)) return 'terminal';
+  if (/file|read|write|patch|edit|doc/.test(name)) return 'doc';
+  if (/memory|skill|refine/.test(name)) return 'spark';
+  return 'plugin';
+}
+
+function ToolCard({ t, message }: { t: Texts; message: Extract<Message, { kind: 'tool' }> }) {
+  const reduceMotion = useReducedMotion();
+  const [expanded, setExpanded] = useState(false);
+  const state =
+    message.status === 'streaming'
+      ? 'running'
+      : message.status === 'cancelled'
+        ? 'stopped'
+        : message.content.error || message.status === 'failed'
+          ? 'failed'
+          : 'done';
+  const label =
+    state === 'running'
+      ? t.usingTool
+      : state === 'stopped'
+        ? t.stopped
+        : state === 'failed'
+          ? t.failed
+          : t.completed;
+  const duration = message.content.durationMs
+    ? fill(t.seconds, { value: (message.content.durationMs / 1000).toFixed(1) })
+    : '';
+  return (
+    <div className={`tool-card is-${state}`}>
+      <button
+        className="tool-summary"
+        aria-expanded={expanded}
+        onClick={() => setExpanded(!expanded)}
+      >
+        <span className="tool-icon">
+          <Icon name={toolIcon(message.content.tool)} />
+        </span>
+        <span className="tool-title">
+          <strong>{message.content.tool}</strong>
+          <small>{message.content.preview}</small>
+        </span>
+        <span className="tool-status">
+          {duration && state === 'done' && <span className="tool-duration">{duration}</span>}
+          <span className={state === 'done' || state === 'running' ? 'sr-only' : 'tool-state'}>
+            {label}
+          </span>
+          <span className="tool-state-icon">
+            <AnimatePresence initial={false} mode="popLayout">
+              <motion.span
+                key={state}
+                initial={{ opacity: 0, scale: 0.6 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.6 }}
+                transition={{ duration: 0.15 }}
+              >
+                {state === 'running' ? (
+                  <span className="tool-spinner" />
+                ) : (
+                  <Icon
+                    name={state === 'done' ? 'check' : state === 'stopped' ? 'stop' : 'warning'}
+                  />
+                )}
+              </motion.span>
+            </AnimatePresence>
+          </span>
+          <span className="tool-chevron">
+            <Icon name="chevronDown" />
+          </span>
+        </span>
+      </button>
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            className="tool-result"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={
+              reduceMotion ? { duration: 0.1 } : { type: 'spring', stiffness: 400, damping: 32 }
+            }
+          >
+            <div className="tool-result-inner">
+              <span>{t.toolInput}</span>
+              <pre>{message.content.preview}</pre>
+              {message.content.resultPreview && (
+                <>
+                  <span>
+                    {t.toolOutput}
+                    {duration ? ' · ' + duration : ''}
+                  </span>
+                  <pre>{message.content.resultPreview}</pre>
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
 function ApprovalCard({
   t,
   message,
-  author,
 }: {
   t: Texts;
   message: Extract<Message, { kind: 'approval' }>;
-  author?: string;
 }) {
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<ApprovalChoice | null>(null);
   const [error, setError] = useState('');
   async function respond(choice: ApprovalChoice) {
-    setBusy(true);
+    setBusy(choice);
     setError('');
     try {
       await callNode('approvals.respond', { messageId: message.messageId, choice });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t.saveError);
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
   const choiceLabels = {
@@ -532,40 +930,66 @@ function ApprovalCard({
       : message.status === 'failed'
         ? t.failed
         : '';
+  const choices = message.content.choices ?? (['once', 'deny'] as const);
+  const extra = choices.filter((choice) => choice === 'session' || choice === 'always');
+  const pending = !status && message.status === 'streaming';
+  const allowed = message.content.choice && message.content.choice !== 'deny';
   return (
-    <div className="approval-card">
-      {author && <small className="card-author">{author}</small>}
+    <div className={`approval-card${pending ? ' is-pending' : ' is-resolved'}`}>
       <div className="approval-title">
-        <span className="approval-mark">!</span>
-        <strong>{status || t.approvalTitle}</strong>
+        <span className="approval-icon">
+          <Icon name="warning" />
+        </span>
+        <strong>{t.approvalTitle}</strong>
       </div>
       <p>{message.content.prompt}</p>
       {message.content.command && <pre className="approval-command">{message.content.command}</pre>}
-      {!status && message.status === 'streaming' && (
-        <div className="approval-actions">
-          {(message.content.choices ?? (['once', 'deny'] as const)).map((choice) => (
-            <button
-              key={choice}
-              className={
-                choice === 'deny'
-                  ? 'deny-button'
-                  : choice === 'once'
-                    ? 'allow-button'
-                    : 'secondary-button'
-              }
-              disabled={busy}
-              onClick={() => void respond(choice)}
-            >
-              {choiceLabels[choice]}
-            </button>
-          ))}
-        </div>
+      {pending && (
+        <>
+          <div className="approval-actions">
+            {choices.includes('once') && (
+              <button
+                className="primary-button"
+                disabled={Boolean(busy)}
+                onClick={() => void respond('once')}
+              >
+                {busy === 'once' && <SpinnerDots />}
+                {choiceLabels.once}
+              </button>
+            )}
+            {choices.includes('deny') && (
+              <button
+                className="secondary-button"
+                disabled={Boolean(busy)}
+                onClick={() => void respond('deny')}
+              >
+                {choiceLabels.deny}
+              </button>
+            )}
+          </div>
+          {extra.length > 0 && (
+            <div className="approval-more">
+              {extra.map((choice) => (
+                <button
+                  key={choice}
+                  className="approval-chip"
+                  disabled={Boolean(busy)}
+                  onClick={() => void respond(choice)}
+                >
+                  {choiceLabels[choice]}
+                </button>
+              ))}
+              <small className="approval-scope-hint">{t.approvalScopeHint}</small>
+            </div>
+          )}
+        </>
       )}
-      {!status &&
-        message.content.choices?.some((choice) => choice === 'session' || choice === 'always') && (
-          <small className="approval-scope-hint">{t.approvalScopeHint}</small>
-        )}
-      {status && <span className="approval-result">{status}</span>}
+      {status && (
+        <span className={`approval-result${allowed ? ' is-allowed' : ''}`}>
+          <Icon name={allowed ? 'check' : 'close'} />
+          {status}
+        </span>
+      )}
       {error && <small className="form-error">{error}</small>}
     </div>
   );

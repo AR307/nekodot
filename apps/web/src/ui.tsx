@@ -147,6 +147,8 @@ export type IconName =
   | 'plus'
   | 'arrow'
   | 'arrowUp'
+  | 'arrowDown'
+  | 'panel'
   | 'back'
   | 'settings'
   | 'laptop'
@@ -187,6 +189,13 @@ const paths: Record<IconName, ReactNode> = {
   plus: <path d="M12 5v14M5 12h14" />,
   arrow: <path d="M5 12h14m-6-6 6 6-6 6" />,
   arrowUp: <path d="M12 19V5M5 12l7-7 7 7" />,
+  arrowDown: <path d="M12 5v14M19 12l-7 7-7-7" />,
+  panel: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M15 4v16" />
+    </>
+  ),
   back: <path d="M15 18l-6-6 6-6" />,
   settings: (
     <>
