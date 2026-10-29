@@ -1,0 +1,15 @@
+{
+  "name": "@nekodot/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "build:windows": "node ../../scripts/build-client.mjs windows",
+    "build:android": "node ../../scripts/build-client.mjs android",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}

@@ -6,6 +6,7 @@ import { useAppStore } from '../store';
 import { Icon, SpinnerDots, Wordmark } from '../ui';
 import type { Texts } from '../shared';
 import { ModelPicker, useModelOptions } from './models';
+import { NotificationSettings } from './notifications';
 type Provider = NonNullable<RpcResult<'providers.get'>>;
 
 export function SettingsPage({
@@ -256,6 +257,7 @@ export function SettingsPage({
             <span />
           </button>
         </section>
+        <NotificationSettings t={t} />
         <section className="settings-card account-card">
           <div>
             <h2>{me?.user.email}</h2>

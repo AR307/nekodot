@@ -1,19 +1,27 @@
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import type { Attachment, Bot, Operation } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
 import { Icon, SpinnerDots } from '../ui';
 import type { Texts } from '../shared';
+import { relayUrl } from '../relay-url';
 import { OperationProgress } from './operations';
+import { android, saveDownload, shareFile } from '../native';
+const PdfPreview = lazy(() =>
+  import('./pdf-preview').then((module) => ({ default: module.PdfPreview })),
+);
 
 export function readableMessageText(text: string) {
   return text.replace(/(?:^|\n)\s*MEDIA:\s*(?:"[^"]+"|'[^']+'|[^\r\n]+)(?=\r?\n|$)/g, '').trim();
 }
 
 async function fetchFile(nodeId: string, fileId: string) {
-  const response = await fetch(`/api/nodes/${encodeURIComponent(nodeId)}/files/${fileId}`, {
-    headers: { Authorization: 'Bearer ' + localStorage.getItem('nekodot-token') },
-  });
+  const response = await fetch(
+    relayUrl(`/api/nodes/${encodeURIComponent(nodeId)}/files/${fileId}`),
+    {
+      headers: { Authorization: 'Bearer ' + localStorage.getItem('nekodot-token') },
+    },
+  );
   if (!response.ok) {
     const value = (await response.json()) as { error?: { message?: string } };
     throw new Error(value.error?.message ?? 'File transfer failed');
@@ -31,19 +39,14 @@ export function FileCard({ file, t, onSource }: { file: Attachment; t: Texts; on
     },
     [preview],
   );
-  async function open(download = false) {
+  async function open(download = false, share = false) {
     setBusy(true);
     setError('');
     try {
       const blob = await fetchFile(nodeId, file.fileId);
-      if (download) {
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = file.name;
-        link.click();
-        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      } else if (file.mime.startsWith('text/')) setPreview({ text: await blob.text() });
+      if (share) await shareFile(blob, file.name);
+      else if (download) await saveDownload(blob, file.name);
+      else if (file.mime.startsWith('text/')) setPreview({ text: await blob.text() });
       else setPreview({ url: URL.createObjectURL(blob) });
     } catch (e) {
       setError(e instanceof Error ? e.message : t.failed);
@@ -98,6 +101,15 @@ export function FileCard({ file, t, onSource }: { file: Attachment; t: Texts; on
                   {t.sourceMessage}
                 </button>
               )}
+              {android && (
+                <button
+                  className="text-button"
+                  disabled={!file.available}
+                  onClick={() => void open(false, true)}
+                >
+                  {t.shareFile}
+                </button>
+              )}
             </>
           )}
         </div>
@@ -129,7 +141,9 @@ export function FileCard({ file, t, onSource }: { file: Attachment; t: Texts; on
             {preview.text !== undefined ? (
               <pre>{preview.text}</pre>
             ) : file.mime === 'application/pdf' ? (
-              <iframe title={file.name} src={preview.url} />
+              <Suspense fallback={<SpinnerDots />}>
+                <PdfPreview title={file.name} url={preview.url!} />
+              </Suspense>
             ) : file.mime === 'image/svg+xml' ? (
               <iframe title={file.name} sandbox="" src={preview.url} />
             ) : (

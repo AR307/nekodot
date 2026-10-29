@@ -3,6 +3,7 @@ import {
   envelopeSchema,
   eventSchema,
   liveSchema,
+  notificationSchema,
   type RpcMethod,
   type RpcParams,
   type PersistedEvent,
@@ -10,6 +11,9 @@ import {
 } from '@nekodot/protocol';
 import { cancelRpcRequests, newEnvelope, resolveRpc, rpc } from './api';
 import { useAppStore } from './store';
+import { relaySocketUrl } from './relay-url';
+import { showTaskNotification } from './features/notifications';
+import { android, appActive } from './native';
 
 let activeSocket: WebSocket | null = null;
 let clientReady = false;
@@ -164,9 +168,7 @@ export function RelayConnection() {
     const connect = () => {
       if (stopped) return;
       window.clearTimeout(timer);
-      const currentSocket = new WebSocket(
-        window.location.origin.replace(/^http/, 'ws') + '/ws/client',
-      );
+      const currentSocket = new WebSocket(relaySocketUrl('/ws/client'));
       socket = currentSocket;
       activeSocket = currentSocket;
       clientReady = false;
@@ -181,6 +183,11 @@ export function RelayConnection() {
           setClientReady(currentSocket);
           useAppStore.getState().setSocketReady(true);
           void synchronize(currentSocket);
+        } else if (message.type === 'notify' && message.nodeId) {
+          void showTaskNotification({
+            ...notificationSchema.parse(message.payload),
+            nodeId: message.nodeId,
+          });
         } else if (message.type === 'rpc.res') {
           if (message.replyTo) resolveRpc(message.replyTo, message.payload);
         } else if (message.type === 'node.status' && message.nodeId === selectedNodeId) {
@@ -204,7 +211,7 @@ export function RelayConnection() {
         clientReady = false;
         useAppStore.getState().setSocketReady(false);
         cancelRpcRequests();
-        if (!stopped) {
+        if (!stopped && (!android || appActive())) {
           timer = window.setTimeout(connect, reconnectDelay);
           reconnectDelay = Math.min(reconnectDelay * 2, 30_000);
         }
@@ -218,15 +225,23 @@ export function RelayConnection() {
         socket.close(1000, 'Client resumed');
       } else if (socket?.readyState !== WebSocket.CONNECTING) connect();
     };
+    const pauseConnection = () => {
+      if (android) {
+        window.clearTimeout(timer);
+        socket?.close(4002, 'App backgrounded');
+      }
+    };
     connect();
     window.addEventListener('pageshow', resumeConnection);
     window.addEventListener('online', resumeConnection);
+    window.addEventListener('nekodot:pause', pauseConnection);
     document.addEventListener('visibilitychange', resumeConnection);
     return () => {
       stopped = true;
       window.clearTimeout(timer);
       window.removeEventListener('pageshow', resumeConnection);
       window.removeEventListener('online', resumeConnection);
+      window.removeEventListener('nekodot:pause', pauseConnection);
       document.removeEventListener('visibilitychange', resumeConnection);
       if (activeSocket === socket) {
         activeSocket = null;

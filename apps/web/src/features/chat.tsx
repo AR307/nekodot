@@ -15,6 +15,7 @@ import { BotAvatar, GroupDots, Icon, SpinnerDots, ease, type IconName } from '..
 import { fill, type Texts } from '../shared';
 import { MessageFiles, readableMessageText } from './files';
 import { Markdown, MentionText } from './markdown';
+import { useDrafts } from '../drafts';
 
 type Activity = 'thinking' | 'tool' | 'waiting_approval' | 'idle';
 
@@ -45,7 +46,10 @@ export function ChatView({
   onEdit(): void;
   onScreen(): void;
 }) {
-  const [draft, setDraft] = useState('');
+  const nodeId = useAppStore((state) => state.selectedNodeId);
+  const draftKey = `${nodeId}:${conversation.conversationId}`;
+  const draft = useDrafts((state) => state.values[draftKey] ?? '');
+  const setDraft = (text: string) => useDrafts.getState().set(draftKey, text);
   const [caret, setCaret] = useState(0);
   const [mentionIndex, setMentionIndex] = useState(0);
   const composerRef = useRef<HTMLTextAreaElement>(null);

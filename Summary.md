@@ -274,3 +274,10 @@ Node 以官方 CLI/API 管理 Hermes。Node 是本地业务状态的唯一数据
 - 真实 Linux 屏幕旅程独立通过，包含双 viewer 原生接管、离线恢复、身份丢失、强制交还、刷新、主动关闭和停止/再启动。普通 E2E 对此明确 skip，不把缺少私有现场算作真实通过。
 - 真实接管 fixture 核对为单一 run、5 次工具开始/完成及 completed 终态；文档引用可解析，提交内容未包含本地提供方配置值。验收结果见 `docs/evidence/phase4-clean-checkout-report.json`。
 - 现有 UI 改版的未提交文件与所有私有验收现场保留；本阶段按模块本地提交，未推送，也未重启其他产品或整机。
+
+### 2026-10-29 / Side Stage 2 客户端基础
+
+- 新增 `apps/client`，以 Tauri 2 打包现有 React 界面，支持 Windows x64 与 Android 10+；客户端只连接远程 Relay，不运行本地 Hermes。
+- HTTP、业务和屏幕 WebSocket、文件及扩展导入共用构建时 HTTPS 地址；App 资源使用独立构建目录，不覆盖 Web 回归产物。新增原生保存/选择/分享、PDF.js 预览、进程内草稿和应用恢复接入。
+- Windows 实际生成 NSIS 测试安装器并打开本地资源，验证安全 origin、关闭留驻和单实例恢复；Android x86_64 测试 APK 在独立模拟器安装打开，原生通知/生命周期桥接命令可达且没有水平溢出。
+- Firebase 配置、产品域名和 Android 真机尚未提供；目前测试包只验证打包与宿主能力，不作为可连接公网的正式产品包。最终构建与验收继续记入阶段记录。

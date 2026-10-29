@@ -1,6 +1,8 @@
 import { screenZh } from './screen';
+import { clientZh } from './client';
 const zh = {
   ...screenZh,
+  ...clientZh,
   appName: 'nekodot',
   team: '团队',
   settings: '设置',

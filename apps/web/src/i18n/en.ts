@@ -1,6 +1,8 @@
 import { screenEn } from './screen';
+import { clientEn } from './client';
 const en = {
   ...screenEn,
+  ...clientEn,
   appName: 'nekodot',
   team: 'Team',
   settings: 'Settings',

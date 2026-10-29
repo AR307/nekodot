@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-take-notification"
+description = "Enables the take_notification command without any pre-configured scope."
+commands.allow = ["take_notification"]
+
+[[permission]]
+identifier = "deny-take-notification"
+description = "Denies the take_notification command without any pre-configured scope."
+commands.deny = ["take_notification"]

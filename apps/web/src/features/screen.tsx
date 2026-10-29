@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type RFB from '@novnc/novnc';
 import type { Bot, Operation, ScreenStatus, TunnelTicket } from '@nekodot/protocol';
 import { relayRequest } from '../api';
+import { relaySocketUrl } from '../relay-url';
 import { callNode } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
 import { BotAvatar, Icon, SpinnerDots, useMediaQuery } from '../ui';
 import type { Texts } from '../shared';
 import { OperationProgress } from './operations';
+import { appActive } from '../native';
 
 export function ScreenPanel({
   bot,
@@ -234,7 +236,7 @@ function ScreenViewer({
     let attempts = 0;
     let connecting = false;
     async function connect() {
-      if (disposed || !navigator.onLine || connecting) return;
+      if (disposed || !navigator.onLine || !appActive() || connecting) return;
       connecting = true;
       try {
         // Load first: noVNC attaches handlers synchronously when given a fresh WebSocket.
@@ -253,7 +255,7 @@ function ScreenViewer({
         identity = ticket.sessionId;
         setSessionId(identity);
         const ws = new WebSocket(
-          `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws/tunnel?ticket=${encodeURIComponent(ticket.ticket)}`,
+          relaySocketUrl('/ws/tunnel?ticket=' + encodeURIComponent(ticket.ticket)),
         );
         socket.current = ws;
         const viewer = new RFB(viewport.current!, ws);
@@ -291,7 +293,7 @@ function ScreenViewer({
       }
     }
     function schedule() {
-      if (disposed || timer !== undefined) return;
+      if (disposed || !appActive() || timer !== undefined) return;
       timer = window.setTimeout(
         () => {
           timer = undefined;
@@ -314,12 +316,14 @@ function ScreenViewer({
     };
     window.addEventListener('offline', onOffline);
     window.addEventListener('online', onOnline);
+    window.addEventListener('nekodot:pause', onOffline);
     void connect();
     return () => {
       disposed = true;
       window.clearTimeout(timer);
       window.removeEventListener('offline', onOffline);
       window.removeEventListener('online', onOnline);
+      window.removeEventListener('nekodot:pause', onOffline);
       // Explicit close is intentional. Broken transports remain abnormal all the way to Hermes.
       socket.current?.close(1000, 'Viewer closed');
       rfb.current?.disconnect();

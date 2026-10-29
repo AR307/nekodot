@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-focus-conversation"
+description = "Enables the focus_conversation command without any pre-configured scope."
+commands.allow = ["focus_conversation"]
+
+[[permission]]
+identifier = "deny-focus-conversation"
+description = "Denies the focus_conversation command without any pre-configured scope."
+commands.deny = ["focus_conversation"]

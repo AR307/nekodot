@@ -1,0 +1,40 @@
+html {
+  height: 100%;
+}
+body {
+  overscroll-behavior: none;
+}
+.app-shell,
+.auth-page,
+.pair-page {
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.pdf-pages {
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+  padding: 12px;
+}
+.pdf-pages canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto 12px;
+}
+@media (max-width: 767px) {
+  .app-shell {
+    height: 100dvh;
+  }
+  .screen-keyboard textarea {
+    font-size: 16px;
+  }
+  .screen-key-actions {
+    flex-wrap: wrap;
+  }
+  .chat-composer textarea {
+    font-size: 16px;
+  }
+}

@@ -11,6 +11,8 @@ import { selectNodeData, useAppStore } from '../store';
 import { BotAvatar, Icon, SpinnerDots } from '../ui';
 import type { Texts } from '../shared';
 import { OperationProgress } from './operations';
+import { relayUrl } from '../relay-url';
+import { native, android, chooseImportFiles } from '../native';
 
 export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Texts }) {
   const node = useAppStore(selectNodeData);
@@ -94,7 +96,7 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
       setBusy(false);
     }
   }
-  async function importFiles(files: FileList | null) {
+  async function importFiles(files: FileList | File[] | null) {
     if (!files?.length || !botIds.length) return;
     setBusy(true);
     setError('');
@@ -107,8 +109,10 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
         for (let offset = 0; offset < file.size || offset === 0; offset += transferChunkBytes) {
           const body = await file.slice(offset, offset + transferChunkBytes).arrayBuffer();
           const response = await fetch(
-            `/api/nodes/${encodeURIComponent(nodeId)}/imports/${importId}?` +
-              new URLSearchParams({ path, offset: String(offset) }),
+            relayUrl(
+              `/api/nodes/${encodeURIComponent(nodeId)}/imports/${importId}?` +
+                new URLSearchParams({ path, offset: String(offset) }),
+            ),
             {
               method: 'PUT',
               headers: {
@@ -134,6 +138,13 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
       setError(e instanceof Error ? e.message : t.failed);
     } finally {
       setBusy(false);
+    }
+  }
+  async function chooseFiles(directory: boolean) {
+    try {
+      await importFiles(await chooseImportFiles(directory));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t.failed);
     }
   }
   async function toggle(botId: string, enabled: boolean) {
@@ -419,17 +430,19 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
                 <button
                   className="secondary-button"
                   disabled={busy || !botIds.length || !node.online}
-                  onClick={() => filesRef.current?.click()}
+                  onClick={() => (native ? void chooseFiles(false) : filesRef.current?.click())}
                 >
                   {t.selectFiles}
                 </button>
-                <button
-                  className="secondary-button"
-                  disabled={busy || !botIds.length || !node.online}
-                  onClick={() => folderRef.current?.click()}
-                >
-                  {t.selectFolder}
-                </button>
+                {!android && (
+                  <button
+                    className="secondary-button"
+                    disabled={busy || !botIds.length || !node.online}
+                    onClick={() => (native ? void chooseFiles(true) : folderRef.current?.click())}
+                  >
+                    {t.selectFolder}
+                  </button>
+                )}
                 <input
                   hidden
                   ref={filesRef}

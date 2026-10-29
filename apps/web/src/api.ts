@@ -7,9 +7,10 @@ import {
   type RpcParams,
   type RpcResult,
 } from '@nekodot/protocol';
+import { relayUrl } from './relay-url';
 
 export async function relayRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch('/api' + path, {
+  const response = await fetch(relayUrl('/api' + path), {
     ...init,
     headers: {
       ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),

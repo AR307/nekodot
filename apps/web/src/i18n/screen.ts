@@ -14,7 +14,7 @@ export const screenZh = {
   screenOther: '其他窗口正在控制',
   screenTakeHint: '接管后可操作鼠标和键盘，Bot 工具遵循 Hermes 原生接管行为。',
   screenReturnHint: '交还不会重跑任务；回合已结束时，可回到聊天发送“继续”。',
-  screenSecure: '屏幕需要安全上下文。请在本机使用 http://127.0.0.1:4318；局域网 HTTP 暂不支持。',
+  screenSecure: '屏幕需要安全上下文。请使用 nekodot App 或 HTTPS 网页；局域网 HTTP 暂不支持。',
   screenReconnect: '重新连接',
   screenConnecting: '正在连接画面',
   screenAuthentication: 'Hermes 屏幕认证失败，请重新连接。',
@@ -50,7 +50,7 @@ export const screenEn: typeof screenZh = {
   screenReturnHint:
     'Handing back does not rerun tasks. If the turn ended, send “continue” in chat.',
   screenSecure:
-    'Screen access needs a secure context. Use http://127.0.0.1:4318 on this computer; LAN HTTP is not supported yet.',
+    'Use the nekodot App or an HTTPS page for screen access. LAN HTTP is not supported.',
   screenReconnect: 'Reconnect',
   screenConnecting: 'Connecting to screen',
   screenAuthentication: 'Hermes screen authentication failed. Reconnect to try again.',

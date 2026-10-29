@@ -4,6 +4,7 @@ import { fetchMe, relayRequest } from '../api';
 import { useAppStore } from '../store';
 import { BotAvatar, Icon, SpinnerDots, StatusDot, ease } from '../ui';
 import { avatarColors, fill, type Texts } from '../shared';
+import { writeClipboard } from '../native';
 
 const pairingTtlSeconds = 600;
 
@@ -30,16 +31,7 @@ export function PairScreen({
   const [connectedNode, setConnectedNode] = useState<string | null>(null);
   const reduceMotion = useReducedMotion();
   const [secondsLeft, setSecondsLeft] = useState(0);
-  const [pairTarget, setPairTarget] = useState<'local' | 'cloud'>('cloud');
-  const shellQuote = (value: string) => `'${value.replaceAll("'", "'\"'\"'")}'`;
-  const localInstallCommand = pairing
-    ? import.meta.env.VITE_NEKODOT_RELAY_SSH &&
-      import.meta.env.VITE_NEKODOT_RELAY_SSH_IDENTITY &&
-      import.meta.env.VITE_NEKODOT_RELAY_SSH_KNOWN_HOSTS
-      ? `/mnt/c/Windows/System32/OpenSSH/ssh.exe -o BatchMode=yes -o StrictHostKeyChecking=yes ${import.meta.env.VITE_NEKODOT_RELAY_SSH} 'curl -fsSL http://127.0.0.1:4329/install.sh' | bash -s -- --pair ${pairing.code} --relay http://127.0.0.1:4329 --relay-ssh ${import.meta.env.VITE_NEKODOT_RELAY_SSH} --relay-ssh-key ${shellQuote(import.meta.env.VITE_NEKODOT_RELAY_SSH_IDENTITY)} --relay-ssh-known-hosts ${shellQuote(import.meta.env.VITE_NEKODOT_RELAY_SSH_KNOWN_HOSTS)}`
-      : t.localInstallUnavailable
-    : null;
-  const installCommand = pairTarget === 'local' ? localInstallCommand : pairing?.installCommand;
+  const installCommand = pairing?.installCommand;
   const commandReady = Boolean(installCommand) && installCommand !== t.localInstallUnavailable;
   const connected = me?.nodes.find((node) => node.nodeId === connectedNode);
   const expired = Boolean(pairing) && secondsLeft === 0;
@@ -127,7 +119,7 @@ export function PairScreen({
             index ? [<mark key={index}>{pairing.code}</mark>, part] : [part],
           )
       : (installCommand ?? t.preparingCommand);
-  const steps = [pairTarget === 'cloud' ? t.pairStepCloud : t.localTargetHelp, t.pairStepPaste];
+  const steps = [t.pairStepCloud, t.pairStepPaste];
 
   return (
     <main className="pair-page" aria-busy={busy}>
@@ -158,38 +150,6 @@ export function PairScreen({
           <h1>{t.addComputer}</h1>
           <p className="muted">{t.pairLead}</p>
         </div>
-        <div className="pair-choices" role="group" aria-label={t.addComputer}>
-          {(
-            [
-              ['local', 'laptop', t.localComputer, t.localShort],
-              ['cloud', 'server', t.cloudComputer, t.cloudShort],
-            ] as const
-          ).map(([target, icon, title, help]) => (
-            <button
-              key={target}
-              type="button"
-              className={`choice-card${pairTarget === target ? ' active' : ''}`}
-              aria-pressed={pairTarget === target}
-              onClick={() => {
-                setCopied(false);
-                setPairTarget(target);
-              }}
-            >
-              {pairTarget === target && (
-                <motion.span
-                  className="choice-ring"
-                  layoutId="pair-choice"
-                  transition={
-                    reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 40 }
-                  }
-                />
-              )}
-              <Icon name={icon} />
-              <strong>{title}</strong>
-              <small>{help}</small>
-            </button>
-          ))}
-        </div>
         <ol className="pair-steps">
           {steps.map((step, index) => (
             <li key={index}>
@@ -205,7 +165,7 @@ export function PairScreen({
             disabled={!commandReady}
             onClick={() => {
               if (installCommand && commandReady)
-                void navigator.clipboard.writeText(installCommand).then(() => setCopied(true));
+                void writeClipboard(installCommand).then(() => setCopied(true));
             }}
           >
             <Icon name={copied ? 'check' : 'copy'} />

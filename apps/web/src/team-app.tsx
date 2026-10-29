@@ -10,6 +10,10 @@ import { AuthPage } from './features/auth';
 import { PairScreen } from './features/pairing';
 import { SettingsPage } from './features/settings';
 import { TeamPage } from './features/team';
+import { backgroundApp, clientLifecycle, native } from './native';
+import { remoteZh, remoteEn } from './i18n/client-copy';
+
+const nativeTexts = { zh: { ...zh, ...remoteZh }, en: { ...en, ...remoteEn } };
 
 export function App() {
   const token = useAppStore((state) => state.token);
@@ -25,7 +29,27 @@ export function App() {
   const [loadedToken, setLoadedToken] = useState(token ? '' : null);
   const [bootError, setBootError] = useState('');
   const [dark, setDark] = useState(localStorage.getItem('nekodot-theme') === 'dark');
-  const t: Texts = language === 'zh' ? zh : en;
+  const t: Texts = native ? nativeTexts[language] : language === 'zh' ? zh : en;
+  useEffect(() => {
+    let disposed = false;
+    let cleanup: (() => void) | undefined;
+    void clientLifecycle().then((value) => {
+      if (disposed) value();
+      else cleanup = value;
+    });
+    const back = () => {
+      const state = useAppStore.getState();
+      if (state.screen !== 'home') state.setScreen('home');
+      else if (state.selectedConversationId) state.setSelectedConversation(null);
+      else void backgroundApp();
+    };
+    window.addEventListener('nekodot:back', back);
+    return () => {
+      disposed = true;
+      cleanup?.();
+      window.removeEventListener('nekodot:back', back);
+    };
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = language;

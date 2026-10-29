@@ -3,6 +3,7 @@ import { idSchema } from './entities';
 import { eventSchema, liveSchema } from './events';
 import { rpcRequestSchema } from './rpc';
 import { rpcErrorSchema } from './errors';
+import { notificationSchema } from './notifications';
 export const envelopeSchema = z
   .strictObject({
     v: z.literal(1),
@@ -21,6 +22,8 @@ export const envelopeSchema = z
       'transfer.req',
       'transfer.res',
       'tunnel.open',
+      'notify',
+      'notify.ack',
     ]),
     nodeId: idSchema.optional(),
     replyTo: z.uuidv4().optional(),
@@ -58,6 +61,8 @@ export const payloadSchemas = {
   ping: z.strictObject({}),
   pong: z.strictObject({}),
   'node.status': z.strictObject({ online: z.boolean() }),
+  notify: notificationSchema,
+  'notify.ack': z.strictObject({ notificationId: z.string().min(1).max(240) }),
 };
 export const protocolTimings = {
   helloMs: 5000,

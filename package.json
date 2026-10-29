@@ -8,7 +8,9 @@
     "node": ">=24 <25"
   },
   "scripts": {
-    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "dev": "pnpm --parallel --filter @nekodot/web --filter @nekodot/relay --filter @nekodot/node dev",
+    "client:windows": "node scripts/build-client.mjs windows",
+    "client:android": "node scripts/build-client.mjs android",
     "dev:remote": "node scripts/dev-remote.mjs",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",

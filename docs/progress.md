@@ -335,3 +335,13 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 结果文件为 `docs/evidence/phase4-clean-checkout-report.json`；真实接管 fixture 为 1 个 run、5 个工具开始/完成和 1 个 completed，未用回放替代真实结论。
 - 历史阶段截图未被新 E2E 结果覆盖；本轮回归画面保留在私有验收目录。所有 profiles、历史、参考资料和安装测试现场继续保留。
 - Phase 4 当前范围已完成；手机真机屏幕、HTTPS、其他平台屏幕以及 Phase 3 长期连接和真机恢复项目继续待后续验收。
+
+# Side Stage 2 进度
+
+## 客户端基础 / 2026-10-29
+
+- Tauri 2 共用现有 React 代码，Windows/Android 使用随包资源；新增统一 Relay 地址、系统文件接口、PDF.js、应用恢复和进程内草稿。Android 原生桥接使用官方 Firebase SDK，Windows 使用托盘、单实例及窗口状态插件。
+- Windows NSIS 调试安装器编译通过，实际页面 origin 为安全的本地应用 origin；关闭不结束进程，二次启动恢复同一窗口且仅保留一个客户端进程。
+- Android x86_64 调试 APK 编译、安装和覆盖安装通过；独立 Android 15 模拟器实际打开，安全上下文、原生桥接及窄屏无水平溢出已核对。模拟器不代替真机结论。
+- 本轮实际 Node 24 类型检查、12 个文件/24 项自动化场景通过；最终 lint、全新检出及完整回归仍继续。截图为宿主验证，尚未通过公网域名登录产品环境。
+- 缺少域名/DNS、Firebase 配置与凭据、Google 服务真机；正式 HTTPS、真实推送、双端远程 App 和真机屏幕不标记通过。原测试环境与 Phase 3 遗留项继续保留。
