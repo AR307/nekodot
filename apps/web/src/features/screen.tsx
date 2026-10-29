@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import type RFB from '@novnc/novnc';
 import type { Bot, Operation, ScreenStatus, TunnelTicket } from '@nekodot/protocol';
 import { relayRequest } from '../api';
@@ -76,6 +76,7 @@ export function ScreenPanel({
   return (
     <aside
       className="screen-panel"
+      style={{ '--bot': bot.avatar.color } as CSSProperties}
       aria-label={t.screenTitle}
       role={fullScreen ? 'dialog' : undefined}
       aria-modal={fullScreen ? true : undefined}
@@ -97,11 +98,21 @@ export function ScreenPanel({
       }}
     >
       <header className="screen-header">
-        <BotAvatar color={bot.avatar.color} size={32} />
+        <BotAvatar
+          color={bot.avatar.color}
+          size={32}
+          working={status?.holder === 'agent' && status.running}
+        />
         <div>
           <strong>{bot.displayName}</strong>
           <small>{t.screenTitle}</small>
         </div>
+        {status?.running && (
+          <span className="screen-live">
+            <i />
+            {t.screenLive}
+          </span>
+        )}
         <button
           className="icon-button"
           autoFocus
@@ -109,20 +120,23 @@ export function ScreenPanel({
           aria-label={t.close}
           title={t.screenCloseHint}
         >
-          <Icon name="close" />
+          <Icon name={fullScreen ? 'chevronDown' : 'close'} />
         </button>
       </header>
       {members.length > 1 && (
-        <label className="screen-member-select">
-          <span>{t.screenSelectBot}</span>
-          <select value={bot.botId} onChange={(event) => onSelect(event.target.value)}>
-            {members.map((member) => (
-              <option key={member.botId} value={member.botId}>
-                {member.displayName}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="screen-members" role="radiogroup" aria-label={t.screenSelectBot}>
+          {members.map((member) => (
+            <button
+              key={member.botId}
+              role="radio"
+              aria-checked={member.botId === bot.botId}
+              onClick={() => onSelect(member.botId)}
+            >
+              <BotAvatar color={member.avatar.color} size={20} />
+              {member.displayName}
+            </button>
+          ))}
+        </div>
       )}
       <div className="screen-body">
         {!node.online && <p className="offline-strip">{t.offline}</p>}

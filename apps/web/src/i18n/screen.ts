@@ -1,5 +1,6 @@
 export const screenZh = {
   screenTitle: 'Bot 屏幕',
+  screenLive: '实时',
   screenStart: '启动屏幕',
   screenStop: '停止屏幕',
   screenStopped: '屏幕尚未启动',
@@ -33,6 +34,7 @@ export const screenZh = {
 };
 export const screenEn: typeof screenZh = {
   screenTitle: 'Bot screen',
+  screenLive: 'Live',
   screenStart: 'Start screen',
   screenStop: 'Stop screen',
   screenStopped: 'Screen is stopped',
