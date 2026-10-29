@@ -19,6 +19,7 @@ import { GroupService } from './groups';
 import { groupPrompt, MAX_CHAIN, mentionedBots } from './group-routing';
 import { Operations } from './operations';
 import { BotManagement } from './bot-management';
+import { FileLibrary } from './files';
 
 type HermesEvent = SseFrame['data'] & {
   event: string;
@@ -51,6 +52,7 @@ export class NodeApplication {
   readonly groups: GroupService;
   readonly operations: Operations;
   readonly management: BotManagement;
+  readonly files: FileLibrary;
   onEvent: (event: PersistedEvent) => void = () => {};
   onLive: (event: LiveEvent) => void = () => {};
   private readonly consumers = new Map<string, AbortController>();
@@ -68,6 +70,7 @@ export class NodeApplication {
     this.groups = new GroupService(this.database);
     this.operations = new Operations(this.database);
     this.management = new BotManagement(this.database, this.bots, hermes, this.operations);
+    this.files = new FileLibrary(this.database, hermes, this.operations);
     this.database.onEvent = (event) => this.onEvent(event);
   }
 
@@ -91,6 +94,13 @@ export class NodeApplication {
         return { operations: this.operations.list() };
       case 'hermes.restart':
         return this.management.restart();
+      case 'files.list':
+        return { files: this.files.list(request.params) };
+      case 'files.backfill':
+        this.bots.get(request.params.botId);
+        return this.files.backfill(request.params.botId);
+      case 'imports.create':
+        return this.files.createImport();
       case 'sync.snapshot':
         this.activities();
         return {
@@ -691,6 +701,7 @@ export class NodeApplication {
       const reply = this.ensureText(run);
       reply.content = { text: event.output ?? reply.content.text };
       reply.status = 'done';
+      await this.files.capture(reply);
       this.persistText(run, reply, event.seq);
       this.pendingInstruction(run, state.pending_steer);
       if (run.groupId) await this.finishGroupRun(run, 'completed', reply.content.text);
@@ -940,6 +951,7 @@ export class NodeApplication {
       reply.content = { text: output ?? reply.content.text };
       reply.status =
         status === 'cancelled' ? 'cancelled' : status === 'completed' ? 'done' : 'failed';
+      if (status === 'completed') await this.files.capture(reply);
       this.persistText(run, reply, run.lastSeq);
       this.pendingInstruction(run, pendingSteer);
       await this.finishGroupRun(
@@ -953,6 +965,7 @@ export class NodeApplication {
       const reply = activeMessage ?? this.newText(run, output ?? '', 'done');
       reply.content = { text: output ?? reply.content.text };
       reply.status = 'done';
+      await this.files.capture(reply);
       this.persistText(run, reply, run.lastSeq);
     } else if (status === 'cancelled') {
       const reply = activeMessage ?? this.newText(run, 'Run stopped.', 'cancelled');

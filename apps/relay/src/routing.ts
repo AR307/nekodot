@@ -1,7 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import type { Server } from 'node:http';
 import { WebSocket, WebSocketServer } from 'ws';
-import { envelopeSchema, payloadSchemas, protocolTimings, type Envelope } from '@nekodot/protocol';
+import {
+  envelopeSchema,
+  payloadSchemas,
+  protocolTimings,
+  transferResponseSchema,
+  type Envelope,
+  type TransferRequest,
+  type TransferResponse,
+} from '@nekodot/protocol';
 import type { RelayDatabase, NodeRow } from './database';
 
 const frame = (type: Envelope['type'], payload: unknown, nodeId?: string): Envelope => ({
@@ -26,6 +34,10 @@ export function registerRouting(
   const wss = new WebSocketServer({ noServer: true });
   const clients = new Set<Client>();
   const nodes = new Map<string, WebSocket>();
+  const transfers = new Map<
+    string,
+    { nodeId: string; resolve(value: TransferResponse): void; reject(error: Error): void }
+  >();
   const pending = new Map<
     string,
     { socket: WebSocket; nodeId: string; timer: ReturnType<typeof setTimeout> }
@@ -34,6 +46,11 @@ export function registerRouting(
     for (const client of clients) if (client.userId === userId) send(client.socket, value);
   }
   function clearPending(nodeId: string) {
+    for (const [id, p] of transfers)
+      if (p.nodeId === nodeId) {
+        transfers.delete(id);
+        p.reject(new Error('Node disconnected'));
+      }
     for (const [id, p] of pending)
       if (p.nodeId === nodeId) {
         clearTimeout(p.timer);
@@ -136,6 +153,12 @@ export function registerRouting(
             pending.delete(envelope.replyTo!);
             send(p.socket, { ...envelope, nodeId: node.node_id });
           }
+        } else if (node && envelope.type === 'transfer.res') {
+          const p = transfers.get(envelope.replyTo!);
+          if (p?.nodeId === node.node_id) {
+            transfers.delete(envelope.replyTo!);
+            p.resolve(transferResponseSchema.parse(envelope.payload));
+          }
         } else if (node && ['event', 'live'].includes(envelope.type)) {
           broadcast(node.user_id, { ...envelope, nodeId: node.node_id });
         } else throw new Error('Invalid direction');
@@ -159,9 +182,35 @@ export function registerRouting(
     socket.on('error', () => socket.terminate());
   });
   return {
+    transfer: async (userId: string, nodeId: string, payload: TransferRequest) => {
+      if (!database.owns(userId, nodeId)) throw new Error('Node is not yours');
+      const socket = nodes.get(nodeId);
+      if (!socket || socket.readyState !== WebSocket.OPEN) throw new Error('Node is offline');
+      const request = frame('transfer.req', payload, nodeId);
+      return new Promise<TransferResponse>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          transfers.delete(request.id);
+          reject(new Error('File transfer timed out'));
+        }, 30000);
+        transfers.set(request.id, {
+          nodeId,
+          resolve: (value) => {
+            clearTimeout(timer);
+            resolve(value);
+          },
+          reject: (error) => {
+            clearTimeout(timer);
+            reject(error);
+          },
+        });
+        send(socket, request);
+      });
+    },
     online: (id: string) => nodes.has(id),
     revoke: (id: string) => nodes.get(id)?.close(1008, 'Node unpaired'),
     close: () => {
+      for (const p of transfers.values()) p.reject(new Error('Relay stopped'));
+      transfers.clear();
       for (const p of pending.values()) clearTimeout(p.timer);
       pending.clear();
       for (const ws of wss.clients) ws.terminate();

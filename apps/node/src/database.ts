@@ -77,6 +77,11 @@ export class NodeDatabase {
         PRAGMA user_version=2;
         COMMIT;`);
     }
+    this.db.exec(`CREATE TABLE IF NOT EXISTS attachments(
+      file_id TEXT PRIMARY KEY,bot_id TEXT NOT NULL,message_id TEXT NOT NULL,
+      reference TEXT NOT NULL,storage_path TEXT,data TEXT NOT NULL,
+      UNIQUE(message_id,reference)
+    ); CREATE INDEX IF NOT EXISTS attachments_bot ON attachments(bot_id);`);
   }
   private all<T>(sql: string, ...params: string[]): T[] {
     return this.db

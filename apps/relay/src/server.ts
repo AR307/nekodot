@@ -5,6 +5,7 @@ import { RelayDatabase } from './database';
 import { HttpFault, registerAuth } from './auth';
 import { registerRouting } from './routing';
 import { registerDownloads } from './downloads';
+import { registerFileTransfer } from './files';
 
 export interface RelayOptions {
   dataDir: string;
@@ -29,6 +30,9 @@ export async function createRelay(options: RelayOptions) {
     (id) => routing.revoke(id),
   );
   const routing = registerRouting(app.server, database, auth.authenticateToken);
+  registerFileTransfer(app, auth.authenticate, routing.transfer, (userId, nodeId) =>
+    database.owns(userId, nodeId),
+  );
   app.get('/health', () => ({ service: 'nekodot-relay', phase: 3, status: 'ok' }));
   if (options.distributionDirectory)
     registerDownloads(app, options.distributionDirectory, options.publicUrl);

@@ -7,6 +7,9 @@ import {
   type Envelope,
   type LiveEvent,
   type PersistedEvent,
+  transferRequestSchema,
+  type TransferRequest,
+  type TransferResponse,
 } from '@nekodot/protocol';
 
 export interface NodeCredentials {
@@ -17,6 +20,7 @@ export interface NodeCredentials {
 export interface NodeConnectionOptions {
   credentials: NodeCredentials;
   handleRpc: (request: ReturnType<typeof rpcRequestSchema.parse>) => Promise<unknown>;
+  handleTransfer?: (request: TransferRequest) => Promise<TransferResponse>;
   onReady?: () => void;
   onStatus?: (online: boolean) => void;
 }
@@ -50,6 +54,19 @@ export function connectRelay(options: NodeConnectionOptions) {
           delay = 1000;
           options.onStatus?.(true);
           options.onReady?.();
+          return;
+        }
+        if (envelope.type === 'transfer.req' && options.handleTransfer) {
+          let payload: TransferResponse;
+          try {
+            payload = await options.handleTransfer(transferRequestSchema.parse(envelope.payload));
+          } catch (error) {
+            payload = {
+              ok: false,
+              error: error instanceof NodeFault ? error.message : 'File transfer failed',
+            };
+          }
+          send({ ...frame('transfer.res', payload), replyTo: envelope.id });
           return;
         }
         if (envelope.type !== 'rpc.req') return;

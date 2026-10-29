@@ -55,6 +55,7 @@ async function main() {
     const connection = connectRelay({
       credentials,
       handleRpc: (request) => app.handle(request),
+      handleTransfer: (request) => app.files.transfer(request),
       onReady: () => app.activities(),
       onStatus: (online) => log.info({ service: 'nekodot-node', online }),
     });

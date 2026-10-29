@@ -104,5 +104,5 @@ export function registerAuth(
     revoke(request.params.id);
     return {};
   });
-  return { authenticateToken };
+  return { authenticateToken, authenticate };
 }
