@@ -61,9 +61,17 @@ export class RelayDatabase {
     const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     const chars = [...randomBytes(8)].map((n) => alphabet[n % alphabet.length]).join('');
     const code = chars.slice(0, 4) + '-' + chars.slice(4);
-    const expiresAt = Date.now() + 600_000;
+    const expiresAt = Date.now() + 30 * 60_000;
     this.db.prepare('INSERT INTO pairing_codes VALUES(?,?,?,0)').run(code, userId, expiresAt);
     return { code, expiresAt: new Date(expiresAt).toISOString() };
+  }
+  extendPairingCode(userId: string, code: string) {
+    const row = this.db
+      .prepare(
+        'UPDATE pairing_codes SET expires_at=MAX(expires_at,?)+? WHERE code=? AND user_id=? AND used=0 RETURNING expires_at',
+      )
+      .get(Date.now(), 30 * 60_000, code, userId) as { expires_at: number } | undefined;
+    return row ? { code, expiresAt: new Date(row.expires_at).toISOString() } : undefined;
   }
   pair(code: string, name: string, platform: string) {
     this.db.exec('BEGIN IMMEDIATE');

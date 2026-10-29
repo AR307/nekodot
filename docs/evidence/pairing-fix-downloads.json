@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-10-29T16:17:32.361Z",
+  "browser": "Edge",
+  "url": "https://nekodot.com",
+  "downloads": [
+    {
+      "name": "nekodot-windows-x64.exe",
+      "suggestedFilename": "nekodot-windows-x64.exe",
+      "bytes": 3451261,
+      "downloadError": null
+    },
+    {
+      "name": "nekodot-android-arm64.apk",
+      "suggestedFilename": "nekodot-android-arm64.apk",
+      "bytes": 15153934,
+      "downloadError": null
+    }
+  ]
+}

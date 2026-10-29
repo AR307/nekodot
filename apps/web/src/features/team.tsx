@@ -318,15 +318,24 @@ export function TeamPage({ t, onLanguage }: { t: Texts; onLanguage(): void }) {
           ) : (
             <div className="welcome-panel">
               <BotAvatar color={avatarColors[0]!} size={72} />
-              <h2>{activeBots.length ? t.welcomeTitle : t.teamEmpty}</h2>
+              <h2>
+                {!selectedNodeId ? t.teamNoNodes : activeBots.length ? t.welcomeTitle : t.teamEmpty}
+              </h2>
               <p className="muted">
-                {activeBots.length
-                  ? fill(t.welcomeBody, { shortcut: modKey + ' K' })
-                  : online
-                    ? t.tagline
-                    : t.offlineCreateHint}
+                {!selectedNodeId
+                  ? t.pairHint
+                  : activeBots.length
+                    ? fill(t.welcomeBody, { shortcut: modKey + ' K' })
+                    : online
+                      ? t.tagline
+                      : t.offlineCreateHint}
               </p>
-              {activeBots.length ? (
+              {!selectedNodeId ? (
+                <button className="primary-button" onClick={() => setScreen('pair')}>
+                  {t.addComputer}
+                  <Icon name="arrow" />
+                </button>
+              ) : activeBots.length ? (
                 <button className="secondary-button" onClick={() => setPaletteOpen(true)}>
                   <Icon name="search" />
                   {t.searchJump}

@@ -1,0 +1,27 @@
+{
+  "checkedAt": "2026-10-29T16:19:27.633Z",
+  "version": "0.1.1",
+  "lint": "passed",
+  "typecheck": "passed",
+  "test": {
+    "files": 13,
+    "passed": 25
+  },
+  "build": "passed",
+  "edge": {
+    "passed": 4,
+    "skipped": 1,
+    "skippedReason": "No current isolated real Linux screen fixture",
+    "pairingViewportWidths": [390, 768, 1440],
+    "sameInstallCommandAfterExtension": true,
+    "backToEmptyHome": true,
+    "reenterPairing": true
+  },
+  "nativePackages": {
+    "windows": "x64 release NSIS",
+    "android": "arm64 signed release APK, versionCode 2"
+  },
+  "websiteDownloads": "Edge downloaded both 0.1.1 packages",
+  "nativeManualLimits": "No new physical Android or clean-user Windows installation acceptance",
+  "sourceDelivery": "Local commits only; no GitHub push in this repair"
+}

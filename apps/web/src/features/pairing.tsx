@@ -6,7 +6,7 @@ import { BotAvatar, Icon, SpinnerDots, StatusDot, ease } from '../ui';
 import { avatarColors, fill, type Texts } from '../shared';
 import { writeClipboard } from '../native';
 
-const pairingTtlSeconds = 600;
+const pairingTtlSeconds = 30 * 60;
 
 export function PairScreen({
   t,
@@ -46,6 +46,23 @@ export function PairScreen({
         installCommand: string;
       }>('/pairing-codes', { method: 'POST', body: '{}' });
       setPairing(result);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : t.saveError);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function extend() {
+    if (!pairing) return;
+    setBusy(true);
+    setError('');
+    try {
+      const result = await relayRequest<{ code: string; expiresAt: string }>(
+        `/pairing-codes/${encodeURIComponent(pairing.code)}/extend`,
+        { method: 'POST', body: '{}' },
+      );
+      setPairing({ ...pairing, ...result });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t.saveError);
     } finally {
@@ -234,13 +251,19 @@ export function PairScreen({
                       cy="18"
                       r="15"
                       style={{
-                        strokeDashoffset: 94.25 * (1 - secondsLeft / pairingTtlSeconds),
+                        strokeDashoffset:
+                          94.25 * (1 - Math.min(1, secondsLeft / pairingTtlSeconds)),
                       }}
                     />
                   </svg>
                 </span>
               )}
-              {expired && (
+              {pairing && (
+                <button className="secondary-button" disabled={busy} onClick={() => void extend()}>
+                  {t.extendPairing}
+                </button>
+              )}
+              {(expired || error) && (
                 <button
                   className="secondary-button"
                   disabled={busy}
@@ -255,6 +278,7 @@ export function PairScreen({
             </motion.div>
           )}
         </AnimatePresence>
+        {pairing && !connectedNode && <p className="muted pair-help">{t.pairingWaitHelp}</p>}
         {me?.nodes.length ? (
           <section className="paired-nodes" aria-label={t.nodesTitle}>
             <h2>{t.nodesTitle}</h2>

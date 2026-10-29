@@ -160,7 +160,7 @@ const en = {
   startEyebrow: 'Get started',
   startTitle: 'Three steps<br />to your first chat.',
   startLead:
-    'Download nekodot 0.1.0 and connect straight from the app. Bots run on your paired server; no local development setup is needed.',
+    'Download nekodot 0.1.1 and connect straight from the app. Bots run on your paired server; no local development setup is needed.',
   downloadWindows: 'Download Windows x64',
   downloadAndroid: 'Download Android APK',
   downloadNote:
@@ -188,7 +188,7 @@ const en = {
   r5: 'Skills and plugin center',
   r6: 'Live screen and takeover (Linux VPS)',
   r7: 'Brand-new interface design',
-  r8: 'Windows / Android 0.1.0 preview installers',
+  r8: 'Windows / Android 0.1.1 preview installers',
   r9: 'PWA: add to home screen',
   r10: 'macOS and ARM nodes',
   ctaTitle: 'Build your first AI team.',

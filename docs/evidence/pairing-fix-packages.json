@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-10-29T16:16:00.634Z",
+  "version": "0.1.1",
+  "windows": {
+    "file": "nekodot-windows-x64.exe",
+    "bytes": 3451261,
+    "target": "x64",
+    "authenticodeSigned": false
+  },
+  "android": {
+    "file": "nekodot-android-arm64.apk",
+    "bytes": 15153934,
+    "abis": ["arm64-v8a"],
+    "signatureVerified": true,
+    "v2": true,
+    "versionName": "0.1.1",
+    "versionCode": 2
+  }
+}

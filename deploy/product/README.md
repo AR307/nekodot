@@ -5,7 +5,7 @@
 ## 部署顺序
 
 1. 本地 `pnpm build`，按客户端文档用实际 HTTPS 域名构建安装包。
-2. 本地构建 `docker build -f deploy/docker/Dockerfile -t nekodot-relay:product-0.1.0 .`，将镜像归档和 `dist/distribution` 上传到产品部署目录。
+2. 本地构建 `docker build -f deploy/docker/Dockerfile -t nekodot-relay:product-0.1.1 .`，将镜像归档和 `dist/distribution` 上传到产品部署目录。
 3. 复制 `compose.yml`，将 `apps/site` 内容上传到部署目录的 `site/`；在服务器私有 `.env` 配置随机 `JWT_SECRET`、实际 `PUBLIC_URL` 和允许的 App origins。`data` 由容器用户 1000 读写，`downloads` 与 `site` 只读挂载。Compose 设置 `WEB_DIR=/app/site`，官网和既有 API、WebSocket、下载共用同一 HTTPS 入口。
 4. 运行该项目的 `docker compose up -d`。示例复用当前 Caddy 的 `getplus_default` 网络，仅新增 Relay；不要重启其他服务。
 5. DNS 指向服务器后，备份既有 Caddyfile、追加独立 site block、执行 `caddy validate`，仅 reload Caddy 配置。不要覆盖已有站点块。

@@ -27,7 +27,7 @@ export function App() {
   const setSelectedNode = useAppStore((state) => state.setSelectedNode);
   const setLanguage = useAppStore((state) => state.setLanguage);
   const [loadedToken, setLoadedToken] = useState(token ? '' : null);
-  const [bootError, setBootError] = useState('');
+  const [bootError, setBootError] = useState(false);
   const [dark, setDark] = useState(localStorage.getItem('nekodot-theme') === 'dark');
   const t: Texts = native ? nativeTexts[language] : language === 'zh' ? zh : en;
   useEffect(() => {
@@ -80,7 +80,7 @@ export function App() {
       .catch((reason: unknown) => {
         if (cancelled) return;
         if (reason instanceof Error && 'status' in reason && reason.status === 401) setToken(null);
-        else setBootError(t.relayUnavailable);
+        else setBootError(true);
       })
       .finally(() => {
         if (!cancelled) setLoadedToken(token);
@@ -88,7 +88,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [token, setMe, setScreen, setSelectedNode, setToken, t.relayUnavailable]);
+  }, [token, setMe, setScreen, setSelectedNode, setToken]);
 
   if (!token)
     return (
@@ -104,7 +104,7 @@ export function App() {
         <Wordmark />
         {bootError ? (
           <>
-            <p role="alert">{bootError}</p>
+            <p role="alert">{t.relayUnavailable}</p>
             <button className="secondary-button" onClick={() => location.reload()}>
               {t.retry}
             </button>
@@ -114,7 +114,7 @@ export function App() {
         )}
       </div>
     );
-  const showPair = screen === 'pair' || me.nodes.length === 0;
+  const showPair = screen === 'pair';
   return (
     <div className="app-shell" data-theme={dark ? 'dark' : 'light'}>
       <RelayConnection />

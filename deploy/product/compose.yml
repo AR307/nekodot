@@ -1,7 +1,7 @@
 name: nekodot-product
 services:
   relay:
-    image: nekodot-relay:product-0.1.0
+    image: nekodot-relay:product-0.1.1
     container_name: nekodot-product-relay
     restart: unless-stopped
     env_file: .env

@@ -89,6 +89,27 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await expect(page.getByRole('button', { name: '已复制' })).toBeVisible();
   const pairCommand = await page.locator('.command-box code').innerText();
   expect(pairCommand).toContain(code!);
+  await page.getByRole('button', { name: '延长 30 分钟' }).click();
+  await expect(page.locator('.pair-wait')).toContainText(/59:\d{2}|60:00/);
+  await expect(page.locator('.command-box code')).toHaveText(pairCommand);
+  for (const width of [390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.getByRole('button', { name: '延长 30 分钟' })).toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.screenshot({ path: `docs/evidence/pairing-fix-${width}.png`, fullPage: true });
+  }
+  await page.getByRole('button', { name: '返回团队', exact: true }).click();
+  await expect(page.locator('.pair-page')).toHaveCount(0);
+  await expect(
+    page.getByRole('heading', { name: '还没有绑定服务器。', exact: true }),
+  ).toBeVisible();
+  await page
+    .locator('.welcome-panel')
+    .getByRole('button', { name: '添加电脑', exact: true })
+    .click();
+  await expect(page.locator('.command-box code')).toHaveText(pairCommand);
   await page.screenshot({ path: 'docs/evidence/phase1-pairing.png', fullPage: true });
 
   services.nodeHome = await mkdtemp(join(tmpdir(), 'nekodot-browser-node-'));

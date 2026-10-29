@@ -111,6 +111,9 @@ export NEKODOT_HOME="$home"
 export HERMES_HOME="$home/hermes"
 export HERMES_RUNTIME_DIR="$home/hermes-runtime"
 export NEKODOT_HERMES_API_PORT="$api_port"
+# Hermes's dependency resolver needs upload times, which some system pip mirrors omit.
+export UV_INDEX_URL='https://pypi.org/simple'
+printf '%s\n' 'First installation can take several minutes. Use Add 30 minutes in the app to keep the same pairing code.'
 relay_tunnel_pid=''
 stop_relay_tunnel() {
   if [ -n "$relay_tunnel_pid" ] && kill -0 "$relay_tunnel_pid" 2>/dev/null; then
@@ -185,13 +188,14 @@ export NEKODOT_HOME='$home'
 export NEKODOT_HERMES_SOURCE='$source_dir'
 export NEKODOT_HERMES_RUNTIME='$HERMES_RUNTIME_DIR'
 export NEKODOT_HERMES_API_PORT='$api_port'
+export UV_INDEX_URL='https://pypi.org/simple'
 export PATH='$node_root/bin':\$PATH
 exec '$node_root/bin/node' '$home/bin/nekodot-node.cjs' "\$@"
 EOF
 chmod 700 "$home/bin/nekodot-node"
 if [ ! -f "$home/node.json" ]; then
   if ! "$home/bin/nekodot-node" pair --relay "$relay" --code "$pair_code"; then
-    printf '%s\n' 'Pairing did not complete. Generate a new code and rerun; installed dependencies are retained.' >&2
+    printf '%s\n' 'Pairing did not complete. Extend this code in the app and rerun the same command, or generate a new code. Installed dependencies are retained.' >&2
     exit 1
   fi
 else

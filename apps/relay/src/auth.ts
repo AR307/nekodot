@@ -88,6 +88,12 @@ export function registerAuth(
       installCommand: `curl -fsSL '${publicUrl.replace(/\/$/, '')}/install.sh' | bash -s -- --pair ${result.code}`,
     };
   });
+  app.post<{ Params: { code: string } }>('/api/pairing-codes/:code/extend', async (request) => {
+    const user = await authenticate(request);
+    const result = database.extendPairingCode(user.user_id, request.params.code);
+    if (!result) throw new HttpFault('not_found', 'Unused pairing code not found', 404);
+    return result;
+  });
   app.post('/api/pair', async (request) => {
     const parsed = pairInputSchema.safeParse(request.body);
     if (!parsed.success)

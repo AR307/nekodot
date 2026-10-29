@@ -288,5 +288,6 @@ export const useAppStore = create<AppState>((set) => ({
     }),
 }));
 
+const emptyTeamState = emptyNode();
 export const selectNodeData = (state: AppState) =>
-  state.selectedNodeId ? (state.nodes[state.selectedNodeId] ?? emptyNode()) : emptyNode();
+  state.selectedNodeId ? (state.nodes[state.selectedNodeId] ?? emptyTeamState) : emptyTeamState;

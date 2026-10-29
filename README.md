@@ -16,12 +16,12 @@
 <p align="center">
   <a href="https://github.com/AR307/nekodot/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AR307/nekodot/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Node 24 LTS" src="https://img.shields.io/badge/node-24%20LTS-2F9E8F">
-  <a href="https://github.com/AR307/nekodot/releases/tag/v0.1.0"><img alt="Release v0.1.0" src="docs/assets/release-0.1.0.svg"></a>
+  <a href="https://nekodot.com/#start"><img alt="Release v0.1.1" src="docs/assets/release-0.1.1.svg"></a>
 </p>
 
 <p align="center">
   <a href="https://nekodot.com">官网</a> ·
-  <a href="https://github.com/AR307/nekodot/releases/tag/v0.1.0">下载 0.1.0</a> ·
+  <a href="https://nekodot.com/#start">下载 0.1.1</a> ·
   <a href="LICENSE">MIT License</a><br>
   <a href="#为什么是-nekodot">为什么是 nekodot</a> ·
   <a href="#功能">功能</a> ·
@@ -144,8 +144,8 @@ Linux VPS 节点安装时加上 `--with-computer`，就能从私聊、Bot 详情
 
 ### 下载安装预览版
 
-- [Windows x64 安装器](https://nekodot.com/downloads/nekodot-windows-x64.exe)：0.1.0，Windows 10 / 11；目前未做 Authenticode 签名。
-- [Android arm64 APK](https://nekodot.com/downloads/nekodot-android-arm64.apk)：0.1.0，Android 10+；已签名，手机真机验收待完成。
+- [Windows x64 安装器](https://nekodot.com/downloads/nekodot-windows-x64.exe)：0.1.1，Windows 10 / 11；目前未做 Authenticode 签名。
+- [Android arm64 APK](https://nekodot.com/downloads/nekodot-android-arm64.apk)：0.1.1，Android 10+；已签名，手机真机验收待完成。
 
 App 自带界面，直接通过 HTTPS/WSS 连接远程 Relay；本机不用启动网页、Node、Hermes 或 SSH。注册不会自动取得其他账号的服务器访问权，仍需配对你自己的远程节点。当前真实验证与待验收范围见 [客户端验收记录](docs/side-stage-2-acceptance.md)。
 
@@ -215,7 +215,7 @@ docs                   开发说明、Hermes 调研、实施记录与截图
 - [x] 双语官网（`apps/site`）
 - [ ] PWA：添加到手机主屏幕
 - [x] 实时画面与接管：Linux VPS 原生浏览器、桌面与人工接管
-- [ ] Windows / Android 完整交付验收（0.1.0 预览包已发布，公网聊天与模拟器后台 FCM 通过，真机等项目待验收）
+- [ ] Windows / Android 完整交付验收（0.1.1 预览包已发布，公网聊天与模拟器后台 FCM 通过，真机等项目待验收）
 - [ ] macOS 与 ARM 节点
 
 ## 致谢

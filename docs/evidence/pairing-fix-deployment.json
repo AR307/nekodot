@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-10-29T16:14:42.036Z",
+  "version": "0.1.1",
+  "localBuild": true,
+  "imageAssembly": "Existing production dependencies with locally bundled Relay; Docker Desktop could not start",
+  "candidateHealth": true,
+  "candidatePairingAndExtension": true,
+  "protectedServicesUnchanged": true,
+  "retainedPreviousInstaller": true
+}

@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "nekodot",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "app.nekodot.client",
   "build": {
     "frontendDist": "../dist",
@@ -42,7 +42,7 @@
     ],
     "android": {
       "minSdkVersion": 29,
-      "versionCode": 1
+      "versionCode": 2
     }
   }
 }
