@@ -13,6 +13,7 @@ export function GroupChatView({
   online,
   onBack,
   onEdit,
+  onScreen,
 }: {
   t: Texts;
   group: Group;
@@ -23,6 +24,7 @@ export function GroupChatView({
   online: boolean;
   onBack(): void;
   onEdit(): void;
+  onScreen(): void;
 }) {
   const lead = bots.find((bot) => bot.botId === group.leadBotId)!;
   const current = bots.find((bot) => bot.botId === activity.botId) ?? lead;
@@ -39,6 +41,7 @@ export function GroupChatView({
       online={online}
       onBack={onBack}
       onEdit={onEdit}
+      onScreen={onScreen}
     />
   );
 }

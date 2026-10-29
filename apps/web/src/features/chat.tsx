@@ -30,6 +30,7 @@ export function ChatView({
   online,
   onBack,
   onEdit,
+  onScreen,
 }: {
   t: Texts;
   bot: Bot;
@@ -42,6 +43,7 @@ export function ChatView({
   online: boolean;
   onBack(): void;
   onEdit(): void;
+  onScreen(): void;
 }) {
   const [draft, setDraft] = useState('');
   const [caret, setCaret] = useState(0);
@@ -215,6 +217,14 @@ export function ChatView({
               </span>
             </small>
           </span>
+        </button>
+        <button
+          className="icon-button bordered"
+          onClick={onScreen}
+          aria-label={t.screenTitle}
+          title={t.screenTitle}
+        >
+          <Icon name="monitor" />
         </button>
         <button
           className="icon-button bordered"

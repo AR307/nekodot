@@ -13,6 +13,7 @@ import { BotDetails } from './bot-details';
 import { ExtensionsPage } from './extensions';
 import { TeamSidebar, modKey, type AppView } from './sidebar';
 import { CommandPalette, type PaletteItem } from './command-palette';
+import { ScreenPanel } from './screen';
 
 export function TeamPage({ t, onLanguage }: { t: Texts; onLanguage(): void }) {
   const node = useAppStore(selectNodeData);
@@ -23,6 +24,9 @@ export function TeamPage({ t, onLanguage }: { t: Texts; onLanguage(): void }) {
   const [botModal, setBotModal] = useState<Bot | 'new' | null>(null);
   const [groupModal, setGroupModal] = useState<Group | 'new' | null>(null);
   const [detailBotId, setDetailBotId] = useState<string | null>(null);
+  const [screenBotId, setScreenBotId] = useState<string | null>(null);
+  const [screenMembers, setScreenMembers] = useState<string[]>([]);
+  const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const [view, setView] = useState<AppView>('chats');
   const [mobileChat, setMobileChat] = useState(Boolean(selectedConversationId));
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -57,6 +61,29 @@ export function TeamPage({ t, onLanguage }: { t: Texts; onLanguage(): void }) {
       : undefined;
   const online = node.online;
   const canGroup = activeBots.length >= 2 && online;
+  const screenBot = node.bots.find((item) => item.botId === screenBotId);
+  function openScreen(botId: string, memberIds = [botId]) {
+    setScreenMembers(memberIds);
+    setScreenBotId(botId);
+    setDetailBotId(null);
+  }
+  function openGroupScreen() {
+    if (!group || !conversation) return;
+    const activity = node.activity[conversation.conversationId];
+    const recentBot = [...(node.messages[conversation.conversationId] ?? [])]
+      .reverse()
+      .find(
+        (message) =>
+          message.author.type === 'bot' &&
+          message.author.id &&
+          group.botIds.includes(message.author.id),
+      );
+    const botId =
+      activity?.state !== 'idle' && activity?.botId && group.botIds.includes(activity.botId)
+        ? activity.botId
+        : (recentBot?.author.id ?? group.leadBotId);
+    openScreen(botId, group.botIds);
+  }
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -201,7 +228,7 @@ export function TeamPage({ t, onLanguage }: { t: Texts; onLanguage(): void }) {
   return (
     <main
       ref={layoutRef}
-      className={`team-layout${mobileChat ? ' mobile-chat' : ''}`}
+      className={`team-layout${mobileChat ? ' mobile-chat' : ''}${screenBot ? ' has-screen' : ''}`}
       style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}
     >
       <TeamSidebar
@@ -272,6 +299,7 @@ export function TeamPage({ t, onLanguage }: { t: Texts; onLanguage(): void }) {
               online={online}
               onBack={() => setMobileChat(false)}
               onEdit={() => setDetailBotId(bot.botId)}
+              onScreen={() => openScreen(bot.botId)}
             />
           ) : conversation && group ? (
             <GroupChatView
@@ -285,6 +313,7 @@ export function TeamPage({ t, onLanguage }: { t: Texts; onLanguage(): void }) {
               online={online}
               onBack={() => setMobileChat(false)}
               onEdit={() => setGroupModal(group)}
+              onScreen={openGroupScreen}
             />
           ) : (
             <div className="welcome-panel">
@@ -313,6 +342,16 @@ export function TeamPage({ t, onLanguage }: { t: Texts; onLanguage(): void }) {
           )}
         </motion.div>
       </section>
+      {screenBot && (
+        <ScreenPanel
+          key={`${selectedNodeId}:${screenBot.botId}`}
+          bot={screenBot}
+          members={node.bots.filter((item) => screenMembers.includes(item.botId))}
+          t={t}
+          onSelect={setScreenBotId}
+          onClose={() => setScreenBotId(null)}
+        />
+      )}
       <AnimatePresence>
         {paletteOpen && (
           <CommandPalette t={t} items={paletteItems} onClose={() => setPaletteOpen(false)} />
@@ -324,6 +363,7 @@ export function TeamPage({ t, onLanguage }: { t: Texts; onLanguage(): void }) {
             bot={node.bots.find((item) => item.botId === detailBotId)!}
             t={t}
             onClose={() => setDetailBotId(null)}
+            onScreen={() => openScreen(detailBotId)}
             onEdit={() => {
               setBotModal(node.bots.find((item) => item.botId === detailBotId)!);
               setDetailBotId(null);

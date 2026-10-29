@@ -9,6 +9,7 @@ import './styles/chat.css';
 import './styles/sheet.css';
 import './styles/pages.css';
 import './styles/capabilities.css';
+import './styles/screen.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

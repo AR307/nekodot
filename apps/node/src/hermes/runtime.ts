@@ -263,8 +263,11 @@ export class ManagedHermes implements HermesRuntime {
     document.setIn(['browser', 'headed'], true);
     document.setIn(['bot_desktop', 'geometry'], '1440x900');
     document.setIn(['bot_desktop', 'auto_start'], false);
-    const toolsets = document.toJS().toolsets as string[] | undefined;
-    document.set('toolsets', [...new Set([...(toolsets ?? ['hermes-cli']), 'computer_use'])]);
+    const toolsets = document.toJS().platform_toolsets?.api_server as string[] | undefined;
+    document.setIn(
+      ['platform_toolsets', 'api_server'],
+      [...new Set([...(toolsets ?? ['hermes-api-server']), 'computer_use'])],
+    );
     await writeFile(path, document.toString(), { mode: 0o600 });
   }
   private async waitHealthy(profile: string) {

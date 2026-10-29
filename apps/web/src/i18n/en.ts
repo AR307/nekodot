@@ -1,4 +1,6 @@
+import { screenEn } from './screen';
 const en = {
+  ...screenEn,
   appName: 'nekodot',
   team: 'Team',
   settings: 'Settings',

@@ -13,12 +13,14 @@ export function BotDetails({
   onClose,
   onEdit,
   onSource,
+  onScreen,
 }: {
   bot: Bot;
   t: Texts;
   onClose(): void;
   onEdit(): void;
   onSource(file: Attachment): void;
+  onScreen(): void;
 }) {
   const [tab, setTab] = useState<'details' | 'memory' | 'library'>('details');
   const nodeId = useAppStore((state) => state.selectedNodeId);
@@ -41,6 +43,14 @@ export function BotDetails({
               @{bot.handle} · {bot.model}
             </small>
           </div>
+          <button
+            className="icon-button"
+            onClick={onScreen}
+            aria-label={t.screenTitle}
+            title={t.screenTitle}
+          >
+            <Icon name="monitor" />
+          </button>
           <button className="icon-button" onClick={onClose} aria-label={t.close}>
             <Icon name="close" />
           </button>
