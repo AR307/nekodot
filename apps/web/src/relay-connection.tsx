@@ -205,12 +205,16 @@ export function RelayConnection() {
           );
         }
       };
-      currentSocket.onclose = () => {
+      currentSocket.onclose = (event) => {
         if (activeSocket !== currentSocket) return;
         activeSocket = null;
         clientReady = false;
         useAppStore.getState().setSocketReady(false);
         cancelRpcRequests();
+        if (event.code === 4401) {
+          useAppStore.getState().setToken(null);
+          return;
+        }
         if (!stopped && (!android || appActive())) {
           timer = window.setTimeout(connect, reconnectDelay);
           reconnectDelay = Math.min(reconnectDelay * 2, 30_000);

@@ -9,6 +9,7 @@ import { registerDownloads } from './downloads';
 import { registerFileTransfer } from './files';
 import { registerTunnels } from './tunnels';
 import { registerNotifications } from './notifications';
+import type { SmtpConfiguration } from './email';
 
 export interface RelayOptions {
   dataDir: string;
@@ -19,9 +20,12 @@ export interface RelayOptions {
   logger?: boolean;
   clientOrigins?: string[];
   firebaseCredentials?: string;
+  smtp?: SmtpConfiguration;
+  trustedProxy?: string[];
 }
 export async function createRelay(options: RelayOptions) {
   const app = Fastify({
+    trustProxy: options.trustedProxy ?? false,
     logger: options.logger ? { redact: ['req.headers.authorization'] } : false,
   });
   const database = new RelayDatabase(options.dataDir);
@@ -38,6 +42,11 @@ export async function createRelay(options: RelayOptions) {
     options.publicUrl,
     (id) => routing.online(id),
     (id) => routing.revoke(id),
+    (userId, sessionId) => {
+      routing.revokeUser(userId, sessionId);
+      tunnels.revokeUser(userId, sessionId);
+    },
+    options.smtp,
   );
   const notify = registerNotifications(
     app,

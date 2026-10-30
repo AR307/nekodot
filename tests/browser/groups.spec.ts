@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { startFakeHermes, recordedManagementRuntime } from '@nekodot/fake-hermes';
 import { createRelay } from '../../apps/relay/src/server';
+import { startMailbox } from '../support/mailbox';
 import { pairNode } from '../../apps/node/src/pair';
 import { NodeApplication } from '../../apps/node/src/app';
 import { HermesApi } from '../../apps/node/src/hermes/api';
@@ -33,7 +34,9 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     ],
     scenarioFor: () => schedule.shift(),
   });
+  const mailbox = await startMailbox();
   const relay = await createRelay({
+    smtp: mailbox.smtp,
     dataDir: await mkdtemp(join(tmpdir(), 'nekodot-group-relay-')),
     jwtSecret: 'group-browser-secret',
     publicUrl: relayUrl,
@@ -47,8 +50,11 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
   page.on('pageerror', (error) => errors.push(error.message));
   try {
     await page.goto(relayUrl);
-    await page.getByLabel('邮箱').fill(`groups-${randomUUID()}@example.test`);
+    await page.getByLabel('邮箱', { exact: true }).fill(`groups-${randomUUID()}@example.test`);
     await page.getByLabel('密码').fill('group-browser-password');
+    await page.getByRole('button', { name: '发送验证码', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('验证码已发出');
+    await page.getByLabel('邮箱验证码', { exact: true }).fill(mailbox.code());
     await page.getByRole('button', { name: '继续', exact: true }).click();
     await expect(page.locator('.pair-wait')).toBeVisible();
     const code = (await page.locator('.pair-wait').innerText()).match(
@@ -266,6 +272,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     connection?.close();
     if (app) await app.close();
     await relay.app.close();
+    await mailbox.close();
     await fake.close();
   }
 });

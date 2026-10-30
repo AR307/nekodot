@@ -1,3 +1,4 @@
+import { seedVerifiedAccount } from '../../../tests/support/account';
 import { expect, it } from 'vitest';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -10,6 +11,8 @@ it('keeps the same install code valid through a long installation and only lets 
     jwtSecret: 'isolated-pairing-test-secret',
     publicUrl: 'http://127.0.0.1',
   });
+  await seedVerifiedAccount(relay.database, 'installer@example.test', 'installation-test-password');
+  await seedVerifiedAccount(relay.database, 'other@example.test', 'installation-test-password');
   const base = await relay.app.listen({ host: '127.0.0.1', port: 0 });
   const post = (path: string, body: unknown, token?: string) =>
     fetch(base + '/api' + path, {
@@ -22,13 +25,13 @@ it('keeps the same install code valid through a long installation and only lets 
     });
   try {
     const owner = (await (
-      await post('/auth/signup', {
+      await post('/auth/login', {
         email: 'installer@example.test',
         password: 'installation-test-password',
       })
     ).json()) as { token: string };
     const other = (await (
-      await post('/auth/signup', {
+      await post('/auth/login', {
         email: 'other@example.test',
         password: 'installation-test-password',
       })

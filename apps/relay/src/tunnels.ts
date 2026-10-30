@@ -8,6 +8,7 @@ import type { registerRouting } from './routing';
 
 interface ScreenSession {
   userId: string;
+  authSessionId?: string;
   nodeId: string;
   botId: string;
   tunnelId?: string;
@@ -23,7 +24,7 @@ interface Tunnel {
 export function registerTunnels(
   app: FastifyInstance,
   database: RelayDatabase,
-  authenticate: (request: FastifyRequest) => Promise<{ user_id: string }>,
+  authenticate: (request: FastifyRequest) => Promise<{ user_id: string; session_id?: string }>,
   routing: ReturnType<typeof registerRouting>,
 ) {
   const wss = new WebSocketServer({ noServer: true });
@@ -60,7 +61,14 @@ export function registerTunnels(
         session.botId !== botId)
     )
       throw new HttpFault('conflict', 'Screen session expired. Open a new viewer.', 409);
-    if (!session) sessions.set(sessionId, { userId: user.user_id, nodeId, botId });
+    if (session) session.authSessionId = user.session_id;
+    if (!session)
+      sessions.set(sessionId, {
+        userId: user.user_id,
+        authSessionId: user.session_id,
+        nodeId,
+        botId,
+      });
     const ticket = randomBytes(32).toString('base64url');
     const timer = setTimeout(() => {
       tickets.delete(ticket);
@@ -85,6 +93,7 @@ export function registerTunnels(
       const session = sessions.get(entry.sessionId);
       if (
         !session ||
+        (session.authSessionId && !database.session(session.authSessionId, session.userId)) ||
         !database.owns(session.userId, session.nodeId) ||
         !routing.online(session.nodeId)
       ) {
@@ -162,8 +171,30 @@ export function registerTunnels(
       });
     }
   });
+  const sessionCheck = setInterval(() => {
+    for (const [id, session] of sessions) {
+      if (!session.authSessionId || database.session(session.authSessionId, session.userId))
+        continue;
+      const tunnel = session.tunnelId ? tunnels.get(session.tunnelId) : undefined;
+      tunnel?.client.close(4401, 'Session expired');
+      tunnel?.node?.close(4401, 'Session expired');
+      sessions.delete(id);
+    }
+  }, 25_000);
+  sessionCheck.unref();
   return {
+    revokeUser(userId: string, authSessionId?: string) {
+      for (const [id, session] of sessions) {
+        if (session.userId !== userId || (authSessionId && session.authSessionId !== authSessionId))
+          continue;
+        const tunnel = session.tunnelId ? tunnels.get(session.tunnelId) : undefined;
+        tunnel?.client.close(4401, 'Session revoked');
+        tunnel?.node?.close(4401, 'Session revoked');
+        sessions.delete(id);
+      }
+    },
     close() {
+      clearInterval(sessionCheck);
       routing.offlineListeners.delete(closeNode);
       for (const entry of tickets.values()) clearTimeout(entry.timer);
       for (const tunnel of tunnels.values()) {

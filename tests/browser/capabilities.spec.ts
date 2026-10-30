@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { startFakeHermes, recordedManagementRuntime } from '@nekodot/fake-hermes';
 import { createRelay } from '../../apps/relay/src/server';
+import { seedVerifiedAccount } from '../support/account';
 import { NodeApplication } from '../../apps/node/src/app';
 import { pairNode } from '../../apps/node/src/pair';
 import { connectRelay } from '../../apps/node/src/connection';
@@ -51,11 +52,13 @@ test('Bot details, native memory editing, library download, extension catalog an
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   try {
+    const email = `extensions-${randomUUID()}@example.test`;
+    await seedVerifiedAccount(relay.database, email, 'journey-password-123');
     const auth = await relay.app.inject({
       method: 'POST',
-      url: '/api/auth/signup',
+      url: '/api/auth/login',
       payload: {
-        email: `extensions-${randomUUID()}@example.test`,
+        email,
         password: 'journey-password-123',
       },
     });

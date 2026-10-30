@@ -1,3 +1,4 @@
+import { seedVerifiedAccount } from '../../../tests/support/account';
 import { once } from 'node:events';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -14,6 +15,8 @@ it('opens owner-only single-use screen tickets, forwards bytes and preserves nat
     jwtSecret: 'screen-test-secret',
     publicUrl: 'http://127.0.0.1',
   });
+  await seedVerifiedAccount(relay.database, 'screen@example.test', 'screen-test-password');
+  await seedVerifiedAccount(relay.database, 'other@example.test', 'screen-test-password');
   const base = await relay.app.listen({ host: '127.0.0.1', port: 0 });
   const wsBase = base.replace('http', 'ws');
   const sockets: WebSocket[] = [];
@@ -34,11 +37,11 @@ it('opens owner-only single-use screen tickets, forwards bytes and preserves nat
     return socket;
   };
   try {
-    const auth = await post('/api/auth/signup', {
+    const auth = await post('/api/auth/login', {
       email: 'screen@example.test',
       password: 'screen-test-password',
     });
-    const other = await post('/api/auth/signup', {
+    const other = await post('/api/auth/login', {
       email: 'other@example.test',
       password: 'screen-test-password',
     });
@@ -148,14 +151,44 @@ it('opens owner-only single-use screen tickets, forwards bytes and preserves nat
       (await post('/api/tunnels', { ...request, sessionId: finalTicket.sessionId }, token)).json()
         .sessionId,
     ).toBe(finalTicket.sessionId);
+
+    const logoutTicket = (await post('/api/tunnels', request, token)).json() as TunnelTicket;
+    response = once(node, 'message');
+    const logoutViewer = await open('/ws/tunnel?ticket=' + logoutTicket.ticket);
+    const logoutPayload = (JSON.parse(String((await response)[0])) as Envelope)
+      .payload as TunnelOpen;
+    const logoutBridge = await open('/ws/tunnel-node');
+    logoutBridge.send(
+      JSON.stringify({ tunnelId: logoutPayload.tunnelId, nodeToken: credentials.nodeToken }),
+    );
+    const logoutReady = once(logoutViewer, 'message');
+    logoutBridge.send(Buffer.from('RFB'));
+    await logoutReady;
+    const staleTicket = (await post('/api/tunnels', request, token)).json() as TunnelTicket;
+    const viewerClosed = once(logoutViewer, 'close');
+    const bridgeClosed = once(logoutBridge, 'close');
+    expect((await post('/api/auth/logout', {}, token)).statusCode).toBe(200);
+    expect((await viewerClosed)[0]).toBe(4401);
+    expect((await bridgeClosed)[0]).toBe(4401);
+    const staleViewer = new WebSocket(wsBase + '/ws/tunnel?ticket=' + staleTicket.ticket);
+    sockets.push(staleViewer);
+    expect(
+      await new Promise<string>((resolve) => staleViewer.once('error', (e) => resolve(e.message))),
+    ).toContain('socket hang up');
+    const replacement = (
+      await post('/api/auth/login', {
+        email: 'screen@example.test',
+        password: 'screen-test-password',
+      })
+    ).json().token as string;
     const revoked = once(node, 'close');
     await relay.app.inject({
       method: 'DELETE',
       url: '/api/nodes/' + credentials.nodeId,
-      headers: { authorization: 'Bearer ' + token },
+      headers: { authorization: 'Bearer ' + replacement },
     });
     await revoked;
-    expect((await post('/api/tunnels', request, token)).statusCode).toBe(403);
+    expect((await post('/api/tunnels', request, replacement)).statusCode).toBe(403);
   } finally {
     for (const socket of sockets) socket.terminate();
     await relay.app.close();

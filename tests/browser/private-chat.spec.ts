@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { startFakeHermes, recordedManagementRuntime } from '@nekodot/fake-hermes';
 import { createRelay } from '../../apps/relay/src/server';
+import { startMailbox } from '../support/mailbox';
 import { pairNode } from '../../apps/node/src/pair';
 import { NodeApplication } from '../../apps/node/src/app';
 import { HermesApi } from '../../apps/node/src/hermes/api';
@@ -21,6 +22,7 @@ const hermesKey = 'playwright-hermes-key';
 test.setTimeout(90000);
 
 const services: {
+  mailbox?: Awaited<ReturnType<typeof startMailbox>>;
   relay?: Awaited<ReturnType<typeof createRelay>>;
   fake?: Awaited<ReturnType<typeof startFakeHermes>>;
   app?: NodeApplication;
@@ -32,6 +34,7 @@ const services: {
 } = {};
 
 test.beforeAll(async () => {
+  services.mailbox = await startMailbox();
   services.fake = await startFakeHermes({
     fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
     profiles: ['default'],
@@ -51,6 +54,7 @@ test.beforeAll(async () => {
     },
   });
   services.relay = await createRelay({
+    smtp: services.mailbox.smtp,
     dataDir: await mkdtemp(join(tmpdir(), 'nekodot-browser-relay-')),
     jwtSecret: 'isolated-browser-test-secret',
     publicUrl: relayUrl,
@@ -65,6 +69,7 @@ test.afterAll(async () => {
   if (services.app) await services.app.close();
   if (services.relay) await services.relay.app.close();
   if (services.fake) await services.fake.close();
+  await services.mailbox?.close();
 });
 
 test('a real browser account pairs a node, configures a bot, and runs private chat controls', async ({
@@ -76,8 +81,11 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
 
   await expect(page.getByRole('heading', { name: '创建账号' })).toBeVisible();
   const userEmail = `browser-${randomUUID()}@example.test`;
-  await page.getByLabel('邮箱').fill(userEmail);
+  await page.getByLabel('邮箱', { exact: true }).fill(userEmail);
   await page.getByLabel('密码').fill('nekodot-browser-password');
+  await page.getByRole('button', { name: '发送验证码', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('验证码已发出');
+  await page.getByLabel('邮箱验证码', { exact: true }).fill(services.mailbox!.code());
   await page.getByRole('button', { name: '继续' }).click();
 
   await expect(page.getByRole('heading', { name: '添加电脑' })).toBeVisible();
@@ -257,6 +265,37 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   expect(socket.url()).toContain('/ws/client');
   await expect(page.locator('.chat-status')).not.toContainText('电脑离线');
   expect(pageErrors).toEqual([]);
+
+  await composer.fill('runs-clarify');
+  await composer.press('Enter');
+  await expect(page.locator('.question-card')).toContainText('Amber (Recommended)');
+  const questionRun = services.fake!.inspectRuns().at(-1)!.runId;
+  await page.reload();
+  await expect(
+    page.locator('.question-card').getByRole('button', { name: 'Teal', exact: true }),
+  ).toBeVisible();
+  services.connection!.close();
+  await services.app.close();
+  services.app = new NodeApplication(services.nodeHome, runtime);
+  connectNode();
+  await services.app.resume();
+  await expect(page.locator('.chat-status')).toContainText('等待回答');
+  expect(services.fake!.inspectRuns().at(-1)!.runId).toBe(questionRun);
+  await composer.fill('Keep this draft while I answer');
+  await expect(page.locator('.composer .send-button')).toBeDisabled();
+  await page
+    .locator('.question-card')
+    .getByRole('button', { name: 'Amber (Recommended)', exact: true })
+    .click();
+  await page.getByRole('button', { name: '提交回答', exact: true }).click();
+  await expect(
+    page.locator('.bot-copy').filter({ hasText: 'NEKODOT_CLARIFY_OK Amber' }),
+  ).toBeVisible();
+  await expect(page.locator('.question-card')).toContainText('Amber (Recommended)');
+  await expect(page.locator('.run-banner')).toHaveCount(0);
+  await expect(composer).toHaveValue('Keep this draft while I answer');
+  expect(services.fake!.inspectRuns().at(-1)!.runId).toBe(questionRun);
+  await page.screenshot({ path: 'docs/evidence/side-phase3-clarify-answered.png', fullPage: true });
 
   await composer.fill('Please demonstrate a protected-file approval.');
   await composer.press('Enter');
@@ -478,6 +517,6 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
     services.app.database.messages(services.app.database.conversations()[0]!.conversationId).length,
   ).toBeGreaterThan(15);
   expect(services.app.database.setting('provider')).toMatchObject({ apiKeyLast4: '9472' });
-  expect(services.fake!.inspectRuns().filter((run) => run.profile === bot.botId)).toHaveLength(5);
+  expect(services.fake!.inspectRuns().filter((run) => run.profile === bot.botId)).toHaveLength(6);
   await delay(20);
 });

@@ -488,3 +488,9 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 隔离 WSL 的真实模型提问 Amber / Teal，回答 Amber 后同 run 实际完成；已保存脱敏 fixture。Edge 完整私聊验证刷新、重建、草稿、回答及后续审批/steer/停止；新增问题截图单独留存。
 - 本轮 typecheck、15 文件 27 项测试、Flutter analyze 通过；完整 Edge 4 passed / 1 skipped，跳过项为需要真实 Linux 屏幕的既有测试。原生 Flutter 构建和设备旅程尚不能标记完成，外部 SMTP 等待用户准备，不部署未验收账号变更。
 - 实施记录见 docs/side-phase-3-progress.md；所有修改仅本地，不 push、不重启线上服务。
+
+## 2026-10-30 / Side Phase 3 邮箱验证与会话基础
+
+- 实现 6 位验证码注册、旧账号补验、密码重置/修改、30 天可撤销会话与服务端退出。Web 保持验证码、重置和退出可操作，4401 清登录态而非无限重连。
+- 真实 loopback SMTP/HTTP/WS 验证错误/重发/重放、旧 userId 保留、重置后旧 token 失效、退出关闭屏幕 viewer 和 node，旧票据不能使用；两个账号的既有节点/文件/屏幕隔离测试继续通过。
+- 最新 15 文件 / 27 项测试通过。实际外部邮箱和生产可信代理仍待验收，没有部署 SMTP 缺失版本。报告见 docs/side-phase-3-accounts.md。

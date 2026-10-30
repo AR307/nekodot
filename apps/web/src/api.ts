@@ -20,10 +20,11 @@ export async function relayRequest<T>(path: string, init: RequestInit = {}): Pro
       ...init.headers,
     },
   });
-  const value = (await response.json()) as { error?: { message?: string } } & T;
+  const value = (await response.json()) as { error?: { code?: string; message?: string } } & T;
   if (!response.ok)
     throw Object.assign(new Error(value.error?.message ?? 'Request failed'), {
       status: response.status,
+      code: value.error?.code,
     });
   return value;
 }

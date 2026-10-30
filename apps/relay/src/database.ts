@@ -7,6 +7,7 @@ export interface UserRow {
   user_id: string;
   email: string;
   password_hash: string;
+  session_id?: string;
 }
 export interface NodeRow {
   node_id: string;
@@ -27,6 +28,9 @@ export class RelayDatabase {
       CREATE TABLE IF NOT EXISTS nodes(node_id TEXT PRIMARY KEY,user_id TEXT NOT NULL,name TEXT NOT NULL,platform TEXT NOT NULL,token_hash TEXT UNIQUE NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS pairing_codes(code TEXT PRIMARY KEY,user_id TEXT NOT NULL,expires_at INTEGER NOT NULL,used INTEGER NOT NULL DEFAULT 0);
       PRAGMA user_version=1;
+      CREATE TABLE IF NOT EXISTS verified_emails(user_id TEXT PRIMARY KEY,verified_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS auth_sessions(session_id TEXT PRIMARY KEY,user_id TEXT NOT NULL,expires_at INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);
+      CREATE TABLE IF NOT EXISTS device_sessions(device_id TEXT PRIMARY KEY,session_id TEXT NOT NULL);
     `);
   }
   userByEmail(email: string) {
@@ -41,6 +45,50 @@ export class RelayDatabase {
     const userId = randomUUID();
     this.db.prepare('INSERT INTO users VALUES(?,?,?)').run(userId, email, hash);
     return userId;
+  }
+  verified(userId: string) {
+    return !!this.db.prepare('SELECT user_id FROM verified_emails WHERE user_id=?').get(userId);
+  }
+  verifyEmail(userId: string) {
+    this.db.prepare('INSERT OR IGNORE INTO verified_emails VALUES(?,?)').run(userId, Date.now());
+  }
+  createSession(userId: string) {
+    const sessionId = randomUUID();
+    this.db
+      .prepare('INSERT INTO auth_sessions VALUES(?,?,?,0)')
+      .run(sessionId, userId, Date.now() + 30 * 86_400_000);
+    return sessionId;
+  }
+  session(sessionId: string, userId: string) {
+    return !!this.db
+      .prepare(
+        'SELECT session_id FROM auth_sessions WHERE session_id=? AND user_id=? AND revoked=0 AND expires_at>?',
+      )
+      .get(sessionId, userId, Date.now());
+  }
+  revokeSessions(userId: string, sessionId?: string) {
+    const sessions = this.db
+      .prepare(
+        'SELECT session_id FROM auth_sessions WHERE user_id=?' +
+          (sessionId ? ' AND session_id=?' : ''),
+      )
+      .all(...(sessionId ? [userId, sessionId] : [userId])) as { session_id: string }[];
+    for (const session of sessions) {
+      this.db
+        .prepare('UPDATE auth_sessions SET revoked=1 WHERE session_id=?')
+        .run(session.session_id);
+      // Device tokens bound to a revoked login must stop receiving account notifications.
+      if (
+        this.db
+          .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='devices'")
+          .get()
+      )
+        this.db
+          .prepare(
+            'DELETE FROM devices WHERE device_id IN (SELECT device_id FROM device_sessions WHERE session_id=?)',
+          )
+          .run(session.session_id);
+    }
   }
   nodes(userId: string) {
     return this.db

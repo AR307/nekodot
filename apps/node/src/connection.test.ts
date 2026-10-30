@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
 import { nodeCredentialsSchema, rpcResponseSchema, type Envelope } from '@nekodot/protocol';
 import { createRelay } from '../../relay/src/server';
+import { seedVerifiedAccount } from '../../../tests/support/account';
 import { pairNode } from './pair';
 import { connectRelay } from './connection';
 import { NodeDatabase } from './database';
@@ -18,9 +19,10 @@ it('pairs through HTTP, saves private credentials and serves persisted state ove
     publicUrl: 'http://localhost',
   });
   const base = await relay.app.listen({ host: '127.0.0.1', port: 0 });
+  await seedVerifiedAccount(relay.database, 'node@example.test', 'node-password');
   const signup = await relay.app.inject({
     method: 'POST',
-    url: '/api/auth/signup',
+    url: '/api/auth/login',
     payload: { email: 'node@example.test', password: 'node-password' },
   });
   const { token } = signup.json<{ token: string }>();

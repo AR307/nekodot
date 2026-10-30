@@ -1,3 +1,4 @@
+import { seedVerifiedAccount } from '../../../tests/support/account';
 import { it, expect } from 'vitest';
 import { mkdtemp, mkdir, copyFile, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -26,6 +27,7 @@ it('downloads the installer and standalone node, then pairs outside the checkout
     publicUrl: 'http://127.0.0.1:4329',
     distributionDirectory: distribution,
   });
+  await seedVerifiedAccount(relay.database, 'install@example.test', 'install-password');
   const base = await relay.app.listen({ host: '127.0.0.1', port: 0 });
   try {
     for (const name of ['nekodot-windows-x64.exe', 'nekodot-android-arm64.apk']) {
@@ -33,7 +35,7 @@ it('downloads the installer and standalone node, then pairs outside the checkout
       expect(unpublished.status).toBe(404);
       expect(await unpublished.json()).toMatchObject({ error: { code: 'not_found' } });
     }
-    const signup = await fetch(base + '/api/auth/signup', {
+    const signup = await fetch(base + '/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: 'install@example.test', password: 'install-password' }),

@@ -1,3 +1,4 @@
+import { seedVerifiedAccount } from '../../../tests/support/account';
 import { it, expect } from 'vitest';
 import { mkdtemp } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -40,6 +41,8 @@ it('registers, pairs and routes only owner traffic; unpair revokes the live node
     jwtSecret: 'isolated-relay-test-secret',
     publicUrl: 'http://127.0.0.1:4319',
   });
+  await seedVerifiedAccount(relay.database, 'owner@example.test', 'owner-password');
+  await seedVerifiedAccount(relay.database, 'other@example.test', 'other-password');
   const base = await relay.app.listen({ host: '127.0.0.1', port: 0 });
   const sockets: WebSocket[] = [];
   async function post(path: string, body: unknown, token?: string) {
@@ -54,7 +57,7 @@ it('registers, pairs and routes only owner traffic; unpair revokes the live node
   }
   try {
     const owner = (await (
-      await post('/api/auth/signup', { email: 'owner@example.test', password: 'owner-password' })
+      await post('/api/auth/login', { email: 'owner@example.test', password: 'owner-password' })
     ).json()) as { token: string };
     expect(owner.token).toBeTypeOf('string');
     const login = await post('/api/auth/login', {
@@ -67,7 +70,7 @@ it('registers, pairs and routes only owner traffic; unpair revokes the live node
         .status,
     ).toBe(401);
     const stranger = (await (
-      await post('/api/auth/signup', { email: 'other@example.test', password: 'other-password' })
+      await post('/api/auth/login', { email: 'other@example.test', password: 'other-password' })
     ).json()) as { token: string };
     const pairing = (await (await post('/api/pairing-codes', {}, owner.token)).json()) as {
       code: string;

@@ -1,3 +1,4 @@
+import { seedVerifiedAccount } from '../../../tests/support/account';
 import { it, expect } from 'vitest';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -14,6 +15,8 @@ it('registers an App device, isolates owners and acknowledges a deduplicated tas
     publicUrl: 'https://product.example',
     clientOrigins: ['https://tauri.localhost'],
   });
+  await seedVerifiedAccount(relay.database, 'app-owner@example.test', 'owner-password');
+  await seedVerifiedAccount(relay.database, 'app-other@example.test', 'other-password');
   const base = await relay.app.listen({ host: '127.0.0.1', port: 0 });
   const sockets: WebSocket[] = [];
   async function request(path: string, body: unknown, token?: string, method = 'POST') {
@@ -56,7 +59,7 @@ it('registers an App device, isolates owners and acknowledges a deduplicated tas
     return { ws, next, messages };
   }
   try {
-    const ownerResponse = await request('/api/auth/signup', {
+    const ownerResponse = await request('/api/auth/login', {
       email: 'app-owner@example.test',
       password: 'owner-password',
     });
@@ -65,7 +68,7 @@ it('registers an App device, isolates owners and acknowledges a deduplicated tas
     );
     const owner = (await ownerResponse.json()) as { token: string };
     const other = (await (
-      await request('/api/auth/signup', {
+      await request('/api/auth/login', {
         email: 'app-other@example.test',
         password: 'other-password',
       })

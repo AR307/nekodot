@@ -289,7 +289,16 @@ export function SettingsPage({
               <small>{t.signedInAs}</small>
               <strong>{me?.user.email}</strong>
             </span>
-            <button className="secondary-button" onClick={() => setToken(null)}>
+            <button
+              className="secondary-button"
+              onClick={() =>
+                void relayRequest('/auth/logout', { method: 'POST', body: '{}' })
+                  .then(() => setToken(null))
+                  .catch((reason: unknown) =>
+                    setError(reason instanceof Error ? reason.message : t.saveError),
+                  )
+              }
+            >
               {t.logout}
             </button>
           </div>

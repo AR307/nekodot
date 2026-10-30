@@ -13,6 +13,7 @@ import {
   type TaskNotification,
 } from '@nekodot/protocol';
 import type { RelayDatabase, NodeRow } from './database';
+import { HttpFault } from './auth';
 
 const frame = (type: Envelope['type'], payload: unknown, nodeId?: string): Envelope => ({
   v: 1,
@@ -27,11 +28,12 @@ const send = (socket: WebSocket, value: Envelope) => {
 interface Client {
   socket: WebSocket;
   userId: string;
+  sessionId?: string;
 }
 export function registerRouting(
   server: Server,
   database: RelayDatabase,
-  authenticate: (token: string) => Promise<{ user_id: string }>,
+  authenticate: (token: string) => Promise<{ user_id: string; session_id?: string }>,
   notify: (userId: string, nodeId: string, signal: TaskNotification) => Promise<boolean>,
 ) {
   const wss = new WebSocketServer({ noServer: true });
@@ -90,11 +92,15 @@ export function registerRouting(
       protocolTimings.helloMs,
     );
     const heartbeat = setInterval(() => {
-      if (Date.now() - lastPong > protocolTimings.pongTimeoutMs) socket.terminate();
+      if (client?.sessionId && !database.session(client.sessionId, client.userId))
+        socket.close(4401, 'Session expired');
+      else if (Date.now() - lastPong > protocolTimings.pongTimeoutMs) socket.terminate();
       else if (node || client) send(socket, frame('ping', {}));
     }, protocolTimings.pingMs);
     socket.on('message', (raw) => {
-      void receive().catch(() => socket.close(1008, 'Invalid request or credentials'));
+      void receive().catch((error) =>
+        socket.close(error instanceof HttpFault ? 4401 : 1008, 'Invalid request or credentials'),
+      );
       async function receive() {
         const envelope = envelopeSchema.parse(JSON.parse(raw.toString()));
         if (!node && !client) {
@@ -112,7 +118,7 @@ export function registerRouting(
             if (!('token' in hello)) throw new Error('User token required');
             const user = await authenticate(hello.token);
             if (socket.readyState !== WebSocket.OPEN) return;
-            client = { socket, userId: user.user_id };
+            client = { socket, userId: user.user_id, sessionId: user.session_id };
             clients.add(client);
           }
           clearTimeout(helloTimer);
@@ -229,6 +235,11 @@ export function registerRouting(
     },
     online: (id: string) => nodes.has(id),
     revoke: (id: string) => nodes.get(id)?.close(1008, 'Node unpaired'),
+    revokeUser: (userId: string, sessionId?: string) => {
+      for (const client of clients)
+        if (client.userId === userId && (!sessionId || client.sessionId === sessionId))
+          client.socket.close(4401, 'Session revoked');
+    },
     close: () => {
       for (const p of transfers.values()) p.reject(new Error('Relay stopped'));
       transfers.clear();

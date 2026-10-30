@@ -9,7 +9,7 @@ import { HttpFault } from './auth';
 export function registerNotifications(
   app: FastifyInstance,
   database: RelayDatabase,
-  authenticate: (request: FastifyRequest) => Promise<{ user_id: string }>,
+  authenticate: (request: FastifyRequest) => Promise<{ user_id: string; session_id?: string }>,
   credentialsFile?: string,
 ) {
   database.db.exec(`
@@ -37,6 +37,12 @@ export function registerNotifications(
         'INSERT INTO devices VALUES(?,?,?) ON CONFLICT(device_id) DO UPDATE SET user_id=excluded.user_id,token=excluded.token',
       )
       .run(deviceId, user.user_id, token);
+    if (user.session_id)
+      database.db
+        .prepare(
+          'INSERT INTO device_sessions VALUES(?,?) ON CONFLICT(device_id) DO UPDATE SET session_id=excluded.session_id',
+        )
+        .run(deviceId, user.session_id);
     return { registered: true, available: !!firebase };
   });
   app.delete<{ Params: { id: string } }>('/api/devices/:id', async (request) => {

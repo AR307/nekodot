@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { relayRequest } from '../api';
 import { useAppStore } from '../store';
@@ -24,24 +24,69 @@ export function AuthPage({
   const setToken = useAppStore((state) => state.setToken);
   const error = useAppStore((state) => state.authError);
   const setError = useAppStore((state) => state.setAuthError);
-  const [mode, setMode] = useState<'login' | 'signup'>('signup');
+  const [mode, setMode] = useState<'login' | 'signup' | 'verify' | 'reset'>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [code, setCode] = useState('');
+  const [sending, setSending] = useState(false);
+  const [retryAt, setRetryAt] = useState(0);
+  const [seconds, setSeconds] = useState(0);
+  const [notice, setNotice] = useState('');
   const reduceMotion = useReducedMotion();
+  useEffect(() => {
+    const timer = window.setInterval(
+      () => setSeconds(Math.max(0, Math.ceil((retryAt - Date.now()) / 1000))),
+      500,
+    );
+    return () => window.clearInterval(timer);
+  }, [retryAt]);
+
+  async function sendCode() {
+    setSending(true);
+    setError('');
+    setNotice('');
+    try {
+      await relayRequest('/auth/code', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          purpose: mode === 'verify' ? 'verify' : mode === 'reset' ? 'reset' : 'signup',
+          ...(mode === 'verify' ? { password } : {}),
+        }),
+      });
+      setRetryAt(Date.now() + 60_000);
+      setSeconds(60);
+      setNotice(t.codeSent);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : t.saveError);
+    } finally {
+      setSending(false);
+    }
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError('');
     try {
-      const result = await relayRequest<{ token: string }>('/auth/' + mode, {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      });
-      setToken(result.token);
+      const result = await relayRequest<{ token: string }>(
+        '/auth/' + (mode === 'reset' ? 'password/reset' : mode),
+        {
+          method: 'POST',
+          body: JSON.stringify({ email, password, ...(mode !== 'login' ? { code } : {}) }),
+        },
+      );
+      if (mode === 'reset') {
+        setMode('login');
+        setCode('');
+        setNotice(t.passwordResetDone);
+      } else setToken(result.token);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Could not sign in');
+      if (reason instanceof Error && 'code' in reason && reason.code === 'verification_required') {
+        setMode('verify');
+        setError(t.verifyRequired);
+      } else setError(reason instanceof Error ? reason.message : 'Could not sign in');
     } finally {
       setBusy(false);
     }
@@ -102,7 +147,15 @@ export function AuthPage({
               exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }}
               transition={{ duration: 0.16, ease }}
             >
-              <h2>{mode === 'signup' ? t.signUp : t.signIn}</h2>
+              <h2>
+                {mode === 'signup'
+                  ? t.signUp
+                  : mode === 'verify'
+                    ? t.verifyEmail
+                    : mode === 'reset'
+                      ? t.resetPassword
+                      : t.signIn}
+              </h2>
               <p className="muted">{t.welcome}</p>
             </motion.div>
           </AnimatePresence>
@@ -120,7 +173,9 @@ export function AuthPage({
           <label>
             {t.password}
             <input
-              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+              autoComplete={
+                mode === 'signup' || mode === 'reset' ? 'new-password' : 'current-password'
+              }
               type="password"
               minLength={8}
               required
@@ -129,6 +184,35 @@ export function AuthPage({
               onChange={(event) => setPassword(event.target.value)}
             />
           </label>
+          {mode !== 'login' && (
+            <label>
+              {t.emailCode}
+              <input
+                aria-label={t.emailCode}
+                autoComplete="one-time-code"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                minLength={6}
+                maxLength={6}
+                required
+                value={code}
+                onChange={(event) => setCode(event.target.value)}
+              />
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={sending || seconds > 0 || !email || (mode === 'verify' && !password)}
+                onClick={() => void sendCode()}
+              >
+                {seconds > 0 ? `${seconds}s` : t.sendCode}
+              </button>
+            </label>
+          )}
+          {notice && (
+            <p role="status" className="inline-success">
+              {notice}
+            </p>
+          )}
           {error && (
             <p className="form-error" role="alert">
               {error}
@@ -143,11 +227,40 @@ export function AuthPage({
             type="button"
             onClick={() => {
               setMode(mode === 'signup' ? 'login' : 'signup');
+              setCode('');
+              setNotice('');
               setError('');
             }}
           >
             {mode === 'signup' ? t.alreadyAccount : t.newAccount}
           </button>
+          {mode === 'login' && (
+            <button
+              className="text-button"
+              type="button"
+              onClick={() => {
+                setMode('reset');
+                setError('');
+                setNotice('');
+                setCode('');
+              }}
+            >
+              {t.forgotPassword}
+            </button>
+          )}
+          {(mode === 'verify' || mode === 'reset') && (
+            <button
+              className="text-button"
+              type="button"
+              onClick={() => {
+                setMode('login');
+                setError('');
+                setNotice('');
+              }}
+            >
+              {t.signIn}
+            </button>
+          )}
           <p className="auth-privacy">
             <Icon name="check" />
             {t.privateByDesign}
