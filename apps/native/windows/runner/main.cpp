@@ -9,9 +9,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
   HANDLE singleton = ::CreateMutex(nullptr, FALSE, L"Local\\app.nekodot.client.native");
   if (::GetLastError() == ERROR_ALREADY_EXISTS) {
-    HWND existing = ::FindWindow(nullptr, L"nekodot");
+    HWND existing =
+        ::FindWindow(L"FLUTTER_RUNNER_WIN32_WINDOW", L"nekodot");
     if (existing) {
-      ::ShowWindow(existing, SW_RESTORE);
+      ::ShowWindowAsync(existing, ::IsIconic(existing) ? SW_RESTORE : SW_SHOW);
       ::SetForegroundWindow(existing);
     }
     ::CloseHandle(singleton);

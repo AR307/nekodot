@@ -28,7 +28,7 @@ class _BotEditorState extends State<BotEditor> {
   final members = <String>{};
   List<Json> sources = [];
   List<String> models = [];
-  bool busy = false;
+  bool busy = false, permissionsReady = true;
   NekodotClient get c => widget.client;
   @override
   void initState() {
@@ -46,9 +46,28 @@ class _BotEditorState extends State<BotEditor> {
         color = '${b['avatar']['color']}';
         source = b['sourceId'] as String?;
         contextLength.text = '${b['modelSettings']?['contextLength'] ?? ''}';
+        permissionsReady = false;
+        loadPermissions();
       }
     }
     if (!widget.group) loadSources();
+  }
+
+  Future<void> loadPermissions() async {
+    try {
+      final result = await c.rpc('bots.permissions.get', {
+        'botId': widget.existing!['botId'],
+      });
+      if (mounted) {
+        setState(() {
+          mode = result['mode'] as String;
+          permissionsReady = true;
+          error = '';
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    }
   }
 
   Future<void> loadSources() async {
@@ -312,6 +331,7 @@ class _BotEditorState extends State<BotEditor> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
+                key: ValueKey('approval-$mode-$permissionsReady'),
                 initialValue: mode,
                 decoration: InputDecoration(
                   labelText: c.tr('Hermes 审批等级', 'Hermes approval mode'),
@@ -330,14 +350,23 @@ class _BotEditorState extends State<BotEditor> {
                     child: Text(c.tr('全部允许', 'Allow all')),
                   ),
                 ],
-                onChanged: (value) => setState(() => mode = value!),
+                onChanged: permissionsReady
+                    ? (value) => setState(() => mode = value!)
+                    : null,
               ),
+              if (!permissionsReady)
+                TextButton.icon(
+                  onPressed: loadPermissions,
+                  icon: const Icon(Icons.refresh),
+                  label: Text(c.tr('重新读取审批设置', 'Reload approval settings')),
+                ),
             ],
             ErrorNotice(error),
             const SizedBox(height: 20),
             FilledButton(
               onPressed:
                   busy ||
+                      !permissionsReady ||
                       !c.online ||
                       (!widget.group &&
                           widget.existing == null &&

@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:pdfrx/pdfrx.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../data/client.dart';
 import '../ui/design.dart';
@@ -138,88 +139,137 @@ class _LibraryPageState extends State<LibraryPage> {
   );
 }
 
-class FilePage extends StatelessWidget {
+class FilePage extends StatefulWidget {
   final NekodotClient client;
   final Json file;
   const FilePage({super.key, required this.client, required this.file});
+  @override
+  State<FilePage> createState() => _FilePageState();
+}
+
+class _FilePageState extends State<FilePage> {
+  NekodotClient get client => widget.client;
+  Json get file => widget.file;
+  late final content = downloadFile(client, file['fileId'] as String);
+  bool busy = false;
+  String error = '', notice = '';
+
+  Future<void> deliver({required bool share}) async {
+    setState(() {
+      busy = true;
+      error = '';
+      notice = '';
+    });
+    try {
+      final bytes = await content;
+      if (share) {
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile.fromData(bytes, mimeType: file['mime'] as String)],
+            fileNameOverrides: [file['name'] as String],
+          ),
+        );
+      } else {
+        final saved = await FilePicker.saveFile(
+          dialogTitle: client.tr('保存文件', 'Save file'),
+          fileName: file['name'] as String,
+          mimeType: file['mime'] as String,
+          bytes: bytes,
+        );
+        if (saved != null && mounted) {
+          setState(() => notice = client.tr('文件已保存', 'File saved'));
+        }
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: Text('${file['name']}'),
       actions: [
         IconButton(
+          tooltip: client.tr('分享文件', 'Share file'),
+          onPressed: file['available'] == true && !busy
+              ? () => deliver(share: true)
+              : null,
+          icon: const Icon(Icons.share_outlined),
+        ),
+        IconButton(
           tooltip: client.tr('保存文件', 'Save file'),
           icon: const Icon(Icons.download_outlined),
-          onPressed: file['available'] != true
+          onPressed: file['available'] != true || busy
               ? null
-              : () async {
-                  try {
-                    final bytes = await downloadFile(
-                      client,
-                      file['fileId'] as String,
-                    );
-                    await FilePicker.saveFile(
-                      dialogTitle: client.tr('保存文件', 'Save file'),
-                      fileName: file['name'] as String,
-                      bytes: bytes,
-                    );
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(SnackBar(content: Text('$e')));
-                    }
-                  }
-                },
+              : () => deliver(share: false),
         ),
       ],
     ),
-    body: file['available'] != true
-        ? Center(
-            child: Text(
-              client.tr(
-                '原文件已不可读取，保留此来源记录。',
-                'The original file is unavailable. Its source is retained.',
-              ),
-            ),
-          )
-        : FutureBuilder<Uint8List>(
-            future: downloadFile(client, file['fileId'] as String),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Center(child: ErrorNotice('${snapshot.error}'));
-              }
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final bytes = snapshot.data!, mime = file['mime'] as String;
-              if (mime.startsWith('image/')) {
-                return InteractiveViewer(
-                  child: Center(child: Image.memory(bytes)),
-                );
-              }
-              if (mime == 'application/pdf') {
-                return PdfViewer.data(
-                  bytes,
-                  sourceName: file['name'] as String,
-                );
-              }
-              if (mime.startsWith('text/') || mime == 'application/json') {
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: SelectableText(
-                    utf8.decode(bytes, allowMalformed: true),
-                  ),
-                );
-              }
-              return Center(
-                child: Text(
-                  client.tr(
-                    '使用右上角按钮保存文件。',
-                    'Use the download button to save this file.',
-                  ),
-                ),
-              );
-            },
+    body: Column(
+      children: [
+        if (busy) const LinearProgressIndicator(),
+        if (error.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ErrorNotice(error),
           ),
+        if (notice.isNotEmpty)
+          Padding(padding: const EdgeInsets.all(8), child: Text(notice)),
+        Expanded(
+          child: file['available'] != true
+              ? Center(
+                  child: Text(
+                    client.tr(
+                      '原文件已不可读取，保留此来源记录。',
+                      'The original file is unavailable. Its source is retained.',
+                    ),
+                  ),
+                )
+              : FutureBuilder<Uint8List>(
+                  future: content,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Center(child: ErrorNotice('${snapshot.error}'));
+                    }
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final bytes = snapshot.data!, mime = file['mime'] as String;
+                    if (mime.startsWith('image/')) {
+                      return InteractiveViewer(
+                        child: Center(child: Image.memory(bytes)),
+                      );
+                    }
+                    if (mime == 'application/pdf') {
+                      return PdfViewer.data(
+                        bytes,
+                        sourceName: file['name'] as String,
+                      );
+                    }
+                    if (mime.startsWith('text/') ||
+                        mime == 'application/json') {
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.all(24),
+                        child: SelectableText(
+                          utf8.decode(bytes, allowMalformed: true),
+                        ),
+                      );
+                    }
+                    return Center(
+                      child: Text(
+                        client.tr(
+                          '使用右上角按钮保存文件。',
+                          'Use the download button to save this file.',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    ),
   );
 }

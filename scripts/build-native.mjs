@@ -1,4 +1,4 @@
-import { copyFile, readFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,7 +15,10 @@ if (!['android', 'windows'].includes(platform))
   );
 const env = { ...process.env };
 const debug = args.includes('--debug');
+const targetPlatform = value('target-platform') ?? 'android-arm64';
+const abi = { 'android-arm64': 'arm64-v8a', 'android-x64': 'x86_64' }[targetPlatform];
 if (platform === 'android') {
+  if (!abi) throw new Error('Choose android-arm64 or android-x64 for this Android package.');
   const signing = value('signing') ?? env.NEKODOT_ANDROID_SIGNING_CONFIG;
   if (signing) Object.assign(env, JSON.parse(await readFile(resolve(signing), 'utf8')));
   if (
@@ -50,13 +53,41 @@ const command = [
   debug ? '--debug' : '--release',
   `--dart-define=RELAY_URL=${relay}`,
 ];
-if (platform === 'android')
-  command.push('--target-platform', value('target-platform') ?? 'android-arm64');
+if (platform === 'android') {
+  command.push('--target-platform', targetPlatform);
+  // Dependencies can bundle other ABIs; let Flutter package only the selected ABI.
+  if (!debug) command.push('--split-per-abi');
+}
 const child = spawn(process.execPath, command, { cwd: root, env, stdio: 'inherit' });
 child.on('error', (error) => {
   console.error(error.message);
   process.exitCode = 1;
 });
-child.on('exit', (code) => {
+child.on('exit', async (code) => {
   process.exitCode = code ?? 1;
+  if (code !== 0 || debug) return;
+  if (platform === 'windows') {
+    const installer = spawn(process.execPath, ['scripts/package-native-windows.mjs'], {
+      cwd: root,
+      env,
+      stdio: 'inherit',
+    });
+    installer.on('error', (error) => {
+      console.error(error.message);
+      process.exitCode = 1;
+    });
+    installer.on('exit', (result) => {
+      process.exitCode = result ?? 1;
+    });
+  } else {
+    const pubspec = await readFile(resolve(root, 'apps/native/pubspec.yaml'), 'utf8');
+    const version = pubspec.match(/^version: (\S+)$/m)?.[1];
+    await mkdir(resolve(root, 'dist/native'), { recursive: true });
+    const output = resolve(root, `dist/native/nekodot_${version}_${targetPlatform}.apk`);
+    await copyFile(
+      resolve(root, `apps/native/build/app/outputs/flutter-apk/app-${abi}-release.apk`),
+      output,
+    );
+    console.log(`Signed Android APK: ${output}`);
+  }
 });

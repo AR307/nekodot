@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:window_manager/window_manager.dart';
 
 import 'data/client.dart';
 import 'features/auth.dart';
@@ -13,18 +12,7 @@ import 'ui/design.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (Platform.isWindows) {
-    await windowManager.ensureInitialized();
-    await windowManager.waitUntilReadyToShow(
-      const WindowOptions(
-        size: Size(1180, 800),
-        minimumSize: Size(390, 600),
-        title: 'nekodot',
-      ),
-      () async {
-        await windowManager.show();
-        await windowManager.focus();
-      },
-    );
+    await DesktopHost.initialize();
   }
   runApp(NekodotApp(client: NekodotClient()));
 }
@@ -59,7 +47,6 @@ class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
             });
           }
         });
-    if (Platform.isWindows) DesktopHost.initialize();
   }
 
   @override

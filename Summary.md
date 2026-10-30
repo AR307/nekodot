@@ -7,6 +7,7 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 
 - apps/web：React 用户界面。
 - apps/client：共用 React 界面的 Tauri 2 Windows / Android 宿主。
+- apps/native：Flutter Windows / Android 候选客户端，Rust 原生 RFB 屏幕与现有 Relay 协议；迁移验收完成前不替换已发布客户端。
 - apps/site：双语静态官网，无构建步骤。
 - apps/relay：连接与路由入口。
 - apps/node：本机代理与 Hermes 集成。
@@ -436,3 +437,9 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - Node 24 lint/typecheck、19 文件 / 31 项测试及 build 通过；完整 Edge 6 通过 / 1 真实 Linux 屏幕跳过，共享记忆 390/768/1440px、中英、浅深色与 reduced-motion 已实拍。Flutter analyze、既有 2 项测试与双端 release 构建通过；原生交互结果见本模块报告，不以构建代替真机。
 - 详见 docs/side-phase-3-user-memory.md。保留既有数据及其他未提交截图；只做本地提交，不部署、不分发、不 push。全新检出、真机、Windows 安装、原生审核和通知等未验项目继续保留。
 - 原生共享记忆旅程在专用 Android 模拟器通过编辑/保存、另一节点读取、返回、刷新与重连保留草稿；官方 driver 初次连接不稳定，续接同一进程后取得通过结果和实际截图，记录不掩盖此工具限制。
+
+## 2026-10-30 / Side Phase 3 原生产品旅程与安装候选
+
+- 补齐双端 Flutter 私聊、群聊、审批、提问、同 run steer、停止、失败恢复和文件旅程；修复审批设置误覆盖、发送中草稿清空、重连选项丢失及 Windows 列表 Material 断言。真实 Node/Relay 加 Hermes 录制回放通过，不冒充新模型验收。
+- 新增 Windows 每用户 NSIS 安装器与 app-local runtime；隔离目录覆盖安装、单实例和托盘恢复实测，旧 Tauri 保留。Android 候选沿用产品签名并按官方 ABI 分包，Flutter 0.2.0+4 的 arm64 APK versionCode 为 2004。候选包仅保留本地，未部署、发布或 push。
+- 独立源码 frozen install、Node 24 lint/typecheck、19 文件 / 31 项测试及 build 通过；完整 Edge 最终 6 通过 / 1 真实 Linux 屏幕跳过。Flutter analyze、4 项 widget 场景和原生旅程结果与未覆盖范围见 docs/side-phase-3-native-product.md。真机通知、外部邮件重置/补验、扩展导入与干净用户安装仍未完成。

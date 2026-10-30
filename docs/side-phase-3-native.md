@@ -36,7 +36,7 @@
 
 ## 尚未验收与切换边界
 
-- 多来源授权、模型信息、欢迎回合和扩展元数据已后续接入，分别见 `side-phase-3-providers.md`、`side-phase-3-welcome.md` 与 `side-phase-3-extensions.md`；各项真实模型、回放、模拟器边界按对应报告，不代表全平台验收。共享 USER 记忆仍待实现。
-- 原生全部页面、Windows 安装器、Windows 完整操作与通知、Android 真机触摸/后台通知/网络切换仍需逐项验收。
+- 多来源授权、模型信息、欢迎回合、扩展元数据及共享 USER 已后续接入，分别见 `side-phase-3-providers.md`、`side-phase-3-welcome.md`、`side-phase-3-extensions.md` 与 `side-phase-3-user-memory.md`；真实模型、回放和模拟器边界按对应报告，不代表全平台验收。
+- 后续 Windows 安装器、双端私聊/群聊/审批/提问/steer/停止回放旅程及候选包已补齐，见 `side-phase-3-native-product.md`。干净 Windows 用户安装、原生通知、Android 真机触摸/后台/网络切换与完整视觉矩阵仍待验收。
 - 当前模拟器 Google Play 服务版本低于 Firebase SDK 要求；没有将 FCM 注册或后台推送标记为通过。
 - 既有 Tauri 产品、官网及线上账号服务不替换、不重启；没有上传本地候选包或推送 Git。

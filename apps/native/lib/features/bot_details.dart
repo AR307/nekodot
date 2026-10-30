@@ -15,147 +15,167 @@ class BotDetails extends StatelessWidget {
   final Json bot;
   const BotDetails({super.key, required this.client, required this.bot});
   @override
-  Widget build(BuildContext context) {
-    final c = client;
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('${bot['displayName']}'),
-          bottom: TabBar(
-            tabs: [
-              Tab(text: c.tr('详情', 'Details')),
-              Tab(text: c.tr('记忆', 'Memory')),
-              Tab(text: c.tr('资料库', 'Files')),
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: client,
+    builder: (context, child) {
+      final c = client;
+      final bot = c.node.bots
+          .where((value) => value['botId'] == this.bot['botId'])
+          .firstOrNull;
+      if (bot == null || bot['archived'] == true) {
+        return Scaffold(
+          appBar: AppBar(title: Text(c.tr('Bot 已归档', 'Bot archived'))),
+          body: Center(
+            child: Text(
+              c.tr('会话和历史已保留。', 'Conversations and history are kept.'),
+            ),
+          ),
+        );
+      }
+      return DefaultTabController(
+        length: 3,
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text('${bot['displayName']}'),
+            bottom: TabBar(
+              tabs: [
+                Tab(text: c.tr('详情', 'Details')),
+                Tab(text: c.tr('记忆', 'Memory')),
+                Tab(text: c.tr('资料库', 'Files')),
+              ],
+            ),
+            actions: [
+              IconButton(
+                tooltip: c.tr('屏幕', 'Screen'),
+                onPressed: () =>
+                    pushPage(context, ScreenPage(client: c, bot: bot)),
+                icon: const Icon(Icons.desktop_windows_outlined),
+              ),
+              IconButton(
+                tooltip: c.tr('编辑', 'Edit'),
+                onPressed: () =>
+                    pushPage(context, BotEditor(client: c, existing: bot)),
+                icon: const Icon(Icons.edit_outlined),
+              ),
             ],
           ),
-          actions: [
-            IconButton(
-              tooltip: c.tr('屏幕', 'Screen'),
-              onPressed: () =>
-                  pushPage(context, ScreenPage(client: c, bot: bot)),
-              icon: const Icon(Icons.desktop_windows_outlined),
-            ),
-            IconButton(
-              tooltip: c.tr('编辑', 'Edit'),
-              onPressed: () =>
-                  pushPage(context, BotEditor(client: c, existing: bot)),
-              icon: const Icon(Icons.edit_outlined),
-            ),
-          ],
-        ),
-        body: TabBarView(
-          children: [
-            AsyncPane(
-              load: () => c.rpc('bots.jobs', {'botId': bot['botId']}),
-              builder: (context, data, reload) => ListView(
-                padding: const EdgeInsets.all(24),
-                children: [
-                  Center(
-                    child: CatAvatar(
-                      color: '${bot['avatar']['color']}',
-                      size: 70,
+          body: TabBarView(
+            children: [
+              AsyncPane(
+                load: () => c.rpc('bots.jobs', {'botId': bot['botId']}),
+                builder: (context, data, reload) => ListView(
+                  padding: const EdgeInsets.all(24),
+                  children: [
+                    Center(
+                      child: CatAvatar(
+                        color: '${bot['avatar']['color']}',
+                        size: 70,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    '${bot['role']}',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 10),
-                  Text('${bot['model']}'),
-                  const SizedBox(height: 16),
-                  ModelInformation(client: c, botId: bot['botId'] as String),
-                  const SizedBox(height: 26),
-                  Text(
-                    c.tr('定时任务', 'Scheduled tasks'),
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    c.tr(
-                      '通过聊天创建和修改，按 Hermes 原生计划执行。',
-                      'Create and edit through chat. Hermes runs the schedule.',
+                    const SizedBox(height: 20),
+                    Text(
+                      '${bot['role']}',
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
-                  ),
-                  for (final job in objects(data['jobs']))
-                    Card(
-                      child: ExpansionTile(
-                        title: Text(
-                          '${job['name'] ?? job['prompt'] ?? job['id']}',
-                        ),
-                        subtitle: Text(
-                          '${job['schedule'] ?? ''} · ${job['timezone'] ?? ''}',
-                        ),
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: SelectableText(job.toString()),
+                    const SizedBox(height: 10),
+                    Text('${bot['model']}'),
+                    const SizedBox(height: 16),
+                    ModelInformation(
+                      key: ValueKey('${bot['model']}:${bot['modelSettings']}'),
+                      client: c,
+                      botId: bot['botId'] as String,
+                    ),
+                    const SizedBox(height: 26),
+                    Text(
+                      c.tr('定时任务', 'Scheduled tasks'),
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      c.tr(
+                        '通过聊天创建和修改，按 Hermes 原生计划执行。',
+                        'Create and edit through chat. Hermes runs the schedule.',
+                      ),
+                    ),
+                    for (final job in objects(data['jobs']))
+                      Card(
+                        child: ExpansionTile(
+                          title: Text(
+                            '${job['name'] ?? job['prompt'] ?? job['id']}',
                           ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            AsyncPane(
-              load: () => c.rpc('memory.get', {'botId': bot['botId']}),
-              builder: (context, data, reload) => ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  for (final doc in objects(data['documents']))
-                    Card(
-                      child: ListTile(
-                        title: Text('${doc['name']}'),
-                        subtitle: Text(
-                          doc['name'] == 'USER.md'
-                              ? c.tr(
-                                  '同账号所有 Bot 共享',
-                                  'Shared with every Bot on your account',
-                                )
-                              : '${doc['content']}',
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
+                          subtitle: Text(
+                            '${job['schedule'] ?? ''} · ${job['timezone'] ?? ''}',
+                          ),
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: SelectableText(job.toString()),
+                            ),
+                          ],
                         ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () async {
-                          await pushPage(
-                            context,
-                            doc['name'] == 'USER.md'
-                                ? SharedUserMemoryPage(client: c)
-                                : MemoryEditor(
-                                    client: c,
-                                    botId: bot['botId'] as String,
-                                    document: doc,
-                                  ),
-                          );
-                          reload();
-                        },
                       ),
-                    ),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: () async {
-                      await pushPage(
-                        context,
-                        RefinePage(client: c, botId: bot['botId'] as String),
-                      );
-                      reload();
-                    },
-                    icon: const Icon(Icons.auto_fix_high),
-                    label: Text(c.tr('整理记忆', 'Refine memory')),
-                  ),
-                  if ('${data['pending'] ?? ''}'.isNotEmpty)
-                    SelectableText('${data['pending']}'),
-                ],
+                  ],
+                ),
               ),
-            ),
-            LibraryPage(client: c, bot: bot, embedded: true),
-          ],
+              AsyncPane(
+                load: () => c.rpc('memory.get', {'botId': bot['botId']}),
+                builder: (context, data, reload) => ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    for (final doc in objects(data['documents']))
+                      Card(
+                        child: ListTile(
+                          title: Text('${doc['name']}'),
+                          subtitle: Text(
+                            doc['name'] == 'USER.md'
+                                ? c.tr(
+                                    '同账号所有 Bot 共享',
+                                    'Shared with every Bot on your account',
+                                  )
+                                : '${doc['content']}',
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () async {
+                            await pushPage(
+                              context,
+                              doc['name'] == 'USER.md'
+                                  ? SharedUserMemoryPage(client: c)
+                                  : MemoryEditor(
+                                      client: c,
+                                      botId: bot['botId'] as String,
+                                      document: doc,
+                                    ),
+                            );
+                            reload();
+                          },
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () async {
+                        await pushPage(
+                          context,
+                          RefinePage(client: c, botId: bot['botId'] as String),
+                        );
+                        reload();
+                      },
+                      icon: const Icon(Icons.auto_fix_high),
+                      label: Text(c.tr('整理记忆', 'Refine memory')),
+                    ),
+                    if ('${data['pending'] ?? ''}'.isNotEmpty)
+                      SelectableText('${data['pending']}'),
+                  ],
+                ),
+              ),
+              LibraryPage(client: c, bot: bot, embedded: true),
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
 }
 
 class MemoryEditor extends StatefulWidget {

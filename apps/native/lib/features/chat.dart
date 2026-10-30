@@ -96,7 +96,8 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
         'clientMsgId': pendingId,
       });
       if (!mounted) return;
-      input.clear();
+      // A user can already be drafting the next instruction while RPC returns.
+      if (input.text.trim() == text) input.clear();
       pendingId = null;
       pendingText = null;
       setState(
@@ -260,6 +261,12 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 reverse: true,
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
                 itemCount: messages.length + 1,
+                findChildIndexCallback: (key) {
+                  final index = messages.indexWhere(
+                    (message) => ValueKey(message['messageId']) == key,
+                  );
+                  return index < 0 ? null : messages.length - 1 - index;
+                },
                 itemBuilder: (context, index) {
                   if (index == messages.length) {
                     return Center(
@@ -315,6 +322,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                           .where((b) => b['botId'] == m['author']['id'])
                           .firstOrNull;
                   return Align(
+                    key: ValueKey(m['messageId']),
                     alignment: Alignment.topCenter,
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 760),
@@ -515,7 +523,11 @@ class MessageTile extends StatelessWidget {
         ),
       );
     } else if (kind == 'question' || kind == 'approval') {
-      content = ControlCard(client: c, message: m);
+      content = ControlCard(
+        key: ValueKey(m['messageId']),
+        client: c,
+        message: m,
+      );
     } else {
       content = Column(
         crossAxisAlignment: CrossAxisAlignment.start,

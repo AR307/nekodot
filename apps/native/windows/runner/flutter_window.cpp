@@ -51,6 +51,11 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  // A tray restore must repaint the retained Flutter surface, even without a
+  // resize or any new server event.
+  if (flutter_controller_ && message == WM_SHOWWINDOW && wparam) {
+    flutter_controller_->ForceRedraw();
+  }
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =

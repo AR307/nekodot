@@ -19,7 +19,7 @@
 - 独立 Android 模拟器真实账号登录、新流式模型回复、完整 Linux 屏幕、只读/接管/交还、原生键盘输入和返回聊天/列表均通过。远端文件确实保存 `NEKODOT_NATIVE_INPUT_OK`，不是仅检查控件。
 - 修复 TLS 根证书与 Rust provider 配置、native assets 对 Cargo feature 变更的缓存，以及 RFB 有界通道积压导致的部分白屏。
 - Flutter analyze、1 项账号 widget 场景及 Windows x64 / Android arm64 signed release 构建通过；构建包未发布。详细结果与模拟器截图见 `side-phase-3-native.md`。
-- 完整页面、尚未实现的服务端接口、Windows 安装及 Android 真机仍待验收；旧产品不切换。
+- 基础闭环之后的提供方与共享记忆接口已分别实现；双端产品回放与 Windows 安装候选见下方“原生产品旅程”。全页面视觉、干净用户安装及 Android 真机仍待验收，旧产品不切换。
 
 ## 3.2 邮箱与会话基础（外部收码注册已验证）
 
@@ -52,8 +52,8 @@
 - 修复原生刷新和连接释放的实际错误。系统导入选择器、原生全部视觉及真机仍待验收。
 
 - 外部邮件重置/旧账号补验、扩展安装原生旅程与原生通知仍需逐项验收；真实 OpenAI Codex 授权与自定义 API 共存已在 3.3 验证。账号级 USER 记忆见下方 3.5，本轮没有把原生真机或跨网络长时间测试标记完成。
-- Flutter 的基础构建与最小真实闭环已通过，全部页面和新后端接口尚未完成，不能切换产品或发布安装包。
-- Windows 完整安装、Android 真机、跨设备共享记忆及后台通知不得以构建、模拟器或浏览器手机尺寸替代。
+- Flutter 基础真实闭环和后续提供方/记忆接口、双端产品回放已通过，但全部页面视觉、系统导入和通知尚未完整验收，不能切换产品或发布安装包。
+- 同账号跨节点共享记忆已有真实模型证据；干净 Windows 用户安装、Android 真机及后台通知不能由构建、模拟器或浏览器手机尺寸替代。
 
 ## 3.4 Bot 原生欢迎回合
 
@@ -70,3 +70,12 @@
 - Node 24 lint/typecheck、19 文件 / 31 项测试、build 通过；完整 Edge 6 通过 / 1 实屏跳过，共享记忆响应式、中英、浅深色及 reduced-motion 留图。Flutter analyze、既有 2 项测试与 Windows x64 / Android arm64 签名 release 构建通过。原生互动结果和未覆盖项见 side-phase-3-user-memory.md。
 - 本模块仅本地提交。全新检出、Windows 干净安装、Android 真机、原生 self-improvement 审核和通知等尚未完整验证，不发布 0.2.0、不切换线上。
 - 专用 Android 模拟器另完成原生编辑/保存、跨节点读取、返回、刷新及重连保留草稿；初始 VM driver 连接中断，续接同一测试进程后官方 driver 返回全部通过并保存截图，具体区别与证据见模块报告。不以此替代真机结果。
+
+## 3.1 原生产品旅程与 Windows 安装候选
+
+- Windows 与独立 Android 模拟器通过产品 Node/Relay 和真实 Hermes 录制资料完成私聊、群聊、工具审批、提问、同 run steer、停止、失败恢复及中文文本预览；不是新模型调用或真机验收。Windows 系统保存对话框另实际保存并读回文件。
+- 修复 Bot 审批设置误覆盖、发送确认清掉下一条草稿、重连清掉提问选择、详情名称未刷新和 Windows 列表 Material 断言。补齐文件页忙碌/错误/成功状态与系统分享入口。
+- Windows 每用户 NSIS 安装器、覆盖安装、开始菜单和 app-local runtime 实测；单实例与关闭到托盘后同进程恢复通过，并修复恢复白屏和首帧重置最大化的问题。旧 Tauri 保留，未执行卸载。
+- Flutter 候选版本 0.2.0+4；arm64 APK 使用官方 ABI 分包，实际 versionCode 2004，沿用既有产品签名。候选只留在本地，不等于 0.2.0 发布。
+- 独立源码安装/检查与双端构建、原生旅程、最终 Edge 6 通过 / 1 实屏跳过及最初失败/重试均分开记录，详见 `side-phase-3-native-product.md` 与 `evidence/side-phase3-native-product.json`。
+- 干净 Windows 用户、实际托盘菜单退出、卸载、Android 真机/通知、完整原生视觉、扩展系统导入和 self-improvement 审核同步仍待验收；未部署、上传或 push。

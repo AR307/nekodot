@@ -1,0 +1,124 @@
+{
+  "module": "side-phase-3-native-product",
+  "candidateVersion": "0.2.0+4",
+  "published": false,
+  "deployed": false,
+  "realModelCalledInThisModule": false,
+  "serviceChecksInIndependentSource": [
+    {
+      "name": "install",
+      "code": 0
+    },
+    {
+      "name": "lint",
+      "code": 0
+    },
+    {
+      "name": "typecheck",
+      "code": 0
+    },
+    {
+      "name": "test",
+      "code": 0
+    },
+    {
+      "name": "build",
+      "code": 0
+    }
+  ],
+  "serviceTests": {
+    "files": 19,
+    "tests": 31
+  },
+  "edge": {
+    "passed": 6,
+    "skipped": 1,
+    "finalRunConfirmed": true,
+    "skippedReason": "No live Linux screen fixture configured for this run",
+    "initialRunsHadFailures": true
+  },
+  "flutterChecksInIndependentSource": [
+    {
+      "name": "pub",
+      "code": 0
+    },
+    {
+      "name": "analyze",
+      "code": 0
+    },
+    {
+      "name": "test",
+      "code": 0
+    },
+    {
+      "name": "windows-release",
+      "code": 0
+    },
+    {
+      "name": "android-release",
+      "code": 0
+    }
+  ],
+  "flutterWidgetTests": 4,
+  "nativeJourneys": {
+    "hermesMode": "Previously recorded real Hermes fixtures through product Node and Relay",
+    "windows": {
+      "officialDriverPassed": true,
+      "integrationTestWarningRetained": true
+    },
+    "android": {
+      "officialDriverPassed": true,
+      "target": "Dedicated Android 15 API 35 x64 emulator",
+      "signing": "Local debug certificate, not product release identity",
+      "physicalDevice": false
+    }
+  },
+  "windowsInstallation": {
+    "isolatedInstall": true,
+    "repeatInstall": true,
+    "version": "0.2.0",
+    "startMenu": true,
+    "appLocalRuntime": true,
+    "previousTauriProgramPreserved": true,
+    "previousTauriRegistrationPreserved": true,
+    "uninstallExecuted": false,
+    "cleanWindowsUser": false
+  },
+  "windowsTrayRestore": {
+    "samePid": true,
+    "sameWindow": true,
+    "instances": 1,
+    "visibleSurfaceChecked": true
+  },
+  "windowsWindowMemory": {
+    "maximizedAfterRestart": true,
+    "normalWidthPreserved": true,
+    "normalHeightPreserved": true
+  },
+  "windowsChineseFileSystemSave": true,
+  "artifacts": {
+    "windows": {
+      "path": "dist/native/nekodot_0.2.0_x64-setup.exe",
+      "authenticodeSigned": false
+    },
+    "android": {
+      "path": "dist/native/nekodot_0.2.0+4_android-arm64.apk",
+      "applicationId": "app.nekodot.client",
+      "versionName": "0.2.0",
+      "versionCode": 2004,
+      "minSdk": 29,
+      "targetSdk": 36,
+      "arm64Only": true,
+      "signatureVerified": true,
+      "existingProductSigningIdentity": true
+    }
+  },
+  "pending": [
+    "Physical Android notifications, lock screen, permissions, keyboard, sharing and network changes",
+    "Windows toast, clean Windows user, tray menu quit and uninstall",
+    "External email password reset and legacy-account verification; full security audit",
+    "Native skill/plugin system import and real installation journey",
+    "Native self-improvement approval to shared USER synchronization",
+    "Complete native visual matrix and final live multi-platform acceptance"
+  ]
+}

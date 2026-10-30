@@ -22,6 +22,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   StreamSubscription<Json>? destinations;
   String? conversation;
+  String? hoveredConversation;
   String search = '';
   NekodotClient get c => widget.client;
   @override
@@ -184,6 +185,20 @@ class _HomePageState extends State<HomePage> {
                   ],
                 ),
               ),
+            if (c.error.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Column(
+                  children: [
+                    ErrorNotice(c.error),
+                    TextButton.icon(
+                      onPressed: () => c.bootstrap(),
+                      icon: const Icon(Icons.refresh),
+                      label: Text(c.tr('重新连接', 'Reconnect')),
+                    ),
+                  ],
+                ),
+              ),
             Expanded(
               child: active.isEmpty
                   ? Center(
@@ -237,7 +252,12 @@ class _HomePageState extends State<HomePage> {
                             vertical: 3,
                           ),
                           child: MouseRegion(
-                            onEnter: (_) {},
+                            onEnter: (_) => setState(
+                              () =>
+                                  hoveredConversation = value['conversationId'],
+                            ),
+                            onExit: (_) =>
+                                setState(() => hoveredConversation = null),
                             child: AnimatedContainer(
                               duration: MediaQuery.disableAnimationsOf(context)
                                   ? Duration.zero
@@ -245,37 +265,46 @@ class _HomePageState extends State<HomePage> {
                               decoration: BoxDecoration(
                                 color: selected
                                     ? accent.withValues(alpha: .10)
+                                    : hoveredConversation ==
+                                          value['conversationId']
+                                    ? accent.withValues(alpha: .05)
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(14),
                               ),
-                              child: ListTile(
-                                key: ValueKey(
-                                  'conversation-${value['conversationId']}',
-                                ),
-                                selected: selected,
-                                leading: isGroup
-                                    ? const Icon(Icons.forum_outlined, size: 34)
-                                    : CatAvatar(
-                                        color: '${entity['avatar']['color']}',
-                                      ),
-                                title: Text(
-                                  name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
+                              child: Material(
+                                color: Colors.transparent,
+                                child: ListTile(
+                                  key: ValueKey(
+                                    'conversation-${value['conversationId']}',
                                   ),
+                                  selected: selected,
+                                  leading: isGroup
+                                      ? const Icon(
+                                          Icons.forum_outlined,
+                                          size: 34,
+                                        )
+                                      : CatAvatar(
+                                          color: '${entity['avatar']['color']}',
+                                        ),
+                                  title: Text(
+                                    name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    last?['content']['text'] as String? ??
+                                        (isGroup
+                                            ? c.tr(
+                                                '群聊 · @成员开始接力',
+                                                'Group · @mention to relay',
+                                              )
+                                            : '@${entity['handle']}'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  onTap: () => open(value, narrow),
                                 ),
-                                subtitle: Text(
-                                  last?['content']['text'] as String? ??
-                                      (isGroup
-                                          ? c.tr(
-                                              '群聊 · @成员开始接力',
-                                              'Group · @mention to relay',
-                                            )
-                                          : '@${entity['handle']}'),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                onTap: () => open(value, narrow),
                               ),
                             ),
                           ),

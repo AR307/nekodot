@@ -8,13 +8,23 @@ class DesktopHost with WindowListener {
   static final instance = DesktopHost();
   static TrayIcon? icon;
   static Future<void> initialize() async {
+    await windowManager.ensureInitialized();
     final prefs = await SharedPreferences.getInstance();
-    await windowManager.setSize(
-      Size(
-        prefs.getDouble('window-width') ?? 1180,
-        prefs.getDouble('window-height') ?? 800,
+    await windowManager.waitUntilReadyToShow(
+      WindowOptions(
+        size: Size(
+          prefs.getDouble('window-width') ?? 1180,
+          prefs.getDouble('window-height') ?? 800,
+        ),
+        minimumSize: const Size(390, 600),
+        title: 'nekodot',
       ),
     );
+    if (prefs.getBool('window-maximized') == true) {
+      await windowManager.maximize();
+    }
+    await windowManager.show();
+    await windowManager.focus();
     await windowManager.setPreventClose(true);
     windowManager.addListener(instance);
     final tray = TrayIcon.create()!;
@@ -61,10 +71,30 @@ class DesktopHost with WindowListener {
   }
 
   @override
-  void onWindowResize() async {
+  void onWindowResized() async {
+    if (await windowManager.isMaximized() ||
+        await windowManager.isMinimized()) {
+      return;
+    }
     final size = await windowManager.getSize(),
         prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('window-width', size.width);
     await prefs.setDouble('window-height', size.height);
+  }
+
+  @override
+  void onWindowMaximize() async {
+    await (await SharedPreferences.getInstance()).setBool(
+      'window-maximized',
+      true,
+    );
+  }
+
+  @override
+  void onWindowUnmaximize() async {
+    await (await SharedPreferences.getInstance()).setBool(
+      'window-maximized',
+      false,
+    );
   }
 }
