@@ -7,6 +7,8 @@
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
+#ifdef NDEBUG
+  // Debug builds may run beside an installed client.
   HANDLE singleton = ::CreateMutex(nullptr, FALSE, L"Local\\app.nekodot.client.native");
   if (::GetLastError() == ERROR_ALREADY_EXISTS) {
     HWND existing =
@@ -18,6 +20,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     ::CloseHandle(singleton);
     return EXIT_SUCCESS;
   }
+#endif
   // Attach to console when present (e.g., 'flutter run') or create a
   // new console when running with a debugger.
   if (!::AttachConsole(ATTACH_PARENT_PROCESS) && ::IsDebuggerPresent()) {
@@ -50,6 +53,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   }
 
   ::CoUninitialize();
+#ifdef NDEBUG
   ::CloseHandle(singleton);
+#endif
   return EXIT_SUCCESS;
 }

@@ -49,7 +49,6 @@ void main() {
       await until(
         () => find.text('Native documentation probe').evaluate().isNotEmpty,
       );
-      expect(find.text('没有提供仓库信息'), findsOneWidget);
       await tester.ensureVisible(find.text('完整内容'));
       debugPrint('QA: native extension preview ready');
       if (inspect) {

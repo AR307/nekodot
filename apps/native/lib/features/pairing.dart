@@ -17,7 +17,7 @@ class _PairingPageState extends State<PairingPage> {
   Json? code;
   String error = '';
   Timer? timer;
-  bool busy = false;
+  bool busy = false, copied = false;
   late final previous = objects(widget.client.me?['nodes'])
       .map((x) => x['nodeId'])
       .toSet();
@@ -75,88 +75,91 @@ class _PairingPageState extends State<PairingPage> {
 
   @override
   Widget build(BuildContext context) {
+    final tone = context.tone;
     final seconds = code == null
         ? 0
         : DateTime.parse(code!['expiresAt'] as String)
               .difference(DateTime.now())
               .inSeconds
               .clamp(0, 999999);
-    return Scaffold(
-      appBar: AppBar(title: Text(c.tr('添加电脑', 'Add computer'))),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 680),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  c.tr('让 Bot 有一个工作的地方。', 'Give your Bots a place to work.'),
-                  style: Theme.of(context).textTheme.headlineMedium,
+    return AppPage(
+      title: c.tr('添加电脑', 'Add computer'),
+      body: PageList(
+        children: [
+          Row(
+            children: [
+              Text(
+                'Linux x64 · WSL2',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const Spacer(),
+              const Breathing(size: 8),
+              const SizedBox(width: 8),
+              Text(
+                '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}',
+                style: TextStyle(
+                  fontFamily: monoFont,
+                  fontSize: 13,
+                  color: tone.ink2,
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  c.tr(
-                    '在 Linux x64 服务器或已启用 systemd 的 WSL2 终端运行下方命令。不要在 Windows PowerShell 中运行。',
-                    'Run this command in a Linux x64 server or a systemd-enabled WSL2 terminal, not Windows PowerShell.',
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                tooltip: c.tr('延长 30 分钟', 'Add 30 minutes'),
+                onPressed: busy || code == null
+                    ? null
+                    : () => generate(extend: true),
+                icon: const Icon(Icons.more_time_rounded, size: 20),
+              ),
+              IconButton(
+                tooltip: c.tr('生成新码', 'Generate new code'),
+                onPressed: busy ? null : generate,
+                icon: const Icon(Icons.refresh_rounded, size: 20),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Panel(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 8, 18),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: code == null
+                        ? const Breathing()
+                        : SelectableText(
+                            code!['installCommand'] as String,
+                            style: const TextStyle(
+                              fontFamily: monoFont,
+                              fontSize: 13,
+                              height: 1.6,
+                            ),
+                          ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SelectableText(
-                          '${code?['installCommand'] ?? c.tr('正在生成命令…', 'Preparing command…')}',
-                          style: const TextStyle(fontFamily: 'monospace'),
-                        ),
-                        const SizedBox(height: 14),
-                        OutlinedButton.icon(
-                          onPressed: code == null
-                              ? null
-                              : () => Clipboard.setData(
-                                  ClipboardData(
-                                    text: code!['installCommand'] as String,
-                                  ),
-                                ),
-                          icon: const Icon(Icons.copy),
-                          label: Text(c.tr('复制安装命令', 'Copy install command')),
-                        ),
-                      ],
+                  IconButton(
+                    tooltip: c.tr('复制', 'Copy'),
+                    onPressed: code == null
+                        ? null
+                        : () async {
+                            await Clipboard.setData(
+                              ClipboardData(
+                                text: code!['installCommand'] as String,
+                              ),
+                            );
+                            if (mounted) setState(() => copied = true);
+                          },
+                    icon: Icon(
+                      copied ? Icons.check_rounded : Icons.copy_rounded,
+                      size: 20,
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  c.tr(
-                    '等待电脑上线 · 剩余 ${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}',
-                    'Waiting for computer · ${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')} remaining',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 12,
-                  children: [
-                    OutlinedButton(
-                      onPressed: busy || code == null
-                          ? null
-                          : () => generate(extend: true),
-                      child: Text(c.tr('延长 30 分钟', 'Add 30 minutes')),
-                    ),
-                    TextButton(
-                      onPressed: busy ? null : generate,
-                      child: Text(c.tr('生成新码', 'Generate new code')),
-                    ),
-                  ],
-                ),
-                ErrorNotice(error),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
+          ErrorNotice(error),
+        ],
       ),
     );
   }

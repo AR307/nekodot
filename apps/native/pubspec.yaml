@@ -79,6 +79,20 @@ flutter:
   uses-material-design: true
   assets:
     - assets/nekodot.ico
+  fonts:
+    - family: Nunito
+      fonts:
+        - asset: assets/fonts/nunito-400.ttf
+          weight: 400
+        - asset: assets/fonts/nunito-600.ttf
+          weight: 600
+        - asset: assets/fonts/nunito-700.ttf
+          weight: 700
+        - asset: assets/fonts/nunito-800.ttf
+          weight: 800
+    - family: JetBrains Mono
+      fonts:
+        - asset: assets/fonts/jetbrains-mono-400.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

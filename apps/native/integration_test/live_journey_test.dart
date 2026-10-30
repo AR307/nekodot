@@ -173,11 +173,11 @@ void main() {
             .any((e) => (e.widget as RawImage).image != null),
         seconds: 90,
       );
-      expect(find.text('Bot 控制中 · 只读观看'), findsOneWidget);
+      expect(find.text('Bot 控制中'), findsOneWidget);
       debugPrint('QA: native RFB image decoded');
       await tester.pump(const Duration(seconds: 2));
       if (inspect) await tester.pump(const Duration(seconds: 30));
-      await tester.tap(find.text('键盘与常用按键'));
+      await tester.tap(find.byTooltip('键盘'));
       await tester.pump(const Duration(milliseconds: 400));
       final keyboard = find.byKey(const ValueKey('screen-keyboard'));
       expect(tester.widget<TextField>(keyboard).enabled, isFalse);
@@ -194,7 +194,7 @@ void main() {
         if (inspect) await tester.pump(const Duration(seconds: 30));
       }
       await tester.tap(find.widgetWithText(FilledButton, '交还'));
-      await until(() => find.text('Bot 控制中 · 只读观看').evaluate().isNotEmpty);
+      await until(() => find.text('Bot 控制中').evaluate().isNotEmpty);
       await tester.pageBack();
       await tester.pump(const Duration(seconds: 1));
       expect(find.byKey(const ValueKey('chat-input')), findsOneWidget);

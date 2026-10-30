@@ -6,7 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../data/client.dart';
 import '../ui/design.dart';
-import 'pairing.dart';
 
 class SettingsPage extends StatelessWidget {
   final NekodotClient client;
@@ -14,48 +13,28 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: client,
-    builder: (context, child) => Scaffold(
-      appBar: AppBar(title: Text(client.tr('设置', 'Settings'))),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: ListView(
-            padding: const EdgeInsets.all(24),
+    builder: (context, child) => AppPage(
+      title: client.tr('设置', 'Settings'),
+      body: PageList(
+        children: [
+          PanelGroup(
             children: [
-              Text(
-                '${client.me?['user']['email'] ?? ''}',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 24),
               ListTile(
-                leading: const Icon(Icons.key_outlined),
+                leading: const Icon(Icons.key_rounded),
                 title: Text(client.tr('模型来源', 'Model sources')),
-                subtitle: Text(
-                  client.tr(
-                    '授权登录和自定义 API 可以共存',
-                    'Authorizations and custom APIs coexist',
-                  ),
-                ),
-                trailing: const Icon(Icons.chevron_right),
                 onTap: () => pushPage(context, SourcesPage(client: client)),
               ),
               ListTile(
-                leading: const Icon(Icons.add_to_queue),
-                title: Text(client.tr('添加电脑', 'Add computer')),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => pushPage(context, PairingPage(client: client)),
-              ),
-              ListTile(
-                leading: const Icon(Icons.notifications_outlined),
-                title: Text(client.tr('系统通知', 'System notifications')),
-                subtitle: Text(
-                  client.notificationError.isNotEmpty
-                      ? client.notificationError
-                      : client.notificationStatus.isEmpty
-                      ? client.tr('正在检查通知状态', 'Checking notification status')
-                      : client.notificationStatus,
+                leading: const Icon(Icons.notifications_rounded),
+                title: Text(client.tr('通知', 'Notifications')),
+                subtitle: client.notificationError.isEmpty
+                    ? null
+                    : Text(client.notificationError),
+                trailing: StatusDot(
+                  on:
+                      client.notificationError.isEmpty &&
+                      client.notificationStatus.isNotEmpty,
                 ),
-                trailing: const Icon(Icons.open_in_new),
                 onTap: () async {
                   final opened = await FlutterLocalNotificationsPlugin()
                       .openAppNotificationSettings();
@@ -64,8 +43,8 @@ class SettingsPage extends StatelessWidget {
                       SnackBar(
                         content: Text(
                           client.tr(
-                            '请在系统设置的通知列表中找到 nekodot，开启通知。',
-                            'Find nekodot in system notification settings to allow notifications.',
+                            '请在系统设置中开启通知',
+                            'Allow notifications in system settings',
                           ),
                         ),
                       ),
@@ -73,73 +52,83 @@ class SettingsPage extends StatelessWidget {
                   }
                 },
               ),
-              const Divider(height: 32),
-              DropdownButtonFormField<String>(
-                initialValue: client.language,
-                decoration: InputDecoration(
-                  labelText: client.tr('语言', 'Language'),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'zh', child: Text('中文')),
-                  DropdownMenuItem(value: 'en', child: Text('English')),
-                ],
-                onChanged: (value) => client.preferences(locale: value),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: client.theme,
-                decoration: InputDecoration(
-                  labelText: client.tr('外观', 'Appearance'),
-                ),
-                items: [
-                  DropdownMenuItem(
-                    value: 'system',
-                    child: Text(client.tr('跟随系统', 'System')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'light',
-                    child: Text(client.tr('浅色', 'Light')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'dark',
-                    child: Text(client.tr('深色', 'Dark')),
-                  ),
-                ],
-                onChanged: (value) => client.preferences(appearance: value),
-              ),
-              const SizedBox(height: 30),
+            ],
+          ),
+          const SizedBox(height: 14),
+          PanelGroup(
+            children: [
               ListTile(
-                leading: const Icon(Icons.password),
-                title: Text(client.tr('修改密码', 'Change password')),
-                onTap: () => pushPage(context, PasswordPage(client: client)),
+                leading: const Icon(Icons.translate_rounded),
+                title: Text(client.tr('语言', 'Language')),
+                trailing: Segment<String>(
+                  value: client.language,
+                  options: const {'zh': Text('中'), 'en': Text('EN')},
+                  onChanged: (value) => client.preferences(locale: value),
+                ),
               ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  try {
-                    await client.logout();
-                    if (context.mounted) {
-                      Navigator.popUntil(context, (route) => route.isFirst);
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(SnackBar(content: Text('$e')));
-                    }
-                  }
-                },
-                icon: const Icon(Icons.logout),
-                label: Text(client.tr('退出账号', 'Sign out')),
-              ),
-              const SizedBox(height: 22),
-              Text(
-                'nekodot 0.2.0 · Flutter',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.labelMedium,
+              ListTile(
+                leading: const Icon(Icons.contrast_rounded),
+                title: Text(client.tr('外观', 'Appearance')),
+                trailing: Segment<String>(
+                  value: client.theme,
+                  options: {
+                    'system': Tooltip(
+                      message: client.tr('跟随系统', 'System'),
+                      child: const Icon(Icons.brightness_auto_rounded),
+                    ),
+                    'light': Tooltip(
+                      message: client.tr('浅色', 'Light'),
+                      child: const Icon(Icons.light_mode_rounded),
+                    ),
+                    'dark': Tooltip(
+                      message: client.tr('深色', 'Dark'),
+                      child: const Icon(Icons.dark_mode_rounded),
+                    ),
+                  },
+                  onChanged: (value) => client.preferences(appearance: value),
+                ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 14),
+          PanelGroup(
+            children: [
+              ListTile(
+                title: Text('${client.me?['user']['email'] ?? ''}'),
+                leading: const Icon(Icons.person_rounded),
+              ),
+              ListTile(
+                leading: const Icon(Icons.password_rounded),
+                title: Text(client.tr('修改密码', 'Change password')),
+                onTap: () => pushPage(context, PasswordPage(client: client)),
+              ),
+              if (context.tone.glass)
+                ListTile(
+                  leading: const Icon(Icons.logout_rounded),
+                  title: Text(client.tr('退出账号', 'Sign out')),
+                  onTap: () async {
+                    try {
+                      await client.logout();
+                      if (context.mounted) {
+                        Navigator.popUntil(context, (route) => route.isFirst);
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text('$e')));
+                      }
+                    }
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'nekodot 0.2.0',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.labelMedium,
+          ),
+        ],
       ),
     ),
   );
@@ -155,57 +144,42 @@ class SourcesPage extends StatefulWidget {
 class _SourcesPageState extends State<SourcesPage> {
   int revision = 0;
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.client.tr('模型来源', 'Model sources'))),
+  Widget build(BuildContext context) => AppPage(
+    title: widget.client.tr('模型来源', 'Model sources'),
     body: AsyncPane(
       key: ValueKey(revision),
       load: () => widget.client.rpc('providers.list'),
-      builder: (context, data, reload) => ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Text(
-            widget.client.tr('授权登录', 'Authorized services'),
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 8),
-          for (final provider in objects(data['oauth']))
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.login),
-                title: Text('${provider['name'] ?? provider['id']}'),
-                subtitle: Text(
-                  (provider['status'] as Map?)?['logged_in'] == true
-                      ? widget.client.tr('已授权', 'Authorized')
-                      : provider['flow'] == 'external'
-                      ? widget.client.tr(
-                          '需在节点终端授权',
-                          'Authorize in node terminal',
-                        )
-                      : widget.client.tr('未授权', 'Not authorized'),
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () async {
-                  await pushPage(
-                    context,
-                    AuthorizationPage(
-                      client: widget.client,
-                      provider: provider,
+      builder: (context, data, reload) {
+        final custom = objects(data['sources'])
+            .where((s) => s['kind'] == 'custom')
+            .toList();
+        return PageList(
+          children: [
+            SectionLabel(widget.client.tr('授权登录', 'Authorized services')),
+            PanelGroup(
+              children: [
+                for (final provider in objects(data['oauth']))
+                  ListTile(
+                    title: Text('${provider['name'] ?? provider['id']}'),
+                    trailing: StatusDot(
+                      on: (provider['status'] as Map?)?['logged_in'] == true,
                     ),
-                  );
-                  reload();
-                },
-              ),
+                    onTap: () async {
+                      await pushPage(
+                        context,
+                        AuthorizationPage(
+                          client: widget.client,
+                          provider: provider,
+                        ),
+                      );
+                      reload();
+                    },
+                  ),
+              ],
             ),
-          const SizedBox(height: 28),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  widget.client.tr('自定义 API', 'Custom APIs'),
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-              IconButton(
+            SectionLabel(
+              widget.client.tr('自定义 API', 'Custom APIs'),
+              trailing: IconButton(
                 tooltip: widget.client.tr('新增', 'Add'),
                 onPressed: () async {
                   await pushPage(
@@ -214,32 +188,36 @@ class _SourcesPageState extends State<SourcesPage> {
                   );
                   reload();
                 },
-                icon: const Icon(Icons.add),
-              ),
-            ],
-          ),
-          for (final source in objects(
-            data['sources'],
-          ).where((s) => s['kind'] == 'custom'))
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.api),
-                title: Text('${source['name']}'),
-                subtitle: Text(
-                  '${source['baseUrl']}\n••••${source['apiKeyLast4']}',
-                ),
-                isThreeLine: true,
-                onTap: () async {
-                  await pushPage(
-                    context,
-                    CustomSourcePage(client: widget.client, source: source),
-                  );
-                  reload();
-                },
+                icon: const Icon(Icons.add_rounded),
               ),
             ),
-        ],
-      ),
+            if (custom.isNotEmpty)
+              PanelGroup(
+                children: [
+                  for (final source in custom)
+                    ListTile(
+                      title: Text('${source['name']}'),
+                      subtitle: Text(
+                        '${source['baseUrl']}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onTap: () async {
+                        await pushPage(
+                          context,
+                          CustomSourcePage(
+                            client: widget.client,
+                            source: source,
+                          ),
+                        );
+                        reload();
+                      },
+                    ),
+                ],
+              ),
+          ],
+        );
+      },
     ),
   );
 }
@@ -272,94 +250,81 @@ class _CustomSourcePageState extends State<CustomSourcePage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.client.tr('自定义 API', 'Custom API'))),
-    body: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 640),
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            TextField(
-              controller: name,
-              decoration: InputDecoration(
-                labelText: widget.client.tr('名称', 'Name'),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: url,
-              keyboardType: TextInputType.url,
-              decoration: const InputDecoration(labelText: 'API URL'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: key,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'API KEY',
-                hintText: savedId == null
-                    ? null
-                    : widget.client.tr(
-                        '留空保留已有密钥',
-                        'Leave blank to keep saved key',
-                      ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              widget.client.tr(
-                '保存后从 Hermes 获取模型目录。在创建 Bot 时选择模型，也可填写模型代号。密钥仅保存在服务器。',
-                'Hermes loads the model catalog after saving. Select a model when creating a Bot, or enter its ID. Keys stay on the server.',
-              ),
-            ),
-            ErrorNotice(error),
-            const SizedBox(height: 20),
-            FilledButton(
-              onPressed: busy
-                  ? null
-                  : () async {
-                      setState(() => busy = true);
-                      try {
-                        final saved = await widget.client.rpc('providers.set', {
-                          'kind': 'custom',
-                          if (savedId != null) 'sourceId': savedId,
-                          'name': name.text,
-                          'baseUrl': url.text.trim(),
-                          if (key.text.isNotEmpty) 'apiKey': key.text,
-                        });
-                        if (mounted) {
-                          setState(() => savedId = saved['sourceId'] as String);
-                        }
-                        key.clear();
-                        final catalog = await widget.client.rpc(
-                          'models.options',
-                          {'sourceId': saved['sourceId'], 'refresh': true},
-                        );
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                widget.client.tr(
-                                  '已保存 · 获取 ${(catalog['models'] as List).length} 个模型',
-                                  'Saved · ${(catalog['models'] as List).length} models loaded',
-                                ),
-                              ),
-                            ),
-                          );
-                        }
-                        if (context.mounted) Navigator.pop(context);
-                      } catch (e) {
-                        if (mounted) setState(() => error = '$e');
-                      } finally {
-                        if (mounted) setState(() => busy = false);
-                      }
-                    },
-              child: Text(widget.client.tr('保存并获取模型', 'Save & fetch models')),
-            ),
-          ],
+  Widget build(BuildContext context) => AppPage(
+    title: widget.client.tr('自定义 API', 'Custom API'),
+    body: PageList(
+      children: [
+        TextField(
+          controller: name,
+          decoration: InputDecoration(
+            labelText: widget.client.tr('名称', 'Name'),
+          ),
         ),
-      ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: url,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(labelText: 'API URL'),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: key,
+          obscureText: true,
+          decoration: InputDecoration(
+            labelText: 'API KEY',
+            hintText: savedId == null
+                ? null
+                : '••••${widget.source?['apiKeyLast4'] ?? ''}',
+            floatingLabelBehavior: savedId == null
+                ? null
+                : FloatingLabelBehavior.always,
+          ),
+        ),
+        ErrorNotice(error),
+        const SizedBox(height: 16),
+        FilledButton(
+          onPressed: busy
+              ? null
+              : () async {
+                  setState(() => busy = true);
+                  try {
+                    final saved = await widget.client.rpc('providers.set', {
+                      'kind': 'custom',
+                      if (savedId != null) 'sourceId': savedId,
+                      'name': name.text,
+                      'baseUrl': url.text.trim(),
+                      if (key.text.isNotEmpty) 'apiKey': key.text,
+                    });
+                    if (mounted) {
+                      setState(() => savedId = saved['sourceId'] as String);
+                    }
+                    key.clear();
+                    final catalog = await widget.client.rpc('models.options', {
+                      'sourceId': saved['sourceId'],
+                      'refresh': true,
+                    });
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            widget.client.tr(
+                              '${(catalog['models'] as List).length} 个模型',
+                              '${(catalog['models'] as List).length} models',
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    if (context.mounted) Navigator.pop(context);
+                  } catch (e) {
+                    if (mounted) setState(() => error = '$e');
+                  } finally {
+                    if (mounted) setState(() => busy = false);
+                  }
+                },
+          child: Text(widget.client.tr('保存', 'Save')),
+        ),
+      ],
     ),
   );
 }
@@ -433,81 +398,114 @@ class _AuthorizationPageState extends State<AuthorizationPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text('${widget.provider['name'] ?? widget.provider['id']}'),
-    ),
-    body: ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Text(
-          widget.client.tr(
-            '使用 Hermes 原生授权流程。仅支持终端的服务会显示原生说明。',
-            'Uses the native Hermes authorization flow. Terminal-only services show their original instructions.',
-          ),
-        ),
-        const SizedBox(height: 18),
-        if (authorized)
-          Text(widget.client.tr('已授权', 'Authorized'))
-        else if (widget.provider['flow'] == 'device_code')
-          FilledButton(
-            onPressed: busy || session?['status'] == 'pending'
-                ? null
-                : () => action('start'),
-            child: Text(widget.client.tr('开始授权', 'Start authorization')),
-          )
-        else
-          SelectableText('${widget.provider['cli_command'] ?? ''}'),
-        if (widget.provider['docs_url'] is String)
-          TextButton(
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final docs = widget.provider['docs_url'];
+    return AppPage(
+      title: '${widget.provider['name'] ?? widget.provider['id']}',
+      actions: [
+        if (docs is String)
+          IconButton(
+            tooltip: widget.client.tr('授权说明', 'Authorization guide'),
             onPressed: () => launchUrl(
-              Uri.parse(widget.provider['docs_url'] as String),
+              Uri.parse(docs),
               mode: LaunchMode.externalApplication,
             ),
-            child: Text(widget.client.tr('原生授权说明', 'Authorization guide')),
+            icon: const Icon(Icons.open_in_new_rounded),
           ),
-        if (session != null && !authorized) ...[
-          const SizedBox(height: 18),
-          SelectableText(
-            '${session!['user_code'] ?? ''}\n${session!['error_message'] ?? session!['message'] ?? session!['status'] ?? ''}',
-          ),
-          if (session!['verification_url'] is String)
-            TextButton(
-              onPressed: () => launchUrl(
-                Uri.parse(session!['verification_url'] as String),
-                mode: LaunchMode.externalApplication,
-              ),
-              child: Text(
-                widget.client.tr('打开授权页面', 'Open authorization page'),
+      ],
+      body: PageList(
+        children: [
+          if (authorized)
+            Row(
+              children: [
+                const StatusDot(),
+                const SizedBox(width: 10),
+                Text(
+                  widget.client.tr('已授权', 'Authorized'),
+                  style: text.titleMedium,
+                ),
+              ],
+            )
+          else if (widget.provider['flow'] == 'device_code')
+            FilledButton(
+              onPressed: busy || session?['status'] == 'pending'
+                  ? null
+                  : () => action('start'),
+              child: Text(widget.client.tr('开始授权', 'Start authorization')),
+            )
+          else
+            Panel(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: SelectableText(
+                  '${widget.provider['cli_command'] ?? ''}',
+                  style: const TextStyle(fontFamily: monoFont, fontSize: 13),
+                ),
               ),
             ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            children: [
-              TextButton(
-                onPressed: busy || session?['session_id'] == null
-                    ? null
-                    : () => action('poll'),
-                child: Text(widget.client.tr('检查状态', 'Check status')),
+          if (session != null && !authorized) ...[
+            const SizedBox(height: 18),
+            SelectableText(
+              '${session!['user_code'] ?? ''}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: monoFont,
+                fontSize: 28,
+                letterSpacing: 2,
               ),
-              if (session?['status'] == 'pending')
-                TextButton(
-                  onPressed: busy ? null : () => action('cancel'),
-                  child: Text(widget.client.tr('取消授权', 'Cancel authorization')),
+            ),
+            const SizedBox(height: 8),
+            SelectableText(
+              '${session!['error_message'] ?? session!['message'] ?? session!['status'] ?? ''}',
+              textAlign: TextAlign.center,
+              style: text.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              children: [
+                if (session!['verification_url'] is String)
+                  IconButton(
+                    tooltip: widget.client.tr(
+                      '打开授权页面',
+                      'Open authorization page',
+                    ),
+                    onPressed: () => launchUrl(
+                      Uri.parse(session!['verification_url'] as String),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                    icon: const Icon(Icons.open_in_browser_rounded),
+                  ),
+                IconButton(
+                  tooltip: widget.client.tr('检查状态', 'Check status'),
+                  onPressed: busy || session?['session_id'] == null
+                      ? null
+                      : () => action('poll'),
+                  icon: const Icon(Icons.refresh_rounded),
                 ),
-            ],
-          ),
+                if (session?['status'] == 'pending')
+                  IconButton(
+                    tooltip: widget.client.tr('取消', 'Cancel'),
+                    onPressed: busy ? null : () => action('cancel'),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+              ],
+            ),
+          ],
+          if (widget.provider['disconnectable'] == true && authorized) ...[
+            const SizedBox(height: 16),
+            OutlinedButton(
+              onPressed: busy ? null : () => action('disconnect'),
+              child: Text(widget.client.tr('断开', 'Disconnect')),
+            ),
+          ],
+          ErrorNotice(error),
         ],
-        if (widget.provider['disconnectable'] == true && authorized)
-          TextButton(
-            onPressed: busy ? null : () => action('disconnect'),
-            child: Text(widget.client.tr('断开授权', 'Disconnect authorization')),
-          ),
-        ErrorNotice(error),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 class PasswordPage extends StatefulWidget {
@@ -528,10 +526,9 @@ class _PasswordPageState extends State<PasswordPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.client.tr('修改密码', 'Change password'))),
-    body: ListView(
-      padding: const EdgeInsets.all(24),
+  Widget build(BuildContext context) => AppPage(
+    title: widget.client.tr('修改密码', 'Change password'),
+    body: PageList(
       children: [
         TextField(
           controller: old,
@@ -540,7 +537,7 @@ class _PasswordPageState extends State<PasswordPage> {
             labelText: widget.client.tr('当前密码', 'Current password'),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         TextField(
           controller: next,
           obscureText: true,
@@ -566,7 +563,7 @@ class _PasswordPageState extends State<PasswordPage> {
               if (mounted) setState(() => error = '$e');
             }
           },
-          child: Text(widget.client.tr('修改并重新登录', 'Change & sign in again')),
+          child: Text(widget.client.tr('修改', 'Change')),
         ),
       ],
     ),

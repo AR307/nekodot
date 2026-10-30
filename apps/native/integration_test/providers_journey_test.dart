@@ -68,7 +68,12 @@ void main() {
         ),
       );
       await tester.pump(const Duration(milliseconds: 600));
-      await tap(find.byTooltip('设置'));
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        await tap(find.byTooltip('设置'));
+      } else {
+        await tap(find.byTooltip('账户'));
+        await tap(find.text('设置'));
+      }
       await tap(find.text('模型来源'));
       await until(() => find.text('授权登录').evaluate().isNotEmpty);
       expect(find.textContaining('logged_in'), findsNothing);
@@ -93,13 +98,13 @@ void main() {
       await tester.pageBack();
       await tester.pump(const Duration(milliseconds: 400));
       for (final name in ['Research API', 'Writing API']) {
-        await tester.scrollUntilVisible(find.byIcon(Icons.add), 300);
-        await tap(find.byIcon(Icons.add));
+        await tester.scrollUntilVisible(find.byIcon(Icons.add_rounded), 300);
+        await tap(find.byIcon(Icons.add_rounded));
         await fill('名称', name);
         await fill('API URL', 'https://models.example.test/v1');
         await fill('API KEY', 'test-only-$name');
-        expect(find.textContaining('选择模型或填写代号'), findsNothing);
-        await tap(find.text('保存并获取模型'));
+        expect(find.text('模型'), findsNothing);
+        await tap(find.text('保存'));
         await until(() => find.byType(CustomSourcePage).evaluate().isEmpty);
         await until(() => find.text(name).evaluate().isNotEmpty);
       }
@@ -127,7 +132,7 @@ void main() {
       await tap(sourceField);
       await tap(find.text('Writing API').last);
       await fill('选择模型或填写代号', 'recorded-model');
-      await tap(find.text('模型高级设置'));
+      await tap(find.text('高级'));
       await fill('上下文覆盖值（可选）', '64000');
       debugPrint('QA: native source bot form ready');
       await screenshot('native-source-bot-form');

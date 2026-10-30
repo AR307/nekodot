@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'data/client.dart';
 import 'features/auth.dart';
@@ -13,6 +14,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (Platform.isWindows) {
     await DesktopHost.initialize();
+  } else {
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
   runApp(NekodotApp(client: NekodotClient()));
 }
@@ -83,10 +86,21 @@ class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
         'dark' => ThemeMode.dark,
         _ => ThemeMode.system,
       },
+      builder: (context, child) => AnnotatedRegion(
+        value: Theme.of(context).appBarTheme.systemOverlayStyle!,
+        child: Platform.isWindows
+            ? WindowChrome(child: child!)
+            : Ambient(child: child!),
+      ),
       home: loading
-          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+          ? const Scaffold(body: Center(child: CatAvatar(size: 72)))
           : error.isNotEmpty
-          ? Scaffold(body: Center(child: ErrorNotice(error)))
+          ? Scaffold(
+              body: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Center(child: ErrorNotice(error)),
+              ),
+            )
           : widget.client.token == null
           ? AuthPage(client: widget.client)
           : HomePage(client: widget.client),

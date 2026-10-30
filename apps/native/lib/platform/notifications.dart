@@ -56,8 +56,8 @@ class NativeNotifications {
             title: Text(client.tr('开启任务通知', 'Stay updated')),
             content: Text(
               client.tr(
-                '收到 Bot 回复、提问和审批时提醒你。通知将显示 Bot 或群组名称与回复预览；可在系统设置关闭。',
-                'Get replies, questions and approvals. Notifications show the Bot or group name and a reply preview. You can disable them in system settings.',
+                '回复、提问和审批会提醒你，并显示预览。',
+                'Get replies, questions and approvals with a preview.',
               ),
             ),
             actions: [

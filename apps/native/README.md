@@ -13,7 +13,7 @@ Hermes 和 Node 仍在服务器运行，客户端不安装或运行本地 agent�
 - `lib/features/`：账号、节点、Bot、聊天、记忆、文件、扩展与设置。
 - `lib/screen/`、`rust/`：认证 WSS、RFB 解码、原生控制权与输入。
 - `lib/platform/`：Windows 托盘/窗口、Android FCM 和系统通知。
-- `lib/ui/design.dart`：设计 tokens、猫耳头像、中英文与推进动效。
+- `lib/ui/design.dart`：黑白 tokens（Windows 实色、Android 毛玻璃）、圆形猫头像与页面转场；`lib/ui/parts.dart`：共用组件。
 - `integration_test/`：显式启用的真实远程旅程；日常测试不调用模型。
 
 只持久保存登录态、语言、选择项与系统设置。聊天正文来自服务器，草稿只在当前进程保留。
@@ -46,6 +46,8 @@ Windows 要求 VS 2022 Desktop C++ 工具链及 Windows SDK。编译通过不代
 `RELAY_URL`、`QA_EMAIL`、`QA_PASSWORD`、`QA_NODE`、`QA_CONVERSATION`。
 `QA_SCREEN=true` 验证原生屏幕，`QA_INSPECT=true` 暂停以便人工观察。
 测试必须沿用设备已有包的签名及 `--keep-app-running`，不卸载替换用户客户端。
+
+`integration_test/ui_tour_test.dart` 走查主要页面并输出截图（`QA_TOKEN`、`QA_NODE`、`QA_DM`、`QA_GROUP`、`TOUR_OUT`），用于设计复核。
 
 旅程核对新消息 ID、实际 streaming 与最终回复，再验证画面、接管/交还和 Android 返回导航。
 原生输入、后台/锁屏通知、Android 真机、双端完整页面及开发中的服务端接口分别验收，

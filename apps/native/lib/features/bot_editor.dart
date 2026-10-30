@@ -153,232 +153,237 @@ class _BotEditorState extends State<BotEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(
-        widget.group
-            ? c.tr('群组', 'Group')
-            : widget.existing == null
-            ? c.tr('新建 Bot', 'New Bot')
-            : c.tr('编辑 Bot', 'Edit Bot'),
-      ),
-    ),
-    body: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 640),
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            if (!widget.group) ...[
-              Center(child: CatAvatar(color: color, size: 70)),
-              const SizedBox(height: 16),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 8,
-                children: avatarColors
-                    .map(
-                      (value) => IconButton(
-                        onPressed: () => setState(() => color = value),
-                        icon: Icon(
-                          value == color ? Icons.check_circle : Icons.circle,
-                          color: hexColor(value),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-              const SizedBox(height: 18),
-            ],
-            TextField(
-              controller: name,
-              decoration: InputDecoration(labelText: c.tr('名称', 'Name')),
-            ),
-            const SizedBox(height: 16),
-            if (widget.group) ...[
-              Text(
-                c.tr('选择 2–6 位成员', 'Choose 2–6 members'),
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              for (final bot in c.node.bots.where((b) => b['archived'] != true))
-                CheckboxListTile(
-                  secondary: CatAvatar(color: '${bot['avatar']['color']}'),
-                  title: Text('${bot['displayName']}'),
-                  subtitle: Text('@${bot['handle']}'),
-                  value: members.contains(bot['botId']),
-                  onChanged: (value) => setState(() {
-                    if (value == true) {
-                      members.add(bot['botId'] as String);
-                      lead ??= bot['botId'] as String;
-                    } else {
-                      members.remove(bot['botId']);
-                      if (lead == bot['botId']) lead = members.firstOrNull;
-                    }
-                  }),
-                ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                key: ValueKey(lead),
-                initialValue: lead,
-                decoration: InputDecoration(
-                  labelText: c.tr('主答 Bot', 'Lead Bot'),
-                ),
-                items: c.node.bots
-                    .where((b) => members.contains(b['botId']))
-                    .map(
-                      (b) => DropdownMenuItem(
-                        value: b['botId'] as String,
-                        child: Text('${b['displayName']}'),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) => setState(() => lead = value),
-              ),
-            ] else ...[
-              TextField(
-                controller: handle,
-                decoration: const InputDecoration(
-                  labelText: '@handle',
-                  helperText: 'a–z, 0–9, -',
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: role,
-                minLines: 3,
-                maxLines: 8,
-                decoration: InputDecoration(labelText: c.tr('角色设定', 'Role')),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                key: ValueKey(source),
-                initialValue: source,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  labelText: c.tr('模型来源', 'Model source'),
-                ),
-                items: sources
-                    .map(
-                      (s) => DropdownMenuItem(
-                        value: s['sourceId'] as String,
-                        child: Text(
-                          '${s['name']}',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    source = value;
-                    model.clear();
-                  });
-                  loadModels();
-                },
-              ),
-              const SizedBox(height: 16),
-              Autocomplete<String>(
-                key: ValueKey(source),
-                initialValue: model.value,
-                optionsBuilder: (value) => models.where(
-                  (m) => m.toLowerCase().contains(value.text.toLowerCase()),
-                ),
-                onSelected: (value) => model.text = value,
-                fieldViewBuilder: (context, controller, focus, submit) =>
-                    TextField(
-                      controller: controller,
-                      focusNode: focus,
-                      onChanged: (value) => model.text = value,
-                      decoration: InputDecoration(
-                        labelText: c.tr(
-                          '选择模型或填写代号',
-                          'Choose model or enter its ID',
-                        ),
-                      ),
-                    ),
-              ),
-              const SizedBox(height: 16),
-              ExpansionTile(
-                title: Text(c.tr('模型高级设置', 'Advanced model settings')),
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    const gap = SizedBox(height: 10);
+    return AppPage(
+      title: widget.group
+          ? c.tr('群组', 'Group')
+          : widget.existing == null
+          ? c.tr('新建 Bot', 'New Bot')
+          : c.tr('编辑 Bot', 'Edit Bot'),
+      body: PageList(
+        children: [
+          if (!widget.group) ...[
+            Center(child: CatAvatar(color: color, size: 84)),
+            const SizedBox(height: 14),
+            Center(
+              child: Wrap(
+                spacing: 6,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: TextField(
-                      controller: contextLength,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: c.tr(
-                          '上下文覆盖值（可选）',
-                          'Context override (optional)',
-                        ),
-                        hintText: c.tr(
-                          '由 Hermes 自动识别',
-                          'Hermes automatic detection',
+                  for (final value in avatarColors)
+                    GestureDetector(
+                      onTap: () => setState(() => color = value),
+                      child: Semantics(
+                        button: true,
+                        selected: value == color,
+                        label: value,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 160),
+                          width: 30,
+                          height: 30,
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: value == color
+                                  ? tone.ink
+                                  : Colors.transparent,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: hexColor(value),
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Text(
-                      c.tr(
-                        '仅填写已确认的上下文容量，留空恢复自动。当前 Hermes 不支持通用最大输出覆盖；未知容量不会显示为实测值。',
-                        'Enter only a confirmed context size; leave blank for automatic. This Hermes version has no generic output override. Unknown limits are not shown as measured values.',
-                      ),
-                    ),
-                  ),
                 ],
               ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                key: ValueKey('approval-$mode-$permissionsReady'),
-                initialValue: mode,
-                decoration: InputDecoration(
-                  labelText: c.tr('Hermes 审批等级', 'Hermes approval mode'),
-                ),
-                items: [
-                  DropdownMenuItem(
-                    value: 'manual',
-                    child: Text(c.tr('每次询问', 'Ask each time')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'smart',
-                    child: Text(c.tr('原生智能审批', 'Native smart approval')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'off',
-                    child: Text(c.tr('全部允许', 'Allow all')),
-                  ),
-                ],
-                onChanged: permissionsReady
-                    ? (value) => setState(() => mode = value!)
-                    : null,
-              ),
-              if (!permissionsReady)
-                TextButton.icon(
-                  onPressed: loadPermissions,
-                  icon: const Icon(Icons.refresh),
-                  label: Text(c.tr('重新读取审批设置', 'Reload approval settings')),
-                ),
-            ],
-            ErrorNotice(error),
-            const SizedBox(height: 20),
-            FilledButton(
-              onPressed:
-                  busy ||
-                      !permissionsReady ||
-                      !c.online ||
-                      (!widget.group &&
-                          widget.existing == null &&
-                          source == null) ||
-                      (widget.group &&
-                          (members.length < 2 || members.length > 6))
-                  ? null
-                  : save,
-              child: Text(busy ? c.tr('保存中…', 'Saving…') : c.tr('保存', 'Save')),
             ),
-            if (widget.existing != null)
-              TextButton(
+            const SizedBox(height: 20),
+          ],
+          TextField(
+            controller: name,
+            decoration: InputDecoration(labelText: c.tr('名称', 'Name')),
+          ),
+          gap,
+          if (widget.group) ...[
+            SectionLabel(
+              c.tr('成员', 'Members'),
+              trailing: Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: ChainDots(count: members.length, max: 6),
+              ),
+            ),
+            PanelGroup(
+              children: [
+                for (final bot in c.node.bots.where(
+                  (b) => b['archived'] != true,
+                ))
+                  CheckboxListTile(
+                    secondary: CatAvatar(color: '${bot['avatar']['color']}'),
+                    title: Text('${bot['displayName']}'),
+                    value: members.contains(bot['botId']),
+                    onChanged: (value) => setState(() {
+                      if (value == true) {
+                        members.add(bot['botId'] as String);
+                        lead ??= bot['botId'] as String;
+                      } else {
+                        members.remove(bot['botId']);
+                        if (lead == bot['botId']) lead = members.firstOrNull;
+                      }
+                    }),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              key: ValueKey(lead),
+              initialValue: lead,
+              borderRadius: BorderRadius.circular(20),
+              decoration: InputDecoration(labelText: c.tr('主答', 'Lead')),
+              items: c.node.bots
+                  .where((b) => members.contains(b['botId']))
+                  .map(
+                    (b) => DropdownMenuItem(
+                      value: b['botId'] as String,
+                      child: Text('${b['displayName']}'),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) => setState(() => lead = value),
+            ),
+          ] else ...[
+            TextField(
+              controller: handle,
+              decoration: const InputDecoration(labelText: '@handle'),
+            ),
+            gap,
+            TextField(
+              controller: role,
+              minLines: 3,
+              maxLines: 8,
+              decoration: InputDecoration(labelText: c.tr('角色设定', 'Role')),
+            ),
+            gap,
+            DropdownButtonFormField<String>(
+              key: ValueKey(source),
+              initialValue: source,
+              isExpanded: true,
+              borderRadius: BorderRadius.circular(20),
+              decoration: InputDecoration(
+                labelText: c.tr('模型来源', 'Model source'),
+              ),
+              items: sources
+                  .map(
+                    (s) => DropdownMenuItem(
+                      value: s['sourceId'] as String,
+                      child: Text(
+                        '${s['name']}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                setState(() {
+                  source = value;
+                  model.clear();
+                });
+                loadModels();
+              },
+            ),
+            gap,
+            Autocomplete<String>(
+              key: ValueKey(source),
+              initialValue: model.value,
+              optionsBuilder: (value) => models.where(
+                (m) => m.toLowerCase().contains(value.text.toLowerCase()),
+              ),
+              onSelected: (value) => model.text = value,
+              fieldViewBuilder: (context, controller, focus, submit) =>
+                  TextField(
+                    controller: controller,
+                    focusNode: focus,
+                    onChanged: (value) => model.text = value,
+                    decoration: InputDecoration(labelText: c.tr('模型', 'Model')),
+                  ),
+            ),
+            gap,
+            DropdownButtonFormField<String>(
+              key: ValueKey('approval-$mode-$permissionsReady'),
+              initialValue: mode,
+              borderRadius: BorderRadius.circular(20),
+              decoration: InputDecoration(labelText: c.tr('审批', 'Approval')),
+              items: [
+                DropdownMenuItem(
+                  value: 'manual',
+                  child: Text(c.tr('每次询问', 'Ask each time')),
+                ),
+                DropdownMenuItem(
+                  value: 'smart',
+                  child: Text(c.tr('智能审批', 'Smart approval')),
+                ),
+                DropdownMenuItem(
+                  value: 'off',
+                  child: Text(c.tr('全部允许', 'Allow all')),
+                ),
+              ],
+              onChanged: permissionsReady
+                  ? (value) => setState(() => mode = value!)
+                  : null,
+            ),
+            if (!permissionsReady)
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  tooltip: c.tr('重新读取审批设置', 'Reload approval settings'),
+                  onPressed: loadPermissions,
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
+              ),
+            ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(horizontal: 6),
+              childrenPadding: const EdgeInsets.only(bottom: 8),
+              title: Text(
+                c.tr('高级', 'Advanced'),
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              children: [
+                TextField(
+                  controller: contextLength,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: c.tr('上下文覆盖', 'Context override'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          ErrorNotice(error),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed:
+                busy ||
+                    !permissionsReady ||
+                    !c.online ||
+                    (!widget.group &&
+                        widget.existing == null &&
+                        source == null) ||
+                    (widget.group && (members.length < 2 || members.length > 6))
+                ? null
+                : save,
+            child: busy ? const Breathing() : Text(c.tr('保存', 'Save')),
+          ),
+          if (widget.existing != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: TextButton(
+                style: TextButton.styleFrom(foregroundColor: tone.danger),
                 onPressed: busy
                     ? null
                     : () async {
@@ -397,11 +402,11 @@ class _BotEditorState extends State<BotEditor> {
                           if (mounted) setState(() => error = '$e');
                         }
                       },
-                child: Text(c.tr('归档（保留历史）', 'Archive (keep history)')),
+                child: Text(c.tr('归档', 'Archive')),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
-    ),
-  );
+    );
+  }
 }

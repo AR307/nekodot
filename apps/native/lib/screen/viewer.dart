@@ -32,7 +32,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
   Timer? poll, retry;
   ui.Image? image;
   String error = '';
-  bool connected = false, active = true, busy = false;
+  bool connected = false, active = true, busy = false, typing = false;
   static Future<void>? bridgeInitialization;
   int attempts = 0, buttons = 0;
   final keyboard = TextEditingController(), focus = FocusNode();
@@ -303,82 +303,95 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text('${bot['displayName']} · ${c.tr('屏幕', 'Screen')}'),
-      actions: [
+  Widget build(BuildContext context) => AppPage(
+    title: '${bot['displayName']}',
+    actions: [
+      if (status?['running'] == true)
         IconButton(
-          tooltip: c.tr('重新连接', 'Reconnect'),
-          onPressed: () {
-            disconnect(intentional: false);
-            connect();
-          },
-          icon: const Icon(Icons.refresh),
+          tooltip: c.tr('键盘', 'Keyboard'),
+          isSelected: typing,
+          onPressed: () => setState(() => typing = !typing),
+          icon: const Icon(Icons.keyboard_rounded),
         ),
-      ],
-    ),
+      IconButton(
+        tooltip: c.tr('重新连接', 'Reconnect'),
+        onPressed: () {
+          disconnect(intentional: false);
+          connect();
+        },
+        icon: const Icon(Icons.refresh_rounded),
+      ),
+      if (status?['running'] == true)
+        IconButton(
+          tooltip: c.tr('停止屏幕', 'Stop screen'),
+          onPressed: busy ? null : () => action('screen.stop'),
+          icon: const Icon(Icons.power_settings_new_rounded),
+        ),
+    ],
     body: SafeArea(
       child: Column(
         children: [
           if (widget.members.length > 1)
-            SizedBox(
-              height: 54,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: widget.members
-                    .map(
-                      (b) => Padding(
-                        padding: const EdgeInsets.all(6),
-                        child: ChoiceChip(
-                          label: Text('${b['displayName']}'),
-                          selected: b['botId'] == bot['botId'],
-                          onSelected: (_) {
-                            disconnect(intentional: true);
-                            session = null;
-                            setState(() {
-                              bot = b;
-                              status = null;
-                              image?.dispose();
-                              image = null;
-                            });
-                            refresh();
-                          },
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: SizedBox(
+                height: 44,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: widget.members
+                      .map(
+                        (b) => Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Tooltip(
+                            message: '${b['displayName']}',
+                            child: ChoiceChip(
+                              labelPadding: EdgeInsets.zero,
+                              padding: const EdgeInsets.all(4),
+                              label: CatAvatar(
+                                color: '${b['avatar']['color']}',
+                                size: 24,
+                              ),
+                              selected: b['botId'] == bot['botId'],
+                              onSelected: (_) {
+                                disconnect(intentional: true);
+                                session = null;
+                                setState(() {
+                                  bot = b;
+                                  status = null;
+                                  image?.dispose();
+                                  image = null;
+                                });
+                                refresh();
+                              },
+                            ),
+                          ),
                         ),
-                      ),
-                    )
-                    .toList(),
+                      )
+                      .toList(),
+                ),
               ),
             ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 12,
-              runSpacing: 8,
+            padding: const EdgeInsets.fromLTRB(20, 10, 12, 8),
+            child: Row(
               children: [
-                Text(
-                  !connected
-                      ? c.tr('未连接', 'Disconnected')
-                      : own
-                      ? c.tr('你正在控制', 'You are in control')
-                      : status?['holder'] == 'human'
-                      ? c.tr(
-                          '其他客户端正在控制 · 只读',
-                          'Another client is controlling · Read-only',
-                        )
-                      : c.tr('Bot 控制中 · 只读观看', 'Bot is in control · Read-only'),
-                ),
-                if (status?['running'] == true)
-                  FilledButton(
-                    onPressed: busy || !connected
-                        ? null
-                        : () => control(own ? 'release' : 'take'),
-                    child: Text(
-                      own
-                          ? c.tr('交还', 'Hand back')
-                          : c.tr('接管', 'Take control'),
-                    ),
+                connected && !own && status?['holder'] != 'human'
+                    ? const Breathing(size: 8)
+                    : StatusDot(on: connected),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    !connected
+                        ? c.tr('未连接', 'Disconnected')
+                        : own
+                        ? c.tr('你正在控制', 'You are in control')
+                        : status?['holder'] == 'human'
+                        ? c.tr('他处控制中', 'Controlled elsewhere')
+                        : c.tr('Bot 控制中', 'Bot is in control'),
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
+                ),
+                if (busy) const Breathing(size: 8),
                 if (status?['holder'] == 'human' && !own)
                   TextButton(
                     onPressed: busy ? null : () => control('force-release'),
@@ -390,203 +403,234 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
                     child: Text(c.tr('启动屏幕', 'Start screen')),
                   ),
                 if (status?['running'] == true)
-                  TextButton(
-                    onPressed: busy ? null : () => action('screen.stop'),
-                    child: Text(c.tr('停止屏幕', 'Stop screen')),
-                  ),
-                if (busy)
-                  const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                  FilledButton(
+                    onPressed: busy || !connected
+                        ? null
+                        : () => control(own ? 'release' : 'take'),
+                    child: Text(
+                      own
+                          ? c.tr('交还', 'Hand back')
+                          : c.tr('接管', 'Take control'),
+                    ),
                   ),
               ],
             ),
           ),
           if (status?['blocker'] != null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: ErrorNotice('${status!['blocker']}'),
             ),
           if (status?['installed'] == false)
             Padding(
-              padding: const EdgeInsets.all(20),
-              child: SelectableText(
-                '${c.tr('屏幕依赖尚未安装', 'Screen dependencies are not installed')}\n${status?['installCommand'] ?? ''}',
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+              child: Panel(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SelectableText(
+                    '${status?['installCommand'] ?? ''}',
+                    style: const TextStyle(fontFamily: monoFont, fontSize: 13),
+                  ),
+                ),
               ),
             ),
           Expanded(
-            child: ColoredBox(
-              color: const Color(0xff16130f),
-              child: image == null
-                  ? Center(
-                      child: Text(
-                        c.tr(
-                          '画面将在连接后显示',
-                          'The screen will appear when connected',
-                        ),
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                    )
-                  : LayoutBuilder(
-                      builder: (context, constraints) => InteractiveViewer(
-                        minScale: .3,
-                        maxScale: 4,
-                        panEnabled: !own,
-                        child: Center(
-                          child: FittedBox(
-                            child: Focus(
-                              focusNode: focus,
-                              onKeyEvent: (_, event) {
-                                if (!own) return KeyEventResult.ignored;
-                                final keys = {
-                                  LogicalKeyboardKey.enter: 0xff0d,
-                                  LogicalKeyboardKey.escape: 0xff1b,
-                                  LogicalKeyboardKey.tab: 0xff09,
-                                  LogicalKeyboardKey.backspace: 0xff08,
-                                  LogicalKeyboardKey.delete: 0xffff,
-                                  LogicalKeyboardKey.arrowLeft: 0xff51,
-                                  LogicalKeyboardKey.arrowUp: 0xff52,
-                                  LogicalKeyboardKey.arrowRight: 0xff53,
-                                  LogicalKeyboardKey.arrowDown: 0xff54,
-                                  LogicalKeyboardKey.controlLeft: 0xffe3,
-                                  LogicalKeyboardKey.controlRight: 0xffe4,
-                                  LogicalKeyboardKey.shiftLeft: 0xffe1,
-                                  LogicalKeyboardKey.shiftRight: 0xffe2,
-                                  LogicalKeyboardKey.altLeft: 0xffe9,
-                                  LogicalKeyboardKey.altRight: 0xffea,
-                                };
-                                final point =
-                                    event.character?.runes.firstOrNull;
-                                final key =
-                                    keys[event.logicalKey] ??
-                                    (point == null
-                                        ? null
-                                        : point <= 255
-                                        ? point
-                                        : 0x01000000 | point);
-                                if (key == null) return KeyEventResult.ignored;
-                                input(
-                                  'key',
-                                  key: key,
-                                  down: event is! KeyUpEvent,
-                                );
-                                return KeyEventResult.handled;
-                              },
-                              child: Listener(
-                                onPointerDown: (event) {
-                                  focus.requestFocus();
-                                  buttons =
-                                      event.kind == PointerDeviceKind.touch
-                                      ? 1
-                                      : (event.buttons & 1) |
-                                            ((event.buttons & 2) << 1) |
-                                            ((event.buttons & 4) >> 1);
-                                  input(
-                                    'pointer',
-                                    x: event.localPosition.dx.round().clamp(
-                                      0,
-                                      image!.width - 1,
-                                    ),
-                                    y: event.localPosition.dy.round().clamp(
-                                      0,
-                                      image!.height - 1,
-                                    ),
-                                    mask: buttons,
-                                  );
-                                },
-                                onPointerMove: (event) => input(
-                                  'pointer',
-                                  x: event.localPosition.dx.round().clamp(
-                                    0,
-                                    image!.width - 1,
-                                  ),
-                                  y: event.localPosition.dy.round().clamp(
-                                    0,
-                                    image!.height - 1,
-                                  ),
-                                  mask: buttons,
-                                ),
-                                onPointerHover: (event) => input(
-                                  'pointer',
-                                  x: event.localPosition.dx.round().clamp(
-                                    0,
-                                    image!.width - 1,
-                                  ),
-                                  y: event.localPosition.dy.round().clamp(
-                                    0,
-                                    image!.height - 1,
-                                  ),
-                                ),
-                                onPointerUp: (event) {
-                                  buttons = 0;
-                                  input(
-                                    'pointer',
-                                    x: event.localPosition.dx.round().clamp(
-                                      0,
-                                      image!.width - 1,
-                                    ),
-                                    y: event.localPosition.dy.round().clamp(
-                                      0,
-                                      image!.height - 1,
-                                    ),
-                                  );
-                                },
-                                onPointerSignal: (event) {
-                                  if (event is PointerScrollEvent) {
-                                    input(
-                                      'pointer',
-                                      x: event.localPosition.dx.round().clamp(
-                                        0,
-                                        image!.width - 1,
-                                      ),
-                                      y: event.localPosition.dy.round().clamp(
-                                        0,
-                                        image!.height - 1,
-                                      ),
-                                      mask: event.scrollDelta.dy < 0 ? 8 : 16,
-                                    );
-                                    input(
-                                      'pointer',
-                                      x: event.localPosition.dx.round().clamp(
-                                        0,
-                                        image!.width - 1,
-                                      ),
-                                      y: event.localPosition.dy.round().clamp(
-                                        0,
-                                        image!.height - 1,
-                                      ),
-                                    );
-                                  }
-                                },
-                                child: RawImage(
-                                  image: image,
-                                  width: image!.width.toDouble(),
-                                  height: image!.height.toDouble(),
-                                  filterQuality: FilterQuality.medium,
-                                ),
-                              ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: own ? context.tone.ink : context.tone.line,
+                    width: own ? 2 : 1,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(15),
+                  child: ColoredBox(
+                    color: Colors.black,
+                    child: image == null
+                        ? const Center(
+                            child: Opacity(
+                              opacity: .25,
+                              child: CatAvatar(color: '#FFFFFF', size: 72),
                             ),
+                          )
+                        : LayoutBuilder(
+                            builder: (context, constraints) =>
+                                InteractiveViewer(
+                                  minScale: .3,
+                                  maxScale: 4,
+                                  panEnabled: !own,
+                                  child: Center(
+                                    child: FittedBox(
+                                      child: Focus(
+                                        focusNode: focus,
+                                        onKeyEvent: (_, event) {
+                                          if (!own) {
+                                            return KeyEventResult.ignored;
+                                          }
+                                          final keys = {
+                                            LogicalKeyboardKey.enter: 0xff0d,
+                                            LogicalKeyboardKey.escape: 0xff1b,
+                                            LogicalKeyboardKey.tab: 0xff09,
+                                            LogicalKeyboardKey.backspace:
+                                                0xff08,
+                                            LogicalKeyboardKey.delete: 0xffff,
+                                            LogicalKeyboardKey.arrowLeft:
+                                                0xff51,
+                                            LogicalKeyboardKey.arrowUp: 0xff52,
+                                            LogicalKeyboardKey.arrowRight:
+                                                0xff53,
+                                            LogicalKeyboardKey.arrowDown:
+                                                0xff54,
+                                            LogicalKeyboardKey.controlLeft:
+                                                0xffe3,
+                                            LogicalKeyboardKey.controlRight:
+                                                0xffe4,
+                                            LogicalKeyboardKey.shiftLeft:
+                                                0xffe1,
+                                            LogicalKeyboardKey.shiftRight:
+                                                0xffe2,
+                                            LogicalKeyboardKey.altLeft: 0xffe9,
+                                            LogicalKeyboardKey.altRight: 0xffea,
+                                          };
+                                          final point = event
+                                              .character
+                                              ?.runes
+                                              .firstOrNull;
+                                          final key =
+                                              keys[event.logicalKey] ??
+                                              (point == null
+                                                  ? null
+                                                  : point <= 255
+                                                  ? point
+                                                  : 0x01000000 | point);
+                                          if (key == null) {
+                                            return KeyEventResult.ignored;
+                                          }
+                                          input(
+                                            'key',
+                                            key: key,
+                                            down: event is! KeyUpEvent,
+                                          );
+                                          return KeyEventResult.handled;
+                                        },
+                                        child: Listener(
+                                          onPointerDown: (event) {
+                                            focus.requestFocus();
+                                            buttons =
+                                                event.kind ==
+                                                    PointerDeviceKind.touch
+                                                ? 1
+                                                : (event.buttons & 1) |
+                                                      ((event.buttons & 2) <<
+                                                          1) |
+                                                      ((event.buttons & 4) >>
+                                                          1);
+                                            input(
+                                              'pointer',
+                                              x: event.localPosition.dx
+                                                  .round()
+                                                  .clamp(0, image!.width - 1),
+                                              y: event.localPosition.dy
+                                                  .round()
+                                                  .clamp(0, image!.height - 1),
+                                              mask: buttons,
+                                            );
+                                          },
+                                          onPointerMove: (event) => input(
+                                            'pointer',
+                                            x: event.localPosition.dx
+                                                .round()
+                                                .clamp(0, image!.width - 1),
+                                            y: event.localPosition.dy
+                                                .round()
+                                                .clamp(0, image!.height - 1),
+                                            mask: buttons,
+                                          ),
+                                          onPointerHover: (event) => input(
+                                            'pointer',
+                                            x: event.localPosition.dx
+                                                .round()
+                                                .clamp(0, image!.width - 1),
+                                            y: event.localPosition.dy
+                                                .round()
+                                                .clamp(0, image!.height - 1),
+                                          ),
+                                          onPointerUp: (event) {
+                                            buttons = 0;
+                                            input(
+                                              'pointer',
+                                              x: event.localPosition.dx
+                                                  .round()
+                                                  .clamp(0, image!.width - 1),
+                                              y: event.localPosition.dy
+                                                  .round()
+                                                  .clamp(0, image!.height - 1),
+                                            );
+                                          },
+                                          onPointerSignal: (event) {
+                                            if (event is PointerScrollEvent) {
+                                              input(
+                                                'pointer',
+                                                x: event.localPosition.dx
+                                                    .round()
+                                                    .clamp(0, image!.width - 1),
+                                                y: event.localPosition.dy
+                                                    .round()
+                                                    .clamp(
+                                                      0,
+                                                      image!.height - 1,
+                                                    ),
+                                                mask: event.scrollDelta.dy < 0
+                                                    ? 8
+                                                    : 16,
+                                              );
+                                              input(
+                                                'pointer',
+                                                x: event.localPosition.dx
+                                                    .round()
+                                                    .clamp(0, image!.width - 1),
+                                                y: event.localPosition.dy
+                                                    .round()
+                                                    .clamp(
+                                                      0,
+                                                      image!.height - 1,
+                                                    ),
+                                              );
+                                            }
+                                          },
+                                          child: RawImage(
+                                            image: image,
+                                            width: image!.width.toDouble(),
+                                            height: image!.height.toDouble(),
+                                            filterQuality: FilterQuality.medium,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                           ),
-                        ),
-                      ),
-                    ),
+                  ),
+                ),
+              ),
             ),
           ),
-          Flexible(
-            flex: 1,
-            fit: FlexFit.loose,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  if (error.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: ErrorNotice(error),
-                    ),
-                  ExpansionTile(
-                    title: Text(c.tr('键盘与常用按键', 'Keyboard & shortcuts')),
-                    childrenPadding: const EdgeInsets.all(12),
+          if (error.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: ErrorNotice(error),
+            ),
+          if (typing)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: Panel(
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
                     children: [
                       TextField(
                         key: const ValueKey('screen-keyboard'),
@@ -594,12 +638,6 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
                         enabled: own,
                         maxLines: 2,
                         minLines: 1,
-                        decoration: InputDecoration(
-                          hintText: c.tr(
-                            '接管后在此输入文字',
-                            'Type here after taking control',
-                          ),
-                        ),
                       ),
                       const SizedBox(height: 6),
                       SingleChildScrollView(
@@ -643,10 +681,9 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     ),

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
 import 'package:nekodot_native/features/chat.dart';
+import 'package:nekodot_native/ui/design.dart';
 
 final bot = <String, dynamic>{
   'botId': 'nk-test00',
@@ -67,6 +68,7 @@ void main() {
     final client = JourneyClient();
     await tester.pumpWidget(
       MaterialApp(
+        theme: appTheme(Brightness.light),
         home: BotEditor(client: client, existing: bot),
       ),
     );
@@ -96,6 +98,7 @@ void main() {
       final client = JourneyClient();
       await tester.pumpWidget(
         MaterialApp(
+          theme: appTheme(Brightness.light),
           home: ChatPage(client: client, conversationId: 'dm'),
         ),
       );

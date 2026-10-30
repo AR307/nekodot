@@ -23,7 +23,10 @@ void main() {
       tester.testTextInput.register();
       addTearDown(tester.testTextInput.unregister);
       runApp(
-        const MaterialApp(home: Scaffold(body: CircularProgressIndicator())),
+        MaterialApp(
+          theme: appTheme(Brightness.light),
+          home: const Scaffold(body: CircularProgressIndicator()),
+        ),
       );
       final client = NekodotClient();
       await tester.runAsync(() async {
@@ -65,7 +68,8 @@ void main() {
             scrollable: find.byType(Scrollable).first,
           );
         }
-        await tester.ensureVisible(finder);
+        // Centered, so a floating bar or composer cannot cover the target.
+        await Scrollable.ensureVisible(tester.element(finder), alignment: .5);
         await tester.pump(const Duration(milliseconds: 300));
         await tester.tap(finder);
         await tester.pump(const Duration(milliseconds: 300));
@@ -140,13 +144,19 @@ void main() {
       // Saving an unrelated identity field must not replace the Hermes permission.
       await tap(find.byTooltip('详情'));
       await tap(find.byTooltip('编辑'));
-      await until(() => find.text('原生智能审批').evaluate().isNotEmpty);
+      await until(() => find.text('智能审批').evaluate().isNotEmpty);
       await fill('名称', 'Maple updated');
       await tap(find.text('保存'));
       await until(() => find.byType(BotEditor).evaluate().isEmpty);
       expect((await inspect())['modes'][bot['botId']], 'smart');
       expect(find.widgetWithText(AppBar, 'Maple updated'), findsOneWidget);
-      await tester.pageBack();
+      // Wide windows show details as a side panel; a phone pushes them as a page.
+      final closePanel = find.byTooltip('关闭');
+      if (closePanel.evaluate().isNotEmpty) {
+        await tester.tap(closePanel);
+      } else {
+        await tester.pageBack();
+      }
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.byType(BotDetails), findsNothing);
 
@@ -213,7 +223,7 @@ void main() {
         'Draft survives a pending question',
       );
       await screenshot('native-product-question');
-      await tap(find.text('提交回答'));
+      await tap(find.text('提交'));
       await until(() => client.node.activities[id]?['state'] == 'idle');
       await tester.enterText(input, '');
 
@@ -247,7 +257,7 @@ void main() {
 
       await send('runs-stop');
       await until(() => client.node.activities[id]?['state'] == 'tool');
-      await tap(find.text('停止'));
+      await tap(find.byTooltip('停止'));
       await until(() => client.node.activities[id]?['state'] == 'idle');
       expect(
         client.node.messages[id]!.any((m) => m['status'] == 'cancelled'),
@@ -351,7 +361,9 @@ void main() {
             2,
       );
       await until(() => client.node.activities[groupId]?['state'] == 'idle');
-      await until(() => tester.widget<TextField>(input).controller!.text.isEmpty);
+      await until(
+        () => tester.widget<TextField>(input).controller!.text.isEmpty,
+      );
       final groupRuns = objects((await inspect())['runs']).where(
         (r) =>
             ['group-researcher', 'group-writer'].contains(r['scenario']) &&
@@ -373,6 +385,10 @@ void main() {
           .toList();
       await client.connect();
       await until(() => client.online && !client.node.syncing);
+      // `ready` stays set across a manual reconnect; let the handshake finish.
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(seconds: 1)),
+      );
       await client.loadMessages(groupId);
       expect(
         client.node.messages[groupId]!.map((m) => m['messageId']).toList(),

@@ -443,3 +443,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 补齐双端 Flutter 私聊、群聊、审批、提问、同 run steer、停止、失败恢复和文件旅程；修复审批设置误覆盖、发送中草稿清空、重连选项丢失及 Windows 列表 Material 断言。真实 Node/Relay 加 Hermes 录制回放通过，不冒充新模型验收。
 - 新增 Windows 每用户 NSIS 安装器与 app-local runtime；隔离目录覆盖安装、单实例和托盘恢复实测，旧 Tauri 保留。Android 候选沿用产品签名并按官方 ABI 分包，Flutter 0.2.0+4 的 arm64 APK versionCode 为 2004。候选包仅保留本地，未部署、发布或 push。
 - 独立源码 frozen install、Node 24 lint/typecheck、19 文件 / 31 项测试及 build 通过；完整 Edge 最终 6 通过 / 1 真实 Linux 屏幕跳过。Flutter analyze、4 项 widget 场景和原生旅程结果与未覆盖范围见 docs/side-phase-3-native-product.md。真机通知、外部邮件重置/补验、扩展导入与干净用户安装仍未完成。
+
+## 2026-10-30 / Flutter 客户端界面重构
+
+- Windows 改为纯黑白实色：左侧会话栏、顶部居中名字胶囊、灰色消息气泡、宽窗右侧详情面板、左下角账户菜单和居中的 Skills / 插件弹窗；无边框窗口，自绘窗口按钮。
+- Android 保留透明黑白毛玻璃：共用背景上的磨砂卡片和顶栏，底部悬浮栏放 Skills、插件、设置和新建。两端共用逻辑，由 `Tone.glass` 按平台切换样式。
+- 重绘圆形猫头像、应用图标和 Android 启动画面；Bot 颜色是界面里唯一的彩色。砍掉解释性文案、重复入口和按钮说明，状态改用圆点表达，图标按钮保留 tooltip 与无障碍标签。
+- Windows 与 Android 模拟器的产品旅程（回放 Hermes）通过，功能逻辑未改。Web、Tauri 和官网未动，官网截图仍是旧界面。详见 docs/progress.md。

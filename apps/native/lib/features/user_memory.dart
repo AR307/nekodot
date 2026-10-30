@@ -102,108 +102,84 @@ class _SharedUserMemoryPageState extends State<SharedUserMemoryPage> {
   @override
   Widget build(BuildContext context) {
     final c = widget.client;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(c.tr('共享用户记忆', 'Shared user memory')),
-        actions: [
-          IconButton(
-            tooltip: c.tr('刷新', 'Refresh'),
-            onPressed: busy ? null : load,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+    final small = Theme.of(context).textTheme.bodySmall;
+    final label = Theme.of(context).textTheme.titleSmall;
+    return AppPage(
+      title: c.tr('共享用户记忆', 'Shared user memory'),
+      actions: [
+        IconButton(
+          tooltip: c.tr('刷新', 'Refresh'),
+          onPressed: busy ? null : load,
+          icon: const Icon(Icons.refresh_rounded),
+        ),
+      ],
+      body: PageList(
         children: [
-          Text(
-            c.tr(
-              '同账号所有 Bot 共享 USER.md。自身设定、任务经验和聊天仍独立；按 Hermes 原生时机生效，不重建运行中的提示词。',
-              'USER.md is shared with every Bot on your account. Identity, task memory and chat remain separate. Hermes decides when changes take effect; live prompts are not rebuilt.',
-            ),
-          ),
-          if (state != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                c.tr(
-                  '账号修订 ${state!['revision']}',
-                  'Account revision ${state!['revision']}',
-                ),
-              ),
-            ),
           if (imports.isNotEmpty) ...[
-            Text(
-              c.tr('确认已有用户记忆', 'Review existing user memory'),
-              style: Theme.of(context).textTheme.titleMedium,
+            SectionLabel(c.tr('待确认', 'To review')),
+            PanelGroup(
+              children: [
+                for (final item in imports)
+                  ExpansionTile(
+                    title: Text('${item['name']} · ${item['botId']}'),
+                    childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    children: [SelectableText('${item['content']}')],
+                  ),
+              ],
             ),
-            Text(
-              c.tr(
-                '编辑后确认共享内容；原始内容保留，不会静默覆盖。',
-                'Edit and confirm the shared document. Original content is kept, not silently overwritten.',
-              ),
-            ),
-            for (final item in imports)
-              Card(
-                child: ExpansionTile(
-                  title: Text('${item['name']} · ${item['botId']}'),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: SelectableText('${item['content']}'),
-                    ),
-                  ],
-                ),
-              ),
           ],
           if (conflicts.isNotEmpty) ...[
-            Text(
-              c.tr('同一条记忆有不同修改', 'Conflicting changes to one memory entry'),
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            Text(
-              c.tr(
-                '双方内容已保留。编辑下方文档后确认；未采用的版本仍保存在冲突记录中。',
-                'Both versions are kept. Edit the shared document below and confirm. Unused versions remain in the conflict record.',
-              ),
-            ),
+            SectionLabel(c.tr('修改冲突', 'Conflicts')),
             for (final item in conflicts)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${item['name']} · ${item['botId']}'),
-                      Text(c.tr('修改前', 'Before changes')),
-                      SelectableText('${item['base']}'),
-                      Text(c.tr('当前共享版本', 'Current shared version')),
-                      SelectableText('${item['current']}'),
-                      Text(c.tr('另一份修改', 'Incoming version')),
-                      SelectableText('${item['incoming']}'),
-                      TextButton(
-                        onPressed: () {
-                          text.text = combine([
-                            text.text,
-                            '${item['incoming']}',
-                          ]);
-                          edited = true;
-                        },
-                        child: Text(
-                          c.tr(
-                            '将另一份内容也加入草稿',
-                            'Add incoming content to draft too',
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Panel(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${item['name']} · ${item['botId']}',
+                          style: small,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(c.tr('修改前', 'Before'), style: label),
+                        SelectableText('${item['base']}'),
+                        const SizedBox(height: 10),
+                        Text(c.tr('当前', 'Current'), style: label),
+                        SelectableText('${item['current']}'),
+                        const SizedBox(height: 10),
+                        Text(c.tr('另一份', 'Incoming'), style: label),
+                        SelectableText('${item['incoming']}'),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: IconButton(
+                            tooltip: c.tr(
+                              '将另一份内容也加入草稿',
+                              'Add incoming content to draft too',
+                            ),
+                            onPressed: () {
+                              text.text = combine([
+                                text.text,
+                                '${item['incoming']}',
+                              ]);
+                              edited = true;
+                            },
+                            icon: const Icon(Icons.playlist_add_rounded),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
           ],
-          const SizedBox(height: 16),
           if (view == null && error.isEmpty)
-            const Center(child: CircularProgressIndicator()),
+            const Center(
+              child: Padding(padding: EdgeInsets.all(16), child: Breathing()),
+            ),
+          const SizedBox(height: 8),
           TextField(
             key: const ValueKey('shared-user-memory-editor'),
             controller: text,
@@ -217,30 +193,22 @@ class _SharedUserMemoryPageState extends State<SharedUserMemoryPage> {
             onPressed: busy || !c.online || view?['connected'] != true
                 ? null
                 : save,
-            child: Text(
-              busy
-                  ? c.tr('保存中…', 'Saving…')
-                  : imports.isNotEmpty ||
-                        conflicts.isNotEmpty ||
-                        state?['initialized'] != true
-                  ? c.tr('保存并确认以上内容', 'Save and confirm the content above')
-                  : c.tr('保存', 'Save'),
-            ),
+            child: busy ? const Breathing() : Text(c.tr('保存', 'Save')),
           ),
-          if (!c.online || view?['connected'] == false)
-            Text(
-              c.tr(
-                '共享记忆连接不可用；本机文件与草稿保留，恢复连接后同步。',
-                'Shared memory is disconnected. Local files and drafts are kept and synchronize after reconnecting.',
-              ),
-            ),
-          ErrorNotice(error.isNotEmpty ? error : '${view?['error'] ?? ''}'),
+          ErrorNotice(
+            error.isNotEmpty
+                ? error
+                : view?['error'] != null
+                ? '${view!['error']}'
+                : !c.online || view?['connected'] == false
+                ? c.tr('未连接', 'Disconnected')
+                : '',
+          ),
           if (objects(state?['imports']).any((v) => v['reviewed'] == true) ||
               objects(state?['conflicts']).any((v) => v['resolved'] == true))
             ExpansionTile(
-              title: Text(
-                c.tr('已保留的原件与处理记录', 'Preserved originals and decisions'),
-              ),
+              tilePadding: const EdgeInsets.symmetric(horizontal: 6),
+              title: Text(c.tr('历史', 'History'), style: label),
               children: [
                 for (final item in objects(
                   state?['imports'],

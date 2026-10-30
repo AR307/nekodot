@@ -6,6 +6,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/client.dart';
+import '../platform/desktop.dart';
 import '../ui/design.dart';
 import '../screen/viewer.dart';
 import 'bot_details.dart';
@@ -15,12 +16,17 @@ import 'files.dart';
 class ChatPage extends StatefulWidget {
   final NekodotClient client;
   final String conversationId;
-  final bool embedded;
+  final bool embedded, reserveControls;
+
+  /// Shows a Bot's details beside the chat instead of on a page of its own.
+  final ValueChanged<Json>? onDetails;
   const ChatPage({
     super.key,
     required this.client,
     required this.conversationId,
     this.embedded = false,
+    this.reserveControls = true,
+    this.onDetails,
   });
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -29,7 +35,8 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> with RouteAware {
   final input = TextEditingController(), scroll = ScrollController();
   bool sending = false;
-  String error = '', notice = '';
+  String error = '';
+  double composerHeight = 76;
   String? pendingId, pendingText;
   NekodotClient get c => widget.client;
   String get id => widget.conversationId;
@@ -77,13 +84,9 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   Future<void> send() async {
     final text = input.text.trim();
     if (text.isEmpty || sending) return;
-    final running =
-        c.node.activities[id]?['state'] != null &&
-        c.node.activities[id]?['state'] != 'idle';
     setState(() {
       sending = true;
       error = '';
-      notice = '';
     });
     if (pendingText != text) {
       pendingText = text;
@@ -100,11 +103,6 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       if (input.text.trim() == text) input.clear();
       pendingId = null;
       pendingText = null;
-      setState(
-        () => notice = running
-            ? c.tr('已向当前回合补充指令', 'Instruction added to this run')
-            : '',
-      );
       await c.loadMessages(id);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (scroll.hasClients) scroll.jumpTo(0);
@@ -166,63 +164,104 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
           members.firstOrNull;
       final title =
           group?['name'] as String? ?? bot?['displayName'] as String? ?? 'Bot';
+      final tone = context.tone;
+      final inset = MediaQuery.paddingOf(context);
+      final memberColors = [
+        for (final member in members) '${member['avatar']['color']}',
+      ];
       final status = !c.online
-          ? c.tr('电脑离线', 'Computer offline')
+          ? c.tr('离线', 'Offline')
           : activity['connection'] == 'reconnecting'
-          ? c.tr('输出连接恢复中，未重跑任务', 'Reconnecting the same run')
+          ? c.tr('重连中', 'Reconnecting')
           : switch (state) {
-              'thinking' => c.tr('正在回复', 'Replying'),
-              'tool' => c.tr('运行工具', 'Using tools'),
-              'waiting_approval' => c.tr('等待审批', 'Waiting for approval'),
-              'waiting_question' => c.tr('等待回答', 'Waiting for your answer'),
-              _ =>
-                group == null
-                    ? '@${bot?['handle'] ?? ''}'
-                    : c.tr(
-                        '${members.length} 位成员',
-                        '${members.length} members',
-                      ),
+              'thinking' => c.tr('回复中', 'Replying'),
+              'tool' => c.tr('工具运行中', 'Using tools'),
+              'waiting_approval' => c.tr('等你确认', 'Needs your OK'),
+              'waiting_question' => c.tr('等你回答', 'Needs your answer'),
+              _ => null,
             };
-      final header = AppBar(
+      final chain = activity['chain'] as Map?;
+      final hasText = input.text.trim().isNotEmpty;
+      final glassHeader = AppBar(
+        flexibleSpace: const Frost(),
         automaticallyImplyLeading: !widget.embedded,
-        titleSpacing: widget.embedded ? 20 : 0,
-        title: InkWell(
-          onTap: () {
-            if (group != null) {
-              pushPage(
-                context,
-                BotEditor(client: c, group: true, existing: group),
-              );
-            } else if (bot != null) {
-              pushPage(context, BotDetails(client: c, bot: bot));
-            }
-          },
-          child: Row(
-            children: [
-              if (bot != null)
-                CatAvatar(color: '${bot['avatar']['color']}', size: 34),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        titleSpacing: widget.embedded ? 12 : 0,
+        title: Align(
+          alignment: Alignment.centerLeft,
+          child: Tooltip(
+            message: c.tr('详情', 'Details'),
+            child: InkWell(
+              customBorder: const StadiumBorder(),
+              onTap: () {
+                if (group != null) {
+                  pushPage(
+                    context,
+                    BotEditor(client: c, group: true, existing: group),
+                  );
+                } else if (bot != null) {
+                  pushPage(context, BotDetails(client: c, bot: bot));
+                }
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 17,
+                    if (group != null)
+                      GroupAvatar(
+                        size: 36,
+                        working: running,
+                        colors: memberColors,
+                      )
+                    else if (bot != null)
+                      CatAvatar(
+                        color: '${bot['avatar']['color']}',
+                        size: 36,
+                        working: running,
                       ),
-                    ),
-                    Text(
-                      status,
-                      style: Theme.of(context).textTheme.labelMedium,
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          if (status != null || chain != null)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (chain != null) ...[
+                                  ChainDots(
+                                    count: chain['count'] as int,
+                                    max: chain['max'] as int,
+                                  ),
+                                  const SizedBox(width: 5),
+                                ],
+                                if (status != null)
+                                  Flexible(
+                                    child: Text(
+                                      status,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelMedium,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
         actions: [
@@ -234,32 +273,346 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                     context,
                     ScreenPage(client: c, bot: bot, members: members),
                   ),
-            icon: const Icon(Icons.desktop_windows_outlined),
+            icon: const Icon(Icons.desktop_windows_rounded),
           ),
-          IconButton(
-            tooltip: c.tr('详情', 'Details'),
-            onPressed: bot == null
-                ? null
-                : () => pushPage(
-                    context,
-                    group == null
-                        ? BotDetails(client: c, bot: bot)
-                        : BotEditor(client: c, group: true, existing: group),
-                  ),
-            icon: const Icon(Icons.info_outline),
-          ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
         ],
       );
+      final header = tone.glass
+          ? glassHeader
+          : AppBar(
+              flexibleSpace: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [tone.base, tone.base.withValues(alpha: 0)],
+                  ),
+                ),
+                child: const WindowDrag(),
+              ),
+              automaticallyImplyLeading: !widget.embedded,
+              centerTitle: true,
+              titleSpacing: 8,
+              title: Tooltip(
+                message: c.tr('详情', 'Details'),
+                child: DecoratedBox(
+                  decoration: ShapeDecoration(
+                    color: tone.surface,
+                    shape: StadiumBorder(side: BorderSide(color: tone.line)),
+                    shadows: floating(context),
+                  ),
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: InkWell(
+                      customBorder: const StadiumBorder(),
+                      onTap: () {
+                        if (group != null) {
+                          pushPage(
+                            context,
+                            BotEditor(client: c, group: true, existing: group),
+                          );
+                        } else if (bot != null) {
+                          if (widget.onDetails != null) {
+                            widget.onDetails!(bot);
+                          } else {
+                            pushPage(context, BotDetails(client: c, bot: bot));
+                          }
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(6, 5, 14, 5),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (group != null)
+                              GroupAvatar(
+                                size: 28,
+                                working: running,
+                                colors: memberColors,
+                              )
+                            else if (bot != null)
+                              CatAvatar(
+                                color: '${bot['avatar']['color']}',
+                                size: 28,
+                                working: running,
+                              ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                            ),
+                            if (chain != null) ...[
+                              const SizedBox(width: 8),
+                              ChainDots(
+                                count: chain['count'] as int,
+                                max: chain['max'] as int,
+                              ),
+                            ],
+                            if (status != null) ...[
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  status,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelMedium,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                RoundButton(
+                  tooltip: c.tr('屏幕', 'Screen'),
+                  icon: Icons.desktop_windows_outlined,
+                  onPressed: bot == null
+                      ? null
+                      : () => pushPage(
+                          context,
+                          ScreenPage(client: c, bot: bot, members: members),
+                        ),
+                ),
+                const SizedBox(width: 12),
+                if (widget.reserveControls)
+                  SizedBox(width: WindowChrome.reserved(context)),
+              ],
+            );
+      final glassRow = Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: Panel(
+              radius: 15,
+              child: CallbackShortcuts(
+                bindings: {
+                  const SingleActivator(
+                    LogicalKeyboardKey.enter,
+                    control: true,
+                  ): () {
+                    if (!waiting && c.online) send();
+                  },
+                },
+                child: TextField(
+                  key: const ValueKey('chat-input'),
+                  controller: input,
+                  minLines: 1,
+                  maxLines: 7,
+                  textCapitalization: TextCapitalization.sentences,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 13,
+                    ),
+                    hintText: c.tr('发消息', 'Message'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (running) ...[
+            const SizedBox(width: 8),
+            IconButton.filled(
+              tooltip: c.tr('停止', 'Stop'),
+              style: IconButton.styleFrom(
+                fixedSize: const Size.square(50),
+                backgroundColor: hasText ? tone.raised : tone.ink,
+                foregroundColor: hasText ? tone.ink : tone.base,
+              ),
+              onPressed: c.online ? stop : null,
+              icon: const Icon(Icons.stop_rounded),
+            ),
+          ],
+          if (!running || hasText) ...[
+            const SizedBox(width: 8),
+            IconButton.filled(
+              tooltip: c.tr('发送', 'Send'),
+              style: IconButton.styleFrom(
+                fixedSize: const Size.square(50),
+                backgroundColor: tone.ink,
+                foregroundColor: tone.base,
+                disabledBackgroundColor: tone.raised,
+                disabledForegroundColor: tone.ink3,
+              ),
+              onPressed: !c.online || waiting || sending || !hasText
+                  ? null
+                  : send,
+              icon: const Icon(Icons.arrow_upward_rounded),
+            ),
+          ],
+        ],
+      );
+      final composer = SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 780),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (error.isNotEmpty) ErrorNotice(error),
+                  if (group != null && input.text.contains('@'))
+                    SizedBox(
+                      height: 44,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: members
+                            .map(
+                              (b) => TextButton.icon(
+                                onPressed: () {
+                                  final start = input.text.lastIndexOf('@');
+                                  input.text =
+                                      '${input.text.substring(0, start)}@${b['handle']} ';
+                                  setState(() {});
+                                },
+                                icon: CatAvatar(
+                                  color: '${b['avatar']['color']}',
+                                  size: 22,
+                                ),
+                                label: Text('${b['displayName']}'),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
+                  if (tone.glass)
+                    glassRow
+                  else
+                    Container(
+                      decoration: ShapeDecoration(
+                        color: tone.surface,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                          side: BorderSide(color: tone.line),
+                        ),
+                        shadows: floating(context),
+                      ),
+                      padding: const EdgeInsets.all(6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: CallbackShortcuts(
+                              bindings: {
+                                const SingleActivator(
+                                  LogicalKeyboardKey.enter,
+                                  control: true,
+                                ): () {
+                                  if (!waiting && c.online) send();
+                                },
+                              },
+                              child: TextField(
+                                key: const ValueKey('chat-input'),
+                                controller: input,
+                                minLines: 1,
+                                maxLines: 7,
+                                textCapitalization:
+                                    TextCapitalization.sentences,
+                                onChanged: (_) => setState(() {}),
+                                decoration: InputDecoration(
+                                  filled: false,
+                                  isDense: true,
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 9,
+                                  ),
+                                  hintText: c.tr('发消息', 'Message'),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (running)
+                            IconButton.filled(
+                              tooltip: c.tr('停止', 'Stop'),
+                              style: IconButton.styleFrom(
+                                fixedSize: const Size.square(36),
+                                minimumSize: const Size.square(36),
+                                padding: EdgeInsets.zero,
+                                iconSize: 18,
+                                backgroundColor: hasText
+                                    ? tone.raised
+                                    : tone.ink,
+                                foregroundColor: hasText ? tone.ink : tone.base,
+                              ),
+                              onPressed: c.online ? stop : null,
+                              icon: const Icon(Icons.stop_rounded),
+                            ),
+                          if (!running || hasText) ...[
+                            const SizedBox(width: 6),
+                            IconButton.filled(
+                              tooltip: c.tr('发送', 'Send'),
+                              style: IconButton.styleFrom(
+                                fixedSize: const Size.square(36),
+                                minimumSize: const Size.square(36),
+                                padding: EdgeInsets.zero,
+                                iconSize: 18,
+                                backgroundColor: tone.ink,
+                                foregroundColor: tone.base,
+                                disabledBackgroundColor: tone.raised,
+                                disabledForegroundColor: tone.ink3,
+                              ),
+                              onPressed:
+                                  !c.online || waiting || sending || !hasText
+                                  ? null
+                                  : send,
+                              icon: const Icon(Icons.arrow_upward_rounded),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
       return Scaffold(
+        extendBodyBehindAppBar: true,
         appBar: header,
-        body: Column(
+        body: Stack(
           children: [
-            Expanded(
-              child: ListView.builder(
+            if (messages.isEmpty)
+              Center(
+                child: bot == null
+                    ? null
+                    : group == null
+                    ? CatAvatar(color: '${bot['avatar']['color']}', size: 72)
+                    : GroupAvatar(size: 72, colors: memberColors),
+              )
+            else
+              ListView.builder(
                 controller: scroll,
                 reverse: true,
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  inset.top + 8,
+                  16,
+                  composerHeight + 4,
+                ),
                 itemCount: messages.length + 1,
                 findChildIndexCallback: (key) {
                   final index = messages.indexWhere(
@@ -269,55 +622,28 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 },
                 itemBuilder: (context, index) {
                   if (index == messages.length) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 24),
-                        child: messages.length >= 50
-                            ? TextButton(
-                                onPressed: () async {
-                                  try {
-                                    await c.loadMessages(
-                                      id,
-                                      before: messages.first['seq'] as int,
-                                    );
-                                  } catch (e) {
-                                    if (mounted) setState(() => error = '$e');
-                                  }
-                                },
-                                child: Text(
-                                  c.tr('加载更早消息', 'Load earlier messages'),
-                                ),
-                              )
-                            : Column(
-                                children: [
-                                  if (bot != null)
-                                    CatAvatar(
-                                      size: 56,
-                                      color: '${bot['avatar']['color']}',
-                                    ),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    title,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    group == null
-                                        ? '${bot?['role'] ?? ''}'
-                                        : c.tr(
-                                            '使用 @ 指定成员，或由主答开始。',
-                                            'Mention members, or let the lead begin.',
-                                          ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                      ),
-                    );
+                    return messages.length < 50
+                        ? const SizedBox.shrink()
+                        : Center(
+                            child: IconButton(
+                              tooltip: c.tr('加载更早消息', 'Load earlier messages'),
+                              onPressed: () async {
+                                try {
+                                  await c.loadMessages(
+                                    id,
+                                    before: messages.first['seq'] as int,
+                                  );
+                                } catch (e) {
+                                  if (mounted) setState(() => error = '$e');
+                                }
+                              },
+                              icon: const Icon(Icons.expand_less_rounded),
+                            ),
+                          );
                   }
-                  final m = messages[messages.length - 1 - index],
+                  final at = messages.length - 1 - index,
+                      m = messages[at],
+                      previous = at == 0 ? null : messages[at - 1],
                       author = members
                           .where((b) => b['botId'] == m['author']['id'])
                           .firstOrNull;
@@ -325,11 +651,17 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                     key: ValueKey(m['messageId']),
                     alignment: Alignment.topCenter,
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 760),
+                      constraints: const BoxConstraints(maxWidth: 780),
                       child: MessageTile(
                         client: c,
                         message: m,
                         bot: author,
+                        showName: group != null,
+                        continued:
+                            previous != null &&
+                            previous['kind'] != 'system' &&
+                            previous['author']['id'] == m['author']['id'] &&
+                            previous['author']['type'] == m['author']['type'],
                         onRetry: (text) {
                           input.text = text;
                         },
@@ -338,121 +670,17 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                   );
                 },
               ),
-            ),
-            if (running)
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 8, 12, 8),
-                color: accent.withValues(alpha: .08),
-                child: Row(
-                  children: [
-                    const SizedBox(
-                      width: 12,
-                      height: 12,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        '$status${activity['chain'] == null ? '' : ' · ${activity['chain']['count']}/${activity['chain']['max']}'}',
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: c.online ? stop : null,
-                      icon: const Icon(Icons.stop_rounded),
-                      label: Text(c.tr('停止', 'Stop')),
-                    ),
-                  ],
-                ),
-              ),
-            if (error.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ErrorNotice(error),
-              ),
-            if (notice.isNotEmpty)
-              Padding(padding: const EdgeInsets.all(8), child: Text(notice)),
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-                child: Column(
-                  children: [
-                    if (group != null && input.text.contains('@'))
-                      SizedBox(
-                        height: 42,
-                        child: ListView(
-                          scrollDirection: Axis.horizontal,
-                          children: members
-                              .map(
-                                (b) => TextButton.icon(
-                                  onPressed: () {
-                                    final start = input.text.lastIndexOf('@');
-                                    input.text =
-                                        '${input.text.substring(0, start)}@${b['handle']} ';
-                                    setState(() {});
-                                  },
-                                  icon: CatAvatar(
-                                    color: '${b['avatar']['color']}',
-                                    size: 22,
-                                  ),
-                                  label: Text('${b['displayName']}'),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      ),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Expanded(
-                          child: CallbackShortcuts(
-                            bindings: {
-                              const SingleActivator(
-                                LogicalKeyboardKey.enter,
-                                control: true,
-                              ): () {
-                                if (!waiting && c.online) send();
-                              },
-                            },
-                            child: TextField(
-                              key: const ValueKey('chat-input'),
-                              controller: input,
-                              minLines: 1,
-                              maxLines: 7,
-                              textCapitalization: TextCapitalization.sentences,
-                              onChanged: (_) => setState(() {}),
-                              decoration: InputDecoration(
-                                hintText: waiting
-                                    ? c.tr(
-                                        '先回答或审批，草稿会保留',
-                                        'Answer or approve first. Drafts are kept.',
-                                      )
-                                    : running
-                                    ? c.tr(
-                                        '补充当前指令…',
-                                        'Add instruction to this run…',
-                                      )
-                                    : c.tr('发消息…', 'Message…'),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        IconButton.filled(
-                          tooltip: c.tr('发送', 'Send'),
-                          onPressed:
-                              !c.online ||
-                                  waiting ||
-                                  sending ||
-                                  input.text.trim().isEmpty
-                              ? null
-                              : send,
-                          icon: const Icon(Icons.arrow_upward_rounded),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: MeasureHeight(
+                onChange: (height) {
+                  if (mounted && height != composerHeight) {
+                    setState(() => composerHeight = height);
+                  }
+                },
+                child: composer,
               ),
             ),
           ],
@@ -462,22 +690,113 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   );
 }
 
+class ToolRow extends StatefulWidget {
+  final Json message;
+  const ToolRow({super.key, required this.message});
+  @override
+  State<ToolRow> createState() => _ToolRowState();
+}
+
+class _ToolRowState extends State<ToolRow> {
+  bool open = false;
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    final m = widget.message, body = object(m['content']);
+    final running = m['status'] == 'streaming',
+        failed = m['status'] == 'failed';
+    final duration = (body['durationMs'] as num?) ?? 0;
+    final preview = '${body['preview'] ?? ''}'.trim();
+    final detail = [
+      preview,
+      '${body['resultPreview'] ?? ''}'.trim(),
+    ].where((text) => text.isNotEmpty).join('\n');
+    final mono = TextStyle(
+      fontFamily: monoFont,
+      fontSize: 12.5,
+      color: tone.ink2,
+    );
+    return Material(
+      color: tone.bubble,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(tone.glass ? 18 : 14),
+        side: tone.glass ? BorderSide(color: tone.line) : BorderSide.none,
+      ),
+      child: InkWell(
+        onTap: detail.isEmpty ? null : () => setState(() => open = !open),
+        child: AnimatedSize(
+          alignment: Alignment.topCenter,
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    running
+                        ? const Breathing(size: 8)
+                        : StatusDot(color: failed ? tone.danger : tone.ink3),
+                    const SizedBox(width: 10),
+                    Text(
+                      '${body['tool']}',
+                      style: mono.copyWith(color: tone.ink),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        open ? '' : preview.split('\n').first,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: mono.copyWith(color: tone.ink3),
+                      ),
+                    ),
+                    if (!running) ...[
+                      const SizedBox(width: 10),
+                      Text(
+                        '${(duration / 1000).toStringAsFixed(1)}s',
+                        style: mono.copyWith(color: tone.ink3),
+                      ),
+                    ],
+                  ],
+                ),
+                if (open) ...[
+                  const SizedBox(height: 10),
+                  SelectableText(detail, style: mono),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class MessageTile extends StatelessWidget {
   final NekodotClient client;
   final Json message;
   final Json? bot;
+  final bool continued, showName;
   final ValueChanged<String> onRetry;
   const MessageTile({
     super.key,
     required this.client,
     required this.message,
     this.bot,
+    this.continued = false,
+    this.showName = false,
     required this.onRetry,
   });
   @override
   Widget build(BuildContext context) {
     final c = client,
         m = message,
+        tone = context.tone,
         body = object(m['content']),
         user = m['author']['type'] == 'user',
         kind = m['kind'];
@@ -488,7 +807,8 @@ class MessageTile extends StatelessWidget {
           children: [
             Text(
               '${body['text']}',
-              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.labelMedium,
             ),
             if (body['retryText'] != null)
               TextButton(
@@ -501,27 +821,7 @@ class MessageTile extends StatelessWidget {
     }
     Widget content;
     if (kind == 'tool') {
-      content = Card(
-        child: ExpansionTile(
-          leading: Icon(
-            m['status'] == 'streaming' ? Icons.hourglass_top : Icons.terminal,
-          ),
-          title: Text('${body['tool']}'),
-          subtitle: Text(
-            m['status'] == 'streaming'
-                ? c.tr('运行中', 'Running')
-                : '${body['durationMs'] ?? 0} ms',
-          ),
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: SelectableText(
-                '${body['preview'] ?? ''}\n${body['resultPreview'] ?? ''}',
-              ),
-            ),
-          ],
-        ),
-      );
+      content = ToolRow(message: m);
     } else if (kind == 'question' || kind == 'approval') {
       content = ControlCard(
         key: ValueKey(m['messageId']),
@@ -534,8 +834,9 @@ class MessageTile extends StatelessWidget {
         children: [
           MarkdownBody(
             data:
-                '${body['text'] ?? ''}${m['status'] == 'streaming' ? ' ▍' : ''}',
+                '${body['text'] ?? ''}${m['status'] == 'streaming' ? ' •' : ''}',
             selectable: true,
+            styleSheet: markdownStyle(context, color: user ? tone.base : null),
             onTapLink: (text, href, title) {
               if (href != null) {
                 launchUrl(
@@ -555,16 +856,15 @@ class MessageTile extends StatelessWidget {
               ),
           if (m['status'] == 'failed' || m['status'] == 'cancelled')
             Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.only(top: 6),
               child: Text(
                 m['status'] == 'cancelled'
                     ? c.tr('已停止', 'Stopped')
                     : body['failureReason'] as String? ??
-                          c.tr(
-                            '输出中断 · 请查看错误或手动继续',
-                            'Interrupted · Check the error or continue manually',
-                          ),
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+                          c.tr('已中断', 'Interrupted'),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: m['status'] == 'cancelled' ? tone.ink3 : tone.danger,
+                ),
               ),
             ),
           if (body['welcome'] == true &&
@@ -584,61 +884,112 @@ class MessageTile extends StatelessWidget {
                         }
                       }
                     },
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.refresh_rounded),
               label: Text(c.tr('重试自我介绍', 'Retry introduction')),
             ),
         ],
       );
     }
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: user
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
-        children: [
-          if (!user) ...[
-            CatAvatar(
-              color: bot?['avatar']['color'] as String? ?? '#8C8376',
-              size: 30,
+    if (user) {
+      return Padding(
+        padding: EdgeInsets.only(top: continued ? 4 : 14, left: 48),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: tone.ink,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: content,
+          ),
+        ),
+      );
+    }
+    if (tone.glass) {
+      return Padding(
+        padding: EdgeInsets.only(top: continued ? 6 : 18),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 28,
+              child: continued
+                  ? null
+                  : CatAvatar(
+                      color: bot?['avatar']['color'] as String? ?? '#8C8376',
+                      size: 28,
+                    ),
             ),
             const SizedBox(width: 12),
-          ],
-          Flexible(
-            child: Container(
-              padding: user
-                  ? const EdgeInsets.symmetric(horizontal: 18, vertical: 13)
-                  : const EdgeInsets.only(top: 3),
-              decoration: user
-                  ? BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(18),
-                    )
-                  : null,
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (!user && bot != null)
+                  if (showName && !continued && bot != null)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 7),
+                      padding: const EdgeInsets.only(bottom: 4),
                       child: Text(
                         '${bot!['displayName']}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
+                        style: Theme.of(context).textTheme.titleSmall,
                       ),
                     ),
                   content,
                 ],
               ),
             ),
+          ],
+        ),
+      );
+    }
+    final bubble = kind == 'tool' || kind == 'question' || kind == 'approval'
+        ? content
+        : Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: BoxDecoration(
+              color: tone.bubble,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: content,
+          );
+    final column = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showName && !continued && bot != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(2, 0, 0, 4),
+            child: Text(
+              '${bot!['displayName']}',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
           ),
-        ],
-      ),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: bubble,
+        ),
+      ],
+    );
+    return Padding(
+      padding: EdgeInsets.only(top: continued ? 5 : 14, right: 32),
+      child: !showName
+          ? Align(alignment: Alignment.centerLeft, child: column)
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 28,
+                  child: continued
+                      ? null
+                      : CatAvatar(
+                          color:
+                              bot?['avatar']['color'] as String? ?? '#8C8376',
+                          size: 28,
+                        ),
+                ),
+                const SizedBox(width: 10),
+                Flexible(child: column),
+              ],
+            ),
     );
   }
 }
@@ -687,54 +1038,65 @@ class _ControlCardState extends State<ControlCard> {
   Widget build(BuildContext context) {
     final c = widget.client,
         m = widget.message,
+        tone = context.tone,
         data = object(m['content']),
         question = m['kind'] == 'question',
         pending = m['status'] == 'streaming',
         multi = data['multiSelect'] == true;
-    return Card(
+    String label(Object? choice) => switch (choice) {
+      'once' => c.tr('允许一次', 'Allow once'),
+      'session' => c.tr('本会话允许', 'Allow session'),
+      'always' => c.tr('总是允许', 'Always allow'),
+      'deny' => c.tr('拒绝', 'Deny'),
+      _ => '$choice',
+    };
+    return Panel(
+      radius: 16,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(
-                  question ? Icons.help_outline : Icons.shield_outlined,
-                  color: accent,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    question
-                        ? c.tr('需要你的回答', 'Your answer is needed')
-                        : c.tr('需要你的批准', 'Your approval is needed'),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
             SelectableText('${data[question ? 'question' : 'prompt']}'),
             if (data['command'] != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: tone.bubble,
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 child: SelectableText(
                   '${data['command']}',
-                  style: const TextStyle(fontFamily: 'monospace'),
+                  style: const TextStyle(fontFamily: monoFont, fontSize: 13),
                 ),
               ),
             if (!pending)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
-                child: Text(
-                  '${data['answer'] ?? data['choice'] ?? m['status']}',
+                child: Row(
+                  children: [
+                    Icon(Icons.check_rounded, size: 16, color: tone.ink3),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        label(data['answer'] ?? data['choice'] ?? m['status']),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             if (pending && question) ...[
+              const SizedBox(height: 4),
               for (final option in data['choices'] as List? ?? [])
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
                   title: Text('$option'),
                   value: selected.contains('$option'),
                   onChanged: busy
@@ -748,15 +1110,13 @@ class _ControlCardState extends State<ControlCard> {
                           }
                         }),
                 ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               TextField(
                 controller: answer,
                 minLines: 1,
                 maxLines: 4,
                 onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  hintText: c.tr('或输入你的回答…', 'Or write your answer…'),
-                ),
+                decoration: InputDecoration(hintText: c.tr('回答', 'Answer')),
               ),
               const SizedBox(height: 10),
               FilledButton(
@@ -771,28 +1131,33 @@ class _ControlCardState extends State<ControlCard> {
                           if (answer.text.trim().isNotEmpty) answer.text.trim(),
                         ].join('\n'),
                       ),
-                child: Text(c.tr('提交回答', 'Submit answer')),
+                child: Text(c.tr('提交', 'Submit')),
               ),
             ],
-            if (pending && !question)
+            if (pending && !question) ...[
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
+                runSpacing: 8,
                 children: [
-                  for (final choice
-                      in data['choices'] as List? ?? ['once', 'deny'])
-                    OutlinedButton(
-                      onPressed: !c.online || busy
-                          ? null
-                          : () => respond('$choice'),
-                      child: Text(switch (choice) {
-                        'once' => c.tr('允许一次', 'Allow once'),
-                        'session' => c.tr('本会话允许', 'Allow session'),
-                        'always' => c.tr('总是允许', 'Always allow'),
-                        _ => c.tr('拒绝', 'Deny'),
-                      }),
-                    ),
+                  for (final (index, choice)
+                      in (data['choices'] as List? ?? ['once', 'deny']).indexed)
+                    index == 0
+                        ? FilledButton(
+                            onPressed: !c.online || busy
+                                ? null
+                                : () => respond('$choice'),
+                            child: Text(label(choice)),
+                          )
+                        : OutlinedButton(
+                            onPressed: !c.online || busy
+                                ? null
+                                : () => respond('$choice'),
+                            child: Text(label(choice)),
+                          ),
                 ],
               ),
+            ],
             ErrorNotice(error),
           ],
         ),

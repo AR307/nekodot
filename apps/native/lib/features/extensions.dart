@@ -9,99 +9,179 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/client.dart';
+import '../platform/desktop.dart';
 import '../ui/design.dart';
+
+Future<void> showExtensionsDialog(BuildContext context, NekodotClient client) =>
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        clipBehavior: Clip.antiAlias,
+        insetPadding: const EdgeInsets.all(40),
+        child: SizedBox(
+          width: 900,
+          height: 700,
+          child: ExtensionsPage(client: client, kind: 'skills', dialog: true),
+        ),
+      ),
+    );
 
 class ExtensionsPage extends StatefulWidget {
   final NekodotClient client;
   final String kind;
-  const ExtensionsPage({super.key, required this.client, required this.kind});
+  final bool dialog;
+  const ExtensionsPage({
+    super.key,
+    required this.client,
+    required this.kind,
+    this.dialog = false,
+  });
   @override
   State<ExtensionsPage> createState() => _ExtensionsPageState();
 }
 
 class _ExtensionsPageState extends State<ExtensionsPage> {
+  late String kind = widget.kind;
   String query = '';
   int revision = 0;
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(
-        widget.kind == 'skills' ? 'Skills' : widget.client.tr('插件', 'Plugins'),
-      ),
-      actions: [
-        IconButton(
-          tooltip: widget.client.tr('导入', 'Import'),
-          onPressed: () async {
-            await pushPage(
-              context,
-              ExtensionInstall(client: widget.client, kind: widget.kind),
-            );
-            setState(() => revision++);
-          },
-          icon: const Icon(Icons.file_upload_outlined),
-        ),
-      ],
-    ),
-    body: AsyncPane(
-      key: ValueKey(revision),
-      load: () => widget.client.rpc('extensions.list', {'kind': widget.kind}),
-      builder: (context, data, reload) => Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: TextField(
-              onChanged: (value) => setState(() => query = value.toLowerCase()),
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
-                hintText: widget.client.tr('搜索', 'Search'),
+  Widget build(BuildContext context) {
+    final c = widget.client;
+    final glass = context.tone.glass;
+    return Scaffold(
+      extendBodyBehindAppBar: glass,
+      appBar: AppBar(
+        flexibleSpace: glass ? const Frost() : const WindowDrag(),
+        automaticallyImplyLeading: !widget.dialog,
+        titleSpacing: widget.dialog ? 20 : 0,
+        title: glass
+            ? Text(kind == 'skills' ? 'Skills' : c.tr('插件', 'Plugins'))
+            : Segment<String>(
+                value: kind,
+                options: {
+                  'skills': const Text('Skills'),
+                  'plugins': Text(c.tr('插件', 'Plugins')),
+                },
+                onChanged: (value) => setState(() => kind = value),
               ),
-            ),
+        actions: [
+          RoundButton(
+            tooltip: c.tr('导入', 'Import'),
+            icon: Icons.add_rounded,
+            onPressed: () async {
+              await pushPage(context, ExtensionInstall(client: c, kind: kind));
+              setState(() => revision++);
+            },
           ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: objects(data['entries'])
-                  .where(
-                    (e) => '${e['name']} ${e['description']}'
-                        .toLowerCase()
-                        .contains(query),
-                  )
-                  .map(
-                    (entry) => Card(
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(16),
-                        leading: ExtensionIcon(entry: entry),
-                        title: Text('${entry['name']}'),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(
-                            '${entry['description']}',
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () async {
-                          await pushPage(
-                            context,
-                            ExtensionPage(
-                              client: widget.client,
-                              entry: entry,
-                              kind: widget.kind,
-                            ),
-                          );
-                          reload();
-                        },
-                      ),
-                    ),
-                  )
-                  .toList(),
+          if (widget.dialog) ...[
+            const SizedBox(width: 8),
+            RoundButton(
+              tooltip: c.tr('关闭', 'Close'),
+              icon: Icons.close_rounded,
+              onPressed: () => Navigator.pop(context),
             ),
-          ),
+          ],
+          const SizedBox(width: 12),
+          if (!widget.dialog) SizedBox(width: WindowChrome.reserved(context)),
         ],
       ),
-    ),
-  );
+      body: AsyncPane(
+        key: ValueKey('$kind:$revision'),
+        load: () => c.rpc('extensions.list', {'kind': kind}),
+        builder: (context, data, reload) {
+          final entries = objects(data['entries'])
+              .where(
+                (e) => '${e['name']} ${e['description']}'
+                    .toLowerCase()
+                    .contains(query),
+              )
+              .toList();
+          Widget tile(Json entry) => ListTile(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+            leading: entry['icon'] == null ? null : ExtensionIcon(entry: entry),
+            title: Text(
+              '${entry['name']}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              '${entry['description']}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            onTap: () async {
+              await pushPage(
+                context,
+                ExtensionPage(client: c, entry: entry, kind: kind),
+              );
+              reload();
+            },
+          );
+          if (glass) {
+            return PageList(
+              children: [
+                TextField(
+                  onChanged: (value) =>
+                      setState(() => query = value.toLowerCase()),
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    hintText: c.tr('搜索', 'Search'),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                PanelGroup(children: entries.map(tile).toList()),
+              ],
+            );
+          }
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 720 ? 2 : 1;
+              final rows = (entries.length / columns).ceil();
+              return ListView.builder(
+                padding: EdgeInsets.fromLTRB(
+                  14,
+                  8,
+                  14,
+                  MediaQuery.paddingOf(context).bottom + 24,
+                ),
+                itemCount: rows + 1,
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+                      child: TextField(
+                        onChanged: (value) =>
+                            setState(() => query = value.toLowerCase()),
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          hintText: c.tr('搜索', 'Search'),
+                        ),
+                      ),
+                    );
+                  }
+                  final at = (index - 1) * columns;
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var i = at; i < at + columns; i++)
+                        Expanded(
+                          child: i < entries.length
+                              ? tile(entries[i])
+                              : const SizedBox.shrink(),
+                        ),
+                    ],
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
 }
 
 class ExtensionIcon extends StatelessWidget {
@@ -114,19 +194,19 @@ class ExtensionIcon extends StatelessWidget {
       final data = UriData.parse(icon);
       final bytes = data.contentAsBytes();
       return data.mimeType == 'image/svg+xml'
-          ? SvgPicture.memory(bytes, width: 40, height: 40)
-          : Image.memory(bytes, width: 40, height: 40);
+          ? SvgPicture.memory(bytes, width: 36, height: 36)
+          : Image.memory(bytes, width: 36, height: 36);
     }
     if (icon != null && icon.startsWith('https://')) {
       if (Uri.parse(icon).path.toLowerCase().endsWith('.svg')) {
-        return SvgPicture.network(icon, width: 40, height: 40);
+        return SvgPicture.network(icon, width: 36, height: 36);
       }
       return Image.network(
         icon,
-        width: 40,
-        height: 40,
+        width: 36,
+        height: 36,
         errorBuilder: (context, error, stack) =>
-            const Icon(Icons.extension_outlined, size: 36),
+            const Icon(Icons.extension_rounded, size: 32),
       );
     }
     if (icon != null && icon.runes.length <= 8) {
@@ -134,10 +214,10 @@ class ExtensionIcon extends StatelessWidget {
     }
     return Icon(
       entry['category'] == 'development'
-          ? Icons.code
-          : Icons.auto_awesome_outlined,
-      color: accent,
-      size: 36,
+          ? Icons.code_rounded
+          : Icons.auto_awesome_rounded,
+      color: context.tone.ink2,
+      size: 32,
     );
   }
 }
@@ -174,46 +254,52 @@ class _ExtensionPageState extends State<ExtensionPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text('${entry['name']}')),
+  Widget build(BuildContext context) => AppPage(
+    title: '${entry['name']}',
     body: FutureBuilder<Json>(
       future: document,
       builder: (context, snapshot) {
         final data = snapshot.data ?? <String, dynamic>{};
         final repository = data['repository'] ?? entry['repository'];
-        return ListView(
+        final text = Theme.of(context).textTheme;
+        void openLink(String text, String? href, String title) {
+          if (href != null) {
+            launchUrl(Uri.parse(href), mode: LaunchMode.externalApplication);
+          }
+        }
+
+        return PageList(
           key: PageStorageKey('extension-${entry['id']}'),
-          padding: const EdgeInsets.all(24),
           children: [
             Row(
               children: [
                 ExtensionIcon(entry: {...entry, ...data}),
-                const SizedBox(width: 16),
+                const SizedBox(width: 14),
                 Expanded(
-                  child: Text(
-                    '${entry['name']}',
-                    style: Theme.of(context).textTheme.headlineSmall,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${entry['description']}', style: text.bodyMedium),
+                      Text(
+                        '${entry['source']} · ${entry['category']}',
+                        style: text.labelMedium,
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text('${entry['source']} · ${entry['category']}'),
-            const SizedBox(height: 12),
-            Text('${entry['description']}'),
             if (repository is String)
-              TextButton.icon(
-                onPressed: () => launchUrl(
-                  Uri.parse(repository),
-                  mode: LaunchMode.externalApplication,
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => launchUrl(
+                    Uri.parse(repository),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                  label: Text(repository),
                 ),
-                icon: const Icon(Icons.open_in_new),
-                label: Text(repository),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Text(client.tr('没有提供仓库信息', 'No repository supplied')),
               ),
             const SizedBox(height: 12),
             FilledButton(
@@ -232,68 +318,73 @@ class _ExtensionPageState extends State<ExtensionPage> {
                   });
                 }
               },
-              child: Text(
-                client.tr('选择 Bot 安装 / 管理', 'Install / manage for Bots'),
-              ),
+              child: Text(client.tr('安装 / 管理', 'Install / manage')),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             if (snapshot.connectionState == ConnectionState.waiting)
-              const LinearProgressIndicator(),
+              const Center(child: Breathing()),
             if (snapshot.hasError) ...[
               ErrorNotice('${snapshot.error}'),
-              TextButton(
-                onPressed: () => setState(() {
-                  document = load();
-                }),
-                child: Text(client.tr('重试', 'Retry')),
+              Center(
+                child: IconButton(
+                  tooltip: client.tr('重试', 'Retry'),
+                  onPressed: () => setState(() {
+                    document = load();
+                  }),
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
               ),
             ],
-            if (snapshot.hasData && (data['content'] as String).isEmpty)
-              Text(client.tr('未提供说明文件', 'No documentation supplied')),
             MarkdownBody(
               data: data['content'] as String? ?? '',
               selectable: true,
-              onTapLink: (text, href, title) {
-                if (href != null) {
-                  launchUrl(
-                    Uri.parse(href),
-                    mode: LaunchMode.externalApplication,
-                  );
-                }
-              },
+              styleSheet: markdownStyle(context),
+              onTapLink: openLink,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
             if ((data['content'] as String? ?? '').isNotEmpty)
-              TextButton.icon(
-                onPressed: () => pushPage(
-                  context,
-                  Scaffold(
-                    appBar: AppBar(title: Text('${entry['name']}')),
-                    body: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
-                      child: MarkdownBody(
-                        data: data['content'] as String,
-                        selectable: true,
-                        onTapLink: (text, href, title) {
-                          if (href != null) {
-                            launchUrl(
-                              Uri.parse(href),
-                              mode: LaunchMode.externalApplication,
-                            );
-                          }
-                        },
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => pushPage(
+                    context,
+                    AppPage(
+                      title: '${entry['name']}',
+                      body: PageList(
+                        maxWidth: 760,
+                        children: [
+                          MarkdownBody(
+                            data: data['content'] as String,
+                            selectable: true,
+                            styleSheet: markdownStyle(context),
+                            onTapLink: openLink,
+                          ),
+                        ],
                       ),
                     ),
                   ),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                  label: Text(client.tr('完整内容', 'Full content')),
                 ),
-                icon: const Icon(Icons.arrow_forward),
-                label: Text(client.tr('完整内容', 'Full content')),
               ),
-            for (final path in data['files'] as List? ?? [])
-              ListTile(
-                leading: const Icon(Icons.description_outlined),
-                title: Text('$path'),
+            if ((data['files'] as List? ?? []).isNotEmpty) ...[
+              SectionLabel(client.tr('文件', 'Files')),
+              PanelGroup(
+                children: [
+                  for (final path in data['files'] as List)
+                    ListTile(
+                      dense: true,
+                      title: Text(
+                        '$path',
+                        style: const TextStyle(
+                          fontFamily: monoFont,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                ],
               ),
+            ],
           ],
         );
       },
@@ -461,85 +552,96 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(c.tr('安装与管理', 'Install & manage'))),
-    body: ListView(
-      padding: const EdgeInsets.all(24),
+  Widget build(BuildContext context) => AppPage(
+    title: c.tr('安装与管理', 'Install & manage'),
+    actions: [
+      IconButton(
+        tooltip: c.tr('导入文件或 ZIP', 'Import file or ZIP'),
+        onPressed: busy ? null : () => upload(),
+        icon: const Icon(Icons.upload_file_rounded),
+      ),
+      if (Platform.isWindows)
+        IconButton(
+          tooltip: c.tr('导入完整目录', 'Import folder'),
+          onPressed: busy ? null : () => upload(directory: true),
+          icon: const Icon(Icons.folder_open_rounded),
+        ),
+    ],
+    body: PageList(
       children: [
         TextField(
           controller: identifier,
           decoration: InputDecoration(
-            labelText: c.tr(
-              '官方标识或 Git 仓库 / 技能路径',
-              'Official identifier or Git repository / skill path',
-            ),
+            labelText: c.tr('标识或 Git 仓库', 'Identifier or Git repository'),
           ),
         ),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: busy ? null : () => upload(),
-          icon: const Icon(Icons.upload_file),
-          label: Text(c.tr('导入文件或 ZIP', 'Import file or ZIP')),
+        const SizedBox(height: 14),
+        PanelGroup(
+          children: [
+            for (final bot in c.node.bots)
+              CheckboxListTile(
+                secondary: CatAvatar(color: '${bot['avatar']['color']}'),
+                title: Text('${bot['displayName']}'),
+                value: target.contains(bot['botId']),
+                onChanged: busy
+                    ? null
+                    : (value) => setState(() {
+                        if (value == true) {
+                          target.add(bot['botId'] as String);
+                        } else {
+                          target.remove(bot['botId']);
+                        }
+                      }),
+              ),
+          ],
         ),
-        if (Platform.isWindows)
-          OutlinedButton.icon(
-            onPressed: busy ? null : () => upload(directory: true),
-            icon: const Icon(Icons.folder_open),
-            label: Text(c.tr('导入完整目录', 'Import folder')),
-          ),
-        const SizedBox(height: 20),
-        for (final bot in c.node.bots)
-          CheckboxListTile(
-            secondary: CatAvatar(color: '${bot['avatar']['color']}'),
-            title: Text('${bot['displayName']}'),
-            value: target.contains(bot['botId']),
-            onChanged: busy
-                ? null
-                : (value) => setState(() {
-                    if (value == true) {
-                      target.add(bot['botId'] as String);
-                    } else {
-                      target.remove(bot['botId']);
-                    }
-                  }),
-          ),
         const SizedBox(height: 16),
         FilledButton(
           onPressed: target.isEmpty || busy
               ? null
               : () => run('extensions.install'),
-          child: Text(c.tr('安装到所选 Bot', 'Install for selected Bots')),
+          child: Text(c.tr('安装', 'Install')),
         ),
         if (widget.entry != null)
-          Wrap(
-            spacing: 10,
-            children: [
-              TextButton(
-                onPressed: target.isEmpty || busy
-                    ? null
-                    : () => run('extensions.toggle', true),
-                child: Text(c.tr('启用', 'Enable')),
-              ),
-              TextButton(
-                onPressed: target.isEmpty || busy
-                    ? null
-                    : () => run('extensions.toggle', false),
-                child: Text(c.tr('停用', 'Disable')),
-              ),
-            ],
+          Center(
+            child: Wrap(
+              spacing: 10,
+              children: [
+                TextButton(
+                  onPressed: target.isEmpty || busy
+                      ? null
+                      : () => run('extensions.toggle', true),
+                  child: Text(c.tr('启用', 'Enable')),
+                ),
+                TextButton(
+                  onPressed: target.isEmpty || busy
+                      ? null
+                      : () => run('extensions.toggle', false),
+                  child: Text(c.tr('停用', 'Disable')),
+                ),
+              ],
+            ),
+          ),
+        if (busy)
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: Breathing()),
           ),
         if (operation != null)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
+            padding: const EdgeInsets.symmetric(vertical: 16),
             child: SelectableText(
               '${operation!['status']}\n${operation!['detail']}\n${operation!['results']}',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
-        if (busy) const LinearProgressIndicator(),
         if (uploadProgress.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(uploadProgress),
+            child: Text(
+              uploadProgress,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ),
         ErrorNotice(error),
       ],

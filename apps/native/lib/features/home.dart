@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/client.dart';
+import '../platform/desktop.dart';
 import '../ui/design.dart';
+import 'bot_details.dart';
 import 'chat.dart';
 import 'bot_editor.dart';
 import 'extensions.dart';
@@ -22,8 +24,9 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   StreamSubscription<Json>? destinations;
   String? conversation;
-  String? hoveredConversation;
+  Json? details;
   String search = '';
+  bool searching = false;
   NekodotClient get c => widget.client;
   @override
   void initState() {
@@ -58,8 +61,375 @@ class _HomePageState extends State<HomePage> {
     if (narrow) {
       await pushPage(context, ChatPage(client: c, conversationId: id));
     } else {
-      setState(() => conversation = id);
+      setState(() {
+        conversation = id;
+        details = null;
+      });
     }
+  }
+
+  Widget nodePicker() {
+    final nodes = objects(c.me?['nodes']);
+    final current = nodes
+        .where((n) => n['nodeId'] == c.selectedNodeId)
+        .firstOrNull;
+    return PopupMenuButton<String>(
+      tooltip: c.tr('电脑', 'Computer'),
+      position: PopupMenuPosition.under,
+      onSelected: (id) {
+        if (id == '') {
+          pushPage(context, PairingPage(client: c));
+        } else {
+          setState(() {
+            conversation = null;
+            details = null;
+          });
+          c.selectNode(id);
+        }
+      },
+      itemBuilder: (_) => [
+        for (final node in nodes)
+          PopupMenuItem(
+            value: node['nodeId'] as String,
+            child: Row(
+              children: [
+                StatusDot(on: node['online'] == true),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '${node['name']}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (node['nodeId'] == c.selectedNodeId)
+                  const Icon(Icons.check_rounded, size: 18),
+              ],
+            ),
+          ),
+        if (nodes.isNotEmpty) const PopupMenuDivider(),
+        PopupMenuItem(value: '', child: Text(c.tr('添加电脑', 'Add computer'))),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (current != null) ...[
+              c.online || c.ready
+                  ? StatusDot(on: c.online)
+                  : const Breathing(size: 8),
+              const SizedBox(width: 8),
+            ],
+            Flexible(
+              child: Text(
+                current == null
+                    ? c.tr('添加电脑', 'Add computer')
+                    : '${current['name']}',
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            const SizedBox(width: 2),
+            Icon(Icons.expand_more_rounded, size: 18, color: context.tone.ink3),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget top() => Stack(
+    children: [
+      const Positioned.fill(child: WindowDrag()),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: nodePicker(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            RoundButton(
+              tooltip: c.tr('搜索', 'Search'),
+              icon: searching ? Icons.close_rounded : Icons.search_rounded,
+              onPressed: () => setState(() {
+                searching = !searching;
+                search = '';
+              }),
+            ),
+            const SizedBox(width: 8),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: floating(context),
+              ),
+              child: PopupMenuButton<String>(
+                tooltip: c.tr('新建', 'Create'),
+                position: PopupMenuPosition.under,
+                icon: const Icon(Icons.add_rounded),
+                style: roundStyle(context),
+                onSelected: (value) => pushPage(
+                  context,
+                  BotEditor(client: c, group: value == 'group'),
+                ),
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: 'bot',
+                    child: Text(c.tr('新建 Bot', 'New Bot')),
+                  ),
+                  PopupMenuItem(
+                    value: 'group',
+                    child: Text(c.tr('新建群组', 'New group')),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+
+  /// Phone header: the mark, the computer, search.
+  Widget glassTop() => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+    child: Row(
+      children: [
+        const CatAvatar(size: 34),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Align(alignment: Alignment.centerLeft, child: nodePicker()),
+        ),
+        IconButton(
+          tooltip: c.tr('搜索', 'Search'),
+          isSelected: searching,
+          onPressed: () => setState(() {
+            searching = !searching;
+            search = '';
+          }),
+          icon: const Icon(Icons.search_rounded),
+        ),
+      ],
+    ),
+  );
+
+  /// Phone dock floating over the list: extensions, settings, create.
+  Widget dock() {
+    final tone = context.tone;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      child: Row(
+        children: [
+          Panel(
+            radius: 16,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: 'Skills',
+                  onPressed: () => pushPage(
+                    context,
+                    ExtensionsPage(client: c, kind: 'skills'),
+                  ),
+                  icon: const Icon(Icons.auto_awesome_rounded),
+                ),
+                IconButton(
+                  tooltip: c.tr('插件', 'Plugins'),
+                  onPressed: () => pushPage(
+                    context,
+                    ExtensionsPage(client: c, kind: 'plugins'),
+                  ),
+                  icon: const Icon(Icons.extension_rounded),
+                ),
+                IconButton(
+                  tooltip: c.tr('设置', 'Settings'),
+                  onPressed: () => pushPage(context, SettingsPage(client: c)),
+                  icon: const Icon(Icons.tune_rounded),
+                ),
+              ],
+            ),
+          ),
+          const Spacer(),
+          PopupMenuButton<String>(
+            tooltip: c.tr('新建', 'Create'),
+            position: PopupMenuPosition.over,
+            icon: const Icon(Icons.add_rounded),
+            iconColor: tone.base,
+            style: IconButton.styleFrom(
+              backgroundColor: tone.ink,
+              fixedSize: const Size.square(50),
+            ),
+            onSelected: (value) => pushPage(
+              context,
+              BotEditor(client: c, group: value == 'group'),
+            ),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'bot',
+                child: Text(c.tr('新建 Bot', 'New Bot')),
+              ),
+              PopupMenuItem(
+                value: 'group',
+                child: Text(c.tr('新建群组', 'New group')),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget row(Json value, bool narrow) {
+    final glass = context.tone.glass;
+    final isGroup = value['kind'] == 'group';
+    final entity = isGroup
+        ? c.node.groups.firstWhere((x) => x['groupId'] == value['groupId'])
+        : c.node.bots.firstWhere((x) => x['botId'] == value['botId']);
+    final id = value['conversationId'] as String;
+    final state = c.node.activities[id]?['state'];
+    final working = state != null && state != 'idle';
+    final last = (c.node.messages[id] ?? [])
+        .where((x) => x['kind'] == 'text')
+        .lastOrNull;
+    final preview = last?['content']['text'] as String?;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      child: ListTile(
+        key: ValueKey('conversation-$id'),
+        selected: !narrow && conversation == id,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(glass ? 20 : 14),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+        minVerticalPadding: 8,
+        horizontalTitleGap: 10,
+        leading: isGroup
+            ? GroupAvatar(
+                size: glass ? 38 : 42,
+                working: working,
+                colors: [
+                  for (final bot in c.node.bots)
+                    if ((entity['botIds'] as List).contains(bot['botId']))
+                      '${bot['avatar']['color']}',
+                ],
+              )
+            : CatAvatar(
+                size: glass ? 38 : 42,
+                color: '${entity['avatar']['color']}',
+                working: working,
+              ),
+        title: Text(
+          '${entity[isGroup ? 'name' : 'displayName']}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: preview == null
+            ? null
+            : Text(preview, maxLines: 1, overflow: TextOverflow.ellipsis),
+        onTap: () => open(value, narrow),
+      ),
+    );
+  }
+
+  Future<void> signOut() async {
+    try {
+      await c.logout();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
+
+  Widget bottom(bool narrow) {
+    final tone = context.tone;
+    final email = '${c.me?['user']['email'] ?? ''}';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 8, 12, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: PopupMenuButton<String>(
+                tooltip: c.tr('账户', 'Account'),
+                position: PopupMenuPosition.over,
+                onSelected: (value) {
+                  if (value == 'settings') {
+                    pushPage(context, SettingsPage(client: c));
+                  } else {
+                    signOut();
+                  }
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: 'settings',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.settings_outlined, size: 18),
+                        const SizedBox(width: 12),
+                        Text(c.tr('设置', 'Settings')),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  PopupMenuItem(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.logout_rounded, size: 18),
+                        const SizedBox(width: 12),
+                        Text(c.tr('退出账号', 'Sign out')),
+                      ],
+                    ),
+                  ),
+                ],
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: tone.raised,
+                        ),
+                        child: Text(
+                          email.isEmpty ? '' : email[0].toUpperCase(),
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          email.split('@').first,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          RoundButton(
+            tooltip: c.tr('Skills 与插件', 'Skills & plugins'),
+            icon: Icons.grid_view_rounded,
+            onPressed: () => narrow
+                ? pushPage(context, ExtensionsPage(client: c, kind: 'skills'))
+                : showExtensionsDialog(context, c),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -67,7 +437,9 @@ class _HomePageState extends State<HomePage> {
     listenable: c,
     builder: (context, child) => LayoutBuilder(
       builder: (context, constraints) {
+        final tone = context.tone;
         final narrow = constraints.maxWidth < 840;
+        final roomy = constraints.maxWidth >= 1000;
         final active = c.node.conversations.where(
           (x) => x['kind'] == 'dm'
               ? c.node.bots.any(
@@ -77,273 +449,81 @@ class _HomePageState extends State<HomePage> {
                   (g) => g['groupId'] == x['groupId'] && g['archived'] != true,
                 ),
         );
+        final shown = active.where((value) {
+          final entity = value['kind'] == 'group'
+              ? c.node.groups.firstWhere(
+                  (x) => x['groupId'] == value['groupId'],
+                )
+              : c.node.bots.firstWhere((x) => x['botId'] == value['botId']);
+          return '${entity['name'] ?? entity['displayName']}'
+              .toLowerCase()
+              .contains(search);
+        }).toList();
+        final conversations = active.isEmpty
+            ? Center(
+                child: IconButton(
+                  tooltip: c.selectedNodeId == null
+                      ? c.tr('添加电脑', 'Add computer')
+                      : c.tr('新建 Bot', 'New Bot'),
+                  onPressed: () => pushPage(
+                    context,
+                    c.selectedNodeId == null
+                        ? PairingPage(client: c)
+                        : BotEditor(client: c),
+                  ),
+                  icon: const CatAvatar(size: 72),
+                ),
+              )
+            : ListView(
+                padding: EdgeInsets.only(bottom: tone.glass ? 84 : 8),
+                children: [for (final value in shown) row(value, narrow)],
+              );
         final list = Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 22, 12, 16),
-              child: Row(
-                children: [
-                  const CatAvatar(size: 32),
-                  const SizedBox(width: 10),
-                  Text(
-                    'nekodot',
-                    style: Theme.of(context).textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w800),
-                  ),
-                  const Spacer(),
-                  PopupMenuButton<String>(
-                    tooltip: c.tr('新建', 'Create'),
-                    icon: const Icon(Icons.add),
-                    onSelected: (value) => pushPage(
-                      context,
-                      value == 'node'
-                          ? PairingPage(client: c)
-                          : BotEditor(client: c, group: value == 'group'),
-                    ),
-                    itemBuilder: (_) => [
-                      PopupMenuItem(
-                        value: 'bot',
-                        child: Text(c.tr('新建 Bot', 'New Bot')),
-                      ),
-                      PopupMenuItem(
-                        value: 'group',
-                        child: Text(c.tr('新建群组', 'New group')),
-                      ),
-                      PopupMenuItem(
-                        value: 'node',
-                        child: Text(c.tr('添加电脑', 'Add computer')),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: DropdownButtonFormField<String>(
-                initialValue: c.selectedNodeId,
-                key: ValueKey(c.selectedNodeId),
-                isExpanded: true,
-                decoration: InputDecoration(
-                  prefixIcon: Icon(
-                    Icons.computer,
-                    color: c.online ? const Color(0xff2f9e8f) : null,
-                  ),
-                  labelText: c.tr('当前电脑', 'Computer'),
-                ),
-                items: objects(c.me?['nodes'])
-                    .map(
-                      (n) => DropdownMenuItem(
-                        value: n['nodeId'] as String,
-                        child: Text(
-                          '${n['name']}',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (id) {
-                  if (id != null) {
-                    setState(() => conversation = null);
-                    c.selectNode(id);
-                  }
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-              child: TextField(
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search),
-                  hintText: c.tr('搜索会话', 'Search conversations'),
-                ),
-                onChanged: (value) =>
-                    setState(() => search = value.toLowerCase()),
-              ),
-            ),
-            if (!c.online)
+            tone.glass ? glassTop() : top(),
+            if (searching)
               Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    const Icon(Icons.cloud_off_outlined, size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        c.tr(
-                          '电脑离线 · 草稿会保留',
-                          'Computer offline · Drafts are kept',
-                        ),
-                      ),
-                    ),
-                    if (!c.ready)
-                      const SizedBox(
-                        width: 12,
-                        height: 12,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                  ],
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: TextField(
+                  autofocus: true,
+                  decoration: InputDecoration(hintText: c.tr('搜索', 'Search')),
+                  onChanged: (value) =>
+                      setState(() => search = value.toLowerCase()),
                 ),
               ),
             if (c.error.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Column(
+                padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
+                child: Row(
                   children: [
-                    ErrorNotice(c.error),
-                    TextButton.icon(
+                    Expanded(child: ErrorNotice(c.error)),
+                    IconButton(
+                      tooltip: c.tr('重新连接', 'Reconnect'),
                       onPressed: () => c.bootstrap(),
-                      icon: const Icon(Icons.refresh),
-                      label: Text(c.tr('重新连接', 'Reconnect')),
+                      icon: const Icon(Icons.refresh_rounded),
                     ),
                   ],
                 ),
               ),
             Expanded(
-              child: active.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const CatAvatar(size: 56),
-                            const SizedBox(height: 18),
-                            Text(c.tr('从一位 Bot 开始', 'Start with a Bot')),
-                            const SizedBox(height: 16),
-                            FilledButton(
-                              onPressed: () => pushPage(
-                                context,
-                                c.selectedNodeId == null
-                                    ? PairingPage(client: c)
-                                    : BotEditor(client: c),
-                              ),
-                              child: Text(c.tr('开始', 'Get started')),
-                            ),
-                          ],
-                        ),
-                      ),
+              child: tone.glass
+                  ? Stack(
+                      children: [
+                        Positioned.fill(child: conversations),
+                        Positioned(left: 0, right: 0, bottom: 0, child: dock()),
+                      ],
                     )
-                  : ListView(
-                      children: active.map((value) {
-                        final isGroup = value['kind'] == 'group';
-                        final entity = isGroup
-                            ? c.node.groups.firstWhere(
-                                (x) => x['groupId'] == value['groupId'],
-                              )
-                            : c.node.bots.firstWhere(
-                                (x) => x['botId'] == value['botId'],
-                              );
-                        final name =
-                            '${entity[isGroup ? 'name' : 'displayName']}';
-                        if (!name.toLowerCase().contains(search)) {
-                          return const SizedBox.shrink();
-                        }
-                        final messages =
-                            c.node.messages[value['conversationId']] ?? [];
-                        final last = messages
-                            .where((x) => x['kind'] == 'text')
-                            .lastOrNull;
-                        final selected =
-                            conversation == value['conversationId'];
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 3,
-                          ),
-                          child: MouseRegion(
-                            onEnter: (_) => setState(
-                              () =>
-                                  hoveredConversation = value['conversationId'],
-                            ),
-                            onExit: (_) =>
-                                setState(() => hoveredConversation = null),
-                            child: AnimatedContainer(
-                              duration: MediaQuery.disableAnimationsOf(context)
-                                  ? Duration.zero
-                                  : const Duration(milliseconds: 80),
-                              decoration: BoxDecoration(
-                                color: selected
-                                    ? accent.withValues(alpha: .10)
-                                    : hoveredConversation ==
-                                          value['conversationId']
-                                    ? accent.withValues(alpha: .05)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: ListTile(
-                                  key: ValueKey(
-                                    'conversation-${value['conversationId']}',
-                                  ),
-                                  selected: selected,
-                                  leading: isGroup
-                                      ? const Icon(
-                                          Icons.forum_outlined,
-                                          size: 34,
-                                        )
-                                      : CatAvatar(
-                                          color: '${entity['avatar']['color']}',
-                                        ),
-                                  title: Text(
-                                    name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    last?['content']['text'] as String? ??
-                                        (isGroup
-                                            ? c.tr(
-                                                '群聊 · @成员开始接力',
-                                                'Group · @mention to relay',
-                                              )
-                                            : '@${entity['handle']}'),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  onTap: () => open(value, narrow),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
+                  : conversations,
             ),
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-              child: Row(
-                children: [
-                  TextButton.icon(
-                    onPressed: () => pushPage(
-                      context,
-                      ExtensionsPage(client: c, kind: 'skills'),
-                    ),
-                    icon: const Icon(Icons.auto_awesome_outlined, size: 18),
-                    label: const Text('Skills'),
-                  ),
-                  TextButton.icon(
-                    onPressed: () => pushPage(
-                      context,
-                      ExtensionsPage(client: c, kind: 'plugins'),
-                    ),
-                    icon: const Icon(Icons.extension_outlined, size: 18),
-                    label: Text(c.tr('插件', 'Plugins')),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    tooltip: c.tr('设置', 'Settings'),
-                    onPressed: () => pushPage(context, SettingsPage(client: c)),
-                    icon: const Icon(Icons.settings_outlined),
-                  ),
-                ],
-              ),
-            ),
+            if (!tone.glass) bottom(narrow),
           ],
         );
+        final hasChat =
+            conversation != null &&
+            c.node.conversations.any(
+              (x) => x['conversationId'] == conversation,
+            );
+        final panel = roomy && hasChat ? details : null;
         return PopScope(
           canPop: !Platform.isAndroid,
           onPopInvokedWithResult: (didPop, result) {
@@ -353,59 +533,55 @@ class _HomePageState extends State<HomePage> {
             }
           },
           child: Scaffold(
-            body: SafeArea(
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: narrow ? constraints.maxWidth : 300,
-                    child: list,
-                  ),
-                  if (!narrow) ...[
-                    const VerticalDivider(width: 1),
-                    Expanded(
-                      child:
-                          conversation != null &&
-                              c.node.conversations.any(
-                                (x) => x['conversationId'] == conversation,
+            body: narrow
+                ? SafeArea(child: list)
+                : Row(
+                    children: [
+                      SizedBox(
+                        width: 280,
+                        child: Material(color: tone.sidebar, child: list),
+                      ),
+                      const VerticalDivider(width: 1),
+                      Expanded(
+                        child: hasChat
+                            ? ChatPage(
+                                key: ValueKey(
+                                  '${c.selectedNodeId}:$conversation',
+                                ),
+                                client: c,
+                                conversationId: conversation!,
+                                embedded: true,
+                                reserveControls: panel == null,
+                                onDetails: roomy
+                                    ? (bot) => setState(() => details = bot)
+                                    : null,
                               )
-                          ? ChatPage(
-                              key: ValueKey(
-                                '${c.selectedNodeId}:$conversation',
-                              ),
-                              client: c,
-                              conversationId: conversation!,
-                              embedded: true,
-                            )
-                          : Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const CatAvatar(size: 80),
-                                  const SizedBox(height: 20),
-                                  Text(
-                                    c.tr(
-                                      '让想法，开始行动。',
-                                      'Turn ideas into action.',
-                                    ),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineSmall,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    c.tr(
-                                      '选择一段会话，与你的 AI 团队一起工作。',
-                                      'Choose a conversation and work with your AI team.',
+                            : Stack(
+                                children: const [
+                                  Positioned.fill(child: WindowDrag()),
+                                  Center(
+                                    child: Opacity(
+                                      opacity: .08,
+                                      child: CatAvatar(size: 96),
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+                      ),
+                      if (panel != null) ...[
+                        const VerticalDivider(width: 1),
+                        SizedBox(
+                          width: 340,
+                          child: BotDetails(
+                            key: ValueKey(panel['botId']),
+                            client: c,
+                            bot: panel,
+                            onClose: () => setState(() => details = null),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
           ),
         );
       },

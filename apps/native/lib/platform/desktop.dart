@@ -1,5 +1,4 @@
-import 'dart:ui';
-
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
@@ -7,6 +6,7 @@ import 'package:window_manager/window_manager.dart';
 class DesktopHost with WindowListener {
   static final instance = DesktopHost();
   static TrayIcon? icon;
+
   static Future<void> initialize() async {
     await windowManager.ensureInitialized();
     final prefs = await SharedPreferences.getInstance();
@@ -18,6 +18,8 @@ class DesktopHost with WindowListener {
         ),
         minimumSize: const Size(390, 600),
         title: 'nekodot',
+        titleBarStyle: TitleBarStyle.hidden,
+        windowButtonVisibility: false,
       ),
     );
     if (prefs.getBool('window-maximized') == true) {
@@ -95,6 +97,73 @@ class DesktopHost with WindowListener {
     await (await SharedPreferences.getInstance()).setBool(
       'window-maximized',
       false,
+    );
+  }
+}
+
+/// Drags the window from empty header space. Nothing outside the desktop shell.
+class WindowDrag extends StatelessWidget {
+  const WindowDrag({super.key});
+  @override
+  Widget build(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_ChromeScope>() == null
+      ? const SizedBox.expand()
+      : const DragToMoveArea(child: SizedBox.expand());
+}
+
+class _ChromeScope extends InheritedWidget {
+  const _ChromeScope({required super.child});
+  @override
+  bool updateShouldNotify(_ChromeScope oldWidget) => false;
+}
+
+/// Window frame drawn into the page: three quiet controls at the top right.
+class WindowChrome extends StatelessWidget {
+  final Widget child;
+  const WindowChrome({super.key, required this.child});
+  static const _width = 114.0;
+
+  /// Room a header leaves at its right edge for the controls.
+  static double reserved(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_ChromeScope>() == null
+      ? 0
+      : _width;
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).hintColor;
+    Widget control(IconData icon, VoidCallback onTap, double size) => InkWell(
+      onTap: onTap,
+      child: SizedBox(
+        width: 38,
+        height: 32,
+        child: Icon(icon, size: size, color: color),
+      ),
+    );
+    return _ChromeScope(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          child,
+          Positioned(
+            right: 0,
+            top: 0,
+            child: Material(
+              type: MaterialType.transparency,
+              child: Row(
+                children: [
+                  control(Icons.remove_rounded, windowManager.minimize, 16),
+                  control(Icons.crop_square_rounded, () async {
+                    await windowManager.isMaximized()
+                        ? await windowManager.unmaximize()
+                        : await windowManager.maximize();
+                  }, 14),
+                  control(Icons.close_rounded, windowManager.close, 16),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

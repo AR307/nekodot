@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
+import '../platform/desktop.dart';
 import '../ui/design.dart';
 import '../screen/viewer.dart';
 import 'bot_editor.dart';
@@ -13,7 +14,15 @@ import 'user_memory.dart';
 class BotDetails extends StatelessWidget {
   final NekodotClient client;
   final Json bot;
-  const BotDetails({super.key, required this.client, required this.bot});
+
+  /// Set when shown as a side panel; closes it instead of popping a page.
+  final VoidCallback? onClose;
+  const BotDetails({
+    super.key,
+    required this.client,
+    required this.bot,
+    this.onClose,
+  });
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: client,
@@ -23,12 +32,206 @@ class BotDetails extends StatelessWidget {
           .where((value) => value['botId'] == this.bot['botId'])
           .firstOrNull;
       if (bot == null || bot['archived'] == true) {
-        return Scaffold(
-          appBar: AppBar(title: Text(c.tr('Bot 已归档', 'Bot archived'))),
-          body: Center(
-            child: Text(
-              c.tr('会话和历史已保留。', 'Conversations and history are kept.'),
+        return AppPage(
+          title: c.tr('已归档', 'Archived'),
+          body: const Center(
+            child: Opacity(opacity: .25, child: CatAvatar(size: 72)),
+          ),
+        );
+      }
+      final text = Theme.of(context).textTheme;
+      final panel = onClose != null;
+      final pages = TabBarView(
+        children: [
+          AsyncPane(
+            load: () => c.rpc('bots.jobs', {'botId': bot['botId']}),
+            builder: (context, data, reload) {
+              final jobs = objects(data['jobs']);
+              return PageList(
+                children: [
+                  if (context.tone.glass) ...[
+                    Center(
+                      child: CatAvatar(
+                        color: '${bot['avatar']['color']}',
+                        size: 84,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Center(
+                      child: Text('@${bot['handle']}', style: text.labelMedium),
+                    ),
+                    const SizedBox(height: 18),
+                    SelectableText(
+                      '${bot['role']}',
+                      textAlign: TextAlign.center,
+                      style: text.bodyMedium,
+                    ),
+                    const SizedBox(height: 22),
+                  ] else ...[
+                    SectionLabel(c.tr('角色', 'Role')),
+                    Panel(
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: SelectableText(
+                          '${bot['role']}',
+                          style: text.bodyMedium,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  ModelInformation(
+                    key: ValueKey('${bot['model']}:${bot['modelSettings']}'),
+                    client: c,
+                    botId: bot['botId'] as String,
+                  ),
+                  if (jobs.isNotEmpty) ...[
+                    SectionLabel(c.tr('定时任务', 'Scheduled tasks')),
+                    PanelGroup(
+                      children: [
+                        for (final job in jobs)
+                          ExpansionTile(
+                            title: Text(
+                              '${job['name'] ?? job['prompt'] ?? job['id']}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              '${job['schedule'] ?? ''} · ${job['timezone'] ?? ''}',
+                              style: text.bodySmall,
+                            ),
+                            childrenPadding: const EdgeInsets.fromLTRB(
+                              16,
+                              0,
+                              16,
+                              16,
+                            ),
+                            children: [
+                              SelectableText(
+                                job.toString(),
+                                style: text.bodySmall,
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+          AsyncPane(
+            load: () => c.rpc('memory.get', {'botId': bot['botId']}),
+            builder: (context, data, reload) => PageList(
+              children: [
+                PanelGroup(
+                  children: [
+                    for (final doc in objects(data['documents']))
+                      ListTile(
+                        title: Text('${doc['name']}'),
+                        subtitle:
+                            doc['name'] == 'USER.md' ||
+                                '${doc['content']}'.trim().isEmpty
+                            ? null
+                            : Text(
+                                '${doc['content']}',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                        trailing: doc['name'] == 'USER.md'
+                            ? Tooltip(
+                                message: c.tr(
+                                  '同账号所有 Bot 共享',
+                                  'Shared with every Bot on your account',
+                                ),
+                                child: Icon(
+                                  Icons.group_rounded,
+                                  size: 18,
+                                  color: context.tone.ink3,
+                                ),
+                              )
+                            : null,
+                        onTap: () async {
+                          await pushPage(
+                            context,
+                            doc['name'] == 'USER.md'
+                                ? SharedUserMemoryPage(client: c)
+                                : MemoryEditor(
+                                    client: c,
+                                    botId: bot['botId'] as String,
+                                    document: doc,
+                                  ),
+                          );
+                          reload();
+                        },
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    await pushPage(
+                      context,
+                      RefinePage(client: c, botId: bot['botId'] as String),
+                    );
+                    reload();
+                  },
+                  icon: const Icon(Icons.auto_fix_high_rounded, size: 18),
+                  label: Text(c.tr('整理记忆', 'Refine memory')),
+                ),
+                if ('${data['pending'] ?? ''}'.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: SelectableText(
+                      '${data['pending']}',
+                      style: text.bodySmall,
+                    ),
+                  ),
+              ],
             ),
+          ),
+          LibraryPage(client: c, bot: bot, embedded: true),
+        ],
+      );
+      if (context.tone.glass && !panel) {
+        return DefaultTabController(
+          length: 3,
+          child: AppPage(
+            title: '${bot['displayName']}',
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(50),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 320),
+                    child: TabBar(
+                      tabs: [
+                        Tab(height: 36, text: c.tr('详情', 'Details')),
+                        Tab(height: 36, text: c.tr('记忆', 'Memory')),
+                        Tab(height: 36, text: c.tr('资料库', 'Files')),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            actions: [
+              RoundButton(
+                tooltip: c.tr('屏幕', 'Screen'),
+                icon: Icons.desktop_windows_rounded,
+                onPressed: () =>
+                    pushPage(context, ScreenPage(client: c, bot: bot)),
+              ),
+              RoundButton(
+                tooltip: c.tr('编辑', 'Edit'),
+                icon: Icons.edit_rounded,
+                onPressed: () =>
+                    pushPage(context, BotEditor(client: c, existing: bot)),
+              ),
+            ],
+            body: pages,
           ),
         );
       }
@@ -36,140 +239,59 @@ class BotDetails extends StatelessWidget {
         length: 3,
         child: Scaffold(
           appBar: AppBar(
-            title: Text('${bot['displayName']}'),
-            bottom: TabBar(
-              tabs: [
-                Tab(text: c.tr('详情', 'Details')),
-                Tab(text: c.tr('记忆', 'Memory')),
-                Tab(text: c.tr('资料库', 'Files')),
-              ],
-            ),
+            automaticallyImplyLeading: !panel,
+            flexibleSpace: const WindowDrag(),
             actions: [
-              IconButton(
+              RoundButton(
                 tooltip: c.tr('屏幕', 'Screen'),
+                icon: Icons.desktop_windows_outlined,
                 onPressed: () =>
                     pushPage(context, ScreenPage(client: c, bot: bot)),
-                icon: const Icon(Icons.desktop_windows_outlined),
               ),
-              IconButton(
+              const SizedBox(width: 8),
+              RoundButton(
                 tooltip: c.tr('编辑', 'Edit'),
+                icon: Icons.edit_outlined,
                 onPressed: () =>
                     pushPage(context, BotEditor(client: c, existing: bot)),
-                icon: const Icon(Icons.edit_outlined),
               ),
+              if (panel) ...[
+                const SizedBox(width: 8),
+                RoundButton(
+                  tooltip: c.tr('关闭', 'Close'),
+                  icon: Icons.close_rounded,
+                  onPressed: onClose,
+                ),
+              ],
+              const SizedBox(width: 12),
+              SizedBox(width: WindowChrome.reserved(context)),
             ],
           ),
-          body: TabBarView(
+          body: Column(
             children: [
-              AsyncPane(
-                load: () => c.rpc('bots.jobs', {'botId': bot['botId']}),
-                builder: (context, data, reload) => ListView(
-                  padding: const EdgeInsets.all(24),
-                  children: [
-                    Center(
-                      child: CatAvatar(
-                        color: '${bot['avatar']['color']}',
-                        size: 70,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      '${bot['role']}',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 10),
-                    Text('${bot['model']}'),
-                    const SizedBox(height: 16),
-                    ModelInformation(
-                      key: ValueKey('${bot['model']}:${bot['modelSettings']}'),
-                      client: c,
-                      botId: bot['botId'] as String,
-                    ),
-                    const SizedBox(height: 26),
-                    Text(
-                      c.tr('定时任务', 'Scheduled tasks'),
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      c.tr(
-                        '通过聊天创建和修改，按 Hermes 原生计划执行。',
-                        'Create and edit through chat. Hermes runs the schedule.',
-                      ),
-                    ),
-                    for (final job in objects(data['jobs']))
-                      Card(
-                        child: ExpansionTile(
-                          title: Text(
-                            '${job['name'] ?? job['prompt'] ?? job['id']}',
-                          ),
-                          subtitle: Text(
-                            '${job['schedule'] ?? ''} · ${job['timezone'] ?? ''}',
-                          ),
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: SelectableText(job.toString()),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
+              CatAvatar(color: '${bot['avatar']['color']}', size: 76),
+              const SizedBox(height: 10),
+              Text(
+                '${bot['displayName']}',
+                style: text.titleLarge,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              AsyncPane(
-                load: () => c.rpc('memory.get', {'botId': bot['botId']}),
-                builder: (context, data, reload) => ListView(
-                  padding: const EdgeInsets.all(20),
-                  children: [
-                    for (final doc in objects(data['documents']))
-                      Card(
-                        child: ListTile(
-                          title: Text('${doc['name']}'),
-                          subtitle: Text(
-                            doc['name'] == 'USER.md'
-                                ? c.tr(
-                                    '同账号所有 Bot 共享',
-                                    'Shared with every Bot on your account',
-                                  )
-                                : '${doc['content']}',
-                            maxLines: 4,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () async {
-                            await pushPage(
-                              context,
-                              doc['name'] == 'USER.md'
-                                  ? SharedUserMemoryPage(client: c)
-                                  : MemoryEditor(
-                                      client: c,
-                                      botId: bot['botId'] as String,
-                                      document: doc,
-                                    ),
-                            );
-                            reload();
-                          },
-                        ),
-                      ),
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: () async {
-                        await pushPage(
-                          context,
-                          RefinePage(client: c, botId: bot['botId'] as String),
-                        );
-                        reload();
-                      },
-                      icon: const Icon(Icons.auto_fix_high),
-                      label: Text(c.tr('整理记忆', 'Refine memory')),
-                    ),
-                    if ('${data['pending'] ?? ''}'.isNotEmpty)
-                      SelectableText('${data['pending']}'),
-                  ],
-                ),
+              Text('@${bot['handle']}', style: text.labelMedium),
+              const SizedBox(height: 12),
+              TabBar(
+                isScrollable: true,
+                tabAlignment: TabAlignment.center,
+                labelPadding: const EdgeInsets.symmetric(horizontal: 14),
+                tabs: [
+                  Tab(height: 32, text: c.tr('详情', 'Details')),
+                  Tab(height: 32, text: c.tr('记忆', 'Memory')),
+                  Tab(height: 32, text: c.tr('资料库', 'Files')),
+                ],
               ),
-              LibraryPage(client: c, bot: bot, embedded: true),
+              const SizedBox(height: 4),
+              const Divider(height: 1),
+              Expanded(child: pages),
             ],
           ),
         ),
@@ -205,49 +327,52 @@ class _MemoryEditorState extends State<MemoryEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text('${widget.document['name']}'),
-      actions: [
-        TextButton(
-          onPressed: busy
-              ? null
-              : () async {
-                  setState(() => busy = true);
-                  try {
-                    await widget.client.rpc('memory.save', {
-                      'botId': widget.botId,
-                      'name': widget.document['name'],
-                      'content': text.text,
-                    });
-                    if (context.mounted) Navigator.pop(context);
-                  } catch (e) {
-                    if (mounted) setState(() => error = '$e');
-                  } finally {
-                    if (mounted) setState(() => busy = false);
-                  }
-                },
-          child: Text(widget.client.tr('保存', 'Save')),
-        ),
-      ],
-    ),
-    body: Column(
-      children: [
-        ErrorNotice(error),
-        Expanded(
-          child: TextField(
-            controller: text,
-            expands: true,
-            minLines: null,
-            maxLines: null,
-            textAlignVertical: TextAlignVertical.top,
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.all(24),
+  Widget build(BuildContext context) => AppPage(
+    title: '${widget.document['name']}',
+    actions: [
+      TextButton(
+        onPressed: busy
+            ? null
+            : () async {
+                setState(() => busy = true);
+                try {
+                  await widget.client.rpc('memory.save', {
+                    'botId': widget.botId,
+                    'name': widget.document['name'],
+                    'content': text.text,
+                  });
+                  if (context.mounted) Navigator.pop(context);
+                } catch (e) {
+                  if (mounted) setState(() => error = '$e');
+                } finally {
+                  if (mounted) setState(() => busy = false);
+                }
+              },
+        child: Text(widget.client.tr('保存', 'Save')),
+      ),
+    ],
+    body: SafeArea(
+      child: Column(
+        children: [
+          ErrorNotice(error),
+          Expanded(
+            child: TextField(
+              controller: text,
+              expands: true,
+              minLines: null,
+              maxLines: null,
+              textAlignVertical: TextAlignVertical.top,
+              decoration: const InputDecoration(
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: EdgeInsets.all(24),
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }
@@ -273,17 +398,16 @@ class _RefinePageState extends State<RefinePage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.client.tr('整理记忆', 'Refine memory'))),
-    body: ListView(
-      padding: const EdgeInsets.all(24),
+  Widget build(BuildContext context) => AppPage(
+    title: widget.client.tr('整理记忆', 'Refine memory'),
+    body: PageList(
       children: [
         TextField(
           controller: focus,
           minLines: 3,
           maxLines: 8,
           decoration: InputDecoration(
-            labelText: widget.client.tr('整理重点（可选）', 'Focus (optional)'),
+            labelText: widget.client.tr('重点', 'Focus'),
           ),
         ),
         const SizedBox(height: 16),
@@ -317,15 +441,14 @@ class _RefinePageState extends State<RefinePage> {
                     if (mounted) setState(() => error = '$e');
                   }
                 },
-          child: Text(
-            widget.client.tr('运行 Hermes /refine', 'Run Hermes /refine'),
-          ),
+          child: Text(widget.client.tr('开始整理', 'Refine')),
         ),
         if (operation != null)
           Padding(
             padding: const EdgeInsets.all(16),
             child: SelectableText(
               '${operation!['status']}\n${operation!['detail']}',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
         ErrorNotice(error),

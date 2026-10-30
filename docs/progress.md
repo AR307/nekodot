@@ -548,3 +548,19 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 补齐双端 Flutter 私聊、群聊、审批、提问、同 run steer、停止、失败恢复和文件旅程；修复审批设置误覆盖、发送中草稿清空、重连选项丢失及 Windows 列表 Material 断言。真实 Node/Relay 加 Hermes 录制回放通过，不冒充新模型验收。
 - 新增 Windows 每用户 NSIS 安装器与 app-local runtime；隔离目录覆盖安装、单实例和托盘恢复实测，旧 Tauri 保留。Android 候选沿用产品签名并按官方 ABI 分包，Flutter 0.2.0+4 的 arm64 APK versionCode 为 2004。候选包仅保留本地，未部署、发布或 push。
 - 独立源码 frozen install、Node 24 lint/typecheck、19 文件 / 31 项测试及 build 通过；完整 Edge 最终 6 通过 / 1 真实 Linux 屏幕跳过。Flutter analyze、4 项 widget 场景和原生旅程结果与未覆盖范围见 docs/side-phase-3-native-product.md。真机通知、外部邮件重置/补验、扩展导入与干净用户安装仍未完成。
+
+## 2026-10-30 / Flutter 客户端界面重构
+
+用户反馈 GPT 版猫形象和界面不好看，要求砍掉多余按钮与说明，先试透明黑白毛玻璃；看过后要求电脑版改纯黑白、布局参考 Grok Bot，手机版保留毛玻璃第一版。
+
+- 样式：`apps/native/lib/ui/design.dart` 的 `Tone` 有 flat 和 glass 两组，`appTheme` 默认按平台选择（Android 为 glass，其余 flat）；`lib/ui/parts.dart` 的 `Panel`、`AppPage`、`RoundButton` 等共用组件随 `Tone.glass` 变化，少数页面（首页、聊天、Bot 详情、扩展）有两种布局分支。
+- Windows：隐藏系统标题栏，`WindowChrome` 绘制窗口按钮并为页面头部留位，`WindowDrag` 让头部空白处可拖动。宽度 ≥1000 时 Bot 详情显示为右侧面板，较窄时推入页面；Skills / 插件合为一个弹窗，窄窗为页面。设置和退出账号移到左下角账户菜单，添加电脑移到电脑下拉菜单。
+- Android：底部悬浮栏与第一版一致，设置页保留退出账号。内容在磨砂顶栏和输入框下滚动；毛玻璃只用在有内容经过的表面。
+- 文案：去掉登录标语、添加电脑说明、模型容量与压缩的解释段、记忆说明、聊天空状态提示等；未知数值显示为 —。限制和前提若仍需告知，靠控件状态或错误信息表达；添加电脑保留 `Linux x64 · WSL2`。
+- 猫头像由 SVG 改为 `CustomPainter`，工作时耳朵轻摆；减少动态效果时静止。应用图标、托盘图标与 Android 启动画面同步重绘。Nunito 和 JetBrains Mono 以静态 TTF 随包（OFL），未改 Hermes、协议或客户端数据层。
+- 调试构建不再占用单实例互斥量，便于与已安装的客户端并存；Release 行为不变。新增 `integration_test/ui_tour_test.dart`，走查主要页面并输出截图，用于设计复核，依赖开发用的演示环境。
+- 真实旅程：`product_journey_test` 对真实 Node / Relay 与录制的 Hermes 事件，在 Windows 和 API 35 x64 Android 模拟器上都通过（私聊、审批、提问、steer、停止、失败恢复、文件、群聊接力）。这是回放，不是真实模型验收。其余旅程只同步了被改动的文案和入口，本轮未重跑：`providers`、`user_memory`、`extensions`、`welcome`、`live`。Flutter analyze 与 4 项 widget 测试通过。
+- 过程发现：手动 `connect()` 后 `ready` 不复位，握手完成前发出的 RPC 可能因断开报错。这是连接层已有问题，不在本轮范围，旅程测试里加了等待来避开，未修改 `client.dart`。
+- 未覆盖：Android 真机与性能（毛玻璃在低端机的帧率）、Windows 安装包实际观感、真实屏幕接管画面。Web、Tauri 与官网未改，官网截图仍是旧界面。未构建发布包，未部署，未 push。
+- 证据：`docs/evidence/native-ui-desk-*.png`（Windows 走查）、`native-ui-android-chat-*.png`（模拟器实拍）与 `native-ui-android-home-light.png`、`native-ui-android-settings-dark.png`（手机尺寸走查）。
+

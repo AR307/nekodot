@@ -1,12 +1,17 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
+import 'dart:math' as math;
 
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../data/client.dart';
+import 'parts.dart';
+
+export 'parts.dart';
 
 final nativeRoutes = RouteObserver<ModalRoute<void>>();
 
-const accent = Color(0xffe8603c);
 const avatarColors = [
   '#E8603C',
   '#2F9E8F',
@@ -20,119 +25,665 @@ const avatarColors = [
 Color hexColor(String value) =>
     Color(int.parse(value.replaceFirst('#', 'ff'), radix: 16));
 
-ThemeData appTheme(Brightness brightness) {
+const monoFont = 'JetBrains Mono';
+const _sansFallback = [
+  'Microsoft YaHei UI',
+  'Microsoft YaHei',
+  'PingFang SC',
+  'Noto Sans CJK SC',
+  'Noto Sans SC',
+];
+
+/// Black and white: flat on the desktop, frosted glass on the phone. Bot avatars
+/// are the only hue on screen, so a speaker can be told apart at a glance.
+@immutable
+class Tone extends ThemeExtension<Tone> {
+  final Color base, sidebar, surface, ink, ink2, ink3, line;
+  final Color bubble, raised, hover, menu, danger;
+  final bool glass;
+  final Color fillTop, fillBottom, bar, fieldFocus;
+  final List<Color> orbs;
+  const Tone({
+    required this.base,
+    required this.sidebar,
+    required this.surface,
+    required this.ink,
+    required this.ink2,
+    required this.ink3,
+    required this.line,
+    required this.bubble,
+    required this.raised,
+    required this.hover,
+    required this.menu,
+    required this.danger,
+    this.glass = false,
+    this.fillTop = Colors.transparent,
+    this.fillBottom = Colors.transparent,
+    this.bar = Colors.transparent,
+    this.fieldFocus = Colors.transparent,
+    this.orbs = const [],
+  });
+  static const light = Tone(
+    base: Color(0xffffffff),
+    sidebar: Color(0xfff7f7f7),
+    surface: Color(0xffffffff),
+    ink: Color(0xff000000),
+    ink2: Color(0xff5c5c5c),
+    ink3: Color(0xff767676),
+    line: Color(0xffe6e6e6),
+    bubble: Color(0xfff2f2f2),
+    raised: Color(0xffeaeaea),
+    hover: Color(0xfff0f0f0),
+    menu: Color(0xffffffff),
+    danger: Color(0xffc22f2f),
+  );
+  static const dark = Tone(
+    base: Color(0xff000000),
+    sidebar: Color(0xff101010),
+    surface: Color(0xff161616),
+    ink: Color(0xffffffff),
+    ink2: Color(0xffb0b0b0),
+    ink3: Color(0xff8c8c8c),
+    line: Color(0xff2a2a2a),
+    bubble: Color(0xff1c1c1c),
+    raised: Color(0xff2a2a2a),
+    hover: Color(0xff1e1e1e),
+    menu: Color(0xff1c1c1c),
+    danger: Color(0xffff8a80),
+  );
+  static const glassLight = Tone(
+    glass: true,
+    base: Color(0xffe6e6e9),
+    sidebar: Colors.transparent,
+    surface: Color(0x8cffffff),
+    ink: Color(0xff0b0b0c),
+    ink2: Color(0xa60b0b0c),
+    ink3: Color(0x8c0b0b0c),
+    line: Color(0x140b0b0c),
+    bubble: Color(0x80ffffff),
+    raised: Color(0x0f0b0b0c),
+    hover: Color(0x0d0b0b0c),
+    menu: Color(0xfff6f6f7),
+    danger: Color(0xffc22f2f),
+    fillTop: Color(0xbdffffff),
+    fillBottom: Color(0x80ffffff),
+    bar: Color(0x73f4f4f5),
+    fieldFocus: Color(0xd9ffffff),
+    orbs: [Color(0xffffffff), Color(0xffb9b9c1), Color(0xfff8f8fa)],
+  );
+  static const glassDark = Tone(
+    glass: true,
+    base: Color(0xff08080a),
+    sidebar: Colors.transparent,
+    surface: Color(0x17ffffff),
+    ink: Color(0xfff6f6f7),
+    ink2: Color(0xadf6f6f7),
+    ink3: Color(0x85f6f6f7),
+    line: Color(0x1cffffff),
+    bubble: Color(0x14ffffff),
+    raised: Color(0x14ffffff),
+    hover: Color(0x12ffffff),
+    menu: Color(0xff1b1b1f),
+    danger: Color(0xffff8a80),
+    fillTop: Color(0x1fffffff),
+    fillBottom: Color(0x0dffffff),
+    bar: Color(0x4d101013),
+    fieldFocus: Color(0x2bffffff),
+    orbs: [Color(0xff4c4c56), Color(0xff34343c), Color(0xff2c2c33)],
+  );
+  @override
+  Tone copyWith() => this;
+  @override
+  Tone lerp(Tone? other, double t) => other == null || t < .5 ? this : other;
+}
+
+extension ToneOf on BuildContext {
+  Tone get tone => Theme.of(this).extension<Tone>()!;
+}
+
+class _PageTransitions extends PageTransitionsBuilder {
+  const _PageTransitions();
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    final enter = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+    );
+    final page = FadeTransition(
+      opacity: enter,
+      child: SlideTransition(
+        position: Tween(
+          begin: const Offset(.03, 0),
+          end: Offset.zero,
+        ).animate(enter),
+        child: child,
+      ),
+    );
+    if (!context.tone.glass) return page;
+    // Glass pages share one backdrop, so the outgoing page fades instead of
+    // being covered.
+    return FadeTransition(
+      opacity: Tween<double>(begin: 1, end: 0).animate(
+        CurvedAnimation(parent: secondaryAnimation, curve: Curves.easeOutCubic),
+      ),
+      child: page,
+    );
+  }
+}
+
+ThemeData appTheme(Brightness brightness, {bool? glass}) {
   final dark = brightness == Brightness.dark;
-  final scheme = ColorScheme.fromSeed(seedColor: accent, brightness: brightness)
-      .copyWith(
-        primary: dark ? const Color(0xfff07a55) : accent,
-        surface: dark ? const Color(0xff211d18) : Colors.white,
-        onSurface: dark ? const Color(0xfff3eee6) : const Color(0xff1f1b16),
-        outlineVariant: dark
-            ? const Color(0xff3a342c)
-            : const Color(0xffe8e1d6),
+  final frosted = glass ?? Platform.isAndroid;
+  final tone = frosted
+      ? (dark ? Tone.glassDark : Tone.glassLight)
+      : (dark ? Tone.dark : Tone.light);
+  final scheme =
+      ColorScheme.fromSeed(
+        seedColor: tone.ink,
+        brightness: brightness,
+        dynamicSchemeVariant: DynamicSchemeVariant.monochrome,
+      ).copyWith(
+        primary: tone.ink,
+        onPrimary: tone.base,
+        secondary: tone.ink,
+        onSecondary: tone.base,
+        surface: tone.menu,
+        onSurface: tone.ink,
+        onSurfaceVariant: tone.ink2,
+        surfaceTint: Colors.transparent,
+        outline: tone.ink3,
+        outlineVariant: tone.line,
+        error: tone.danger,
       );
+  final text =
+      (dark ? Typography.whiteMountainView : Typography.blackMountainView)
+          .copyWith(
+            headlineMedium: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+              color: tone.ink,
+            ),
+            headlineSmall: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+              color: tone.ink,
+            ),
+            titleLarge: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
+              color: tone.ink,
+            ),
+            titleMedium: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: tone.ink,
+            ),
+            titleSmall: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: tone.ink3,
+            ),
+            bodyLarge: TextStyle(fontSize: 15, height: 1.5, color: tone.ink),
+            bodyMedium: TextStyle(fontSize: 15, height: 1.5, color: tone.ink),
+            bodySmall: TextStyle(fontSize: 13, height: 1.4, color: tone.ink2),
+            labelLarge: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+            labelMedium: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: tone.ink3,
+            ),
+          )
+          .apply(fontFamily: 'Nunito', fontFamilyFallback: _sansFallback);
+  InputBorder field(Color color) => frosted
+      ? const UnderlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(20)),
+          borderSide: BorderSide.none,
+        )
+      : OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: color),
+        );
   return ThemeData(
     useMaterial3: true,
+    brightness: brightness,
+    visualDensity: VisualDensity.standard,
     colorScheme: scheme,
-    scaffoldBackgroundColor: dark
-        ? const Color(0xff16130f)
-        : const Color(0xfffaf7f2),
-    appBarTheme: const AppBarTheme(
-      centerTitle: false,
+    fontFamily: 'Nunito',
+    fontFamilyFallback: _sansFallback,
+    textTheme: text,
+    extensions: [tone],
+    scaffoldBackgroundColor: frosted ? Colors.transparent : tone.base,
+    canvasColor: frosted ? tone.menu : tone.base,
+    splashFactory: NoSplash.splashFactory,
+    highlightColor: tone.hover,
+    hoverColor: tone.hover,
+    focusColor: tone.hover,
+    dividerColor: tone.line,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: _PageTransitions(),
+        TargetPlatform.windows: _PageTransitions(),
+      },
+    ),
+    appBarTheme: AppBarTheme(
+      backgroundColor: Colors.transparent,
+      foregroundColor: tone.ink,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
       scrolledUnderElevation: 0,
+      centerTitle: false,
+      titleTextStyle: text.titleMedium?.copyWith(fontSize: 17),
+      systemOverlayStyle: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: brightness,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: dark
+            ? Brightness.light
+            : Brightness.dark,
+      ),
+    ),
+    iconTheme: IconThemeData(color: tone.ink, size: 22),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        foregroundColor: tone.ink,
+        disabledForegroundColor: tone.ink3,
+        hoverColor: tone.hover,
+        highlightColor: tone.hover,
+        shape: const CircleBorder(),
+      ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: scheme.surface,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: scheme.outlineVariant),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: scheme.outlineVariant),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+      fillColor: frosted
+          ? WidgetStateColor.resolveWith(
+              (states) => states.contains(WidgetState.focused)
+                  ? tone.fieldFocus
+                  : tone.surface,
+            )
+          : tone.surface,
+      hoverColor: Colors.transparent,
+      labelStyle: TextStyle(color: tone.ink2),
+      floatingLabelStyle: TextStyle(color: tone.ink2),
+      hintStyle: TextStyle(color: tone.ink3),
+      prefixIconColor: tone.ink3,
+      suffixIconColor: tone.ink3,
+      border: field(tone.line),
+      enabledBorder: field(tone.line),
+      disabledBorder: field(tone.line),
+      focusedBorder: field(tone.ink),
+      errorBorder: field(tone.danger),
+      focusedErrorBorder: field(tone.danger),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    ),
+    textSelectionTheme: TextSelectionThemeData(
+      cursorColor: tone.ink,
+      selectionColor: tone.ink.withValues(alpha: .18),
+      selectionHandleColor: tone.ink,
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: tone.ink,
+        foregroundColor: tone.base,
+        disabledBackgroundColor: tone.raised,
+        disabledForegroundColor: tone.ink3,
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
+        textStyle: text.labelLarge,
+        shape: const StadiumBorder(),
       ),
     ),
-    cardTheme: CardThemeData(
-      elevation: 0,
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: tone.ink,
+        disabledForegroundColor: tone.ink3,
+        side: BorderSide(color: tone.line),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        textStyle: text.labelLarge,
+        shape: const StadiumBorder(),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: tone.ink2,
+        disabledForegroundColor: tone.ink3,
+        textStyle: text.labelLarge,
+        shape: const StadiumBorder(),
+      ),
+    ),
+    listTileTheme: ListTileThemeData(
+      iconColor: tone.ink2,
+      textColor: tone.ink,
+      selectedColor: tone.ink,
+      selectedTileColor: tone.raised,
+      subtitleTextStyle: text.bodySmall,
+      titleTextStyle: text.titleMedium,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      minVerticalPadding: 12,
+    ),
+    checkboxTheme: CheckboxThemeData(
+      shape: const CircleBorder(),
+      side: BorderSide(color: tone.ink3, width: 1.5),
+      fillColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? tone.ink
+            : Colors.transparent,
+      ),
+      checkColor: WidgetStatePropertyAll(tone.base),
+    ),
+    chipTheme: ChipThemeData(
+      shape: const StadiumBorder(),
+      side: BorderSide(color: tone.line),
+      backgroundColor: Colors.transparent,
+      selectedColor: tone.ink,
+      showCheckmark: false,
+      labelStyle: text.labelLarge?.copyWith(
+        color: WidgetStateColor.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? tone.base : tone.ink2,
+        ),
+      ),
+    ),
+    expansionTileTheme: ExpansionTileThemeData(
+      shape: const Border(),
+      collapsedShape: const Border(),
+      iconColor: tone.ink3,
+      collapsedIconColor: tone.ink3,
+      textColor: tone.ink,
+      collapsedTextColor: tone.ink,
+    ),
+    tabBarTheme: TabBarThemeData(
+      dividerColor: Colors.transparent,
+      indicatorSize: TabBarIndicatorSize.tab,
+      indicator: ShapeDecoration(
+        color: frosted ? tone.ink : tone.raised,
+        shape: const StadiumBorder(),
+      ),
+      labelColor: frosted ? tone.base : tone.ink,
+      unselectedLabelColor: tone.ink2,
+      labelStyle: text.labelLarge,
+      unselectedLabelStyle: text.labelLarge,
+      splashFactory: NoSplash.splashFactory,
+      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: tone.menu,
+      surfaceTintColor: Colors.transparent,
+      elevation: 8,
+      shadowColor: Colors.black.withValues(alpha: .18),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: BorderSide(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: tone.line),
       ),
+      textStyle: text.bodyMedium,
     ),
-    dividerTheme: DividerThemeData(color: scheme.outlineVariant, thickness: 1),
+    tooltipTheme: TooltipThemeData(
+      decoration: ShapeDecoration(
+        color: tone.ink,
+        shape: const StadiumBorder(),
+      ),
+      textStyle: text.labelMedium?.copyWith(color: tone.base),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      waitDuration: const Duration(milliseconds: 500),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: tone.ink,
+      contentTextStyle: text.bodyMedium?.copyWith(color: tone.base),
+      shape: const StadiumBorder(),
+      elevation: 0,
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: tone.menu,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      titleTextStyle: text.titleLarge,
+      contentTextStyle: text.bodyMedium,
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: tone.ink,
+      linearTrackColor: tone.raised,
+      circularTrackColor: Colors.transparent,
+      strokeWidth: 2,
+    ),
+    scrollbarTheme: ScrollbarThemeData(
+      thickness: const WidgetStatePropertyAll(4),
+      radius: const Radius.circular(4),
+      thumbColor: WidgetStatePropertyAll(tone.raised),
+    ),
+    dividerTheme: DividerThemeData(color: tone.line, thickness: 1, space: 1),
   );
 }
 
-class CatAvatar extends StatelessWidget {
-  final String color;
-  final double size;
-  const CatAvatar({super.key, this.color = '#E8603C', this.size = 38});
-  @override
-  Widget build(BuildContext context) => Semantics(
-    label: 'Bot',
-    child: SvgPicture.string(
-      '''
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-    <path d="M7 21 6 7l13 8q5-2 10 0L42 7l-1 14q5 17-17 20Q2 38 7 21Z" fill="$color"/>
-    <path d="M16 25v3m16-3v3" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
-    <path d="m21 32 3 2 3-2" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/>
-    </svg>''',
-      width: size,
-      height: size,
+MarkdownStyleSheet markdownStyle(BuildContext context, {Color? color}) {
+  final tone = context.tone;
+  final ink = color ?? tone.ink;
+  final body = Theme.of(context).textTheme.bodyMedium!.copyWith(color: ink);
+  return MarkdownStyleSheet(
+    p: body,
+    a: body.copyWith(decoration: TextDecoration.underline),
+    strong: body.copyWith(fontWeight: FontWeight.w800),
+    em: body.copyWith(fontStyle: FontStyle.italic),
+    h1: body.copyWith(fontSize: 22, fontWeight: FontWeight.w800, height: 1.3),
+    h2: body.copyWith(fontSize: 19, fontWeight: FontWeight.w800, height: 1.3),
+    h3: body.copyWith(fontSize: 16, fontWeight: FontWeight.w800, height: 1.3),
+    h4: body.copyWith(fontWeight: FontWeight.w800),
+    h5: body.copyWith(fontWeight: FontWeight.w800),
+    h6: body.copyWith(fontWeight: FontWeight.w800),
+    listBullet: body,
+    blockSpacing: 10,
+    code: body.copyWith(
+      fontFamily: monoFont,
+      fontSize: 13,
+      backgroundColor: tone.raised,
     ),
+    codeblockPadding: const EdgeInsets.all(14),
+    codeblockDecoration: ShapeDecoration(
+      color: tone.raised,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    ),
+    blockquote: body.copyWith(color: tone.ink2),
+    blockquotePadding: const EdgeInsets.only(left: 14),
+    blockquoteDecoration: BoxDecoration(
+      border: Border(left: BorderSide(color: tone.line, width: 2)),
+    ),
+    horizontalRuleDecoration: BoxDecoration(
+      border: Border(top: BorderSide(color: tone.line)),
+    ),
+    tableBorder: TableBorder.all(color: tone.line),
+    tableHead: body.copyWith(fontWeight: FontWeight.w700),
+    tableBody: body,
   );
+}
+
+/// The round cat: one dot for the body, two small ears, two dot eyes. A null
+/// color draws the brand mark in the current ink.
+class CatAvatar extends StatefulWidget {
+  final String? color;
+  final double size;
+  final bool working;
+  const CatAvatar({
+    super.key,
+    this.color,
+    this.size = 38,
+    this.working = false,
+  });
+  @override
+  State<CatAvatar> createState() => _CatAvatarState();
+}
+
+class _CatAvatarState extends State<CatAvatar>
+    with SingleTickerProviderStateMixin {
+  late final twitch = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+  void sync() {
+    if (widget.working && !MediaQuery.disableAnimationsOf(context)) {
+      if (!twitch.isAnimating) twitch.repeat();
+    } else {
+      twitch.stop();
+      twitch.value = 0;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    sync();
+  }
+
+  @override
+  void didUpdateWidget(CatAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.working != widget.working) sync();
+  }
+
+  @override
+  void dispose() {
+    twitch.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    final color = widget.color;
+    return Semantics(
+      label: 'Bot',
+      child: SizedBox.square(
+        dimension: widget.size,
+        child: CustomPaint(
+          painter: _CatPainter(
+            twitch,
+            body: color == null ? tone.ink : hexColor(color),
+            eyes: color == null ? tone.base : Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CatPainter extends CustomPainter {
+  final Animation<double> twitch;
+  final Color body, eyes;
+  _CatPainter(this.twitch, {required this.body, required this.eyes})
+    : super(repaint: twitch);
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.scale(size.width / 40);
+    final fill = Paint()
+      ..color = body
+      ..isAntiAlias = true;
+    final ear = Paint()
+      ..color = body
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeJoin = StrokeJoin.round
+      ..isAntiAlias = true;
+    final phase = twitch.value * 2 * math.pi;
+    final tilt = twitch.isAnimating ? math.sin(phase) * .2 : 0.0;
+    for (final side in [-1.0, 1.0]) {
+      canvas.save();
+      canvas.translate(20 + side * 8.5, 12);
+      canvas.rotate(side * tilt);
+      final shape = Path()
+        ..moveTo(side * -3.9, -1)
+        ..lineTo(side * 1.9, -5.6)
+        ..lineTo(side * 3.9, 4)
+        ..close();
+      canvas.drawPath(shape, fill);
+      canvas.drawPath(shape, ear);
+      canvas.restore();
+    }
+    canvas.drawCircle(const Offset(20, 23), 15, fill);
+    final eye = Paint()
+      ..color = eyes
+      ..isAntiAlias = true;
+    canvas.drawCircle(const Offset(14.5, 23.5), 2.2, eye);
+    canvas.drawCircle(const Offset(25.5, 23.5), 2.2, eye);
+  }
+
+  @override
+  bool shouldRepaint(_CatPainter old) => old.body != body || old.eyes != eyes;
+}
+
+/// Group avatar: its first two members leaning together.
+class GroupAvatar extends StatelessWidget {
+  final List<String> colors;
+  final double size;
+  final bool working;
+  const GroupAvatar({
+    super.key,
+    required this.colors,
+    this.size = 38,
+    this.working = false,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final small = size * .68;
+    return Semantics(
+      label: 'Group',
+      child: SizedBox.square(
+        dimension: size,
+        child: Stack(
+          children: [
+            for (final (index, color) in colors.take(2).indexed)
+              Positioned(
+                left: index == 0 ? 0 : size - small,
+                top: index == 0 ? 0 : size - small,
+                child: CatAvatar(color: color, size: small, working: working),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class ErrorNotice extends StatelessWidget {
   final String text;
   const ErrorNotice(this.text, {super.key});
   @override
-  Widget build(BuildContext context) => text.isEmpty
-      ? const SizedBox.shrink()
-      : Container(
-          margin: const EdgeInsets.symmetric(vertical: 10),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.errorContainer,
-            borderRadius: BorderRadius.circular(12),
+  Widget build(BuildContext context) {
+    if (text.isEmpty) return const SizedBox.shrink();
+    final tone = context.tone;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 7, right: 10),
+            child: StatusDot(color: tone.danger),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.info_outline, size: 20),
-              const SizedBox(width: 10),
-              Expanded(child: SelectableText(text)),
-            ],
+          Expanded(
+            child: SelectableText(
+              text,
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: tone.danger),
+            ),
           ),
-        );
+        ],
+      ),
+    );
+  }
 }
 
-Future<T?> pushPage<T>(
-  BuildContext context,
-  Widget page,
-) => Navigator.of(context).push<T>(
-  PageRouteBuilder(
-    pageBuilder: (_, animation, secondaryAnimation) => page,
-    transitionDuration: MediaQuery.disableAnimationsOf(context)
-        ? Duration.zero
-        : const Duration(milliseconds: 220),
-    transitionsBuilder: (_, animation, secondaryAnimation, child) =>
-        SlideTransition(
-          position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(
-            CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-          ),
-          child: child,
-        ),
-  ),
-);
+Future<T?> pushPage<T>(BuildContext context, Widget page) =>
+    Navigator.of(context).push<T>(MaterialPageRoute(builder: (_) => page));
 
 class AsyncPane extends StatefulWidget {
   final Future<Json> Function() load;
@@ -159,18 +710,17 @@ class _AsyncPaneState extends State<AsyncPane> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ErrorNotice('${snapshot.error}'),
-                OutlinedButton(
+                IconButton(
+                  tooltip: '重试 / Retry',
                   onPressed: reload,
-                  child: const Text('重试 / Retry'),
+                  icon: const Icon(Icons.refresh_rounded),
                 ),
               ],
             ),
           ),
         );
       }
-      if (!snapshot.hasData) {
-        return const Center(child: CircularProgressIndicator());
-      }
+      if (!snapshot.hasData) return const Center(child: Breathing());
       return widget.builder(context, snapshot.data!, reload);
     },
   );

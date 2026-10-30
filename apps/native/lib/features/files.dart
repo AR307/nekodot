@@ -23,6 +23,12 @@ Future<Uint8List> downloadFile(NekodotClient c, String id) async {
   return response.bodyBytes;
 }
 
+String fileSize(num bytes) => bytes < 1024
+    ? '$bytes B'
+    : bytes < 1048576
+    ? '${(bytes / 1024).toStringAsFixed(1)} KB'
+    : '${(bytes / 1048576).toStringAsFixed(1)} MB';
+
 class FileCard extends StatelessWidget {
   final NekodotClient client;
   final String fileId, messageId;
@@ -57,8 +63,8 @@ class FileCard extends StatelessWidget {
           }
         }
       },
-      icon: const Icon(Icons.attach_file),
-      label: Text(client.tr('查看附件', 'View attachment')),
+      icon: const Icon(Icons.attach_file_rounded, size: 18),
+      label: Text(client.tr('附件', 'Attachment')),
     ),
   );
 }
@@ -87,55 +93,59 @@ class _LibraryPageState extends State<LibraryPage> {
       'search': search,
       if (type.isNotEmpty) 'type': type,
     }),
-    builder: (context, data, reload) => ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        TextField(
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.search),
-            labelText: widget.client.tr('搜索文件名', 'Search files'),
-          ),
-          onSubmitted: (value) => setState(() => search = value),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          children:
-              {
-                    '': widget.client.tr('全部', 'All'),
-                    'image': widget.client.tr('图片', 'Images'),
-                    'application/pdf': 'PDF',
-                    'text': widget.client.tr('文本', 'Text'),
-                  }.entries
-                  .map(
-                    (entry) => ChoiceChip(
-                      label: Text(entry.value),
-                      selected: type == entry.key,
-                      onSelected: (_) => setState(() => type = entry.key),
-                    ),
-                  )
-                  .toList(),
-        ),
-        const SizedBox(height: 16),
-        for (final file in objects(data['files']))
-          Card(
-            child: ListTile(
-              leading: Icon(
-                file['available'] == true
-                    ? Icons.insert_drive_file_outlined
-                    : Icons.broken_image_outlined,
-              ),
-              title: Text('${file['name']}'),
-              subtitle: Text('${file['mime']} · ${file['size']} B'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => pushPage(
-                context,
-                FilePage(client: widget.client, file: file),
-              ),
+    builder: (context, data, reload) {
+      final files = objects(data['files']);
+      return PageList(
+        children: [
+          TextField(
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search_rounded),
+              hintText: widget.client.tr('搜索', 'Search'),
             ),
+            onSubmitted: (value) => setState(() => search = value),
           ),
-      ],
-    ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 6,
+            children:
+                {
+                      '': widget.client.tr('全部', 'All'),
+                      'image': widget.client.tr('图片', 'Images'),
+                      'application/pdf': 'PDF',
+                      'text': widget.client.tr('文本', 'Text'),
+                    }.entries
+                    .map(
+                      (entry) => ChoiceChip(
+                        label: Text(entry.value),
+                        selected: type == entry.key,
+                        onSelected: (_) => setState(() => type = entry.key),
+                      ),
+                    )
+                    .toList(),
+          ),
+          const SizedBox(height: 14),
+          if (files.isNotEmpty)
+            PanelGroup(
+              children: [
+                for (final file in files)
+                  ListTile(
+                    leading: Icon(
+                      file['available'] == true
+                          ? Icons.description_rounded
+                          : Icons.broken_image_rounded,
+                    ),
+                    title: Text('${file['name']}'),
+                    subtitle: Text(fileSize(file['size'] as num)),
+                    onTap: () => pushPage(
+                      context,
+                      FilePage(client: widget.client, file: file),
+                    ),
+                  ),
+              ],
+            ),
+        ],
+      );
+    },
   );
 }
 
@@ -188,88 +198,86 @@ class _FilePageState extends State<FilePage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text('${file['name']}'),
-      actions: [
-        IconButton(
-          tooltip: client.tr('分享文件', 'Share file'),
-          onPressed: file['available'] == true && !busy
-              ? () => deliver(share: true)
-              : null,
-          icon: const Icon(Icons.share_outlined),
-        ),
-        IconButton(
-          tooltip: client.tr('保存文件', 'Save file'),
-          icon: const Icon(Icons.download_outlined),
-          onPressed: file['available'] != true || busy
-              ? null
-              : () => deliver(share: false),
-        ),
-      ],
-    ),
-    body: Column(
-      children: [
-        if (busy) const LinearProgressIndicator(),
-        if (error.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ErrorNotice(error),
-          ),
-        if (notice.isNotEmpty)
-          Padding(padding: const EdgeInsets.all(8), child: Text(notice)),
-        Expanded(
-          child: file['available'] != true
-              ? Center(
-                  child: Text(
-                    client.tr(
-                      '原文件已不可读取，保留此来源记录。',
-                      'The original file is unavailable. Its source is retained.',
-                    ),
+  Widget build(BuildContext context) => AppPage(
+    title: '${file['name']}',
+    actions: [
+      IconButton(
+        tooltip: client.tr('分享文件', 'Share file'),
+        onPressed: file['available'] == true && !busy
+            ? () => deliver(share: true)
+            : null,
+        icon: const Icon(Icons.ios_share_rounded),
+      ),
+      IconButton(
+        tooltip: client.tr('保存文件', 'Save file'),
+        icon: const Icon(Icons.download_rounded),
+        onPressed: file['available'] != true || busy
+            ? null
+            : () => deliver(share: false),
+      ),
+    ],
+    body: SafeArea(
+      child: Column(
+        children: [
+          if (busy) const LinearProgressIndicator(minHeight: 2),
+          if (error.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ErrorNotice(error),
+            ),
+          if (notice.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Text(notice, style: Theme.of(context).textTheme.bodySmall),
+            ),
+          Expanded(
+            child: file['available'] != true
+                ? const Center(
+                    child: Icon(Icons.broken_image_rounded, size: 48),
+                  )
+                : FutureBuilder<Uint8List>(
+                    future: content,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Center(child: ErrorNotice('${snapshot.error}'));
+                      }
+                      if (!snapshot.hasData) {
+                        return const Center(child: Breathing());
+                      }
+                      final bytes = snapshot.data!,
+                          mime = file['mime'] as String;
+                      if (mime.startsWith('image/')) {
+                        return InteractiveViewer(
+                          child: Center(child: Image.memory(bytes)),
+                        );
+                      }
+                      if (mime == 'application/pdf') {
+                        return PdfViewer.data(
+                          bytes,
+                          sourceName: file['name'] as String,
+                        );
+                      }
+                      if (mime.startsWith('text/') ||
+                          mime == 'application/json') {
+                        return SingleChildScrollView(
+                          padding: const EdgeInsets.all(24),
+                          child: SelectableText(
+                            utf8.decode(bytes, allowMalformed: true),
+                          ),
+                        );
+                      }
+                      return Center(
+                        child: Icon(
+                          Icons.description_rounded,
+                          size: 48,
+                          color: context.tone.ink3,
+                        ),
+                      );
+                    },
                   ),
-                )
-              : FutureBuilder<Uint8List>(
-                  future: content,
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      return Center(child: ErrorNotice('${snapshot.error}'));
-                    }
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final bytes = snapshot.data!, mime = file['mime'] as String;
-                    if (mime.startsWith('image/')) {
-                      return InteractiveViewer(
-                        child: Center(child: Image.memory(bytes)),
-                      );
-                    }
-                    if (mime == 'application/pdf') {
-                      return PdfViewer.data(
-                        bytes,
-                        sourceName: file['name'] as String,
-                      );
-                    }
-                    if (mime.startsWith('text/') ||
-                        mime == 'application/json') {
-                      return SingleChildScrollView(
-                        padding: const EdgeInsets.all(24),
-                        child: SelectableText(
-                          utf8.decode(bytes, allowMalformed: true),
-                        ),
-                      );
-                    }
-                    return Center(
-                      child: Text(
-                        client.tr(
-                          '使用右上角按钮保存文件。',
-                          'Use the download button to save this file.',
-                        ),
-                      ),
-                    );
-                  },
-                ),
-        ),
-      ],
+          ),
+        ],
+      ),
     ),
   );
 }
