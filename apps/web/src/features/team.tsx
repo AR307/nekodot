@@ -149,7 +149,7 @@ export function TeamPage({ t, onLanguage }: { t: Texts; onLanguage(): void }) {
               section: t.botsSection,
               label: item.displayName,
               hint: '@' + item.handle + (item.role ? ' · ' + item.role : ''),
-              icon: <BotAvatar color={item.avatar.color} size={22} />,
+              icon: <BotAvatar color={item.avatar.color} shape={item.avatar.shape} size={22} />,
               run: () => openConversation(chat),
             },
           ]

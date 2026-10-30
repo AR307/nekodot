@@ -166,9 +166,14 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
           group?['name'] as String? ?? bot?['displayName'] as String? ?? 'Bot';
       final tone = context.tone;
       final inset = MediaQuery.paddingOf(context);
-      final memberColors = [
-        for (final member in members) '${member['avatar']['color']}',
+      final memberAvatars = [
+        for (final member in members) object(member['avatar']),
       ];
+      final tail = messages.lastOrNull;
+      final thinking =
+          (state == 'thinking' || state == 'tool') &&
+          tail?['status'] != 'streaming';
+      final lead = thinking && messages.isNotEmpty ? 1 : 0;
       final status = !c.online
           ? c.tr('离线', 'Offline')
           : activity['connection'] == 'reconnecting'
@@ -211,14 +216,10 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                       GroupAvatar(
                         size: 36,
                         working: running,
-                        colors: memberColors,
+                        avatars: memberAvatars,
                       )
                     else if (bot != null)
-                      CatAvatar(
-                        color: '${bot['avatar']['color']}',
-                        size: 36,
-                        working: running,
-                      ),
+                      CatAvatar.of(bot, size: 36, working: running),
                     const SizedBox(width: 10),
                     Flexible(
                       child: Column(
@@ -329,14 +330,10 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                               GroupAvatar(
                                 size: 28,
                                 working: running,
-                                colors: memberColors,
+                                avatars: memberAvatars,
                               )
                             else if (bot != null)
-                              CatAvatar(
-                                color: '${bot['avatar']['color']}',
-                                size: 28,
-                                working: running,
-                              ),
+                              CatAvatar.of(bot, size: 28, working: running),
                             const SizedBox(width: 8),
                             Flexible(
                               child: Text(
@@ -484,10 +481,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                                       '${input.text.substring(0, start)}@${b['handle']} ';
                                   setState(() {});
                                 },
-                                icon: CatAvatar(
-                                  color: '${b['avatar']['color']}',
-                                  size: 22,
-                                ),
+                                icon: CatAvatar.of(b, size: 22),
                                 label: Text('${b['displayName']}'),
                               ),
                             )
@@ -600,8 +594,8 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 child: bot == null
                     ? null
                     : group == null
-                    ? CatAvatar(color: '${bot['avatar']['color']}', size: 72)
-                    : GroupAvatar(size: 72, colors: memberColors),
+                    ? CatAvatar.of(bot, size: 72)
+                    : GroupAvatar(size: 72, avatars: memberAvatars),
               )
             else
               ListView.builder(
@@ -613,14 +607,24 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                   16,
                   composerHeight + 4,
                 ),
-                itemCount: messages.length + 1,
+                itemCount: messages.length + 1 + lead,
                 findChildIndexCallback: (key) {
                   final index = messages.indexWhere(
                     (message) => ValueKey(message['messageId']) == key,
                   );
-                  return index < 0 ? null : messages.length - 1 - index;
+                  return index < 0 ? null : messages.length - 1 - index + lead;
                 },
-                itemBuilder: (context, index) {
+                itemBuilder: (context, position) {
+                  if (position < lead) {
+                    return Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 780),
+                        child: ThinkingRow(bot: bot, showName: group != null),
+                      ),
+                    );
+                  }
+                  final index = position - lead;
                   if (index == messages.length) {
                     return messages.length < 50
                         ? const SizedBox.shrink()
@@ -657,6 +661,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                         message: m,
                         bot: author,
                         showName: group != null,
+                        working: running && index == 0,
                         continued:
                             previous != null &&
                             previous['kind'] != 'system' &&
@@ -687,6 +692,25 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
         ),
       );
     },
+  );
+}
+
+/// The working cat and its hopping dots, until the reply starts to stream.
+class ThinkingRow extends StatelessWidget {
+  final Json? bot;
+  final bool showName;
+  const ThinkingRow({super.key, this.bot, this.showName = false});
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 14),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        if (bot != null) CatAvatar.of(bot!, size: 28, working: true),
+        const SizedBox(width: 10),
+        const ThinkingDots(),
+      ],
+    ),
   );
 }
 
@@ -781,7 +805,7 @@ class MessageTile extends StatelessWidget {
   final NekodotClient client;
   final Json message;
   final Json? bot;
-  final bool continued, showName;
+  final bool continued, showName, working;
   final ValueChanged<String> onRetry;
   const MessageTile({
     super.key,
@@ -790,6 +814,7 @@ class MessageTile extends StatelessWidget {
     this.bot,
     this.continued = false,
     this.showName = false,
+    this.working = false,
     required this.onRetry,
   });
   @override
@@ -916,10 +941,9 @@ class MessageTile extends StatelessWidget {
               width: 28,
               child: continued
                   ? null
-                  : CatAvatar(
-                      color: bot?['avatar']['color'] as String? ?? '#8C8376',
-                      size: 28,
-                    ),
+                  : bot == null
+                  ? const CatAvatar(color: '#8C8376', size: 28)
+                  : CatAvatar.of(bot!, size: 28, working: working),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -980,11 +1004,9 @@ class MessageTile extends StatelessWidget {
                   width: 28,
                   child: continued
                       ? null
-                      : CatAvatar(
-                          color:
-                              bot?['avatar']['color'] as String? ?? '#8C8376',
-                          size: 28,
-                        ),
+                      : bot == null
+                      ? const CatAvatar(color: '#8C8376', size: 28)
+                      : CatAvatar.of(bot!, size: 28, working: working),
                 ),
                 const SizedBox(width: 10),
                 Flexible(child: column),

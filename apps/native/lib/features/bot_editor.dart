@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
@@ -23,7 +25,11 @@ class _BotEditorState extends State<BotEditor> {
       role = TextEditingController(),
       model = TextEditingController(),
       contextLength = TextEditingController();
-  String color = avatarColors.first, mode = 'manual', error = '';
+  // A new Bot starts as a random face, so a team looks varied by default.
+  String color = avatarColors[math.Random().nextInt(avatarColors.length)],
+      shape = avatarShapes[math.Random().nextInt(avatarShapes.length)],
+      mode = 'manual',
+      error = '';
   String? lead, source;
   final members = <String>{};
   List<Json> sources = [];
@@ -44,6 +50,7 @@ class _BotEditorState extends State<BotEditor> {
         role.text = '${b['role']}';
         model.text = '${b['model']}';
         color = '${b['avatar']['color']}';
+        shape = '${b['avatar']['shape']}';
         source = b['sourceId'] as String?;
         contextLength.text = '${b['modelSettings']?['contextLength'] ?? ''}';
         permissionsReady = false;
@@ -124,7 +131,7 @@ class _BotEditorState extends State<BotEditor> {
           'handle': handle.text,
           'role': role.text,
           'model': model.text.trim(),
-          'avatar': {'shape': 'dot', 'color': color},
+          'avatar': {'shape': shape, 'color': color},
           'approvalMode': mode,
           if (source != null) 'sourceId': source,
           'modelSettings': {
@@ -165,43 +172,114 @@ class _BotEditorState extends State<BotEditor> {
       body: PageList(
         children: [
           if (!widget.group) ...[
-            Center(child: CatAvatar(color: color, size: 84)),
-            const SizedBox(height: 14),
+            Center(
+              child: AnimatedSwitcher(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 180),
+                transitionBuilder: (child, animation) => ScaleTransition(
+                  scale: CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutBack,
+                  ),
+                  child: child,
+                ),
+                child: CatAvatar(
+                  key: ValueKey('$shape$color'),
+                  color: color,
+                  shape: shape,
+                  size: 84,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             Center(
               child: Wrap(
-                spacing: 6,
+                alignment: WrapAlignment.center,
+                spacing: 3,
+                runSpacing: 3,
                 children: [
-                  for (final value in avatarColors)
-                    GestureDetector(
-                      onTap: () => setState(() => color = value),
-                      child: Semantics(
-                        button: true,
-                        selected: value == color,
-                        label: value,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 160),
-                          width: 30,
-                          height: 30,
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: value == color
-                                  ? tone.ink
-                                  : Colors.transparent,
-                              width: 1.5,
-                            ),
-                          ),
-                          child: DecoratedBox(
+                  for (final value in avatarShapes)
+                    Tooltip(
+                      message: switch (value) {
+                        'dot' => c.tr('猫', 'Cat'),
+                        'bear' => c.tr('熊', 'Bear'),
+                        'bunny' => c.tr('兔', 'Bunny'),
+                        'puppy' => c.tr('狗', 'Puppy'),
+                        'mochi' => c.tr('团子', 'Mochi'),
+                        'flower' => c.tr('花', 'Flower'),
+                        'ghost' => c.tr('幽灵', 'Ghost'),
+                        _ => c.tr('机器人', 'Robot'),
+                      },
+                      child: InkResponse(
+                        radius: 24,
+                        onTap: () => setState(() => shape = value),
+                        child: Semantics(
+                          button: true,
+                          selected: value == shape,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 160),
+                            width: 40,
+                            height: 40,
+                            padding: const EdgeInsets.all(5),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: hexColor(value),
+                              border: Border.all(
+                                color: value == shape
+                                    ? tone.ink
+                                    : Colors.transparent,
+                                width: 1.5,
+                              ),
                             ),
+                            child: CatAvatar(color: color, shape: value),
                           ),
                         ),
                       ),
                     ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Center(
+              child: SizedBox(
+                width: 34.0 * 8,
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: [
+                    for (final value in avatarColors)
+                      GestureDetector(
+                        onTap: () => setState(() => color = value),
+                        child: Semantics(
+                          button: true,
+                          selected: value == color,
+                          label: value,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 160),
+                            width: 30,
+                            height: 30,
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: value == color
+                                    ? tone.ink
+                                    : Colors.transparent,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: hexColor(value),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -225,7 +303,7 @@ class _BotEditorState extends State<BotEditor> {
                   (b) => b['archived'] != true,
                 ))
                   CheckboxListTile(
-                    secondary: CatAvatar(color: '${bot['avatar']['color']}'),
+                    secondary: CatAvatar.of(bot),
                     title: Text('${bot['displayName']}'),
                     value: members.contains(bot['botId']),
                     onChanged: (value) => setState(() {

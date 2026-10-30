@@ -1,3 +1,4 @@
+import type { avatarShapes } from '@nekodot/protocol';
 import { memo, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 
@@ -31,15 +32,161 @@ export function Wordmark({ compact = false }: { compact?: boolean }) {
   );
 }
 
+type AvatarShape = (typeof avatarShapes)[number];
+
+/** Eye height and half-spacing per shape, in the 40-unit avatar grid. */
+const avatarEyes: Record<AvatarShape, { y: number; gap: number }> = {
+  dot: { y: 23, gap: 5 },
+  bear: { y: 23, gap: 5.5 },
+  bunny: { y: 26, gap: 5 },
+  puppy: { y: 22, gap: 5.2 },
+  mochi: { y: 24, gap: 7 },
+  flower: { y: 20, gap: 4.4 },
+  ghost: { y: 19.5, gap: 5 },
+  antenna: { y: 23.5, gap: 5.6 },
+};
+
+function AvatarBody({ shape, color }: { shape: AvatarShape; color: string }) {
+  switch (shape) {
+    case 'bear':
+      return (
+        <>
+          <circle className="ear ear-left" cx="9.5" cy="11.5" r="5.8" fill={color} />
+          <circle className="ear ear-right" cx="30.5" cy="11.5" r="5.8" fill={color} />
+          <circle cx="20" cy="23" r="15" fill={color} />
+        </>
+      );
+    case 'bunny':
+      return (
+        <>
+          <g className="ear ear-left">
+            <ellipse cx="13" cy="9" rx="3.8" ry="8.5" transform="rotate(-8 13 9)" fill={color} />
+          </g>
+          <g className="ear ear-right">
+            <ellipse cx="27" cy="9" rx="3.8" ry="8.5" transform="rotate(8 27 9)" fill={color} />
+          </g>
+          <circle cx="20" cy="25.5" r="13.5" fill={color} />
+        </>
+      );
+    case 'puppy':
+      return (
+        <>
+          <g className="ear ear-left">
+            <ellipse cx="6.6" cy="22" rx="4.2" ry="9" transform="rotate(10 6.6 22)" fill={color} />
+          </g>
+          <g className="ear ear-right">
+            <ellipse
+              cx="33.4"
+              cy="22"
+              rx="4.2"
+              ry="9"
+              transform="rotate(-10 33.4 22)"
+              fill={color}
+            />
+          </g>
+          <circle cx="20" cy="21.5" r="14.5" fill={color} />
+        </>
+      );
+    case 'mochi':
+      return (
+        <>
+          <polygon
+            className="ear ear-left"
+            points="8.5,13 10,7 15.5,11"
+            fill={color}
+            stroke={color}
+            strokeWidth="2.6"
+            strokeLinejoin="round"
+          />
+          <polygon
+            className="ear ear-right"
+            points="31.5,13 30,7 24.5,11"
+            fill={color}
+            stroke={color}
+            strokeWidth="2.6"
+            strokeLinejoin="round"
+          />
+          <rect x="3" y="11" width="34" height="27" rx="13.5" fill={color} />
+        </>
+      );
+    case 'flower':
+      return (
+        <>
+          <g className="petals">
+            {[0, 60, 120, 180, 240, 300].map((angle) => (
+              <circle
+                key={angle}
+                cx={20 + 10.2 * Math.cos((angle * Math.PI) / 180)}
+                cy={20 + 10.2 * Math.sin((angle * Math.PI) / 180)}
+                r="7.2"
+                fill={color}
+              />
+            ))}
+          </g>
+          <circle cx="20" cy="20" r="11" fill={color} />
+        </>
+      );
+    case 'ghost':
+      return (
+        <path
+          className="ghost"
+          d="M6 20a14 14 0 0 1 28 0v15q-2.33 4-4.67 0t-4.67 0-4.67 0-4.67 0-4.67 0-4.67 0z"
+          fill={color}
+        />
+      );
+    case 'antenna':
+      return (
+        <>
+          <g className="ear ear-left">
+            <line
+              x1="15"
+              y1="11"
+              x2="11.5"
+              y2="4.5"
+              stroke={color}
+              strokeWidth="2.6"
+              strokeLinecap="round"
+            />
+            <circle cx="11" cy="3.8" r="2.8" fill={color} />
+          </g>
+          <g className="ear ear-right">
+            <line
+              x1="25"
+              y1="11"
+              x2="28.5"
+              y2="4.5"
+              stroke={color}
+              strokeWidth="2.6"
+              strokeLinecap="round"
+            />
+            <circle cx="29" cy="3.8" r="2.8" fill={color} />
+          </g>
+          <rect x="5.5" y="9.5" width="29" height="28" rx="11" fill={color} />
+        </>
+      );
+    case 'dot':
+      return (
+        <>
+          <polygon className="ear ear-left" points="7,15 10,3 18,10" fill={color} />
+          <polygon className="ear ear-right" points="33,15 30,3 22,10" fill={color} />
+          <circle cx="20" cy="23" r="15" fill={color} />
+        </>
+      );
+  }
+}
+
 export const BotAvatar = memo(function BotAvatar({
   color,
+  shape = 'dot',
   size = 48,
   working = false,
 }: {
   color: string;
+  shape?: AvatarShape;
   size?: number;
   working?: boolean;
 }) {
+  const eyes = avatarEyes[shape];
   const [blinking, setBlinking] = useState(false);
   const reduceMotion = useReducedMotion();
   useEffect(() => {
@@ -69,12 +216,10 @@ export const BotAvatar = memo(function BotAvatar({
       style={{ overflow: 'visible' }}
       aria-hidden="true"
     >
-      <polygon className="ear ear-left" points="7,15 10,3 18,10" fill={color} />
-      <polygon className="ear ear-right" points="33,15 30,3 22,10" fill={color} />
-      <circle cx="20" cy="23" r="15" fill={color} />
+      <AvatarBody shape={shape} color={color} />
       <g className="eyes">
-        <ellipse cx="15" cy="23" rx="2" ry="2.6" />
-        <ellipse cx="25" cy="23" rx="2" ry="2.6" />
+        <ellipse cx={20 - eyes.gap} cy={eyes.y} rx="2" ry="2.6" />
+        <ellipse cx={20 + eyes.gap} cy={eyes.y} rx="2" ry="2.6" />
       </g>
     </svg>
   );

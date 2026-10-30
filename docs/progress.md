@@ -563,3 +563,14 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 过程发现：手动 `connect()` 后 `ready` 不复位，握手完成前发出的 RPC 可能因断开报错。这是连接层已有问题，不在本轮范围，旅程测试里加了等待来避开，未修改 `client.dart`。
 - 未覆盖：Android 真机与性能（毛玻璃在低端机的帧率）、Windows 安装包实际观感、真实屏幕接管画面。Web、Tauri 与官网未改，官网截图仍是旧界面。未构建发布包，未部署，未 push。
 - 证据：`docs/evidence/native-ui-desk-*.png`（Windows 走查）、`native-ui-android-chat-*.png`（模拟器实拍）与 `native-ui-android-home-light.png`、`native-ui-android-settings-dark.png`（手机尺寸走查）。
+
+## 2026-10-31 / 重连竞争、运行动画与头像形象
+
+- 竞争：`NekodotClient.connect()` 原先不复位 `ready`，手动重连后 RPC 可能赶在 `hello.ok` 之前发出，连接被断开后报“连接断开”；旧连接上未完成的请求还要等满 30 秒。现在 `connect()` 开始时复位 `ready` 并让旧请求立即失败。`test/client_reconnect_test.dart` 用本地 WebSocket 服务复现，修复前失败、修复后通过；旅程测试里的临时等待已去掉。代价：应用恢复前台触发重连时，会短暂显示离线。
+- 运行动画：Flutter 的 `CatAvatar` 按网页版参数恢复耳朵摆动（±8°，0.6 秒交替）、眼睛扫动（3 单位，1.6 秒交替）、空闲每 4–7 秒眨眼、列表悬停抖耳；幽灵上下浮动，花瓣慢转。聊天在 Bot 思考或工具运行且没有流式内容时显示工作中的头像和跳动圆点（`ThinkingRow`）。减少动态效果时全部静止。
+- 性能修复：`main.dart` 每次客户端通知都新建 `ThemeData`，主题里有闭包导致比较不相等，会重启 200ms 主题动画；上一轮引入，现改为只构建一次。
+- 头像：协议 `avatarSchema.shape` 由 `dot` 扩展为 `dot/bear/bunny/puppy/mochi/flower/ghost/antenna`；颜色调色板统一为 16 种，已有 Bot 的旧颜色继续有效。Flutter 和 Web 都能显示、选择和保留形象，Web 编辑时不再重置形象；Flutter 新建 Bot 默认随机形象和颜色，Web 默认猫。浅色头像用深色眼睛保证对比度。
+- 兼容：旧版 Node 的协议只接受 `dot`，新形象需要 Node 升级后才能保存。部署时先升级 Node，再分发客户端。
+- 验证：Flutter analyze 与 8 项 widget 测试、全仓 vitest 32 项、typecheck、eslint、prettier 通过；`product_journey_test` 在 Windows 与 Android 模拟器通过（回放 Hermes，去掉等待后不再复现竞争）。Edge 实测网页版：选择幽灵形象、保存，节点接受，侧栏和消息同步更新。
+- 未覆盖：Edge E2E 未重跑，它会改写 `docs/evidence` 里其他人未提交的截图；Android 真机上的动画帧率未测；未打包、未部署、未 push。
+- 证据：`docs/evidence/native-ui-avatars.png`、`native-ui-android-editor-light.png`、`native-ui-desk-light-editor.png`、`web-ui-avatar-editor.png`。

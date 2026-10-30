@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { ApprovalMode, Bot, Conversation, ProviderSource } from '@nekodot/protocol';
+import { avatarShapes } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
 import { BotAvatar, Icon, SpinnerDots, ease } from '../ui';
@@ -37,6 +38,7 @@ export function BotDialog({
   const loadedRole = useRef(value?.role ?? '');
   const [model, setModel] = useState(value?.model ?? '');
   const [color, setColor] = useState(value?.avatar.color ?? avatarColors[0]!);
+  const [shape, setShape] = useState<(typeof avatarShapes)[number]>(value?.avatar.shape ?? 'dot');
   const [advanced, setAdvanced] = useState(false);
   const [sourceId, setSourceId] = useState(value?.sourceId ?? '');
   const [sources, setSources] = useState<ProviderSource[]>([]);
@@ -95,7 +97,7 @@ export function BotDialog({
           ...(sourceId ? { sourceId } : {}),
           modelSettings: { contextLength: contextLength ? Number(contextLength) : null },
           approvalMode,
-          avatar: { shape: 'dot', color },
+          avatar: { shape, color },
         });
         onSaved(result.bot);
       } else {
@@ -107,7 +109,7 @@ export function BotDialog({
           sourceId,
           modelSettings: { contextLength: contextLength ? Number(contextLength) : null },
           approvalMode,
-          avatar: { shape: 'dot', color },
+          avatar: { shape, color },
         });
         onSaved(result.bot, result.conversation);
       }
@@ -169,13 +171,13 @@ export function BotDialog({
     >
       <div className="avatar-stage" aria-hidden="true">
         <motion.span
-          key={color}
+          key={shape + color}
           className="avatar-stage-pet"
           initial={reduceMotion ? false : { scale: 0.86, rotate: -4 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ type: 'spring', stiffness: 420, damping: 16 }}
         >
-          <BotAvatar color={color} size={88} />
+          <BotAvatar color={color} shape={shape} size={88} />
         </motion.span>
         <span className="avatar-stage-glow" style={{ background: color }} />
         <strong>{name.trim() || t.unnamedBot}</strong>
@@ -191,6 +193,23 @@ export function BotDialog({
           placeholder="Mochi"
         />
       </label>
+      <fieldset className="field">
+        <legend>{t.avatarShape}</legend>
+        <div className="avatar-shapes">
+          {avatarShapes.map((option, index) => (
+            <button
+              type="button"
+              className={option === shape ? 'selected' : ''}
+              key={option}
+              aria-label={t.shapeNames[index] + (option === shape ? ` (${t.selected})` : '')}
+              aria-pressed={option === shape}
+              onClick={() => setShape(option)}
+            >
+              <BotAvatar color={color} shape={option} size={30} />
+            </button>
+          ))}
+        </div>
+      </fieldset>
       <fieldset className="field">
         <legend>{t.avatarColor}</legend>
         <div className="color-swatches">

@@ -385,10 +385,6 @@ void main() {
           .toList();
       await client.connect();
       await until(() => client.online && !client.node.syncing);
-      // `ready` stays set across a manual reconnect; let the handshake finish.
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(seconds: 1)),
-      );
       await client.loadMessages(groupId);
       expect(
         client.node.messages[groupId]!.map((m) => m['messageId']).toList(),

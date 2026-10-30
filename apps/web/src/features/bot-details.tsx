@@ -38,7 +38,7 @@ export function BotDetails({
         key={nodeId}
       >
         <header className="details-header">
-          <BotAvatar color={bot.avatar.color} size={48} />
+          <BotAvatar color={bot.avatar.color} shape={bot.avatar.shape} size={48} />
           <div>
             <h2>{bot.displayName}</h2>
             <small>

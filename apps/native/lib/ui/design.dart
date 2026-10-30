@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -12,15 +13,33 @@ export 'parts.dart';
 
 final nativeRoutes = RouteObserver<ModalRoute<void>>();
 
+const avatarShapes = [
+  'dot',
+  'bear',
+  'bunny',
+  'puppy',
+  'mochi',
+  'flower',
+  'ghost',
+  'antenna',
+];
 const avatarColors = [
   '#E8603C',
-  '#2F9E8F',
-  '#6482C6',
-  '#C287A3',
-  '#D9932B',
+  '#FF3B47',
+  '#FF4FA3',
+  '#B05FD0',
   '#8B75AF',
+  '#5B7CE6',
+  '#2E8BFF',
+  '#19B5C9',
+  '#2F9E8F',
+  '#22C55E',
   '#77A979',
+  '#F2C230',
+  '#D9932B',
+  '#A9683A',
   '#8C8376',
+  '#5A5A60',
 ];
 Color hexColor(String value) =>
     Color(int.parse(value.replaceFirst('#', 'ff'), radix: 16));
@@ -507,35 +526,73 @@ MarkdownStyleSheet markdownStyle(BuildContext context, {Color? color}) {
   );
 }
 
-/// The round cat: one dot for the body, two small ears, two dot eyes. A null
-/// color draws the brand mark in the current ink.
+/// A round bot face. A null color draws the brand mark in the current ink.
+/// While working its ears move and its eyes scan; idle, it blinks now and then.
 class CatAvatar extends StatefulWidget {
   final String? color;
+  final String shape;
   final double size;
-  final bool working;
+  final bool working, twitch;
   const CatAvatar({
     super.key,
     this.color,
+    this.shape = 'dot',
     this.size = 38,
     this.working = false,
+    this.twitch = false,
   });
+  CatAvatar.of(
+    Json bot, {
+    super.key,
+    this.size = 38,
+    this.working = false,
+    this.twitch = false,
+  }) : color = '${bot['avatar']['color']}',
+       shape = '${bot['avatar']['shape']}';
   @override
   State<CatAvatar> createState() => _CatAvatarState();
 }
 
-class _CatAvatarState extends State<CatAvatar>
-    with SingleTickerProviderStateMixin {
+class _CatAvatarState extends State<CatAvatar> with TickerProviderStateMixin {
+  static final _random = math.Random();
+  late final motion = AnimationController(
+    vsync: this,
+    duration: Duration(milliseconds: (_catLoop * 1000).round()),
+  );
+  late final blink = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 160),
+  );
   late final twitch = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 900),
+    duration: const Duration(milliseconds: 460),
   );
+  Timer? nextBlink;
+
   void sync() {
-    if (widget.working && !MediaQuery.disableAnimationsOf(context)) {
-      if (!twitch.isAnimating) twitch.repeat();
+    final still = MediaQuery.disableAnimationsOf(context);
+    if (widget.working && !still) {
+      if (!motion.isAnimating) motion.repeat();
     } else {
-      twitch.stop();
-      twitch.value = 0;
+      motion.stop();
+      motion.value = 0;
     }
+    nextBlink?.cancel();
+    nextBlink = null;
+    if (!widget.working && !still) scheduleBlink();
+  }
+
+  void scheduleBlink() {
+    nextBlink = Timer(
+      Duration(milliseconds: 4000 + _random.nextInt(3000)),
+      () async {
+        if (!mounted) return;
+        await blink.forward(from: 0);
+        if (!mounted) return;
+        blink.value = 0;
+        if (nextBlink != null) scheduleBlink();
+      },
+    );
   }
 
   @override
@@ -548,10 +605,19 @@ class _CatAvatarState extends State<CatAvatar>
   void didUpdateWidget(CatAvatar oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.working != widget.working) sync();
+    if (widget.twitch &&
+        !oldWidget.twitch &&
+        !widget.working &&
+        !MediaQuery.disableAnimationsOf(context)) {
+      twitch.forward(from: 0);
+    }
   }
 
   @override
   void dispose() {
+    nextBlink?.cancel();
+    motion.dispose();
+    blink.dispose();
     twitch.dispose();
     super.dispose();
   }
@@ -560,15 +626,23 @@ class _CatAvatarState extends State<CatAvatar>
   Widget build(BuildContext context) {
     final tone = context.tone;
     final color = widget.color;
+    final body = color == null ? tone.ink : hexColor(color);
     return Semantics(
       label: 'Bot',
       child: SizedBox.square(
         dimension: widget.size,
         child: CustomPaint(
           painter: _CatPainter(
-            twitch,
-            body: color == null ? tone.ink : hexColor(color),
-            eyes: color == null ? tone.base : Colors.white,
+            shape: widget.shape,
+            motion: motion,
+            blink: blink,
+            twitch: twitch,
+            body: body,
+            eyes: color == null
+                ? tone.base
+                : body.computeLuminance() > .45
+                ? const Color(0xff141414)
+                : Colors.white,
           ),
         ),
       ),
@@ -576,58 +650,186 @@ class _CatAvatarState extends State<CatAvatar>
   }
 }
 
+/// One loop of the working motion, in seconds: whole cycles of ears and eyes.
+const _catLoop = 9.6;
+
 class _CatPainter extends CustomPainter {
-  final Animation<double> twitch;
+  final String shape;
+  final Animation<double> motion, blink, twitch;
   final Color body, eyes;
-  _CatPainter(this.twitch, {required this.body, required this.eyes})
-    : super(repaint: twitch);
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.scale(size.width / 40);
-    final fill = Paint()
-      ..color = body
-      ..isAntiAlias = true;
-    final ear = Paint()
-      ..color = body
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..strokeJoin = StrokeJoin.round
-      ..isAntiAlias = true;
-    final phase = twitch.value * 2 * math.pi;
-    final tilt = twitch.isAnimating ? math.sin(phase) * .2 : 0.0;
-    for (final side in [-1.0, 1.0]) {
-      canvas.save();
-      canvas.translate(20 + side * 8.5, 12);
-      canvas.rotate(side * tilt);
-      final shape = Path()
-        ..moveTo(side * -3.9, -1)
-        ..lineTo(side * 1.9, -5.6)
-        ..lineTo(side * 3.9, 4)
-        ..close();
-      canvas.drawPath(shape, fill);
-      canvas.drawPath(shape, ear);
-      canvas.restore();
-    }
-    canvas.drawCircle(const Offset(20, 23), 15, fill);
-    final eye = Paint()
-      ..color = eyes
-      ..isAntiAlias = true;
-    canvas.drawCircle(const Offset(14.5, 23.5), 2.2, eye);
-    canvas.drawCircle(const Offset(25.5, 23.5), 2.2, eye);
+  _CatPainter({
+    required this.shape,
+    required this.motion,
+    required this.blink,
+    required this.twitch,
+    required this.body,
+    required this.eyes,
+  }) : super(repaint: Listenable.merge([motion, blink, twitch]));
+
+  /// 0 to 1 and back over [period] seconds, starting at 0.
+  double wave(double period) {
+    final seconds = motion.value * _catLoop;
+    return (1 - math.cos(2 * math.pi * seconds / period)) / 2;
   }
 
   @override
-  bool shouldRepaint(_CatPainter old) => old.body != body || old.eyes != eyes;
+  void paint(Canvas canvas, Size size) {
+    canvas.scale(size.width / 40);
+    final fill = Paint()..color = body;
+    // Working ears lean in by 8 degrees; a hover flicks them out by 12.
+    final flick = twitch.value < .4
+        ? twitch.value / .4
+        : (1 - twitch.value) / .6;
+    final lean = (wave(1.2) * 8 - flick * 12) * math.pi / 180;
+
+    void pair(Offset pivot, void Function() draw) {
+      for (final mirrored in [false, true]) {
+        canvas.save();
+        if (mirrored) {
+          canvas.translate(40, 0);
+          canvas.scale(-1, 1);
+        }
+        canvas.translate(pivot.dx, pivot.dy);
+        canvas.rotate(lean);
+        canvas.translate(-pivot.dx, -pivot.dy);
+        draw();
+        canvas.restore();
+      }
+    }
+
+    void soft(List<Offset> points, double round) {
+      final path = Path()..addPolygon(points, true);
+      canvas.drawPath(path, fill);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = body
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = round
+          ..strokeJoin = StrokeJoin.round,
+      );
+    }
+
+    void tilted(Offset center, double width, double height, double degrees) {
+      canvas.save();
+      canvas.translate(center.dx, center.dy);
+      canvas.rotate(degrees * math.pi / 180);
+      canvas.drawOval(
+        Rect.fromCenter(center: Offset.zero, width: width, height: height),
+        fill,
+      );
+      canvas.restore();
+    }
+
+    var eyeY = 23.5, eyeGap = 5.5;
+    switch (shape) {
+      case 'bear':
+        pair(const Offset(13, 15), () {
+          canvas.drawCircle(const Offset(9.5, 11.5), 5.8, fill);
+        });
+        canvas.drawCircle(const Offset(20, 23), 15, fill);
+      case 'bunny':
+        pair(const Offset(14.5, 17), () {
+          tilted(const Offset(13, 9), 7.6, 17, -8);
+        });
+        canvas.drawCircle(const Offset(20, 25.5), 13.5, fill);
+        eyeY = 26;
+        eyeGap = 5;
+      case 'puppy':
+        pair(const Offset(9, 13), () {
+          tilted(const Offset(6.6, 22), 8.4, 18, 10);
+        });
+        canvas.drawCircle(const Offset(20, 21.5), 14.5, fill);
+        eyeY = 22;
+        eyeGap = 5.2;
+      case 'mochi':
+        pair(const Offset(14, 13), () {
+          soft(const [Offset(8.5, 13), Offset(10, 7), Offset(15.5, 11)], 2.6);
+        });
+        canvas.drawRRect(
+          RRect.fromLTRBR(3, 11, 37, 38, const Radius.circular(13.5)),
+          fill,
+        );
+        eyeY = 24;
+        eyeGap = 7;
+      case 'flower':
+        final spin = motion.value * 2 * math.pi + flick * .3;
+        for (var petal = 0; petal < 6; petal++) {
+          final angle = spin + petal * math.pi / 3;
+          canvas.drawCircle(
+            Offset(20 + 10.2 * math.cos(angle), 20 + 10.2 * math.sin(angle)),
+            7.2,
+            fill,
+          );
+        }
+        canvas.drawCircle(const Offset(20, 20), 11, fill);
+        eyeY = 20;
+        eyeGap = 4.4;
+      case 'ghost':
+        canvas.translate(0, -math.sin(wave(1.2) * math.pi) * 1.2 - flick);
+        final path = Path()
+          ..moveTo(6, 20)
+          ..arcToPoint(const Offset(34, 20), radius: const Radius.circular(14))
+          ..lineTo(34, 35);
+        for (var hop = 0; hop < 6; hop++) {
+          final from = 34 - hop * 28 / 6;
+          path.quadraticBezierTo(
+            from - 28 / 12,
+            hop.isEven ? 39 : 31,
+            from - 28 / 6,
+            35,
+          );
+        }
+        path.close();
+        canvas.drawPath(path, fill);
+        eyeY = 19.5;
+        eyeGap = 5;
+      case 'antenna':
+        pair(const Offset(15, 12), () {
+          canvas.drawLine(
+            const Offset(15, 11),
+            const Offset(11.5, 4.5),
+            Paint()
+              ..color = body
+              ..strokeWidth = 2.6
+              ..strokeCap = StrokeCap.round,
+          );
+          canvas.drawCircle(const Offset(11, 3.8), 2.8, fill);
+        });
+        canvas.drawRRect(
+          RRect.fromLTRBR(5.5, 9.5, 34.5, 37.5, const Radius.circular(11)),
+          fill,
+        );
+        eyeGap = 5.6;
+      default:
+        pair(const Offset(15, 16), () {
+          soft(const [Offset(7.6, 16), Offset(9.6, 6.4), Offset(15.4, 11)], 3);
+        });
+        canvas.drawCircle(const Offset(20, 23), 15, fill);
+    }
+
+    canvas.save();
+    canvas.translate((wave(3.2) - .5) * 3, eyeY);
+    canvas.scale(1, 1 - .9 * math.sin(blink.value * math.pi));
+    final eye = Paint()..color = eyes;
+    canvas.drawCircle(Offset(20 - eyeGap, 0), 2.2, eye);
+    canvas.drawCircle(Offset(20 + eyeGap, 0), 2.2, eye);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_CatPainter old) =>
+      old.body != body || old.eyes != eyes || old.shape != shape;
 }
 
 /// Group avatar: its first two members leaning together.
 class GroupAvatar extends StatelessWidget {
-  final List<String> colors;
+  final List<Json> avatars;
   final double size;
   final bool working;
   const GroupAvatar({
     super.key,
-    required this.colors,
+    required this.avatars,
     this.size = 38,
     this.working = false,
   });
@@ -640,17 +842,77 @@ class GroupAvatar extends StatelessWidget {
         dimension: size,
         child: Stack(
           children: [
-            for (final (index, color) in colors.take(2).indexed)
+            for (final (index, avatar) in avatars.take(2).indexed)
               Positioned(
                 left: index == 0 ? 0 : size - small,
                 top: index == 0 ? 0 : size - small,
-                child: CatAvatar(color: color, size: small, working: working),
+                child: CatAvatar(
+                  color: '${avatar['color']}',
+                  shape: '${avatar['shape']}',
+                  size: small,
+                  working: working,
+                ),
               ),
           ],
         ),
       ),
     );
   }
+}
+
+/// Three dots hopping in turn while a Bot is thinking.
+class ThinkingDots extends StatefulWidget {
+  const ThinkingDots({super.key});
+  @override
+  State<ThinkingDots> createState() => _ThinkingDotsState();
+}
+
+class _ThinkingDotsState extends State<ThinkingDots>
+    with SingleTickerProviderStateMixin {
+  late final controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      controller.stop();
+    } else if (!controller.isAnimating) {
+      controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: controller,
+    builder: (context, child) => Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var dot = 0; dot < 3; dot++)
+          Transform.translate(
+            offset: Offset(
+              0,
+              -2 *
+                  (1 -
+                      math.cos(
+                        2 * math.pi * (controller.value - dot * .12 / .9),
+                      )),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: StatusDot(size: 5, color: context.tone.ink2),
+            ),
+          ),
+      ],
+    ),
+  );
 }
 
 class ErrorNotice extends StatelessWidget {

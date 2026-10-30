@@ -215,6 +215,9 @@ class NekodotClient extends ChangeNotifier {
     _reconnect?.cancel();
     final previous = _socket;
     _socket = null;
+    // Nothing may go out on the next socket before its handshake finishes.
+    ready = false;
+    _failPending();
     await previous?.close();
     try {
       final socket = await WebSocket.connect(wsUrl('/ws/client').toString())
@@ -267,11 +270,7 @@ class NekodotClient extends ChangeNotifier {
     }
   }
 
-  void _disconnected() {
-    if (_closed) return;
-    ready = false;
-    _socket = null;
-    _heartbeat?.cancel();
+  void _failPending() {
     for (final p in _pending.values) {
       if (!p.isCompleted) {
         p.completeError(
@@ -280,6 +279,14 @@ class NekodotClient extends ChangeNotifier {
       }
     }
     _pending.clear();
+  }
+
+  void _disconnected() {
+    if (_closed) return;
+    ready = false;
+    _socket = null;
+    _heartbeat?.cancel();
+    _failPending();
     notifyListeners();
     if (!_closed && token != null && active) {
       _reconnect?.cancel();

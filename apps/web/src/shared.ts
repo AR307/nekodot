@@ -1,13 +1,21 @@
 import zh from './i18n/zh';
 export const avatarColors = [
   '#E8603C',
-  '#2F9E8F',
-  '#5B7CE6',
-  '#D9932B',
+  '#FF3B47',
+  '#FF4FA3',
   '#B05FD0',
-  '#3FA45B',
-  '#E05A8A',
-  '#6B645B',
+  '#8B75AF',
+  '#5B7CE6',
+  '#2E8BFF',
+  '#19B5C9',
+  '#2F9E8F',
+  '#22C55E',
+  '#77A979',
+  '#F2C230',
+  '#D9932B',
+  '#A9683A',
+  '#8C8376',
+  '#5A5A60',
 ];
 export type Texts = typeof zh;
 

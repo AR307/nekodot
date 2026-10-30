@@ -347,10 +347,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
                             child: ChoiceChip(
                               labelPadding: EdgeInsets.zero,
                               padding: const EdgeInsets.all(4),
-                              label: CatAvatar(
-                                color: '${b['avatar']['color']}',
-                                size: 24,
-                              ),
+                              label: CatAvatar.of(b, size: 24),
                               selected: b['botId'] == bot['botId'],
                               onSelected: (_) {
                                 disconnect(intentional: true);

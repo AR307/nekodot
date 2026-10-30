@@ -275,7 +275,7 @@ function BotRow({
     >
       {active && <RowHighlight />}
       <span className="avatar-wrap">
-        <BotAvatar color={bot.avatar.color} size={40} working={working} />
+        <BotAvatar color={bot.avatar.color} shape={bot.avatar.shape} size={40} working={working} />
       </span>
       <span className="bot-row-info">
         <span className="row-top">

@@ -13,6 +13,8 @@ import {
   rpcContracts,
   rpcRequestSchema,
   rpcResponseSchema,
+  avatarSchema,
+  avatarShapes,
 } from './index';
 const date = '2026-10-27T08:00:00.000Z';
 const bot = {
@@ -98,6 +100,13 @@ describe('real product protocol journeys', () => {
       messageSchema.safeParse({ ...message, kind: 'approval', content: { text: '?' } }).success,
     ).toBe(false);
   });
+  it('avatar accepts every shape and nothing else', () => {
+    for (const shape of avatarShapes) {
+      expect(avatarSchema.parse({ shape, color: '#E8603C' }).shape).toBe(shape);
+    }
+    expect(() => avatarSchema.parse({ shape: 'dragon', color: '#E8603C' })).toThrow();
+  });
+
   it('group lead belongs to 2–6 unique members', () => {
     expect(groupSchema.parse(group)).toEqual(group);
     for (const changed of [

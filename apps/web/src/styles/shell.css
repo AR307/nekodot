@@ -251,6 +251,16 @@
 .bot-avatar.working .eyes {
   animation: eyes 1.6s ease-in-out infinite alternate;
 }
+.bot-avatar .petals {
+  transform-box: view-box;
+  transform-origin: 20px 20px;
+}
+.bot-avatar.working .petals {
+  animation: petals 9.6s linear infinite;
+}
+.bot-avatar.working .ghost {
+  animation: ghost 0.6s ease-in-out infinite alternate;
+}
 .bot-avatar.blinking .eyes {
   animation: blink 160ms ease-in-out;
 }
@@ -259,6 +269,16 @@
 }
 .bot-row:hover .bot-avatar:not(.working) .ear-right {
   animation: ear-twitch-right 460ms var(--ease) 60ms;
+}
+@keyframes petals {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes ghost {
+  to {
+    transform: translateY(-1.2px);
+  }
 }
 @keyframes ear-twitch-left {
   40% {

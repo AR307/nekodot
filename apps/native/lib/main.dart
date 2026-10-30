@@ -29,6 +29,10 @@ class NekodotApp extends StatefulWidget {
 
 class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
   final navigation = GlobalKey<NavigatorState>();
+  // Built once: a fresh theme on every client update would restart the theme
+  // animation each time.
+  final lightTheme = appTheme(Brightness.light);
+  final darkTheme = appTheme(Brightness.dark);
   late final notifications = NativeNotifications(widget.client);
   bool loading = true;
   String error = '';
@@ -79,8 +83,8 @@ class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
       navigatorKey: navigation,
       navigatorObservers: [nativeRoutes],
       debugShowCheckedModeBanner: false,
-      theme: appTheme(Brightness.light),
-      darkTheme: appTheme(Brightness.dark),
+      theme: lightTheme,
+      darkTheme: darkTheme,
       themeMode: switch (widget.client.theme) {
         'light' => ThemeMode.light,
         'dark' => ThemeMode.dark,

@@ -580,7 +580,7 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
           children: [
             for (final bot in c.node.bots)
               CheckboxListTile(
-                secondary: CatAvatar(color: '${bot['avatar']['color']}'),
+                secondary: CatAvatar.of(bot),
                 title: Text('${bot['displayName']}'),
                 value: target.contains(bot['botId']),
                 onChanged: busy

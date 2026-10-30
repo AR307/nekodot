@@ -111,6 +111,23 @@
   color: var(--ink-2);
   font: 12px/1.4 var(--font-mono);
 }
+.avatar-shapes {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
+}
+.avatar-shapes button {
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid transparent;
+  transition: border-color 160ms var(--ease);
+}
+.avatar-shapes button.selected {
+  border-color: var(--ink);
+}
 .color-swatches {
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));

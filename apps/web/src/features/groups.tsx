@@ -141,7 +141,7 @@ export function GroupDialog({
             const selected = botIds.includes(bot.botId);
             return (
               <label className={`member-option${selected ? ' selected' : ''}`} key={bot.botId}>
-                <BotAvatar color={bot.avatar.color} size={32} />
+                <BotAvatar color={bot.avatar.color} shape={bot.avatar.shape} size={32} />
                 <span>
                   <strong>
                     {bot.displayName}

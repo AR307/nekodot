@@ -26,6 +26,7 @@ class _HomePageState extends State<HomePage> {
   String? conversation;
   Json? details;
   String search = '';
+  String? hovered;
   bool searching = false;
   NekodotClient get c => widget.client;
   @override
@@ -294,41 +295,46 @@ class _HomePageState extends State<HomePage> {
         .where((x) => x['kind'] == 'text')
         .lastOrNull;
     final preview = last?['content']['text'] as String?;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-      child: ListTile(
-        key: ValueKey('conversation-$id'),
-        selected: !narrow && conversation == id,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(glass ? 20 : 14),
+    return MouseRegion(
+      onEnter: (_) => setState(() => hovered = id),
+      onExit: (_) => setState(() => hovered = null),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+        child: ListTile(
+          key: ValueKey('conversation-$id'),
+          selected: !narrow && conversation == id,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(glass ? 20 : 14),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+          minVerticalPadding: 8,
+          horizontalTitleGap: 10,
+          leading: isGroup
+              ? GroupAvatar(
+                  size: glass ? 38 : 42,
+                  working: working,
+                  avatars: [
+                    for (final bot in c.node.bots)
+                      if ((entity['botIds'] as List).contains(bot['botId']))
+                        object(bot['avatar']),
+                  ],
+                )
+              : CatAvatar.of(
+                  entity,
+                  size: glass ? 38 : 42,
+                  working: working,
+                  twitch: hovered == id,
+                ),
+          title: Text(
+            '${entity[isGroup ? 'name' : 'displayName']}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: preview == null
+              ? null
+              : Text(preview, maxLines: 1, overflow: TextOverflow.ellipsis),
+          onTap: () => open(value, narrow),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-        minVerticalPadding: 8,
-        horizontalTitleGap: 10,
-        leading: isGroup
-            ? GroupAvatar(
-                size: glass ? 38 : 42,
-                working: working,
-                colors: [
-                  for (final bot in c.node.bots)
-                    if ((entity['botIds'] as List).contains(bot['botId']))
-                      '${bot['avatar']['color']}',
-                ],
-              )
-            : CatAvatar(
-                size: glass ? 38 : 42,
-                color: '${entity['avatar']['color']}',
-                working: working,
-              ),
-        title: Text(
-          '${entity[isGroup ? 'name' : 'displayName']}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: preview == null
-            ? null
-            : Text(preview, maxLines: 1, overflow: TextOverflow.ellipsis),
-        onTap: () => open(value, narrow),
       ),
     );
   }

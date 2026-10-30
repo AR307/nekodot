@@ -7,8 +7,18 @@ export const approvalChoiceSchema = z.enum(['once', 'session', 'always', 'deny']
 export const approvalModeSchema = z.enum(['manual', 'smart', 'off']);
 export type ApprovalChoice = z.infer<typeof approvalChoiceSchema>;
 export type ApprovalMode = z.infer<typeof approvalModeSchema>;
+export const avatarShapes = [
+  'dot',
+  'bear',
+  'bunny',
+  'puppy',
+  'mochi',
+  'flower',
+  'ghost',
+  'antenna',
+] as const;
 export const avatarSchema = z.strictObject({
-  shape: z.literal('dot'),
+  shape: z.enum(avatarShapes),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
 });
 export const botFields = {

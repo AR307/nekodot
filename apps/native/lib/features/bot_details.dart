@@ -50,12 +50,7 @@ class BotDetails extends StatelessWidget {
               return PageList(
                 children: [
                   if (context.tone.glass) ...[
-                    Center(
-                      child: CatAvatar(
-                        color: '${bot['avatar']['color']}',
-                        size: 84,
-                      ),
-                    ),
+                    Center(child: CatAvatar.of(bot, size: 84)),
                     const SizedBox(height: 6),
                     Center(
                       child: Text('@${bot['handle']}', style: text.labelMedium),
@@ -269,7 +264,7 @@ class BotDetails extends StatelessWidget {
           ),
           body: Column(
             children: [
-              CatAvatar(color: '${bot['avatar']['color']}', size: 76),
+              CatAvatar.of(bot, size: 76),
               const SizedBox(height: 10),
               Text(
                 '${bot['displayName']}',

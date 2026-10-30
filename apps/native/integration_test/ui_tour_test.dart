@@ -10,6 +10,7 @@ import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/features/auth.dart';
 import 'package:nekodot_native/features/bot_details.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
+import 'package:nekodot_native/features/chat.dart';
 import 'package:nekodot_native/features/extensions.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/features/pairing.dart';
@@ -160,6 +161,38 @@ void main() {
           await tester.tap(find.byTooltip('关闭'));
           await run(const Duration(milliseconds: 300));
         }
+        pushPage(
+          navigator.currentContext!,
+          Scaffold(
+            body: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    for (final (index, shape) in avatarShapes.indexed)
+                      CatAvatar(
+                        color: avatarColors[index * 2],
+                        shape: shape,
+                        size: 64,
+                        working: true,
+                      ),
+                    for (final color in avatarColors)
+                      CatAvatar(color: color, size: 36),
+                    ThinkingRow(bot: bot),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        await shot('$tag-avatars-a');
+        await run(const Duration(milliseconds: 230));
+        await shot('$tag-avatars-b');
+        navigator.currentState!.pop();
+        await run(const Duration(milliseconds: 400));
         await open(BotDetails(client: client, bot: bot), '$tag-details');
         pushPage(
           navigator.currentContext!,

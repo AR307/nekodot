@@ -212,7 +212,12 @@ export function ChatView({
             {group ? (
               <GroupDots colors={members.map((member) => member.avatar.color)} size={26} />
             ) : (
-              <BotAvatar color={bot.avatar.color} size={36} working={running} />
+              <BotAvatar
+                color={bot.avatar.color}
+                shape={bot.avatar.shape}
+                size={36}
+                working={running}
+              />
             )}
           </span>
           <span className="chat-title-copy">
@@ -266,7 +271,7 @@ export function ChatView({
               {group ? (
                 <GroupDots colors={members.map((member) => member.avatar.color)} size={44} />
               ) : (
-                <BotAvatar color={bot.avatar.color} size={60} />
+                <BotAvatar color={bot.avatar.color} shape={bot.avatar.shape} size={60} />
               )}
               <h2>{group?.name ?? bot.displayName}</h2>
               {!group && bot.role && <p className="chat-intro-role">{bot.role}</p>}
@@ -324,7 +329,12 @@ export function ChatView({
                 style={{ '--bot': author.avatar.color } as CSSProperties}
               >
                 <span className="block-avatar">
-                  <BotAvatar color={author.avatar.color} size={32} working={working} />
+                  <BotAvatar
+                    color={author.avatar.color}
+                    shape={author.avatar.shape}
+                    size={32}
+                    working={working}
+                  />
                 </span>
                 <div className="block-body">
                   {group && (
@@ -350,7 +360,7 @@ export function ChatView({
           {thinkingAlone && (
             <div className="bot-block" style={{ '--bot': bot.avatar.color } as CSSProperties}>
               <span className="block-avatar">
-                <BotAvatar color={bot.avatar.color} size={32} working />
+                <BotAvatar color={bot.avatar.color} shape={bot.avatar.shape} size={32} working />
               </span>
               <div className="block-body">
                 {group && (
@@ -404,7 +414,7 @@ export function ChatView({
                 {waiting ? (
                   <Icon name="warning" />
                 ) : (
-                  <BotAvatar color={bot.avatar.color} size={20} working />
+                  <BotAvatar color={bot.avatar.color} shape={bot.avatar.shape} size={20} working />
                 )}
                 <span>{connection === 'reconnecting' ? t.streamReconnecting : bannerText}</span>
                 {!waiting && <small className="run-banner-hint">· {t.steerHint}</small>}
@@ -455,7 +465,7 @@ export function ChatView({
                     onMouseMove={() => setMentionIndex(mentionOptions.indexOf(member))}
                     onClick={() => insertMention(member)}
                   >
-                    <BotAvatar color={member.avatar.color} size={26} />
+                    <BotAvatar color={member.avatar.color} shape={member.avatar.shape} size={26} />
                     <strong>{member.displayName}</strong>
                     <small>
                       @{member.handle}
@@ -874,7 +884,7 @@ function BotMessage({
             animate={{ y: reduceMotion ? 0 : [0, -4, 0] }}
             transition={{ duration: reduceMotion ? 0.1 : 0.3, delay: 0.16 }}
           >
-            <BotAvatar color={member.avatar.color} size={16} />
+            <BotAvatar color={member.avatar.color} shape={member.avatar.shape} size={16} />
           </motion.span>
         </motion.span>
       ))}

@@ -388,7 +388,7 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
                 const state = entry.states.find((row) => row.botId === bot.botId);
                 return (
                   <div className="extension-bot-state" key={bot.botId}>
-                    <BotAvatar color={bot.avatar.color} size={30} />
+                    <BotAvatar color={bot.avatar.color} shape={bot.avatar.shape} size={30} />
                     <div>
                       <strong>{bot.displayName}</strong>
                       <small>{state ? state.status : t.notInstalled}</small>
@@ -487,7 +487,7 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
                         )
                       }
                     />
-                    <BotAvatar color={bot.avatar.color} size={28} />
+                    <BotAvatar color={bot.avatar.color} shape={bot.avatar.shape} size={28} />
                     {bot.displayName}
                   </label>
                 ))}

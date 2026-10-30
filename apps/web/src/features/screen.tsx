@@ -100,6 +100,7 @@ export function ScreenPanel({
       <header className="screen-header">
         <BotAvatar
           color={bot.avatar.color}
+          shape={bot.avatar.shape}
           size={32}
           working={status?.holder === 'agent' && status.running}
         />
@@ -132,7 +133,7 @@ export function ScreenPanel({
               aria-checked={member.botId === bot.botId}
               onClick={() => onSelect(member.botId)}
             >
-              <BotAvatar color={member.avatar.color} size={20} />
+              <BotAvatar color={member.avatar.color} shape={member.avatar.shape} size={20} />
               {member.displayName}
             </button>
           ))}
