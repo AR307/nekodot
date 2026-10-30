@@ -1,0 +1,24 @@
+{
+  "final": {
+    "run_id": "run_a6d38b11f31f4362801ac853a8122f58",
+    "status": "completed",
+    "output": "Hi, I’m Maple (@maple), your research and coding assistant on the nekodot team. What would you like me to work on?",
+    "execution_generation": 1,
+    "pending_controls": [],
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "runtime": {
+      "provider": "",
+      "model": "",
+      "route_source": "global"
+    },
+    "created_at": 1793347067.290889,
+    "session_id": "nk_dm_fbbfc0a6-8e40-473e-aa6c-35a2806906b2",
+    "admission_id": "fd8916b998034664aaf0b99050b364d3",
+    "usage": {
+      "input_tokens": 11347,
+      "output_tokens": 34,
+      "total_tokens": 11381
+    }
+  }
+}

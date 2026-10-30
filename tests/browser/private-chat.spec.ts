@@ -221,6 +221,17 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await expect(page.getByRole('button', { name: /Mochi/ }).first()).toBeVisible();
   await page.getByRole('button', { name: /Mochi/ }).first().click();
   await expect(page.locator('.chat-header')).toContainText('Mochi');
+  await expect(page.locator('.welcome-introduction')).not.toBeEmpty();
+  await expect(page.locator('.run-banner')).toHaveCount(0, { timeout: 10000 });
+  await page.reload();
+  await expect(page.locator('.welcome-introduction')).toHaveCount(1);
+  expect(services.fake!.inspectRuns()).toHaveLength(1);
+  expect(
+    services.app.database
+      .messages(services.app.database.conversations()[0]!.conversationId)
+      .some((message) => message.author.type === 'user'),
+  ).toBe(false);
+  await page.screenshot({ path: 'docs/evidence/side-phase3-welcome-edge.png', fullPage: true });
 
   const composer = page.locator('.composer textarea');
   const originalHandle = services.app.handle.bind(services.app);
@@ -254,7 +265,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await expect(page.locator('.bot-copy').filter({ hasText: 'NEKODOT_PHASE0_OK' })).toBeVisible({
     timeout: 10000,
   });
-  expect(services.fake!.inspectRuns()).toHaveLength(1);
+  expect(services.fake!.inspectRuns()).toHaveLength(2);
   await expect(page.locator('.run-banner')).toHaveCount(0, { timeout: 10000 });
 
   const pageErrors: string[] = [];
@@ -517,6 +528,6 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
     services.app.database.messages(services.app.database.conversations()[0]!.conversationId).length,
   ).toBeGreaterThan(15);
   expect(services.app.database.setting('provider')).toMatchObject({ apiKeyLast4: '9472' });
-  expect(services.fake!.inspectRuns().filter((run) => run.profile === bot.botId)).toHaveLength(6);
+  expect(services.fake!.inspectRuns().filter((run) => run.profile === bot.botId)).toHaveLength(7);
   await delay(20);
 });

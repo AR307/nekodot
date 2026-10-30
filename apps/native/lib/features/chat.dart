@@ -555,6 +555,26 @@ class MessageTile extends StatelessWidget {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
+          if (body['welcome'] == true &&
+              ['failed', 'cancelled'].contains(m['status']))
+            TextButton.icon(
+              onPressed: !c.online
+                  ? null
+                  : () async {
+                      try {
+                        await c.rpc('bots.welcome.retry', {
+                          'messageId': m['messageId'],
+                        });
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(SnackBar(content: Text('$e')));
+                        }
+                      }
+                    },
+              icon: const Icon(Icons.refresh),
+              label: Text(c.tr('重试自我介绍', 'Retry introduction')),
+            ),
         ],
       );
     }

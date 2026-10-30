@@ -21,6 +21,7 @@ export interface RunRecord {
   state: 'thinking' | 'tool' | 'waiting_approval' | 'waiting_question' | 'idle';
   textMessageId?: string;
   inputMessageId: string;
+  welcome?: true;
 }
 
 export interface GroupChainRecord {

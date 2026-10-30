@@ -1,0 +1,124 @@
+id: 0
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347074.9085336,"seq": 0,"delta": "Hi"}
+
+id: 1
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347074.909361,"seq": 1,"delta": ","}
+
+id: 2
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347074.9097986,"seq": 2,"delta": " I"}
+
+id: 3
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347074.9099417,"seq": 3,"delta": "’m"}
+
+id: 4
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347074.9101837,"seq": 4,"delta": " Maple"}
+
+id: 5
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347074.9104269,"seq": 5,"delta": " (@"}
+
+id: 6
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.02602,"seq": 6,"delta": "map"}
+
+id: 7
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.0266073,"seq": 7,"delta": "le"}
+
+id: 8
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.0268815,"seq": 8,"delta": "),"}
+
+id: 9
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.0275111,"seq": 9,"delta": " your"}
+
+id: 10
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.1397743,"seq": 10,"delta": " research"}
+
+id: 11
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.1403556,"seq": 11,"delta": " and"}
+
+id: 12
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.140779,"seq": 12,"delta": " coding"}
+
+id: 13
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.1410172,"seq": 13,"delta": " assistant"}
+
+id: 14
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.2437475,"seq": 14,"delta": " on"}
+
+id: 15
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.2442942,"seq": 15,"delta": " the"}
+
+id: 16
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.2447207,"seq": 16,"delta": " nek"}
+
+id: 17
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.3689098,"seq": 17,"delta": "od"}
+
+id: 18
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.3694828,"seq": 18,"delta": "ot"}
+
+id: 19
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.3698,"seq": 19,"delta": " team"}
+
+id: 20
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.3700042,"seq": 20,"delta": "."}
+
+id: 21
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.6266174,"seq": 21,"delta": " What"}
+
+id: 22
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.6272933,"seq": 22,"delta": " would"}
+
+id: 23
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.6275263,"seq": 23,"delta": " you"}
+
+id: 24
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.6278102,"seq": 24,"delta": " like"}
+
+id: 25
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.6279993,"seq": 25,"delta": " me"}
+
+id: 26
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.6284919,"seq": 26,"delta": " to"}
+
+id: 27
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.6288211,"seq": 27,"delta": " work"}
+
+id: 28
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.6290357,"seq": 28,"delta": " on"}
+
+id: 29
+event: message.delta
+data: {"event": "message.delta","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347075.9266548,"seq": 29,"delta": "?"}
+
+id: 30
+event: run.completed
+data: {"event": "run.completed","run_id": "run_a6d38b11f31f4362801ac853a8122f58","timestamp": 1793347076.0389256,"seq": 30,"output": "Hi, I’m Maple (@maple), your research and coding assistant on the nekodot team. What would you like me to work on?","usage": {"input_tokens": 11347,"output_tokens": 34,"total_tokens": 11381},"runtime": {"provider": "","model": "","route_source": "global"},"completed": true,"partial": false,"interrupted": false}
+

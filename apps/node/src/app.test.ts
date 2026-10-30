@@ -129,6 +129,11 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
           }),
         );
 
+      await waitFor(() => !app.database.runs().length);
+      expect(
+        messages().some((m) => m.kind === 'text' && m.content.welcome && m.status === 'done'),
+      ).toBe(true);
+      notifications.length = 0;
       const basic = await start('runs-basic');
       await waitFor(() =>
         messages().some(
@@ -267,7 +272,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
       expect(secondInstruction).toHaveProperty('messageId');
       const lastRun = relay.inspectRuns().at(-1)!;
       expect(lastRun.steers).toEqual(['Please keep the same run and explain what you found.']);
-      expect(relay.inspectRuns().filter((run) => run.profile === bot.botId)).toHaveLength(6);
+      expect(relay.inspectRuns().filter((run) => run.profile === bot.botId)).toHaveLength(7);
       await waitFor(
         () =>
           !app.database.runs().some((run) => run.conversationId === conversation.conversationId),
@@ -382,6 +387,7 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       const lead = await createBot('Researcher', 'researcher');
       const writer = await createBot('Writer', 'writer');
       const reviewer = await createBot('Reviewer', 'reviewer');
+      await waitFor(() => !app.database.runs().length);
       const privateConversation = app.database
         .conversations()
         .find((item) => item.kind === 'dm' && item.botId === lead.bot.botId);

@@ -42,6 +42,13 @@
 - 已完成说明文件 / 列表、来源链接、图标及独立完整页；真实 Hermes 管理读取、Edge 响应式与 Android 模拟器 RPC 阅读 / 返回通过，报告见 `side-phase-3-extensions.md`。
 - 修复原生刷新和连接释放的实际错误。系统导入选择器、原生全部视觉及真机仍待验收。
 
-- 外部邮件重置/旧账号补验、真实授权服务、账号级 USER 记忆、Bot 欢迎回合、扩展安装原生旅程与原生通知仍需逐项验收。
+- 外部邮件重置/旧账号补验、真实授权服务、账号级 USER 记忆、扩展安装原生旅程与原生通知仍需逐项验收。
 - Flutter 的基础构建与最小真实闭环已通过，全部页面和新后端接口尚未完成，不能切换产品或发布安装包。
 - Windows 完整安装、Android 真机、跨设备共享记忆及后台通知不得以构建、模拟器或浏览器手机尺寸替代。
+
+## 3.4 Bot 原生欢迎回合
+
+- 创建 Bot 后由对应 Hermes profile 在原私聊 session 生成介绍与任务询问，不伪造用户消息。沿用原生 run、SSE、停止、steer 和恢复，失败保留错误并提供手动重试。
+- 隔离 WSL 中真实模型通过：只有一次 createRun，无用户气泡，Node 重建及 snapshot/since 后不重复。录制与脱敏证据已保留，详见 `side-phase-3-welcome.md`。
+- Node 24 下 17 文件 / 29 项场景、lint/typecheck/build 通过，Edge 完整回归 4 通过 / 1 跳过（本轮真实 Linux 屏幕现场未提供）。Flutter analyze 和 2 项 widget 场景通过。Android 专用模拟器另外通过真实 RPC 的介绍显示、重连保持消息 ID、失败与手动重试，截图已核对。
+- Android 创建表单仍待多来源接口接入；没有以 RPC 测试替代该表单的最终验收。Windows / Android 真机及本项后台通知仍待验收。未切换产品、未发布、未 push。

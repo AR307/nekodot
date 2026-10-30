@@ -1,0 +1,10 @@
+{
+  "environment": "isolated WSL Ubuntu 24.04",
+  "status": "completed",
+  "realProfile": true,
+  "realIntroductionAndTaskQuestion": true,
+  "createdRuns": 1,
+  "manufacturedUserMessages": 0,
+  "restoreAndSyncCreatedRuns": 0,
+  "nativeSessionMatchesDm": true
+}

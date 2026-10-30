@@ -159,8 +159,28 @@ export class NodeApplication {
         return this.bots.setProvider(request.params);
       case 'models.options':
         return this.hermes.models(request.params.refresh);
-      case 'bots.create':
-        return this.bots.create(request.params);
+      case 'bots.create': {
+        const created = await this.bots.create(request.params);
+        this.startWelcome(created.bot.botId, created.conversation.conversationId);
+        return created;
+      }
+      case 'bots.welcome.retry': {
+        const previous = this.database.message(request.params.messageId);
+        if (
+          previous?.kind !== 'text' ||
+          !previous.content.welcome ||
+          !['failed', 'cancelled'].includes(previous.status) ||
+          !previous.author.id
+        )
+          throw new NodeFault('conflict', 'This introduction is not waiting for a retry');
+        this.bots.get(previous.author.id);
+        const messageId = this.startWelcome(previous.author.id, previous.conversationId, true);
+        this.database.putMessage({
+          ...previous,
+          content: { ...previous.content, welcome: undefined },
+        });
+        return { messageId };
+      }
       case 'bots.update':
         return this.bots.update(request.params);
       case 'bots.archive':
@@ -284,6 +304,31 @@ export class NodeApplication {
     this.database.db.close();
   }
 
+  private startWelcome(botId: string, conversationId: string, retry = false) {
+    if (this.database.runs().some((run) => run.conversationId === conversationId))
+      throw new NodeFault('conflict', 'A conversation run is already active');
+    const run: RunRecord = {
+      conversationId,
+      botId,
+      lastSeq: -1,
+      state: 'thinking',
+      welcome: true,
+      inputMessageId: randomUUID(),
+      requestId: retry ? randomUUID() : 'welcome:' + botId,
+    };
+    const message = this.newText(run, '', 'streaming');
+    run.inputMessageId = message.messageId;
+    run.textMessageId = message.messageId;
+    this.activeRuns.set(conversationId, run);
+    this.database.putMessage(message, {}, run);
+    this.publishActivity(run);
+    void this.startRun(
+      run,
+      'You have just been created as a nekodot Bot. Introduce yourself briefly using your own identity and role, then ask what task the user would like you to work on. Speak directly to the user. Do not claim the user has sent you a message. Do not use tools for this introduction.',
+    );
+    return message.messageId;
+  }
+
   private async sendMessage(params: RpcParams<'messages.send'>) {
     const duplicate = this.database.byClient(params.clientMsgId);
     if (duplicate) return { messageId: duplicate.messageId };
@@ -333,6 +378,7 @@ export class NodeApplication {
       );
       active.textMessageId = undefined;
       active.inputMessageId = userMessage.messageId;
+      active.welcome = undefined;
       active.state = 'thinking';
       this.database.saveRun(active);
       this.publishActivity(active);
@@ -526,12 +572,13 @@ export class NodeApplication {
         this.database.setMessageRun(run.inputMessageId, created.run_id);
       this.database.saveRun(run);
       this.consume(run, api);
-    } catch {
-      const failed = this.newText(
-        run,
-        'Could not start this run. Check the provider and try again.',
-        'failed',
-      );
+    } catch (error) {
+      const failed = this.currentText(run) ?? this.newText(run, '', 'failed');
+      failed.status = 'failed';
+      failed.content.failureReason =
+        error instanceof NodeFault
+          ? error.message
+          : 'Could not start this run. Check the provider and try again.';
       const idle = this.idle(run);
       if (run.groupId) await this.finishGroupRun(run, 'failed', failed.content.text);
       else {
@@ -664,7 +711,7 @@ export class NodeApplication {
       const textMessage = this.ensureText(run);
       const delta = event.delta ?? '';
       const previous = this.streamingTexts.get(textMessage.messageId) ?? textMessage.content.text;
-      textMessage.content = { text: previous + delta };
+      textMessage.content = { ...textMessage.content, text: previous + delta };
       this.streamingTexts.set(textMessage.messageId, textMessage.content.text);
       this.onLive({
         kind: 'delta',
@@ -812,7 +859,7 @@ export class NodeApplication {
     if (event.event === 'run.completed') {
       const state = await api.state(runId);
       const reply = this.ensureText(run);
-      reply.content = { text: event.output ?? reply.content.text };
+      reply.content = { ...reply.content, text: event.output ?? reply.content.text };
       reply.status = 'done';
       await this.files.capture(reply);
       this.persistText(run, reply, event.seq);
@@ -844,7 +891,7 @@ export class NodeApplication {
           event.event === 'run.cancelled' ? 'cancelled' : 'failed',
         );
       if (event.event !== 'run.cancelled' && !reply.content.text)
-        reply.content = { text: event.output ?? 'Run failed.' };
+        reply.content = { ...reply.content, text: event.output ?? 'Run failed.' };
       if (event.event !== 'run.cancelled')
         reply.content.failureReason =
           typeof event.error === 'string'
@@ -961,7 +1008,7 @@ export class NodeApplication {
       kind,
       status,
       createdAt: now(),
-      content: { text },
+      content: { text, ...(run.welcome ? { welcome: true as const } : {}) },
     };
   }
 
@@ -1168,7 +1215,7 @@ export class NodeApplication {
     }
     if (status === 'completed') {
       const reply = activeMessage ?? this.newText(run, output ?? '', 'done');
-      reply.content = { text: output ?? reply.content.text };
+      reply.content = { ...reply.content, text: output ?? reply.content.text };
       reply.status = 'done';
       await this.files.capture(reply);
       this.persistText(run, reply, run.lastSeq);
@@ -1178,7 +1225,8 @@ export class NodeApplication {
       this.persistText(run, reply, run.lastSeq);
     } else {
       const reply = activeMessage ?? this.newText(run, output ?? 'Run was interrupted.', 'failed');
-      if (!reply.content.text) reply.content = { text: output ?? 'Run was interrupted.' };
+      if (!reply.content.text)
+        reply.content = { ...reply.content, text: output ?? 'Run was interrupted.' };
       reply.content.failureReason =
         failureReason ?? 'Hermes interrupted this turn. The task was not restarted.';
       reply.status = 'failed';
@@ -1197,7 +1245,7 @@ export class NodeApplication {
   private async finishInterrupted(run: RunRecord, text: string) {
     this.settleControls(run, 'failed');
     const message = this.currentText(run) ?? this.newText(run, text, 'failed');
-    if (!message.content.text) message.content = { text };
+    if (!message.content.text) message.content = { ...message.content, text };
     message.content.failureReason = text;
     message.status = 'failed';
     this.database.putMessage(message, { runId: run.runId }, this.idle(run));

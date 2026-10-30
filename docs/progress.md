@@ -520,3 +520,10 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 隔离 WSL Hermes 管理接口及产品适配器实际核对通过，脱敏录制进入测试依赖。Edge 一项完整扩展旅程通过，覆盖 390 / 768 / 1440px；独立 Android 模拟器通过真实 RPC 完成阅读、完整页、详情 / 列表返回与关闭连接。
 - 修复设备旅程复现的 setState Future 回调与已释放客户端回调；Flutter Windows 目录导入入口和 Web 80ms 搜索反馈已实现。原生文件选择 / 安装、真机及完整视觉仍待验收。
 - 详见 docs/side-phase-3-extensions.md；截图为实际运行画面，管理回放与真实 Hermes 结果分别标明。未切换线上产品、未分发测试 APK、不 push。
+
+## 2026-10-30 / Side Phase 3 Bot 原生欢迎
+
+- 创建 Bot 后由对应 Hermes profile 在原私聊 session 生成介绍和任务询问，不伪造用户气泡；刷新、重连与 Node 恢复不重复启动。失败显示原因，Web / Flutter 提供显式重试，仍使用既有 run、SSE、停止与 steer。
+- 隔离 WSL 的真实自定义模型完成一次欢迎回合；实际创建数为 1、用户消息数为 0、恢复及同步后新增执行数为 0。录制与脱敏报告见 `docs/side-phase-3-welcome.md`。
+- Node 24 lint/typecheck、17 文件 / 29 项测试与 build 通过；完整 Edge 4 通过 / 1 跳过，跳过项需本轮真实 Linux 屏幕现场。Flutter analyze、2 项 widget 测试及专用 Android 模拟器介绍 / 重连 / 失败重试旅程通过，截图已核对。
+- Android 创建表单仍须等多来源后端接入后验收；没有将本轮 RPC 创建等同于表单通过。Windows 完整旅程、Android 真机与后台通知继续待验收。未部署线上、未分发候选包、未 push；保留其他未提交截图与既有数据。

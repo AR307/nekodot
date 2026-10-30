@@ -57,6 +57,7 @@ const textContent = z.strictObject({
   text: z.string(),
   files: z.array(z.uuid()).optional(),
   failureReason: z.string().optional(),
+  welcome: z.literal(true).optional(),
 });
 export const messageSchema = z.discriminatedUnion('kind', [
   z.strictObject({

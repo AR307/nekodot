@@ -21,6 +21,7 @@ const scenarios = [
   'runs-steer',
   'runs-stop',
   'runs-clarify',
+  'runs-welcome',
 ] as const;
 interface Fixture {
   events: ReturnType<typeof hermesSseEventSchema.parse>[];
@@ -194,6 +195,9 @@ export async function startFakeHermes(options: FakeHermesOptions) {
       const input = hermesCreateRunSchema.parse(await body(request));
       const inputText = input.input.toLowerCase();
       const scenario =
+        (input.input.startsWith('You have just been created as a nekodot Bot.')
+          ? 'runs-welcome'
+          : undefined) ??
         options.scenarioFor?.(input, profile) ??
         scenarios.find((name) => name === input.input) ??
         [...scenarios]

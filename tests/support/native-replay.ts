@@ -12,11 +12,13 @@ import type { HermesRuntime } from '../../apps/node/src/hermes/runtime';
 import { seedVerifiedAccount } from './account';
 
 /** Opt-in Flutter journey environment. Never imported by the product. */
-const home = await mkdtemp(join(tmpdir(), 'nekodot-native-extensions-'));
+const welcome = process.argv.includes('--welcome');
+const home = await mkdtemp(join(tmpdir(), 'nekodot-native-replay-'));
 const key = randomUUID(),
   password = randomUUID();
 const email = `native-${randomUUID()}@example.test`;
-const relayUrl = 'http://127.0.0.1:4383';
+const port = welcome ? 4385 : 4383;
+const relayUrl = 'http://127.0.0.1:' + port;
 const fake = await startFakeHermes({
   fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
   profiles: ['default'],
@@ -28,7 +30,7 @@ const relay = await createRelay({
   jwtSecret: randomUUID(),
   publicUrl: relayUrl,
 });
-await relay.app.listen({ host: '127.0.0.1', port: 4383 });
+await relay.app.listen({ host: '127.0.0.1', port });
 await seedVerifiedAccount(relay.database, email, password);
 const login = await relay.app.inject({
   method: 'POST',
@@ -46,6 +48,7 @@ const credentials = await pairNode(
   code.json().code,
   'Native replay computer',
 );
+const failedIntroductions = new Set<string>();
 const runtime: HermesRuntime = {
   ...recordedManagementRuntime(fake.url, key, home, fake.pluginCatalog),
   start: async () => {},
@@ -53,8 +56,16 @@ const runtime: HermesRuntime = {
   configureProvider: async () => {},
   approvalMode: async () => 'manual',
   models: async () => ({ models: ['recorded-model'] }),
-  api: async (profile) => new HermesApi(fake.url + '/p/' + profile, key),
-  configureBot: async (bot) => {
+  api: async (profile) => {
+    const api = new HermesApi(fake.url + '/p/' + profile, key);
+    if (failedIntroductions.delete(profile))
+      api.createRun = async () => {
+        throw new Error('The test gateway is unavailable');
+      };
+    return api;
+  },
+  configureBot: async (bot, create) => {
+    if (welcome && create && bot.handle === 'retry-intro') failedIntroductions.add(bot.botId);
     await fetch(fake.url + '/test/profiles', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
@@ -72,13 +83,14 @@ await app.handle({
     defaultModel: 'recorded-model',
   },
 });
-await app.bots.create({
-  displayName: 'Maple',
-  handle: 'maple',
-  role: 'Documentation journey',
-  model: 'recorded-model',
-  avatar: { shape: 'dot', color: '#E8603C' },
-});
+if (!welcome)
+  await app.bots.create({
+    displayName: 'Maple',
+    handle: 'maple',
+    role: 'Documentation journey',
+    model: 'recorded-model',
+    avatar: { shape: 'dot', color: '#E8603C' },
+  });
 const connection = connectRelay({
   credentials,
   handleRpc: (request) => app.handle(request),
@@ -88,7 +100,7 @@ app.onEvent = connection.event;
 app.onLive = connection.live;
 await mkdir('.runtime/side-phase-3/private', { recursive: true });
 await writeFile(
-  '.runtime/side-phase-3/private/native-extensions.json',
+  `.runtime/side-phase-3/private/native-${welcome ? 'welcome' : 'extensions'}.json`,
   JSON.stringify(
     { RELAY_URL: relayUrl, QA_EMAIL: email, QA_PASSWORD: password, QA_NODE: credentials.nodeId },
     null,
@@ -96,7 +108,7 @@ await writeFile(
   ),
 );
 console.log(
-  'Isolated native replay ready on loopback 4383; generated credentials are in the private Dart-defines file. This is recorded management replay, not real-model acceptance.',
+  `Isolated native replay ready on loopback ${port}; generated credentials are in the private Dart-defines file. Recorded replay is not real-model acceptance.`,
 );
 async function close() {
   connection.close();

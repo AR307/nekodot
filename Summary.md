@@ -413,3 +413,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - Skills / 插件正确按种类、稳定标识及 profile 读取实际说明、文件列表、图标和仓库；简介直接预览，完整内容独立左推页面并保留返回位置。补齐 Flutter Windows 目录导入入口，Web 搜索高亮改为 80ms。
 - 隔离官方 Hermes 实际录制并经产品适配器核对 README / SKILL.md 和 SVG；Edge 响应式与独立 Android 模拟器真实 RPC 阅读 / 返回旅程通过。模拟器使用录制管理响应，不冒充新模型验收。
 - 实际设备复现并修复 Future 返回给 setState、客户端释放后 WebSocket 通知的问题。结果、截图及未覆盖范围见 docs/side-phase-3-extensions.md。原生系统文件选择与真机完整交互继续待验收；不部署或 push。
+
+## 2026-10-30 / Side Phase 3 Bot 原生欢迎
+
+- 创建 Bot 后由其原生 Hermes profile 生成自我介绍及任务询问；不伪造用户气泡、不维护另一套 agent 或运行流程。刷新/重连不重复，失败保留错误并提供显式重试。
+- 隔离 WSL 真实模型 completed；实际同私聊 session、一次 createRun、Node 重建及同步无重复，录制 SSE 与状态已脱敏保存。报告见 docs/side-phase-3-welcome.md。
+- Node 24 的 17 文件 / 29 项测试、lint/typecheck/build 及完整 Edge 私聊旅程通过；专用 Android 模拟器通过介绍显示、重连不重复及点击失败重试，实际截图已核对。
+- Android 创建表单的多来源接口、Windows 完整旅程、Android 真机/后台通知仍待对应模块验收，不以 RPC 或模拟器替代。未部署线上、未分发候选包、未 push。

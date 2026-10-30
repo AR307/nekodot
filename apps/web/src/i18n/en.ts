@@ -239,6 +239,7 @@ const en = {
   noRepository: 'No repository supplied',
   noExtensionDocument: 'No documentation supplied',
   backPage: 'Back',
+  retryWelcome: 'Retry introduction',
   extensionDescription: 'Description',
   extensionConfiguration: 'Native configuration',
   desktopOnly: 'Includes a Hermes Desktop interface',

@@ -233,6 +233,7 @@ const zh = {
   noRepository: '没有提供仓库信息',
   noExtensionDocument: '未提供说明文件',
   backPage: '返回上页',
+  retryWelcome: '重试自我介绍',
   extensionDescription: '说明',
   extensionConfiguration: '原生配置',
   desktopOnly: '包含 Hermes Desktop 专属界面',

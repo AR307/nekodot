@@ -194,6 +194,10 @@ export const rpcContracts = {
     params: z.strictObject({ ...botFields, approvalMode: approvalModeSchema.optional() }),
     result: z.strictObject({ bot: botSchema, conversation: conversationSchema }),
   },
+  'bots.welcome.retry': {
+    params: z.strictObject({ messageId: idSchema }),
+    result: z.strictObject({ messageId: idSchema }),
+  },
   'bots.update': {
     params: z.strictObject({
       botId: botSchema.shape.botId,

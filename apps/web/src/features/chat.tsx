@@ -798,6 +798,7 @@ function BotMessage({
   members?: Bot[];
 }) {
   const reduceMotion = useReducedMotion();
+  const [welcomeError, setWelcomeError] = useState('');
   if (message.kind === 'tool') return <ToolCard t={t} message={message} />;
   if (message.kind === 'approval') return <ApprovalCard t={t} message={message} />;
   if (message.kind === 'question') return <QuestionCard message={message} t={t} />;
@@ -812,7 +813,9 @@ function BotMessage({
         )
       : [];
   return (
-    <div className={`message message-${message.kind}`}>
+    <div
+      className={`message message-${message.kind}${message.content.welcome ? ' welcome-introduction' : ''}`}
+    >
       <div className={message.kind === 'commentary' ? 'commentary-copy' : 'bot-copy'}>
         {message.kind === 'commentary' ? (
           displayText
@@ -834,6 +837,24 @@ function BotMessage({
           </small>
         )}
         {message.status === 'cancelled' && <small className="message-state">{t.stopped}</small>}
+        {message.content.welcome && ['failed', 'cancelled'].includes(message.status) && (
+          <button
+            className="text-button"
+            onClick={() => {
+              setWelcomeError('');
+              void callNode('bots.welcome.retry', { messageId: message.messageId }).catch(
+                (e: Error) => setWelcomeError(e.message),
+              );
+            }}
+          >
+            {t.retryWelcome}
+          </button>
+        )}
+        {welcomeError && (
+          <p className="form-error" role="alert">
+            {welcomeError}
+          </p>
+        )}
       </div>
       {message.kind === 'text' && Boolean(message.content.files?.length) && (
         <MessageFiles botId={bot.botId} messageId={message.messageId} t={t} />
