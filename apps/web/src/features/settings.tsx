@@ -1,15 +1,14 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import type { RpcResult } from '@nekodot/protocol';
+
 import { fetchMe, relayRequest } from '../api';
-import { callNode } from '../relay-connection';
+
 import { useAppStore } from '../store';
-import { Icon, SpinnerDots, StatusDot, ease } from '../ui';
+import { Icon, StatusDot, ease } from '../ui';
 import type { Texts } from '../shared';
-import { ModelPicker, useModelOptions } from './models';
+import { ProviderSettings } from './providers';
 import { NotificationSettings } from './notifications';
 import { writeClipboard } from '../native';
-type Provider = NonNullable<RpcResult<'providers.get'>>;
 
 export function SettingsPage({
   t,
@@ -27,63 +26,11 @@ export function SettingsPage({
   const me = useAppStore((state) => state.me);
   const setToken = useAppStore((state) => state.setToken);
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
-  const [provider, setProvider] = useState<Provider | null>(null);
-  const [kind, setKind] = useState<'openrouter' | 'custom'>('custom');
-  const [key, setKey] = useState('');
-  const [baseUrl, setBaseUrl] = useState('');
-  const [defaultModel, setDefaultModel] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [nodeError, setNodeError] = useState('');
   const [copied, setCopied] = useState('');
   const [confirmArchive, setConfirmArchive] = useState<string | null>(null);
   const reduceMotion = useReducedMotion();
-  const selectedNode = me?.nodes.find((item) => item.nodeId === selectedNodeId);
-  const catalog = useModelOptions(Boolean(selectedNode?.online));
-
-  useEffect(() => {
-    if (!selectedNode?.online) return;
-    void callNode('providers.get', {})
-      .then((value) => {
-        setProvider(value);
-        if (value) {
-          setKind(value.kind);
-          setBaseUrl(value.baseUrl ?? '');
-          setDefaultModel(value.defaultModel ?? '');
-        }
-      })
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : t.saveError));
-  }, [selectedNode?.online, selectedNodeId, t.saveError]);
-
-  async function saveProvider(event: FormEvent) {
-    event.preventDefault();
-    setSaving(true);
-    setMessage('');
-    setError('');
-    try {
-      const value = await callNode(
-        'providers.set',
-        kind === 'custom'
-          ? {
-              kind,
-              ...(key ? { apiKey: key } : {}),
-              baseUrl: baseUrl.trim().replace(/\/+$/, ''),
-              ...(defaultModel ? { defaultModel } : {}),
-            }
-          : { kind, ...(key ? { apiKey: key } : {}), ...(defaultModel ? { defaultModel } : {}) },
-      );
-      setProvider(value);
-      setKey('');
-      setMessage(t.providerSaved);
-      await catalog.reload(true);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : t.saveError);
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function createPairing() {
     setNodeError('');
     try {
@@ -131,91 +78,7 @@ export function SettingsPage({
         transition={{ duration: 0.32, ease }}
       >
         <h1>{t.settingsTitle}</h1>
-        <SettingsCard title={t.provider} help={t.providerHelp}>
-          <form className="provider-form" onSubmit={(event) => void saveProvider(event)}>
-            <div className="provider-switch" role="group" aria-label={t.provider}>
-              {(['openrouter', 'custom'] as const).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  aria-pressed={kind === option}
-                  className={kind === option ? 'selected' : ''}
-                  onClick={() => setKind(option)}
-                >
-                  {kind === option && (
-                    <motion.span
-                      className="segmented-thumb"
-                      layoutId="provider-kind"
-                      transition={
-                        reduceMotion
-                          ? { duration: 0 }
-                          : { type: 'spring', stiffness: 500, damping: 38 }
-                      }
-                    />
-                  )}
-                  <span>{option === 'openrouter' ? t.openrouter : t.customProvider}</span>
-                </button>
-              ))}
-            </div>
-            {kind === 'custom' && (
-              <label>
-                {t.baseUrl}
-                <input
-                  type="url"
-                  required
-                  value={baseUrl}
-                  onChange={(event) => setBaseUrl(event.target.value)}
-                  placeholder="https://api.example.com/v1"
-                />
-              </label>
-            )}
-            <label>
-              {t.apiKey}
-              <input
-                type="password"
-                required={provider?.kind !== kind}
-                value={key}
-                onChange={(event) => setKey(event.target.value)}
-                placeholder={provider ? `••••••••${provider.apiKeyLast4}` : t.keyPlaceholder}
-                autoComplete="new-password"
-              />
-            </label>
-            {provider && (
-              <p className="saved-key">
-                <Icon name="check" />
-                <span>
-                  {t.keySaved} ····{provider.apiKeyLast4}
-                </span>
-                {provider.kind === kind && <small>{t.keepKeyHint}</small>}
-              </p>
-            )}
-            <ModelPicker
-              t={t}
-              label={t.defaultModel}
-              value={defaultModel}
-              onChange={setDefaultModel}
-              catalog={catalog}
-              disabled={!selectedNode?.online || !provider}
-            />
-            {error && <p className="form-error">{error}</p>}
-            {!selectedNode?.online && <p className="form-error">{t.offlineCreateHint}</p>}
-            <div className="settings-card-footer">
-              {message && (
-                <p className="success-message">
-                  <Icon name="check" />
-                  {message}
-                </p>
-              )}
-              <button
-                className="primary-button"
-                disabled={saving || (!key && provider?.kind !== kind) || !selectedNode?.online}
-              >
-                {saving && <SpinnerDots />}
-                {t.saveProvider}
-              </button>
-            </div>
-          </form>
-        </SettingsCard>
+        <ProviderSettings key={selectedNodeId} t={t} />
         <SettingsCard
           title={t.nodesTitle}
           action={
@@ -282,6 +145,7 @@ export function SettingsPage({
           </div>
         </SettingsCard>
         <NotificationSettings t={t} />
+        {error && <p className="form-error">{error}</p>}
         <SettingsCard title={t.accountSection}>
           <div className="account-row">
             <span className="profile-initial">{me?.user.email.slice(0, 1).toUpperCase()}</span>

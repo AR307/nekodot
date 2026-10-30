@@ -70,7 +70,11 @@ async function body(request: IncomingMessage): Promise<unknown> {
 
 /** Test-only HTTP replay. No provider, shell execution, or product runtime entry point. */
 export async function startFakeHermes(options: FakeHermesOptions) {
-  const management = await managementReplay(options.fixturesDirectory, options.apiKey);
+  const management = await managementReplay(
+    options.fixturesDirectory,
+    options.apiKey,
+    options.models,
+  );
   const fixtures = new Map<string, Fixture>();
   for (const name of [...scenarios, ...(options.additionalFixtures ?? [])]) {
     const raw = await readFile(join(options.fixturesDirectory, name + '.sse'), 'utf8');

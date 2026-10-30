@@ -1,0 +1,72 @@
+{
+  "start": {
+    "session_id": "<redacted>",
+    "flow": "device_code",
+    "user_code": "<redacted>",
+    "verification_url": "<redacted>",
+    "expires_in": 900,
+    "poll_interval": 5
+  },
+  "polls": [
+    {
+      "session_id": "<redacted>",
+      "status": "pending",
+      "error_message": null,
+      "expires_at": 1793352809.0850663,
+      "reason": null,
+      "account_email": "<redacted>",
+      "model": null,
+      "handoff": null,
+      "handoff_status": null,
+      "retryable": null,
+      "retry_after": null
+    },
+    {
+      "session_id": "<redacted>",
+      "status": "approved",
+      "error_message": null,
+      "expires_at": 1793352809.0850663,
+      "reason": null,
+      "account_email": "<redacted>",
+      "model": null,
+      "handoff": null,
+      "handoff_status": null,
+      "retryable": null,
+      "retry_after": null
+    }
+  ],
+  "options": {
+    "models": [
+      "gpt-6.1-sol",
+      "gpt-6.1-sol-900k",
+      "gpt-6-astra",
+      "gpt-6-astra-900k",
+      "gpt-6.1-terra",
+      "gpt-6-sol",
+      "gpt-6-sol-900k",
+      "gpt-6-luna",
+      "gpt-6-luna-900k",
+      "gpt-5.6-sol",
+      "gpt-5.6-sol-900k",
+      "gpt-5.6-terra",
+      "gpt-5.6-terra-900k",
+      "gpt-5.6-luna",
+      "gpt-5.6-luna-900k"
+    ]
+  },
+  "info": {
+    "model": "gpt-6.1-sol",
+    "provider": "openai-codex",
+    "auto_context_length": 272000,
+    "config_context_length": 0,
+    "effective_context_length": 272000,
+    "capabilities": {
+      "supports_tools": true,
+      "supports_vision": true,
+      "supports_reasoning": true,
+      "context_window": 1050000,
+      "max_output_tokens": 128000,
+      "model_family": "gpt-sol"
+    }
+  }
+}

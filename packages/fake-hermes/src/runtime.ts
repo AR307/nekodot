@@ -8,9 +8,14 @@ export function recordedManagementRuntime(
   key: string,
   home: string,
   catalog: unknown,
-): Pick<HermesRuntime, 'management' | 'profileHome' | 'cli' | 'restart' | 'configureScreen'> {
+): Pick<
+  HermesRuntime,
+  'management' | 'profileHome' | 'cli' | 'restart' | 'configureScreen' | 'environment'
+> {
+  const management = new HermesManagement(url, key);
   return {
-    management: new HermesManagement(url, key),
+    management,
+    environment: (profile) => management.request('/api/test/environment', profile),
     profileHome: (profile) => join(home, 'profiles', profile),
     cli: async () => JSON.stringify(catalog),
     restart: async () => {},

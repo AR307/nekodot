@@ -5,24 +5,14 @@ import { parseEnv } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import type { ChildProcess } from 'node:child_process';
 import { parseDocument } from 'yaml';
-import {
-  approvalModeSchema,
-  type ApprovalMode,
-  type Bot,
-  type RpcParams,
-  type RpcResult,
-} from '@nekodot/protocol';
+import { approvalModeSchema, type ApprovalMode, type Bot } from '@nekodot/protocol';
 import { HermesApi } from './api';
 import { HermesManagement } from './management';
 import { runHermesCli, spawnHermesCli, type HermesLaunch } from './cli';
 
-export type ProviderInput = RpcParams<'providers.set'>;
-type ProviderConfiguration = ProviderInput & { apiKey: string };
-export type ProviderOutput = NonNullable<RpcResult<'providers.get'>>;
 export interface HermesRuntime {
   start(): Promise<void>;
   close(): Promise<void>;
-  configureProvider(provider: ProviderInput, bots: Bot[]): Promise<void>;
   configureBot(
     bot: Bot,
     create: boolean,
@@ -31,7 +21,7 @@ export interface HermesRuntime {
   ): Promise<void>;
   approvalMode(profile: string): Promise<ApprovalMode>;
   api(profile: string): Promise<HermesApi>;
-  models(refresh?: boolean): Promise<RpcResult<'models.options'>>;
+  environment(profile: string): Promise<NodeJS.Dict<string>>;
   management: HermesManagement;
   profileHome(profile: string): string;
   cli(profile: string, args: string[]): Promise<string>;
@@ -80,20 +70,23 @@ export class ManagedHermes implements HermesRuntime {
   profileHome(profile: string) {
     return profile === 'default' ? this.options.home : join(this.options.home, 'profiles', profile);
   }
-  private async env(profile: string) {
+  async environment(profile: string) {
     const path = join(this.profileHome(profile), '.env');
-    return await access(path).then(
+    const env = await access(path).then(
       () => readFile(path, 'utf8').then(parseEnv),
       () => ({}) as Record<string, string>,
     );
+    for (const [key, value] of Object.entries(env))
+      if (value && /KEY|TOKEN|PASSWORD|SECRET|^NEKODOT_SOURCE_/.test(key)) this.secrets.add(value);
+    return env;
   }
   async api(profile: string) {
-    const env = await this.env(profile);
+    const env = await this.environment(profile);
     if (!env.API_SERVER_KEY) throw new Error('Hermes profile has no API key');
     this.secrets.add(env.API_SERVER_KEY);
     return new HermesApi('http://127.0.0.1:' + this.apiPort + '/p/' + profile, env.API_SERVER_KEY);
   }
-  private async writeEnv(profile: string, provider?: ProviderConfiguration) {
+  private async writeEnv(profile: string) {
     const directory = this.profileHome(profile);
     await mkdir(directory, { recursive: true, mode: 0o700 });
     const path = join(directory, '.env');
@@ -104,23 +97,15 @@ export class ManagedHermes implements HermesRuntime {
     const current = parseEnv(old);
     const apiKey = current.API_SERVER_KEY ?? randomBytes(32).toString('hex');
     this.secrets.add(apiKey);
+    const managed =
+      old.match(/# >>> nekodot managed >>>([\s\S]*?)# <<< nekodot managed <<</)?.[1] ?? '';
     const values: Record<string, string> = {
+      ...parseEnv(managed),
       API_SERVER_KEY: apiKey,
       API_SERVER_ENABLED: 'true',
       API_SERVER_HOST: '127.0.0.1',
       API_SERVER_PORT: String(this.apiPort),
-      ...(!provider && current.NEKODOT_PROVIDER_API_KEY
-        ? { NEKODOT_PROVIDER_API_KEY: current.NEKODOT_PROVIDER_API_KEY }
-        : {}),
-      ...(!provider && current.OPENROUTER_API_KEY
-        ? { OPENROUTER_API_KEY: current.OPENROUTER_API_KEY }
-        : {}),
     };
-    if (provider) {
-      values[provider.kind === 'custom' ? 'NEKODOT_PROVIDER_API_KEY' : 'OPENROUTER_API_KEY'] =
-        provider.apiKey;
-      this.secrets.add(provider.apiKey);
-    }
     const block =
       begin +
       '\n' +
@@ -135,12 +120,7 @@ export class ManagedHermes implements HermesRuntime {
     await writeFile(path, content, { mode: 0o600 });
     await chmod(path, 0o600);
   }
-  private async config(
-    profile: string,
-    provider?: ProviderInput,
-    model?: string,
-    approvalMode?: ApprovalMode,
-  ) {
+  private async config(profile: string, approvalMode?: ApprovalMode) {
     const directory = this.profileHome(profile);
     await mkdir(directory, { recursive: true, mode: 0o700 });
     const path = join(directory, 'config.yaml');
@@ -162,60 +142,7 @@ export class ManagedHermes implements HermesRuntime {
         document.setIn(['gateway', 'multiplex_profiles'], true);
       else document.set('gateway', { multiplex_profiles: true });
     }
-    if (provider) {
-      if (provider.kind === 'custom') {
-        document.setIn(['providers', 'custom'], {
-          name: 'Custom endpoint',
-          base_url: provider.baseUrl,
-          api_key: '${NEKODOT_PROVIDER_API_KEY}',
-          api_mode: 'chat_completions',
-          discover_models: true,
-        });
-      } else document.deleteIn(['providers', 'custom']);
-      document.setIn(['model', 'provider'], provider.kind);
-      document.setIn(['model', 'default'], model ?? provider.defaultModel ?? '');
-      document.setIn(
-        ['model', 'base_url'],
-        provider.kind === 'custom' ? provider.baseUrl : 'https://openrouter.ai/api/v1',
-      );
-      document.setIn(
-        ['model', 'api_key'],
-        provider.kind === 'custom' ? '${NEKODOT_PROVIDER_API_KEY}' : '${OPENROUTER_API_KEY}',
-      );
-      document.setIn(['model', 'api_mode'], 'chat_completions');
-    } else if (model) document.setIn(['model', 'default'], model);
     await writeFile(path, document.toString(), { mode: 0o600 });
-  }
-  private async currentProvider(): Promise<ProviderConfiguration | undefined> {
-    const env = await this.env('default');
-    const doc = parseDocument(await readFile(join(this.options.home, 'config.yaml'), 'utf8'));
-    const model = (
-      doc.toJS() as { model?: { provider?: string; base_url?: string; default?: string } }
-    ).model as { provider?: string; base_url?: string; default?: string } | undefined;
-    if (model?.provider === 'custom' && env.NEKODOT_PROVIDER_API_KEY)
-      return {
-        kind: 'custom',
-        apiKey: env.NEKODOT_PROVIDER_API_KEY,
-        baseUrl: model.base_url!,
-        defaultModel: model.default,
-      };
-    if (model?.provider === 'openrouter' && env.OPENROUTER_API_KEY)
-      return { kind: 'openrouter', apiKey: env.OPENROUTER_API_KEY, defaultModel: model.default };
-    return undefined;
-  }
-  async configureProvider(input: ProviderInput, bots: Bot[]) {
-    const env = await this.env('default');
-    const apiKey =
-      input.apiKey ??
-      env[input.kind === 'custom' ? 'NEKODOT_PROVIDER_API_KEY' : 'OPENROUTER_API_KEY'];
-    if (!apiKey) throw new Error('Enter an API key for this provider');
-    const provider = { ...input, apiKey };
-    await this.writeEnv('default', provider);
-    await this.config('default', provider);
-    for (const bot of bots) {
-      await this.writeEnv(bot.botId, provider);
-      await this.config(bot.botId, provider, bot.model);
-    }
   }
   async configureBot(
     bot: Bot,
@@ -224,10 +151,8 @@ export class ManagedHermes implements HermesRuntime {
     previousRole?: string,
   ) {
     if (create) await runHermesCli(this.launch, ['profile', 'create', bot.botId, '--no-alias']);
-    const provider = await this.currentProvider();
-    if (!provider) throw new Error('Configure a model provider first');
-    await this.writeEnv(bot.botId, provider);
-    await this.config(bot.botId, provider, bot.model, approvalMode);
+    await this.writeEnv(bot.botId);
+    await this.config(bot.botId, approvalMode);
     const rules = `<!-- nekodot managed: do not edit below -->\nYou are "${bot.displayName}", a member of the user's nekodot team. Your handle is @${bot.handle}.\n- Reply in the language the user writes in.\n- For passwords, 2FA codes, CAPTCHAs and payments: stop and ask the user to take over the screen. Never type these yourself.\n- In group chats, keep replies short. To hand work to a teammate, write @their-handle and say exactly what you need.\n<!-- end nekodot managed -->\n`;
     const path = join(this.profileHome(bot.botId), 'SOUL.md');
     let soul = create ? bot.role + '\n\n' : await readFile(path, 'utf8');
@@ -257,9 +182,6 @@ export class ManagedHermes implements HermesRuntime {
       '--json',
     ]);
     return approvalModeSchema.parse(JSON.parse(output.trim()));
-  }
-  async models(refresh = false) {
-    return (await this.api('default')).models(refresh);
   }
   async configureScreen(profile: string) {
     const path = join(this.profileHome(profile), 'config.yaml');

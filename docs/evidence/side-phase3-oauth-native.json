@@ -1,0 +1,17 @@
+{
+  "provider": "openai-codex",
+  "nativeDeviceAuthorization": "approved",
+  "oauthProfileWelcome": "done",
+  "customApiAfterAuthorization": "done",
+  "customSources": 2,
+  "rootGrantExists": true,
+  "profileGrantExists": false,
+  "profileReportsAuthorized": true,
+  "afterNodeAndHermesRestart": {
+    "sourceCount": 3,
+    "welcomeNotRepeated": true,
+    "oauthReply": "done",
+    "detectedContext": 272000,
+    "detectedMaxOutput": 128000
+  }
+}

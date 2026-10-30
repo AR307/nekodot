@@ -67,7 +67,6 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',
-      configureProvider: async () => {},
       configureBot: async (bot, create) => {
         if (create)
           await fetch(fake.url + '/test/profiles', {
@@ -81,7 +80,6 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
         rejectNextControl = false;
         return new HermesApi(fake.url + '/p/' + profile, apiKey);
       },
-      models: async () => ({ models: [] }),
     };
     const connect = () => {
       connection = connectRelay({
@@ -96,6 +94,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     connect();
     await expect(page.locator('.node-picker summary')).toContainText('Group test computer');
     await page.locator('.sidebar-header button[aria-label="设置"]').click();
+    await page.getByLabel('名字', { exact: true }).fill('Journey API');
     await page.getByLabel('API 地址').fill('https://test.example/v1');
     await page.getByLabel('API Key', { exact: true }).fill('test-only-provider-key');
     await page.getByRole('button', { name: '保存并获取模型' }).click();
@@ -110,7 +109,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
       await page.getByLabel('它负责什么？').fill('A group specialist.');
       await page.getByLabel('模型', { exact: true }).fill('recorded-model');
       await page.getByRole('button', { name: '高级设置' }).click();
-      await page.locator('.advanced-field input').fill(handle!);
+      await page.locator('.advanced-field input[pattern]').fill(handle!);
       await page
         .locator('.bot-dialog')
         .getByRole('button', { name: `创建 ${name!}` })

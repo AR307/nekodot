@@ -62,14 +62,15 @@ try {
     method: 'providers.set',
     params: {
       kind: 'custom',
+      name: 'Journey API',
       baseUrl: env.NEKODOT_PROVIDER_BASE_URL,
       apiKey: env.NEKODOT_PROVIDER_API_KEY,
-      defaultModel: env.NEKODOT_PROVIDER_MODEL,
     },
   });
   const { bot, conversation } = (await app.handle({
     method: 'bots.create',
     params: {
+      sourceId: (await app.providers.list()).sources[0]!.sourceId,
       displayName: 'Maple',
       handle: 'maple',
       role: 'You are Maple, a helpful research and coding assistant. Use concise English for this isolated introduction.',

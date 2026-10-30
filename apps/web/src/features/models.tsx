@@ -1,38 +1,42 @@
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { callNode } from '../relay-connection';
+import { useAppStore } from '../store';
 import type { Texts } from '../shared';
 import { SpinnerDots } from '../ui';
 
-export function useModelOptions(online: boolean) {
-  const [models, setModels] = useState<string[]>([]);
-  const [loading, setLoading] = useState(online);
-  const [error, setError] = useState('');
-  const load = useCallback(
-    (refresh = false) =>
-      callNode('models.options', { refresh })
+export function useModelOptions(online: boolean, sourceId: string) {
+  const nodeId = useAppStore((state) => state.selectedNodeId);
+  const [result, setResult] = useState<{ key: string; models: string[]; error: string }>();
+  const [revision, setRevision] = useState(0);
+  const key = `${nodeId}:${sourceId}:${online}:${revision}`;
+  useEffect(() => {
+    let active = true;
+    if (online && sourceId)
+      void callNode('models.options', { sourceId, refresh: revision > 0 })
         .then((result) => {
-          setModels(result.models);
-          setError(result.warning ?? '');
+          if (!active) return;
+          setResult({ key, models: result.models, error: result.warning ?? '' });
         })
         .catch((reason: unknown) => {
-          setError(reason instanceof Error ? reason.message : String(reason));
-        })
-        .finally(() => setLoading(false)),
-    [],
-  );
-  const reload = useCallback(
-    async (refresh = false) => {
-      if (!online) return;
-      setLoading(true);
-      setError('');
-      await load(refresh);
-    },
-    [online, load],
-  );
-  useEffect(() => {
-    if (online) void load();
-  }, [online, load]);
-  return { models, loading, error, reload };
+          if (active)
+            setResult({
+              key,
+              models: [],
+              error: reason instanceof Error ? reason.message : String(reason),
+            });
+        });
+    return () => {
+      active = false;
+    };
+  }, [online, sourceId, nodeId, revision, key]);
+  const reload = () => setRevision((value) => value + 1);
+  const current = result?.key === key ? result : undefined;
+  return {
+    models: current?.models ?? [],
+    loading: online && Boolean(sourceId) && !current,
+    error: current?.error ?? '',
+    reload,
+  };
 }
 
 export function ModelPicker({
@@ -61,7 +65,7 @@ export function ModelPicker({
           type="button"
           className="text-button"
           disabled={disabled || catalog.loading}
-          onClick={() => void catalog.reload(true)}
+          onClick={() => catalog.reload()}
         >
           {catalog.loading ? (
             <>

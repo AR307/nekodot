@@ -1,6 +1,8 @@
 import { screenZh } from './screen';
 import { clientZh } from './client';
+import { providersZh } from './providers';
 const zh = {
+  ...providersZh,
   emailCode: '邮箱验证码',
   sendCode: '发送验证码',
   codeSent: '若邮箱符合条件，验证码已发出，10 分钟内有效。',
@@ -101,14 +103,12 @@ const zh = {
   stopped: '已停止',
   provider: '模型提供方',
   providerHelp: '选择你自己的模型服务。密钥只保存在这台电脑。',
-  openrouter: 'OpenRouter',
   customProvider: '自定义 OpenAI-compatible',
   baseUrl: 'API 地址',
   apiKey: 'API Key',
   keySaved: '已保存密钥',
   providerSaved: '提供方设置已保存',
   keyPlaceholder: '粘贴 API Key',
-  defaultModel: '默认模型（可选）',
   saveProvider: '保存并获取模型',
   keepKeyHint: '留空会保留已保存的 API Key。',
   fetchModels: '刷新模型',

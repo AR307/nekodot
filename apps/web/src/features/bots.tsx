@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import type { ApprovalMode, Bot, Conversation } from '@nekodot/protocol';
+import type { ApprovalMode, Bot, Conversation, ProviderSource } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
 import { BotAvatar, Icon, SpinnerDots, ease } from '../ui';
@@ -38,13 +38,27 @@ export function BotDialog({
   const [model, setModel] = useState(value?.model ?? '');
   const [color, setColor] = useState(value?.avatar.color ?? avatarColors[0]!);
   const [advanced, setAdvanced] = useState(false);
-  const catalog = useModelOptions(node.online);
+  const [sourceId, setSourceId] = useState(value?.sourceId ?? '');
+  const [sources, setSources] = useState<ProviderSource[]>([]);
+  const [contextLength, setContextLength] = useState(
+    value?.modelSettings?.contextLength?.toString() ?? '',
+  );
+  const catalog = useModelOptions(node.online, sourceId);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [approvalMode, setApprovalMode] = useState<ApprovalMode>('manual');
   const [permissionsReady, setPermissionsReady] = useState(!value);
   const reduceMotion = useReducedMotion();
   const effectiveHandle = handle || handleFromName(name);
+
+  useEffect(() => {
+    void callNode('providers.list', {})
+      .then(({ sources }) => {
+        setSources(sources.filter((entry) => entry.ready));
+        if (!value) setSourceId(sources.find((entry) => entry.ready)?.sourceId ?? '');
+      })
+      .catch((e: Error) => setError(e.message));
+  }, [value]);
 
   useEffect(() => {
     if (!value) return;
@@ -78,6 +92,8 @@ export function BotDialog({
           displayName: name,
           handle: effectiveHandle,
           model,
+          ...(sourceId ? { sourceId } : {}),
+          modelSettings: { contextLength: contextLength ? Number(contextLength) : null },
           approvalMode,
           avatar: { shape: 'dot', color },
         });
@@ -88,6 +104,8 @@ export function BotDialog({
           handle: effectiveHandle,
           role,
           model,
+          sourceId,
+          modelSettings: { contextLength: contextLength ? Number(contextLength) : null },
           approvalMode,
           avatar: { shape: 'dot', color },
         });
@@ -113,7 +131,7 @@ export function BotDialog({
     }
   }
 
-  const disabled = busy || !node.online || !permissionsReady;
+  const disabled = busy || !node.online || !permissionsReady || (!value && !sourceId);
   return (
     <Sheet
       className="bot-dialog"
@@ -208,12 +226,34 @@ export function BotDialog({
         />
         <small>{t.roleHint}</small>
       </label>
+      <label className="field">
+        {t.modelSource}
+        <select
+          aria-label={t.modelSource}
+          value={sourceId}
+          onChange={(event) => {
+            setSourceId(event.target.value);
+            setModel('');
+          }}
+          required={!value}
+        >
+          <option value="" disabled>
+            {t.chooseSource}
+          </option>
+          {sources.map((source) => (
+            <option key={source.sourceId} value={source.sourceId}>
+              {source.name}
+            </option>
+          ))}
+        </select>
+        {!sources.length && <small>{t.waitingForProvider}</small>}
+      </label>
       <ModelPicker
         t={t}
         value={model}
         onChange={setModel}
         catalog={catalog}
-        disabled={!node.online}
+        disabled={!node.online || !sourceId}
         required
       />
       <label className="field">
@@ -254,6 +294,19 @@ export function BotDialog({
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: reduceMotion ? 0.1 : 0.24, ease }}
             >
+              <label className="field advanced-field">
+                {t.contextOverride}
+                <input
+                  aria-label={t.contextOverride}
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={contextLength}
+                  onChange={(event) => setContextLength(event.target.value)}
+                  placeholder={t.nativeAuto}
+                />
+                <small>{t.capacityHint}</small>
+              </label>
               <label className="field advanced-field">
                 @ {t.handle}
                 <span className="input-prefix">

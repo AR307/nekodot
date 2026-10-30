@@ -831,3 +831,40 @@
     margin-left: 52px;
   }
 }
+
+.source-list {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.source-row,
+.authorization-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.authorization-card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.authorization-card code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.authorization-session {
+  display: grid;
+  gap: 8px;
+}
+.model-limits {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 16px;
+}
+.model-limits dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}

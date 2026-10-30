@@ -1,35 +1,24 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import type { Bot, Conversation, RpcParams, RpcResult } from '@nekodot/protocol';
+import type { Bot, Conversation, RpcParams } from '@nekodot/protocol';
 import type { NodeDatabase } from './database';
-import type { HermesRuntime, ProviderOutput } from './hermes/runtime';
+import type { HermesRuntime } from './hermes/runtime';
+import type { Providers } from './providers';
 
 import { NodeFault } from './fault';
 export class BotService {
   constructor(
     readonly database: NodeDatabase,
     readonly hermes: HermesRuntime,
+    readonly providers: Providers,
   ) {}
   get(botId: string) {
     const bot = this.database.bot(botId);
     if (!bot || bot.archived) throw new NodeFault('not_found', 'Bot not found');
     return bot;
   }
-  provider(): RpcResult<'providers.get'> {
-    return this.database.setting<ProviderOutput>('provider') ?? null;
-  }
-  async setProvider(input: RpcParams<'providers.set'>) {
-    const previous = this.provider();
-    if (!input.apiKey && previous?.kind !== input.kind)
-      throw new NodeFault('invalid_params', 'Enter an API key for this provider');
-    await this.hermes.configureProvider(input, this.database.bots());
-    const { apiKey, ...settings } = input;
-    const output = { ...settings, apiKeyLast4: apiKey?.slice(-4) ?? previous!.apiKeyLast4 };
-    this.database.setSetting('provider', output);
-    return output;
-  }
   async create(input: RpcParams<'bots.create'>) {
     const { approvalMode, ...fields } = input;
-    if (!this.provider()) throw new NodeFault('invalid_params', 'Configure a provider first');
+    await this.providers.source(input.sourceId);
     if (this.database.handleUsed(input.handle))
       throw new NodeFault('conflict', 'Handle already used');
     const alphabet = 'abcdefghijklmnopqrstuvwxyz234567';
@@ -40,6 +29,7 @@ export class BotService {
       createdAt: new Date().toISOString(),
     };
     await this.hermes.configureBot(bot, true, approvalMode);
+    await this.providers.configureBot(bot);
     this.database.putBot(bot);
     const conversation: Conversation = {
       conversationId: randomUUID(),
@@ -62,6 +52,7 @@ export class BotService {
       approvalMode,
       fields.role !== undefined && fields.role !== previous.role ? previous.role : undefined,
     );
+    await this.providers.configureBot(bot);
     this.database.putBot(bot);
     return { bot };
   }

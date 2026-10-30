@@ -4,9 +4,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { WebSocketServer } from 'ws';
 import { createHash, randomBytes } from 'node:crypto';
+import { providerReplay } from './providers';
 
 /** Native response recording, used only by offline product journey tests. */
-export async function managementReplay(fixturesDirectory: string, apiKey: string) {
+export async function managementReplay(
+  fixturesDirectory: string,
+  apiKey: string,
+  modelOptions?: unknown,
+) {
+  const sources = await providerReplay(fixturesDirectory, modelOptions);
   const fixture = JSON.parse(
     await readFile(join(fixturesDirectory, 'management-native.json'), 'utf8'),
   ) as {
@@ -87,6 +93,11 @@ export async function managementReplay(fixturesDirectory: string, apiKey: string
       const chunks = [];
       for await (const chunk of request) chunks.push(Buffer.from(chunk));
       body = JSON.parse(Buffer.concat(chunks).toString());
+    }
+    const sourceResponse = sources.request(url, request.method ?? 'GET', profile, body);
+    if (sourceResponse !== undefined) {
+      json(response, sourceResponse);
+      return true;
     }
     if (url.pathname.endsWith('/soul')) {
       const doc = docs.find((row) => row.name === 'SOUL.md')!;

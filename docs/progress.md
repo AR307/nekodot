@@ -527,3 +527,10 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 隔离 WSL 的真实自定义模型完成一次欢迎回合；实际创建数为 1、用户消息数为 0、恢复及同步后新增执行数为 0。录制与脱敏报告见 `docs/side-phase-3-welcome.md`。
 - Node 24 lint/typecheck、17 文件 / 29 项测试与 build 通过；完整 Edge 4 通过 / 1 跳过，跳过项需本轮真实 Linux 屏幕现场。Flutter analyze、2 项 widget 测试及专用 Android 模拟器介绍 / 重连 / 失败重试旅程通过，截图已核对。
 - Android 创建表单仍须等多来源后端接入后验收；没有将本轮 RPC 创建等同于表单通过。Windows 完整旅程、Android 真机与后台通知继续待验收。未部署线上、未分发候选包、未 push；保留其他未提交截图与既有数据。
+
+## 2026-10-30 / Side Phase 3 Hermes 多来源与模型信息
+
+- 新增 Providers 模块，直接管理 Hermes 原生授权目录、自定义来源及 profile 模型路由；移除单一全节点提供方及 OpenRouter 专用产品路径。Web / Flutter 设置不再选模型，Bot 表单选择来源与模型；Key 留在节点，OAuth grant 由 Hermes 原生继承刷新。
+- 持久隔离 WSL 的真实验证通过：两自定义来源回复、OpenAI Codex 用户设备授权与真实回复、共存以及 Node/Hermes 重启后继续回复；没有复制 grant 或修改 Hermes 核心。原生上下文、最大输出与压缩结果如实展示，未知不猜测、不实现额外压缩。
+- Edge 来源与建 Bot 旅程、390/768/1440px 截图及 Android 专用模拟器原生表单/欢迎/重连通过。收尾 Node 24 lint/typecheck、18 文件 / 30 项测试、build 通过，完整 Edge 5 通过 / 1 真实 Linux 屏幕跳过；Flutter analyze、2 项测试及双端 release 构建通过。
+- 详见 docs/side-phase-3-providers.md。本轮只是模块收尾，不是 0.2.0 发布；全新检出、Windows 安装、Android 真机及共享用户记忆等仍待验收。仅本地提交，不部署、不分发、不 push；其余历史截图与私有现场保留。

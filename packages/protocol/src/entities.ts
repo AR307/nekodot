@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { modelSettingsSchema } from './providers';
 export const idSchema = z.string().min(1);
 export const seqSchema = z.number().int().nonnegative();
 export const timestampSchema = z.iso.datetime();
@@ -16,6 +17,8 @@ export const botFields = {
   avatar: avatarSchema,
   role: z.string(),
   model: z.string().min(1),
+  sourceId: z.string().min(1).optional(),
+  modelSettings: modelSettingsSchema.optional(),
 };
 export const botSchema = z.strictObject({
   botId: z.string().regex(/^nk-[a-z2-7]{6}$/),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -172,7 +174,14 @@ class _SourcesPageState extends State<SourcesPage> {
                 leading: const Icon(Icons.login),
                 title: Text('${provider['name'] ?? provider['id']}'),
                 subtitle: Text(
-                  '${provider['status'] ?? provider['flow'] ?? ''}',
+                  (provider['status'] as Map?)?['logged_in'] == true
+                      ? widget.client.tr('已授权', 'Authorized')
+                      : provider['flow'] == 'external'
+                      ? widget.client.tr(
+                          '需在节点终端授权',
+                          'Authorize in node terminal',
+                        )
+                      : widget.client.tr('未授权', 'Not authorized'),
                 ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () async {
@@ -244,6 +253,7 @@ class CustomSourcePage extends StatefulWidget {
 }
 
 class _CustomSourcePageState extends State<CustomSourcePage> {
+  late String? savedId = widget.source?['sourceId'] as String?;
   late final name = TextEditingController(
     text: widget.source?['name'] as String? ?? '',
   );
@@ -288,7 +298,7 @@ class _CustomSourcePageState extends State<CustomSourcePage> {
               obscureText: true,
               decoration: InputDecoration(
                 labelText: 'API KEY',
-                hintText: widget.source == null
+                hintText: savedId == null
                     ? null
                     : widget.client.tr(
                         '留空保留已有密钥',
@@ -311,15 +321,33 @@ class _CustomSourcePageState extends State<CustomSourcePage> {
                   : () async {
                       setState(() => busy = true);
                       try {
-                        await widget.client.rpc('providers.set', {
+                        final saved = await widget.client.rpc('providers.set', {
                           'kind': 'custom',
-                          if (widget.source != null)
-                            'sourceId': widget.source!['sourceId'],
+                          if (savedId != null) 'sourceId': savedId,
                           'name': name.text,
                           'baseUrl': url.text.trim(),
                           if (key.text.isNotEmpty) 'apiKey': key.text,
                         });
+                        if (mounted) {
+                          setState(() => savedId = saved['sourceId'] as String);
+                        }
                         key.clear();
+                        final catalog = await widget.client.rpc(
+                          'models.options',
+                          {'sourceId': saved['sourceId'], 'refresh': true},
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                widget.client.tr(
+                                  '已保存 · 获取 ${(catalog['models'] as List).length} 个模型',
+                                  'Saved · ${(catalog['models'] as List).length} models loaded',
+                                ),
+                              ),
+                            ),
+                          );
+                        }
                         if (context.mounted) Navigator.pop(context);
                       } catch (e) {
                         if (mounted) setState(() => error = '$e');
@@ -351,25 +379,56 @@ class AuthorizationPage extends StatefulWidget {
 class _AuthorizationPageState extends State<AuthorizationPage> {
   Json? session;
   String error = '';
-  Future<void> action(String action) async {
+  bool busy = false;
+  Timer? timer;
+  bool? loggedIn;
+  bool get authorized =>
+      loggedIn ?? (widget.provider['status'] as Map?)?['logged_in'] == true;
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> action(String actionName) async {
+    timer?.cancel();
+    setState(() {
+      busy = true;
+      error = '';
+    });
     try {
       final result = await widget.client.rpc('providers.authorize', {
         'provider': widget.provider['id'] ?? widget.provider['provider'],
-        'action': action,
+        'action': actionName,
         if (session?['session_id'] != null) 'sessionId': session!['session_id'],
       });
       if (mounted) {
         setState(() {
-          session = {...?session, ...result};
+          session = actionName == 'disconnect' || actionName == 'cancel'
+              ? null
+              : {'status': 'pending', ...?session, ...result};
+          if (result['status'] == 'approved') loggedIn = true;
+          if (actionName == 'disconnect') loggedIn = false;
           error = '';
         });
       }
       final url = result['verification_url'];
-      if (action == 'start' && url is String) {
+      if (actionName == 'start' && url is String) {
         await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      }
+      if (!mounted) return;
+      if (session?['session_id'] != null && session?['status'] == 'pending') {
+        timer = Timer(
+          Duration(seconds: (session?['poll_interval'] as num?)?.toInt() ?? 5),
+          () {
+            if (mounted) action('poll');
+          },
+        );
       }
     } catch (e) {
       if (mounted) setState(() => error = '$e');
+    } finally {
+      if (mounted) setState(() => busy = false);
     }
   }
 
@@ -388,9 +447,13 @@ class _AuthorizationPageState extends State<AuthorizationPage> {
           ),
         ),
         const SizedBox(height: 18),
-        if (widget.provider['flow'] == 'device_code')
+        if (authorized)
+          Text(widget.client.tr('已授权', 'Authorized'))
+        else if (widget.provider['flow'] == 'device_code')
           FilledButton(
-            onPressed: () => action('start'),
+            onPressed: busy || session?['status'] == 'pending'
+                ? null
+                : () => action('start'),
             child: Text(widget.client.tr('开始授权', 'Start authorization')),
           )
         else
@@ -403,22 +466,44 @@ class _AuthorizationPageState extends State<AuthorizationPage> {
             ),
             child: Text(widget.client.tr('原生授权说明', 'Authorization guide')),
           ),
-        if (session != null) ...[
+        if (session != null && !authorized) ...[
           const SizedBox(height: 18),
           SelectableText(
-            '${session!['user_code'] ?? ''}\n${session!['message'] ?? session!['status'] ?? ''}',
+            '${session!['user_code'] ?? ''}\n${session!['error_message'] ?? session!['message'] ?? session!['status'] ?? ''}',
           ),
+          if (session!['verification_url'] is String)
+            TextButton(
+              onPressed: () => launchUrl(
+                Uri.parse(session!['verification_url'] as String),
+                mode: LaunchMode.externalApplication,
+              ),
+              child: Text(
+                widget.client.tr('打开授权页面', 'Open authorization page'),
+              ),
+            ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 10,
             children: [
               TextButton(
-                onPressed: () => action('poll'),
+                onPressed: busy || session?['session_id'] == null
+                    ? null
+                    : () => action('poll'),
                 child: Text(widget.client.tr('检查状态', 'Check status')),
               ),
+              if (session?['status'] == 'pending')
+                TextButton(
+                  onPressed: busy ? null : () => action('cancel'),
+                  child: Text(widget.client.tr('取消授权', 'Cancel authorization')),
+                ),
             ],
           ),
         ],
+        if (widget.provider['disconnectable'] == true && authorized)
+          TextButton(
+            onPressed: busy ? null : () => action('disconnect'),
+            child: Text(widget.client.tr('断开授权', 'Disconnect authorization')),
+          ),
         ErrorNotice(error),
       ],
     ),

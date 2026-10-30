@@ -21,7 +21,8 @@ class _BotEditorState extends State<BotEditor> {
   final name = TextEditingController(),
       handle = TextEditingController(),
       role = TextEditingController(),
-      model = TextEditingController();
+      model = TextEditingController(),
+      contextLength = TextEditingController();
   String color = avatarColors.first, mode = 'manual', error = '';
   String? lead, source;
   final members = <String>{};
@@ -44,6 +45,7 @@ class _BotEditorState extends State<BotEditor> {
         model.text = '${b['model']}';
         color = '${b['avatar']['color']}';
         source = b['sourceId'] as String?;
+        contextLength.text = '${b['modelSettings']?['contextLength'] ?? ''}';
       }
     }
     if (!widget.group) loadSources();
@@ -51,7 +53,9 @@ class _BotEditorState extends State<BotEditor> {
 
   Future<void> loadSources() async {
     try {
-      final values = objects((await c.rpc('providers.list'))['sources']);
+      final values = objects((await c.rpc('providers.list'))['sources'])
+          .where((source) => source['ready'] == true)
+          .toList();
       if (!mounted) return;
       setState(() {
         sources = values;
@@ -64,13 +68,19 @@ class _BotEditorState extends State<BotEditor> {
   }
 
   Future<void> loadModels() async {
+    final selected = source;
+    if (selected == null) return;
+    setState(() {
+      models = [];
+      error = '';
+    });
     try {
-      final values = await c.rpc('models.options', {'sourceId': source});
-      if (mounted) {
+      final values = await c.rpc('models.options', {'sourceId': selected});
+      if (mounted && selected == source) {
         setState(() => models = (values['models'] as List).cast<String>());
       }
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted && selected == source) setState(() => error = '$e');
     }
   }
 
@@ -97,7 +107,12 @@ class _BotEditorState extends State<BotEditor> {
           'model': model.text.trim(),
           'avatar': {'shape': 'dot', 'color': color},
           'approvalMode': mode,
-          'sourceId': source,
+          if (source != null) 'sourceId': source,
+          'modelSettings': {
+            'contextLength': contextLength.text.trim().isEmpty
+                ? null
+                : int.parse(contextLength.text),
+          },
         });
       }
       if (mounted) Navigator.pop(context);
@@ -114,6 +129,7 @@ class _BotEditorState extends State<BotEditor> {
     handle.dispose();
     role.dispose();
     model.dispose();
+    contextLength.dispose();
     super.dispose();
   }
 
@@ -234,12 +250,16 @@ class _BotEditorState extends State<BotEditor> {
                     )
                     .toList(),
                 onChanged: (value) {
-                  setState(() => source = value);
+                  setState(() {
+                    source = value;
+                    model.clear();
+                  });
                   loadModels();
                 },
               ),
               const SizedBox(height: 16),
               Autocomplete<String>(
+                key: ValueKey(source),
                 initialValue: model.value,
                 optionsBuilder: (value) => models.where(
                   (m) => m.toLowerCase().contains(value.text.toLowerCase()),
@@ -257,6 +277,38 @@ class _BotEditorState extends State<BotEditor> {
                         ),
                       ),
                     ),
+              ),
+              const SizedBox(height: 16),
+              ExpansionTile(
+                title: Text(c.tr('模型高级设置', 'Advanced model settings')),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: TextField(
+                      controller: contextLength,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: c.tr(
+                          '上下文覆盖值（可选）',
+                          'Context override (optional)',
+                        ),
+                        hintText: c.tr(
+                          '由 Hermes 自动识别',
+                          'Hermes automatic detection',
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      c.tr(
+                        '仅填写已确认的上下文容量，留空恢复自动。当前 Hermes 不支持通用最大输出覆盖；未知容量不会显示为实测值。',
+                        'Enter only a confirmed context size; leave blank for automatic. This Hermes version has no generic output override. Unknown limits are not shown as measured values.',
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
@@ -287,6 +339,9 @@ class _BotEditorState extends State<BotEditor> {
               onPressed:
                   busy ||
                       !c.online ||
+                      (!widget.group &&
+                          widget.existing == null &&
+                          source == null) ||
                       (widget.group &&
                           (members.length < 2 || members.length > 6))
                   ? null

@@ -6,6 +6,7 @@ import { selectNodeData, useAppStore } from '../store';
 import type { Texts } from '../shared';
 import { OperationProgress } from './operations';
 import { LibraryPanel } from './files';
+import { ModelInformation } from './model-info';
 
 export function BotDetails({
   bot,
@@ -122,6 +123,7 @@ function BotInfo({ bot, t, onEdit }: { bot: Bot; t: Texts; onEdit(): void }) {
           {t.nativeProfile}: {bot.botId}
         </small>
       </section>
+      <ModelInformation botId={bot.botId} t={t} />
       <section className="detail-section">
         <h3>{t.scheduledTasks}</h3>
         <p className="muted">{t.scheduledReadOnly}</p>

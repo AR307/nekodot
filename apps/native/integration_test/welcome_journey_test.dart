@@ -35,6 +35,8 @@ void main() {
     await until(() => client.online);
     Future<String> create(String name, String handle) async {
       final result = await client.rpc('bots.create', {
+        'sourceId': ((await client.rpc('providers.list'))['sources'] as List)
+            .first['sourceId'],
         'displayName': name,
         'handle': handle,
         'role': 'Helpful assistant',

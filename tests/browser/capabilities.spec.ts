@@ -35,7 +35,6 @@ test('Bot details, native memory editing, library download, extension catalog an
     ...recordedManagementRuntime(fake.url, key, home, fake.pluginCatalog),
     start: async () => {},
     close: async () => {},
-    configureProvider: async () => {},
     approvalMode: async () => 'manual',
     configureBot: async (bot) => {
       await fetch(fake.url + '/test/profiles', {
@@ -45,7 +44,6 @@ test('Bot details, native memory editing, library download, extension catalog an
       });
     },
     api: async (profile) => new HermesApi(fake.url + '/p/' + profile, key),
-    models: async () => ({ models: ['recorded-model'] }),
   };
   const app = new NodeApplication(join(home, 'node'), runtime);
   let connection: ReturnType<typeof connectRelay> | undefined;
@@ -78,12 +76,13 @@ test('Bot details, native memory editing, library download, extension catalog an
       method: 'providers.set',
       params: {
         kind: 'custom',
+        name: 'Journey API',
         baseUrl: 'https://example.test/v1',
         apiKey: 'test-provider',
-        defaultModel: 'recorded-model',
       },
     });
     const { bot, conversation } = await app.bots.create({
+      sourceId: (await app.providers.list()).sources[0]!.sourceId,
       displayName: 'Maple',
       handle: 'maple',
       role: 'Helpful bot',
@@ -91,6 +90,7 @@ test('Bot details, native memory editing, library download, extension catalog an
       avatar: { shape: 'dot', color: '#E8603C' },
     });
     await app.bots.create({
+      sourceId: (await app.providers.list()).sources[0]!.sourceId,
       displayName: 'Cedar',
       handle: 'cedar',
       role: 'Another bot',

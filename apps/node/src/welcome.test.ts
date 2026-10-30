@@ -24,9 +24,7 @@ it('A new profile introduces itself once, survives restart, and only explicitly 
     ...recordedManagementRuntime(fake.url, key, home, fake.pluginCatalog),
     start: async () => {},
     close: async () => {},
-    configureProvider: async () => {},
     approvalMode: async () => 'manual',
-    models: async () => ({ models: ['recorded-model'] }),
     configureBot: async (bot) => {
       await fetch(fake.url + '/test/profiles', {
         method: 'POST',
@@ -55,6 +53,7 @@ it('A new profile introduces itself once, survives restart, and only explicitly 
     (await app.handle({
       method: 'bots.create',
       params: {
+        sourceId: (await app.providers.list()).sources[0]!.sourceId,
         displayName: 'Maple',
         handle,
         role: 'Helpful assistant',
@@ -65,7 +64,12 @@ it('A new profile introduces itself once, survives restart, and only explicitly 
   try {
     await app.handle({
       method: 'providers.set',
-      params: { kind: 'custom', baseUrl: 'https://example.test/v1', apiKey: 'recorded-test-only' },
+      params: {
+        kind: 'custom',
+        name: 'Journey API',
+        baseUrl: 'https://example.test/v1',
+        apiKey: 'recorded-test-only',
+      },
     });
     const first = await create('maple');
     const started = Date.now() + 8000;

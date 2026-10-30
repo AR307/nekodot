@@ -134,7 +134,6 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
     start: async () => {},
     close: async () => {},
     approvalMode: async (profile) => permissionModes.get(profile) ?? 'manual',
-    configureProvider: async () => {},
     configureBot: async (bot: Bot, create: boolean, mode?: ApprovalMode) => {
       if (mode) permissionModes.set(bot.botId, mode);
       if (create && !profiles.has(bot.botId)) {
@@ -148,7 +147,6 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
       }
     },
     api: async (profile) => new HermesApi(`${services.fake!.url}/p/${profile}`, hermesKey),
-    models: async () => new HermesApi(`${services.fake!.url}/p/default`, hermesKey).models(),
   };
   services.app = new NodeApplication(services.nodeHome, runtime);
   const connectNode = () => {
@@ -167,20 +165,17 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
     timeout: 12000,
   });
   await page.locator('.sidebar-header button[aria-label="设置"]').click();
-  await expect(page.getByRole('heading', { name: '模型提供方' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '自定义 API' })).toBeVisible();
+  await page.getByLabel('名字', { exact: true }).fill('Journey API');
   await page.getByLabel('API 地址').fill('https://models.example.test/v1');
   await page.getByLabel('API Key').fill('browser-only-secret-9472');
-  await page.getByLabel('默认模型（可选）').fill('recorded-model');
   await page.getByRole('button', { name: '保存并获取模型' }).click();
-  await expect(page.getByText('已保存密钥 ····9472').first()).toBeVisible();
-  await expect(page.getByLabel('可用模型').locator('option')).toHaveCount(4);
-  await expect(page.getByLabel('可用模型')).not.toContainText('not-this-provider');
-  await page.getByLabel('可用模型').selectOption('another-model');
-  await expect(page.getByLabel('默认模型（可选）')).toHaveValue('another-model');
-  await page.getByLabel('默认模型（可选）').fill('recorded-model');
+  await expect(page.locator('.saved-key')).toContainText('9472');
+  await expect(page.getByLabel('默认模型（可选）')).toHaveCount(0);
   await page.getByRole('button', { name: '保存并获取模型' }).click();
   await expect(page.locator('.success-message')).toBeVisible();
-  expect(JSON.stringify(services.app.database.setting('provider'))).not.toContain(
+  expect(services.app.database.setting('provider')).toBeUndefined();
+  expect(JSON.stringify(await services.app.providers.list())).not.toContain(
     'browser-only-secret-9472',
   );
   await page.screenshot({ path: 'docs/evidence/phase1-settings.png', fullPage: true });
@@ -205,7 +200,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await page.getByLabel('可用模型').selectOption('recorded-model');
   await expect(page.getByLabel('模型', { exact: true })).toHaveValue('recorded-model');
   await page.getByRole('button', { name: '高级设置' }).click();
-  await page.locator('.advanced-field input').fill('mochi');
+  await page.locator('.advanced-field input[pattern]').fill('mochi');
   expect(
     await page.locator('.dialog-body').evaluate((el) => el.scrollHeight > el.clientHeight),
   ).toBe(true);
@@ -215,6 +210,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
     animations: 'disabled',
   });
   await page.locator('.bot-dialog').getByRole('button', { name: '创建 Mochi' }).click();
+  await expect(page.locator('.bot-dialog')).toHaveCount(0);
   const bot = services.app.database.bots()[0]!;
   expect(permissionModes.get(bot.botId)).toBe('smart');
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -426,7 +422,9 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await page.getByLabel('切换主题', { exact: true }).click();
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.getByRole('button', { name: 'English', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Model provider', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Authorized services', exact: true }),
+  ).toBeVisible();
   await page.screenshot({
     path: 'docs/evidence/phase1-settings-dark-en.png',
     animations: 'disabled',
@@ -527,7 +525,9 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   expect(
     services.app.database.messages(services.app.database.conversations()[0]!.conversationId).length,
   ).toBeGreaterThan(15);
-  expect(services.app.database.setting('provider')).toMatchObject({ apiKeyLast4: '9472' });
+  expect((await services.app.providers.list()).sources).toEqual([
+    expect.objectContaining({ kind: 'custom', apiKeyLast4: '9472' }),
+  ]);
   expect(services.fake!.inspectRuns().filter((run) => run.profile === bot.botId)).toHaveLength(7);
   await delay(20);
 });

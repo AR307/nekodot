@@ -1,0 +1,9 @@
+{
+  "environment": "isolated WSL Ubuntu 24.04",
+  "customSources": 2,
+  "distinctNativeRoutes": 2,
+  "nativeProfiles": 2,
+  "actualWelcomeReplies": 2,
+  "oauthGrantValidation": "see side-phase3-oauth-native.json (separate authorization spike)",
+  "credentialsOrEndpointInReport": false
+}

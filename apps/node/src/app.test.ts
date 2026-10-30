@@ -13,7 +13,7 @@ import {
 } from '@nekodot/protocol';
 import { NodeApplication } from './app';
 import { HermesApi } from './hermes/api';
-import type { HermesRuntime, ProviderInput } from './hermes/runtime';
+import type { HermesRuntime } from './hermes/runtime';
 
 const testKey = 'test-only-hermes-key';
 
@@ -32,15 +32,11 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
     });
     const home = await mkdtemp(join(tmpdir(), 'nekodot-node-journey-'));
     const profiles = new Set(['default']);
-    let provider: ProviderInput | undefined;
     const runtime: HermesRuntime = {
       ...recordedManagementRuntime(relay.url, testKey, home, relay.pluginCatalog),
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',
-      configureProvider: async (value) => {
-        provider = value;
-      },
       configureBot: async (bot: Bot) => {
         if (!profiles.has(bot.botId)) {
           const response = await fetch(relay.url + '/test/profiles', {
@@ -53,7 +49,6 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
         }
       },
       api: async (profile) => new HermesApi(relay.url + '/p/' + profile, testKey),
-      models: async () => new HermesApi(relay.url + '/p/default', testKey).models(),
     };
     const app = new NodeApplication(home, runtime);
     const notifications: TaskNotification[] = [];
@@ -65,22 +60,27 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
       const configured = (await app.handle(
         request('providers.set', {
           kind: 'custom',
+          name: 'Journey API',
           apiKey: secret,
           baseUrl: 'https://api.example.test/v1',
-          defaultModel: 'test-model',
         }),
-      )) as { apiKeyLast4: string };
-      expect(configured).toEqual({
+      )) as { apiKeyLast4: string; sourceId: string };
+      expect(configured).toMatchObject({
         kind: 'custom',
+        name: 'Journey API',
         baseUrl: 'https://api.example.test/v1',
-        defaultModel: 'test-model',
         apiKeyLast4: 'rned',
       });
-      expect(JSON.stringify(app.database.setting('provider'))).not.toContain(secret);
-      expect(provider?.apiKey).toBe(secret);
+      expect(app.database.setting('provider')).toBeUndefined();
+      expect(
+        (await runtime.environment('default'))[
+          Object.keys(await runtime.environment('default'))[0]!
+        ],
+      ).toBe(secret);
 
       const { bot, conversation } = (await app.handle(
         request('bots.create', {
+          sourceId: (await app.providers.list()).sources[0]!.sourceId,
           displayName: 'Mochi',
           handle: 'mochi',
           avatar: { shape: 'dot', color: '#E8603C' },
@@ -89,7 +89,10 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
         }),
       )) as { bot: Bot; conversation: Conversation };
       expect(conversation).toMatchObject({ kind: 'dm', botId: bot.botId });
-      expect(((await runtime.models()) as { models: unknown[] }).models).toHaveLength(1);
+      expect(
+        ((await app.providers.models({ sourceId: configured.sourceId })) as { models: unknown[] })
+          .models,
+      ).toHaveLength(1);
 
       const start = async (text: string) => {
         const clientMsgId = randomUUID();
@@ -342,7 +345,6 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',
-      configureProvider: async () => {},
       configureBot: async (bot: Bot) => {
         if (profiles.has(bot.botId)) return;
         const response = await fetch(relay.url + '/test/profiles', {
@@ -354,7 +356,6 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
         profiles.add(bot.botId);
       },
       api: async (profile) => new HermesApi(relay.url + '/p/' + profile, testKey),
-      models: async () => ({ models: [] }),
     };
     let app = new NodeApplication(home, runtime);
     const request = (method: string, params: unknown) => rpcRequestSchema.parse({ method, params });
@@ -369,14 +370,15 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       await app.handle(
         request('providers.set', {
           kind: 'custom',
+          name: 'Journey API',
           apiKey: 'group-provider-secret',
           baseUrl: 'https://api.example.test/v1',
-          defaultModel: 'test-model',
         }),
       );
       const createBot = async (displayName: string, handle: string) =>
         (await app.handle(
           request('bots.create', {
+            sourceId: (await app.providers.list()).sources[0]!.sourceId,
             displayName,
             handle,
             avatar: { shape: 'dot', color: '#E8603C' },

@@ -7,6 +7,7 @@ import '../ui/design.dart';
 import '../screen/viewer.dart';
 import 'bot_editor.dart';
 import 'files.dart';
+import 'model_info.dart';
 
 class BotDetails extends StatelessWidget {
   final NekodotClient client;
@@ -62,6 +63,8 @@ class BotDetails extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text('${bot['model']}'),
+                  const SizedBox(height: 16),
+                  ModelInformation(client: c, botId: bot['botId'] as String),
                   const SizedBox(height: 26),
                   Text(
                     c.tr('定时任务', 'Scheduled tasks'),

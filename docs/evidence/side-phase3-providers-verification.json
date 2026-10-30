@@ -1,0 +1,31 @@
+{
+  "module": "Side Phase 3 / 3.3",
+  "node": "24.22.1",
+  "checks": {
+    "lint": "passed",
+    "typecheck": "passed",
+    "test": {
+      "files": 18,
+      "tests": 30,
+      "result": "passed"
+    },
+    "build": "passed",
+    "edge": {
+      "passed": 5,
+      "skipped": 1,
+      "skippedReason": "Real Linux screen requires the current private acceptance environment"
+    },
+    "flutterAnalyze": "passed",
+    "flutterTests": {
+      "passed": 2
+    },
+    "windowsX64Release": "built, not installer acceptance",
+    "androidArm64Release": "built using existing signing, not device acceptance"
+  },
+  "realModelEvidence": ["side-phase3-sources-native.json", "side-phase3-oauth-native.json"],
+  "nativeForms": "Dedicated Android emulator with real Relay/Node and recorded Hermes responses; not real-model or physical-device evidence",
+  "freshCheckout": false,
+  "productionChanged": false,
+  "packagesPublished": false,
+  "pushed": false
+}

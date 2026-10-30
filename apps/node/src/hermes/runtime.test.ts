@@ -5,73 +5,62 @@ import { parseEnv } from 'node:util';
 import { parse } from 'yaml';
 import { expect, it } from 'vitest';
 import { ManagedHermes } from './runtime';
+import { HermesApi } from './api';
+import type { Bot } from '@nekodot/protocol';
 
-it('writes one current provider to the private managed env and config before any bot exists', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'nekodot-provider-files-'));
-  const home = join(directory, 'hermes');
-  const runtime = new ManagedHermes({ home, runtime: join(directory, 'pm'), apiPort: 18643 });
-  await runtime.configureProvider(
-    {
-      kind: 'custom',
-      baseUrl: 'https://models.example.test/v1',
-      apiKey: 'test-custom-key-1234',
-      defaultModel: 'chosen-model',
-    },
-    [],
-  );
-  const customEnv = parseEnv(await readFile(join(home, '.env'), 'utf8'));
-  const raw = await readFile(join(home, 'config.yaml'), 'utf8');
-  expect(customEnv.NEKODOT_PROVIDER_API_KEY).toBe('test-custom-key-1234');
-  expect(customEnv.API_SERVER_KEY).toHaveLength(64);
-  expect(customEnv.API_SERVER_PORT).toBe('18643');
-  expect(raw).not.toContain('test-custom-key-1234');
-  expect(parse(raw)).toMatchObject({
-    gateway: { multiplex_profiles: true },
-    model: { provider: 'custom', default: 'chosen-model', api_key: '${NEKODOT_PROVIDER_API_KEY}' },
-    providers: {
-      custom: {
-        base_url: 'https://models.example.test/v1',
-        api_key: '${NEKODOT_PROVIDER_API_KEY}',
-        discover_models: true,
-      },
-    },
-  });
-  await runtime.configureProvider(
-    { kind: 'custom', baseUrl: 'https://models.example.test/v1' },
-    [],
-  );
-  expect(parseEnv(await readFile(join(home, '.env'), 'utf8')).NEKODOT_PROVIDER_API_KEY).toBe(
-    'test-custom-key-1234',
-  );
-  await runtime.configureProvider(
-    { kind: 'openrouter', apiKey: 'test-router-key-5678', defaultModel: 'vendor/chosen-model' },
-    [],
-  );
-  const routerEnv = parseEnv(await readFile(join(home, '.env'), 'utf8'));
-  expect(routerEnv.API_SERVER_KEY).toBe(customEnv.API_SERVER_KEY);
-  expect(routerEnv.OPENROUTER_API_KEY).toBe('test-router-key-5678');
-  expect(routerEnv.NEKODOT_PROVIDER_API_KEY).toBeUndefined();
-  expect(parse(await readFile(join(home, 'config.yaml'), 'utf8'))).toMatchObject({
-    model: {
-      provider: 'openrouter',
-      default: 'vendor/chosen-model',
-      api_key: '${OPENROUTER_API_KEY}',
-      base_url: 'https://openrouter.ai/api/v1',
-    },
-  });
-});
-
-it('turns the default profile gateway setting into a map before enabling Hermes multiplexing', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'nekodot-gateway-config-'));
+async function existingProfile(config: string) {
+  const directory = await mkdtemp(join(tmpdir(), 'nekodot-native-config-'));
   const home = join(directory, 'hermes');
   await mkdir(home, { recursive: true });
-  await writeFile(join(home, 'config.yaml'), 'gateway: false\n');
-  const runtime = new ManagedHermes({ home, runtime: join(directory, 'pm') });
-  await runtime.configureProvider(
-    { kind: 'custom', baseUrl: 'https://models.example.test/v1', apiKey: 'test-key' },
-    [],
+  await writeFile(join(home, 'config.yaml'), config);
+  await writeFile(join(home, 'SOUL.md'), 'Learned identity\n');
+  await writeFile(
+    join(home, '.env'),
+    '# >>> nekodot managed >>>\nAPI_SERVER_KEY="existing-native-key"\nNEKODOT_PROVIDER_API_KEY="preserved-provider-key"\n# <<< nekodot managed <<<\nEXTERNAL_KEY="unrelated-key"\n',
   );
+  const runtime = new ManagedHermes({ home, runtime: join(directory, 'pm'), apiPort: 18643 });
+  runtime.api = async () => {
+    const api = new HermesApi('http://127.0.0.1:1', 'test-only');
+    api.health = async () => ({});
+    return api;
+  };
+  const bot: Bot = {
+    botId: 'default',
+    displayName: 'Updated name',
+    handle: 'updated',
+    role: 'Learned identity',
+    model: 'native-model',
+    avatar: { shape: 'dot', color: '#E8603C' },
+    archived: false,
+    createdAt: new Date().toISOString(),
+  };
+  return { home, runtime, bot };
+}
+
+it('profile metadata edits retain all saved native credentials, selected route and learned SOUL', async () => {
+  const { home, runtime, bot } = await existingProfile(
+    'model:\n  provider: source-a\n  default: chosen-model\nproviders:\n  source-a:\n    key_env: SOURCE_A_KEY\n',
+  );
+  await runtime.configureBot(bot, false, 'smart');
+  const env = parseEnv(await readFile(join(home, '.env'), 'utf8'));
+  expect(env).toMatchObject({
+    API_SERVER_KEY: 'existing-native-key',
+    NEKODOT_PROVIDER_API_KEY: 'preserved-provider-key',
+    EXTERNAL_KEY: 'unrelated-key',
+    API_SERVER_PORT: '18643',
+  });
+  expect(parse(await readFile(join(home, 'config.yaml'), 'utf8'))).toMatchObject({
+    model: { provider: 'source-a', default: 'chosen-model' },
+    approvals: { mode: 'smart' },
+  });
+  expect(await readFile(join(home, 'SOUL.md'), 'utf8')).toContain('Learned identity');
+});
+
+it('enables the native multiplex gateway without replacing a profile route', async () => {
+  const { home, runtime, bot } = await existingProfile('gateway: false\n');
+  await runtime.configureBot(bot, false);
   expect(parse(await readFile(join(home, 'config.yaml'), 'utf8'))).toMatchObject({
     gateway: { multiplex_profiles: true },
+    platform_toolsets: { api_server: ['hermes-api-server', 'clarify'] },
   });
 });

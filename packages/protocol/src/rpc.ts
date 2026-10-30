@@ -14,6 +14,7 @@ import {
 import { eventSchema } from './events';
 import { rpcErrorSchema } from './errors';
 import { screenStatusSchema } from './screen';
+import { providerInputSchema, providerOutputSchema, modelInfoSchema } from './providers';
 import {
   memoryDocumentSchema,
   nativeRecordSchema,
@@ -26,28 +27,6 @@ const botTarget = { botId: botSchema.shape.botId };
 const groupCreate = z
   .strictObject(groupFields)
   .refine((g) => g.botIds.includes(g.leadBotId), 'Lead must be a member');
-const providerSettings = {
-  baseUrl: z.url().optional(),
-  defaultModel: z.string().min(1).optional(),
-};
-export const providerInputSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal('openrouter'),
-    apiKey: z.string().min(1).optional(),
-    ...providerSettings,
-  }),
-  z.strictObject({
-    kind: z.literal('custom'),
-    apiKey: z.string().min(1).optional(),
-    ...providerSettings,
-    baseUrl: z.url(),
-  }),
-]);
-export const providerOutputSchema = z.strictObject({
-  kind: z.enum(['openrouter', 'custom']),
-  ...providerSettings,
-  apiKeyLast4: z.string().max(4),
-});
 export const rpcContracts = {
   'bots.jobs': {
     params: z.strictObject(botTarget),
@@ -191,7 +170,11 @@ export const rpcContracts = {
     result: empty,
   },
   'bots.create': {
-    params: z.strictObject({ ...botFields, approvalMode: approvalModeSchema.optional() }),
+    params: z.strictObject({
+      ...botFields,
+      sourceId: idSchema,
+      approvalMode: approvalModeSchema.optional(),
+    }),
     result: z.strictObject({ bot: botSchema, conversation: conversationSchema }),
   },
   'bots.welcome.retry': {
@@ -222,12 +205,27 @@ export const rpcContracts = {
     result: z.strictObject({ group: groupSchema }),
   },
   'groups.archive': { params: z.strictObject({ groupId: idSchema }), result: empty },
-  'providers.get': { params: empty, result: providerOutputSchema.nullable() },
+  'providers.list': {
+    params: empty,
+    result: z.strictObject({
+      sources: z.array(providerOutputSchema),
+      oauth: z.array(nativeRecordSchema),
+    }),
+  },
   'providers.set': { params: providerInputSchema, result: providerOutputSchema },
+  'providers.authorize': {
+    params: z.strictObject({
+      provider: idSchema,
+      action: z.enum(['start', 'poll', 'cancel', 'disconnect']),
+      sessionId: idSchema.optional(),
+    }),
+    result: nativeRecordSchema,
+  },
   'models.options': {
-    params: z.strictObject({ refresh: z.boolean().optional() }),
+    params: z.strictObject({ sourceId: idSchema, refresh: z.boolean().optional() }),
     result: z.strictObject({ models: z.array(z.string()), warning: z.string().optional() }),
   },
+  'models.info': { params: z.strictObject(botTarget), result: modelInfoSchema },
   'screen.status': {
     params: z.strictObject(botTarget),
     result: screenStatusSchema,

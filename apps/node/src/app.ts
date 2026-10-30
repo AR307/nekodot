@@ -16,6 +16,7 @@ import type { HermesRuntime } from './hermes/runtime';
 import type { HermesApi } from './hermes/api';
 import { NodeFault } from './fault';
 import { BotService } from './bots';
+import { Providers } from './providers';
 import { GroupService } from './groups';
 import { groupPrompt, MAX_CHAIN, mentionedBots } from './group-routing';
 import { Operations } from './operations';
@@ -34,6 +35,7 @@ const isActiveStatus = (status: string) =>
 export class NodeApplication {
   readonly database: NodeDatabase;
   readonly bots: BotService;
+  readonly providers: Providers;
   readonly groups: GroupService;
   readonly operations: Operations;
   readonly management: BotManagement;
@@ -55,7 +57,8 @@ export class NodeApplication {
   ) {
     this.database = new NodeDatabase(home);
     this.notifications = new Notifications(this.database);
-    this.bots = new BotService(this.database, hermes);
+    this.providers = new Providers(hermes, this.database);
+    this.bots = new BotService(this.database, hermes, this.providers);
     this.groups = new GroupService(this.database);
     this.operations = new Operations(this.database);
     this.management = new BotManagement(this.database, this.bots, hermes, this.operations);
@@ -153,12 +156,16 @@ export class NodeApplication {
         return this.respondToApproval(request.params);
       case 'questions.respond':
         return this.respondToQuestion(request.params);
-      case 'providers.get':
-        return this.bots.provider();
+      case 'providers.list':
+        return this.providers.list();
+      case 'providers.authorize':
+        return this.providers.authorize(request.params);
       case 'providers.set':
-        return this.bots.setProvider(request.params);
+        return this.providers.set(request.params);
       case 'models.options':
-        return this.hermes.models(request.params.refresh);
+        return this.providers.models(request.params);
+      case 'models.info':
+        return this.providers.info(request.params.botId);
       case 'bots.create': {
         const created = await this.bots.create(request.params);
         this.startWelcome(created.bot.botId, created.conversation.conversationId);
@@ -553,6 +560,7 @@ export class NodeApplication {
 
   private async startRun(run: RunRecord, input: string, instructions?: string) {
     try {
+      await this.providers.configureBot(this.bots.get(run.botId));
       const api = await this.hermes.api(run.botId);
       const conversationId = run.groupId
         ? this.database

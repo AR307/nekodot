@@ -1,6 +1,8 @@
 import { screenEn } from './screen';
 import { clientEn } from './client';
+import { providersEn } from './providers';
 const en = {
+  ...providersEn,
   emailCode: 'Email code',
   sendCode: 'Send code',
   codeSent: 'If eligible, a code has been sent. It expires in 10 minutes.',
@@ -103,14 +105,12 @@ const en = {
   stopped: 'Stopped',
   provider: 'Model provider',
   providerHelp: 'Use your own model service. The key stays on this computer.',
-  openrouter: 'OpenRouter',
   customProvider: 'Custom OpenAI-compatible',
   baseUrl: 'API URL',
   apiKey: 'API key',
   keySaved: 'Key saved',
   providerSaved: 'Provider settings saved',
   keyPlaceholder: 'Paste API key',
-  defaultModel: 'Default model (optional)',
   saveProvider: 'Save and fetch models',
   keepKeyHint: 'Leave blank to keep the saved API key.',
   fetchModels: 'Refresh models',

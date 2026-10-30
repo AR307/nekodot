@@ -9,3 +9,4 @@ export * from './capabilities';
 export * from './transfer';
 export * from './screen';
 export * from './notifications';
+export * from './providers';

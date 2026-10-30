@@ -13,11 +13,12 @@ import { seedVerifiedAccount } from './account';
 
 /** Opt-in Flutter journey environment. Never imported by the product. */
 const welcome = process.argv.includes('--welcome');
+const sources = process.argv.includes('--sources');
 const home = await mkdtemp(join(tmpdir(), 'nekodot-native-replay-'));
 const key = randomUUID(),
   password = randomUUID();
 const email = `native-${randomUUID()}@example.test`;
-const port = welcome ? 4385 : 4383;
+const port = sources ? 4386 : welcome ? 4385 : 4383;
 const relayUrl = 'http://127.0.0.1:' + port;
 const fake = await startFakeHermes({
   fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
@@ -53,9 +54,7 @@ const runtime: HermesRuntime = {
   ...recordedManagementRuntime(fake.url, key, home, fake.pluginCatalog),
   start: async () => {},
   close: async () => {},
-  configureProvider: async () => {},
   approvalMode: async () => 'manual',
-  models: async () => ({ models: ['recorded-model'] }),
   api: async (profile) => {
     const api = new HermesApi(fake.url + '/p/' + profile, key);
     if (failedIntroductions.delete(profile))
@@ -74,17 +73,19 @@ const runtime: HermesRuntime = {
   },
 };
 const app = new NodeApplication(join(home, 'node'), runtime);
-await app.handle({
-  method: 'providers.set',
-  params: {
-    kind: 'custom',
-    baseUrl: 'https://example.test/v1',
-    apiKey: 'recorded-test-only',
-    defaultModel: 'recorded-model',
-  },
-});
-if (!welcome)
+if (!sources)
+  await app.handle({
+    method: 'providers.set',
+    params: {
+      kind: 'custom',
+      name: 'Journey API',
+      baseUrl: 'https://example.test/v1',
+      apiKey: 'recorded-test-only',
+    },
+  });
+if (!welcome && !sources)
   await app.bots.create({
+    sourceId: (await app.providers.list()).sources[0]!.sourceId,
     displayName: 'Maple',
     handle: 'maple',
     role: 'Documentation journey',
@@ -100,7 +101,7 @@ app.onEvent = connection.event;
 app.onLive = connection.live;
 await mkdir('.runtime/side-phase-3/private', { recursive: true });
 await writeFile(
-  `.runtime/side-phase-3/private/native-${welcome ? 'welcome' : 'extensions'}.json`,
+  `.runtime/side-phase-3/private/native-${sources ? 'sources' : welcome ? 'welcome' : 'extensions'}.json`,
   JSON.stringify(
     { RELAY_URL: relayUrl, QA_EMAIL: email, QA_PASSWORD: password, QA_NODE: credentials.nodeId },
     null,

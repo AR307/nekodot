@@ -1,0 +1,381 @@
+{
+  "oauth": {
+    "providers": [
+      {
+        "id": "nous",
+        "name": "Nous Portal",
+        "flow": "device_code",
+        "cli_command": "hermes auth add nous",
+        "docs_url": "https://portal.nousresearch.com",
+        "disconnect_hint": null,
+        "disconnect_command": null,
+        "disconnectable": true,
+        "status": {
+          "logged_in": false,
+          "source": "nous_portal",
+          "source_label": "Nous Portal",
+          "token_preview": "<redacted>",
+          "expires_at": null,
+          "has_refresh_token": false,
+          "free_tier": false,
+          "account_tier": null
+        }
+      },
+      {
+        "id": "openai-codex",
+        "name": "ChatGPT or Codex Subscription",
+        "flow": "device_code",
+        "cli_command": "hermes auth add openai-codex",
+        "docs_url": "https://platform.openai.com/docs",
+        "disconnect_hint": null,
+        "disconnect_command": null,
+        "disconnectable": true,
+        "status": {
+          "logged_in": false,
+          "source": "openai_codex",
+          "source_label": "OpenAI Codex",
+          "token_preview": "<redacted>",
+          "expires_at": null,
+          "has_refresh_token": false,
+          "last_refresh": null
+        }
+      },
+      {
+        "id": "qwen-oauth",
+        "name": "Qwen (via Qwen CLI)",
+        "flow": "external",
+        "cli_command": "hermes auth add qwen-oauth",
+        "docs_url": "https://github.com/QwenLM/qwen-code",
+        "disconnect_hint": "Managed by that provider's CLI; remove it there.",
+        "disconnect_command": null,
+        "disconnectable": false,
+        "status": {
+          "logged_in": false,
+          "source": "qwen_cli",
+          "source_label": "<private-path>",
+          "token_preview": "<redacted>",
+          "expires_at": null,
+          "has_refresh_token": false
+        }
+      },
+      {
+        "id": "minimax-oauth",
+        "name": "MiniMax (OAuth)",
+        "flow": "device_code",
+        "cli_command": "hermes auth add minimax-oauth",
+        "docs_url": "https://www.minimax.io",
+        "disconnect_hint": null,
+        "disconnect_command": null,
+        "disconnectable": true,
+        "status": {
+          "logged_in": false,
+          "source": "minimax_oauth",
+          "source_label": "MiniMax (global)",
+          "token_preview": "<redacted>",
+          "expires_at": null,
+          "has_refresh_token": true
+        }
+      },
+      {
+        "id": "xai-oauth",
+        "name": "xAI Grok OAuth (SuperGrok / Premium+)",
+        "flow": "device_code",
+        "cli_command": "hermes auth add xai-oauth",
+        "docs_url": "https://hermes-agent.nousresearch.com/docs/guides/xai-grok-oauth",
+        "disconnect_hint": null,
+        "disconnect_command": null,
+        "disconnectable": true,
+        "status": {
+          "logged_in": false,
+          "source": "xai_oauth",
+          "source_label": "<redacted>/hermes/auth.json",
+          "token_preview": "<redacted>",
+          "expires_at": null,
+          "has_refresh_token": true,
+          "last_refresh": null
+        }
+      },
+      {
+        "id": "anthropic",
+        "name": "Anthropic Account",
+        "flow": "external",
+        "cli_command": "hermes auth add anthropic",
+        "docs_url": "https://docs.claude.com/en/api/getting-started",
+        "disconnect_hint": null,
+        "disconnect_command": null,
+        "disconnectable": true,
+        "status": {
+          "logged_in": false,
+          "source": null
+        }
+      },
+      {
+        "id": "claude-code",
+        "name": "Anthropic OAuth: Required Extra Usage Credits to Use Subscription",
+        "flow": "external",
+        "cli_command": "claude setup-token",
+        "docs_url": "https://docs.claude.com/en/docs/claude-code",
+        "disconnect_hint": "Managed outside Hermes — run the disconnect command to remove it.",
+        "disconnect_command": "rm -f ~/.claude/.credentials.json",
+        "disconnectable": false,
+        "status": {
+          "logged_in": false,
+          "source": null
+        }
+      }
+    ]
+  },
+  "endpoints": {
+    "endpoints": [
+      {
+        "id": "nkapi-2fc5a5533a",
+        "name": "Research API",
+        "base_url": "<redacted>",
+        "model": "",
+        "models": [],
+        "api_mode": "chat_completions",
+        "context_length": null,
+        "discover_models": true,
+        "has_api_key": true,
+        "api_key_preview": "<redacted>",
+        "is_current": false,
+        "source": "providers"
+      },
+      {
+        "id": "nkapi-3daf5c945f",
+        "name": "Writing API",
+        "base_url": "<redacted>",
+        "model": "",
+        "models": [],
+        "api_mode": "chat_completions",
+        "context_length": null,
+        "discover_models": true,
+        "has_api_key": true,
+        "api_key_preview": "<redacted>",
+        "is_current": false,
+        "source": "providers"
+      }
+    ],
+    "current": {
+      "provider": "",
+      "model": "",
+      "base_url": ""
+    }
+  },
+  "options": {
+    "providers": [
+      {
+        "slug": "nkapi-2fc5a5533a",
+        "name": "Research API",
+        "is_current": false,
+        "is_user_defined": true,
+        "models": [
+          "gpt-6-sol",
+          "gpt-6-astra",
+          "gpt-6.1-terra",
+          "gpt-6-luna",
+          "codex-auto-review",
+          "gpt-5.5",
+          "<redacted>",
+          "gpt-5.6-terra",
+          "gpt-5.6-luna",
+          "gpt-5.6-sol"
+        ],
+        "total_models": 10,
+        "source": "user-config",
+        "api_url": "<redacted>",
+        "native_catalog_empty": false,
+        "authenticated": true,
+        "capabilities": {
+          "gpt-6-sol": {
+            "fast": false,
+            "reasoning": true
+          },
+          "gpt-6-astra": {
+            "fast": false,
+            "reasoning": true
+          },
+          "gpt-6.1-terra": {
+            "fast": false,
+            "reasoning": true
+          },
+          "gpt-6-luna": {
+            "fast": false,
+            "reasoning": true
+          },
+          "codex-auto-review": {
+            "fast": false,
+            "reasoning": true
+          },
+          "gpt-5.5": {
+            "fast": false,
+            "reasoning": true
+          },
+          "<redacted>": {
+            "fast": false,
+            "reasoning": true
+          },
+          "gpt-5.6-terra": {
+            "fast": false,
+            "reasoning": true
+          },
+          "gpt-5.6-luna": {
+            "fast": false,
+            "reasoning": true
+          },
+          "gpt-5.6-sol": {
+            "fast": false,
+            "reasoning": true
+          }
+        },
+        "featured_models": [],
+        "aliases": [
+          "custom:nkapi-2fc5a5533a",
+          "custom:research-api",
+          "nkapi-2fc5a5533a",
+          "research api",
+          "research-api"
+        ]
+      },
+      {
+        "slug": "nkapi-3daf5c945f",
+        "name": "Writing API",
+        "is_current": false,
+        "is_user_defined": true,
+        "models": [
+          "gpt-6-sol",
+          "gpt-6-astra",
+          "gpt-6.1-terra",
+          "gpt-6-luna",
+          "codex-auto-review",
+          "gpt-5.5",
+          "<redacted>",
+          "gpt-5.6-terra",
+          "gpt-5.6-luna",
+          "gpt-5.6-sol"
+        ],
+        "total_models": 10,
+        "source": "user-config",
+        "api_url": "<redacted>",
+        "native_catalog_empty": false,
+        "authenticated": true,
+        "capabilities": {
+          "gpt-6-sol": {
+            "fast": false,
+            "reasoning": true
+          },
+          "gpt-6-astra": {
+            "fast": false,
+            "reasoning": true
+          },
+          "gpt-6.1-terra": {
+            "fast": false,
+            "reasoning": true
+          },
+          "gpt-6-luna": {
+            "fast": false,
+            "reasoning": true
+          },
+          "codex-auto-review": {
+            "fast": false,
+            "reasoning": true
+          },
+          "gpt-5.5": {
+            "fast": false,
+            "reasoning": true
+          },
+          "<redacted>": {
+            "fast": false,
+            "reasoning": true
+          },
+          "gpt-5.6-terra": {
+            "fast": false,
+            "reasoning": true
+          },
+          "gpt-5.6-luna": {
+            "fast": false,
+            "reasoning": true
+          },
+          "gpt-5.6-sol": {
+            "fast": false,
+            "reasoning": true
+          }
+        },
+        "featured_models": [],
+        "aliases": [
+          "custom:nkapi-3daf5c945f",
+          "custom:writing-api",
+          "nkapi-3daf5c945f",
+          "writing api",
+          "writing-api"
+        ]
+      }
+    ],
+    "model": "",
+    "provider": ""
+  },
+  "info": {
+    "model": "<redacted>",
+    "provider": "nkapi-2fc5a5533a",
+    "auto_context_length": 1050000,
+    "config_context_length": 64000,
+    "effective_context_length": 64000,
+    "capabilities": {}
+  },
+  "compressionLogs": {
+    "file": "agent",
+    "lines": [
+      "2026-10-30 17:15:03,388 INFO agent.conversation_compression: context compression started: session=nk_dm_af40fdf7-2965-4013-91ce-27bb6881f120 messages=13 tokens=~45,082 model=<redacted> focus=None\n",
+      "2026-10-30 17:15:03,414 INFO agent.context_compressor: Compression summary call dispatched: model=<redacted> prompt_chars=28,814 prompt_build_ms=14\n",
+      "2026-10-30 17:15:03,416 INFO agent.auxiliary_client: Auxiliary compression: using custom (<redacted>) at <redacted>/\n",
+      "2026-10-30 17:15:46,342 INFO hermes_cli.mem_trim: memory trim: reason=post-compression malloc_trim=1 rss_kib=356132->343952 rss_anon_kib=322768->310588 threads=20 duration_ms=160.1\n",
+      "2026-10-30 17:15:46,405 INFO agent.conversation_compression: context compression done: session=nk_dm_af40fdf7-2965-4013-91ce-27bb6881f120 messages=13->7 rough_tokens=~27,233 awaiting_real_usage=true\n",
+      "2026-10-30 17:15:46,405 INFO agent.conversation_compression: context compression attempt telemetry: {\"attempt_id\":\"76fe5e89dce34d6096c30b77bbc209c4\",\"aux_call_duration_ms\":42749,\"aux_model\":\"<redacted>\",\"aux_output_reservation\":null,\"aux_prompt_tokens\":7306,\"aux_provider\":\"custom\",\"chunk_count\":1,\"chunking\":false,\"commit_ms\":32,\"commit_status\":\"committed\",\"current_estimated_tokens\":45082,\"effective_aux_context\":64000,\"effective_threshold\":54400,\"event\":\"compression_attempt\",\"failure_class\":null,\"fallback_used\":false,\"fit_margin\":56694,\"has_focus_topic\":false,\"history_rewritten\":true,\"items_dropped\":0,\"main_context_limit\":64000,\"main_model\":\"<redacted>\",\"main_provider\":\"custom\",\"messages_after\":7,\"messages_before\":13,\"method\":\"llm_summary\",\"middle_window_tokens\":28248,\"overflow_reason\":null,\"prellm_skip_count\":0,\"prepared_summary\":false,\"prompt_build_ms\":14,\"protected_head_tokens\":172,\"protected_tail_tokens\":7109,\"queue_wait_ms\":0,\"reasoning_items_pruned\":0,\"route\":\"hermes\",\"session_id\":\"nk_dm_af40fdf7-2965-4013-91ce-27bb6881f120\",\"split_status\":\"in_place_committed\",\"summary_generation_ms\":42748,\"summary_input_chars\":22634,\"summary_input_elided_record_count\":0,\"summary_input_omitted_chars\":0,\"summary_input_record_count\":7,\"summary_input_sampled_chars\":22634,\"summary_input_sampled_record_count\":7,\"time_to_first_progress_ms\":9550,\"token_count_method\":\"estimate_rough\",\"tokens_after\":13572,\"tokens_before\":35529,\"tokens_reclaimed\":21957,\"tool_results_pruned\":0,\"total_duration_ms\":43016,\"trigger_source\":\"manual\"}\n"
+    ]
+  },
+  "initializationLogs": {
+    "file": "agent",
+    "lines": []
+  },
+  "config": {
+    "compression": {
+      "enabled": true,
+      "checkpoint_required": false,
+      "progress_notices": false,
+      "threshold": 0.5,
+      "threshold_tokens": null,
+      "target_ratio": 0.2,
+      "tail_mode": "lean",
+      "protect_last_n": 20,
+      "min_tail_user_messages": 1,
+      "max_attempts": 3,
+      "proactive_prune_tokens": 0,
+      "proactive_prune_min_result_chars": 8000,
+      "proactive_prune_min_reclaim_tokens": 4096,
+      "micro_compact": false,
+      "micro_compact_every_n_turns": 1,
+      "micro_compact_defrag_threshold_tokens": 2000,
+      "hygiene_hard_message_limit": 5000,
+      "hygiene_timeout_seconds": 30,
+      "hygiene_total_ceiling_seconds": 600,
+      "hygiene_failure_cooldown_seconds": 300,
+      "hygiene_max_turn_hold_seconds": 10,
+      "context_timeout_seconds": 120,
+      "context_total_ceiling_seconds": 600,
+      "protect_first_n": 3,
+      "abort_on_summary_failure": false,
+      "codex_gpt55_autoraise": true,
+      "codex_gpt55_autoraise_notice": true,
+      "codex_app_server_auto": "native",
+      "codex_responses_native": false,
+      "codex_responses_compact_threshold": null,
+      "in_place": true,
+      "model_thresholds": {},
+      "idle_compact_after_seconds": 0,
+      "prepare_ahead": false
+    }
+  },
+  "compressRequest": {
+    "output": "Compressed: 13 → 7 messages\nApprox request size: ~45,082 → ~27,233 tokens"
+  }
+}

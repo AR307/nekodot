@@ -420,3 +420,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 隔离 WSL 真实模型 completed；实际同私聊 session、一次 createRun、Node 重建及同步无重复，录制 SSE 与状态已脱敏保存。报告见 docs/side-phase-3-welcome.md。
 - Node 24 的 17 文件 / 29 项测试、lint/typecheck/build 及完整 Edge 私聊旅程通过；专用 Android 模拟器通过介绍显示、重连不重复及点击失败重试，实际截图已核对。
 - Android 创建表单的多来源接口、Windows 完整旅程、Android 真机/后台通知仍待对应模块验收，不以 RPC 或模拟器替代。未部署线上、未分发候选包、未 push。
+
+## 2026-10-30 / Side Phase 3 Hermes 多来源与模型信息
+
+- 新增 Providers 模块，直接管理 Hermes 原生授权目录、自定义来源及 profile 模型路由；移除单一全节点提供方及 OpenRouter 专用产品路径。Web / Flutter 设置不再选模型，Bot 表单选择来源与模型；Key 留在节点，OAuth grant 由 Hermes 原生继承刷新。
+- 持久隔离 WSL 的真实验证通过：两自定义来源回复、OpenAI Codex 用户设备授权与真实回复、共存以及 Node/Hermes 重启后继续回复；没有复制 grant 或修改 Hermes 核心。原生上下文、最大输出与压缩结果如实展示，未知不猜测、不实现额外压缩。
+- Edge 来源与建 Bot 旅程、390/768/1440px 截图及 Android 专用模拟器原生表单/欢迎/重连通过。收尾 Node 24 lint/typecheck、18 文件 / 30 项测试、build 通过，完整 Edge 5 通过 / 1 真实 Linux 屏幕跳过；Flutter analyze、2 项测试及双端 release 构建通过。
+- 详见 docs/side-phase-3-providers.md。本轮只是模块收尾，不是 0.2.0 发布；全新检出、Windows 安装、Android 真机及共享用户记忆等仍待验收。仅本地提交，不部署、不分发、不 push；其余历史截图与私有现场保留。
