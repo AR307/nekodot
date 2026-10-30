@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-30",
+  "environment": "isolated loopback Relay with real external SMTP and a user-received email code",
+  "tlsAndAuthentication": "passed",
+  "mailDelivery": "received by user",
+  "signupWithReceivedCode": "passed",
+  "passwordLogin": "passed",
+  "consumedCodeReplay": "HTTP 400",
+  "logout": "passed",
+  "revokedSessionMe": "HTTP 401",
+  "notValidated": [
+    "external-email password reset and legacy-account verification journeys",
+    "production trusted proxy configuration",
+    "native full account journey"
+  ],
+  "deployed": false
+}
