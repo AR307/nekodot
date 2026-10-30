@@ -13,8 +13,6 @@ import { relayRequest } from '../api';
 import { relayUrl } from '../relay-url';
 import { useAppStore } from '../store';
 import { useDrafts } from '../drafts';
-import zh from '../i18n/zh';
-import en from '../i18n/en';
 import type { Texts } from '../shared';
 
 interface Destination {
@@ -55,15 +53,9 @@ export async function showTaskNotification(signal: TaskNotification & Destinatio
   )
     return;
   if (!state.getState().enabled) return;
-  const t = store.language === 'zh' ? zh : en;
-  const body = {
-    approval: t.notificationApproval,
-    completed: t.notificationCompleted,
-    failed: t.notificationFailed,
-  }[signal.kind];
   sendNotification({
-    title: 'nekodot',
-    body,
+    title: signal.displayName,
+    body: signal.preview,
     channelId: 'nekodot_tasks',
     extra: { nodeId: signal.nodeId, conversationId: signal.conversationId },
   });

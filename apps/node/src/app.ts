@@ -1075,6 +1075,12 @@ export class NodeApplication {
         run,
       );
     else this.database.saveRun(run);
+    if (!existing)
+      this.notifications.send({
+        notificationId: `question:${run.runId}:${pending.prompt_id}`,
+        conversationId: run.conversationId,
+        kind: 'question',
+      });
     this.publishActivity(run);
   }
 

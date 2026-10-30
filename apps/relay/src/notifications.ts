@@ -31,6 +31,12 @@ export function registerNotifications(
     const parsed = deviceSchema.safeParse(request.body);
     if (!parsed.success) throw new HttpFault('invalid_params', 'Invalid notification device');
     const { deviceId, token } = parsed.data;
+    if (
+      database.db
+        .prepare('SELECT 1 FROM devices WHERE user_id<>? AND (device_id=? OR token=?)')
+        .get(user.user_id, deviceId, token)
+    )
+      throw new HttpFault('conflict', 'Sign out of the previous account on this device first', 409);
     database.db.prepare('DELETE FROM devices WHERE token=?').run(token);
     database.db
       .prepare(
@@ -65,21 +71,34 @@ export function registerNotifications(
       .prepare('SELECT device_id,token FROM devices WHERE user_id=?')
       .all(userId) as { device_id: string; token: string }[];
     if (!devices.length) return true;
-    const body = {
-      approval: 'A task needs your approval.',
-      completed: 'Your task has finished.',
-      failed: 'A task needs your attention.',
-    }[signal.kind];
+    // FCM counts both the visible notification and data payload toward 4 KB.
+    // Reserve room for routing metadata; do not split Chinese or emoji bytes.
+    const message = {
+      notification: { title: signal.displayName, body: '' },
+      data: { ...signal, preview: '', nodeId },
+      android: {
+        priority: 'high' as const,
+        notification: { channelId: 'nekodot_tasks', tag: signal.notificationId },
+      },
+    };
+    const budget = Math.max(0, Math.floor((3800 - Buffer.byteLength(JSON.stringify(message))) / 2));
+    let preview = '';
+    let bytes = 0;
+    for (const character of signal.preview) {
+      bytes += Buffer.byteLength(character);
+      if (bytes > budget - 3) {
+        preview += '…';
+        break;
+      }
+      preview += character;
+    }
+    message.notification.body = preview;
+    message.data.preview = preview;
     try {
       const result = await getMessaging(firebase).sendEach(
         devices.map((device) => ({
           token: device.token,
-          notification: { title: 'nekodot', body },
-          data: { ...signal, nodeId },
-          android: {
-            priority: 'high' as const,
-            notification: { channelId: 'nekodot_tasks', tag: signal.notificationId },
-          },
+          ...message,
         })),
       );
       result.responses.forEach((response, index) => {

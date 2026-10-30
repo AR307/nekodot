@@ -92,6 +92,12 @@ it('registers an App device, isolates owners and acknowledges a deduplicated tas
         )
       ).status,
     ).toBe(200);
+    for (const body of [
+      { deviceId, token: 'a-different-device-token', platform: 'android' },
+      { deviceId: randomUUID(), token: 'test-only-fcm-token', platform: 'android' },
+    ]) {
+      expect((await request('/api/devices', body, other.token)).status).toBe(409);
+    }
     await fetch(base + '/api/devices/' + deviceId, {
       method: 'DELETE',
       headers: { Authorization: 'Bearer ' + other.token },
@@ -116,6 +122,8 @@ it('registers an App device, isolates owners and acknowledges a deduplicated tas
       notificationId: 'run:recorded-run',
       conversationId: 'private-chat',
       kind: 'completed',
+      displayName: 'Acceptance Bot',
+      preview: 'A real final reply preview',
     };
     const send = () =>
       node.ws.send(JSON.stringify({ v: 1, id: randomUUID(), type: 'notify', payload: signal }));
@@ -127,6 +135,9 @@ it('registers an App device, isolates owners and acknowledges a deduplicated tas
     expect(client.messages).toHaveLength(0);
     expect(stranger.messages).toHaveLength(0);
     expect(relay.database.db.prepare('SELECT * FROM notification_delivery').all()).toHaveLength(1);
+    expect(
+      JSON.stringify(relay.database.db.prepare('SELECT * FROM notification_delivery').all()),
+    ).not.toContain(signal.preview);
     await fetch(base + '/api/devices/' + deviceId, {
       method: 'DELETE',
       headers: { Authorization: 'Bearer ' + owner.token },
