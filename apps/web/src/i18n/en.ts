@@ -1,7 +1,9 @@
 import { screenEn } from './screen';
 import { clientEn } from './client';
 import { providersEn } from './providers';
+import { userMemoryEn } from './user-memory';
 const en = {
+  ...userMemoryEn,
   ...providersEn,
   emailCode: 'Email code',
   sendCode: 'Send code',
@@ -197,7 +199,7 @@ const en = {
   memoryTiming: 'Changes follow Hermes activation timing and keep the current task running.',
   soulDescription: 'Identity and personality. The role editor uses this same SOUL.md.',
   memoryDescription: 'Long-term experience and knowledge maintained by Hermes.',
-  userDescription: 'Your preferences and long-term user context.',
+  userDescription: 'User facts, preferences and habits, shared with every Bot on this account.',
   memorySaved: 'Memory saved',
   refineMemory: 'Refine memory',
   refineDescription: 'Run native /refine on this bot’s conversation to improve memory and skills.',

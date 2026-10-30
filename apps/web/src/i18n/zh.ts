@@ -1,7 +1,9 @@
 import { screenZh } from './screen';
 import { clientZh } from './client';
 import { providersZh } from './providers';
+import { userMemoryZh } from './user-memory';
 const zh = {
+  ...userMemoryZh,
   ...providersZh,
   emailCode: '邮箱验证码',
   sendCode: '发送验证码',
@@ -192,7 +194,7 @@ const zh = {
   memoryTiming: '保存遵循 Hermes 的原生生效时机，不会打断正在执行的任务。',
   soulDescription: '自身设定与身份。与角色编辑共用同一份 SOUL.md。',
   memoryDescription: '长期任务经验和知识，由 Hermes 原生记忆维护。',
-  userDescription: '用户偏好及有关你的长期信息。',
+  userDescription: '用户资料、偏好和习惯，同账号所有 Bot 共享。',
   memorySaved: '记忆已保存',
   refineMemory: '整理记忆',
   refineDescription: '调用当前 Bot 会话的原生 /refine，整理记忆和技能；不会另开聊天任务。',

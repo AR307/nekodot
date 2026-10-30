@@ -534,3 +534,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 持久隔离 WSL 的真实验证通过：两自定义来源回复、OpenAI Codex 用户设备授权与真实回复、共存以及 Node/Hermes 重启后继续回复；没有复制 grant 或修改 Hermes 核心。原生上下文、最大输出与压缩结果如实展示，未知不猜测、不实现额外压缩。
 - Edge 来源与建 Bot 旅程、390/768/1440px 截图及 Android 专用模拟器原生表单/欢迎/重连通过。收尾 Node 24 lint/typecheck、18 文件 / 30 项测试、build 通过，完整 Edge 5 通过 / 1 真实 Linux 屏幕跳过；Flutter analyze、2 项测试及双端 release 构建通过。
 - 详见 docs/side-phase-3-providers.md。本轮只是模块收尾，不是 0.2.0 发布；全新检出、Windows 安装、Android 真机及共享用户记忆等仍待验收。仅本地提交，不部署、不分发、不 push；其余历史截图与私有现场保留。
+
+## 2026-10-30 / Side Phase 3 同账号共享用户记忆
+
+- Relay 保存账号 USER 文档、修订、已确认原件和冲突记录；Node 通过已有认证出站连接同步实际 profile 文件。按原生条目合并独立修改，同条目冲突明确显示，不静默覆盖；普通 Bot 文档保存不再直接写 USER。
+- 真实 WSL 中原生 memory 工具写入，另一节点 Bot 独立会话正确读取；原生文件写入的监听传播、其他账号隔离、Node 重启不重跑及 SOUL / MEMORY 保持独立均通过。
+- Node 24 lint/typecheck、19 文件 / 31 项测试和 build 通过；完整 Edge 6 通过 / 1 跳过，另复跑共享记忆与扩展 2 项通过。390/768/1440px、中英、浅深色与 reduced-motion 留图。Flutter analyze、既有 2 项测试及双端 release 构建通过，原生旅程单独记录。
+- 报告为 docs/side-phase-3-user-memory.md，真实模型的脱敏记录为 docs/evidence/side-phase3-user-memory-native.json。自动化回放与真实调用分开记录；未部署、分发或 push。
+- 专用 Android 模拟器的原生共享编辑/保存、另一节点读取、返回、刷新及重连草稿保持已通过；官方 driver 续接同一测试进程取回结果和截图，初始连接失败如实记录。真机仍待验收。

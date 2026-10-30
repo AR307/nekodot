@@ -15,6 +15,7 @@ import { eventSchema } from './events';
 import { rpcErrorSchema } from './errors';
 import { screenStatusSchema } from './screen';
 import { providerInputSchema, providerOutputSchema, modelInfoSchema } from './providers';
+import { userMemorySaveSchema, userMemoryViewSchema } from './user-memory';
 import {
   memoryDocumentSchema,
   nativeRecordSchema,
@@ -46,9 +47,15 @@ export const rpcContracts = {
     }),
   },
   'memory.save': {
-    params: z.strictObject({ ...botTarget, name: memoryDocumentSchema, content: z.string() }),
+    params: z.strictObject({
+      ...botTarget,
+      name: z.enum(['SOUL.md', 'MEMORY.md']),
+      content: z.string(),
+    }),
     result: empty,
   },
+  'memory.user.get': { params: empty, result: userMemoryViewSchema },
+  'memory.user.save': { params: userMemorySaveSchema, result: userMemoryViewSchema },
   'memory.refine': {
     params: z.strictObject({ ...botTarget, focus: z.string() }),
     result: operationSchema,

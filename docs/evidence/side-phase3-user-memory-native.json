@@ -1,0 +1,11 @@
+{
+  "environment": "isolated WSL Ubuntu 24.04; native Hermes and actual custom model",
+  "nativeMemoryToolUsed": true,
+  "crossComputerNativeWrite": true,
+  "independentNativeSessionRead": true,
+  "nativeFileWatcher": true,
+  "otherAccountIsolated": true,
+  "restartPreservesMemory": true,
+  "noRunReplay": true,
+  "botIdentityAndTaskMemoryIndependent": true
+}

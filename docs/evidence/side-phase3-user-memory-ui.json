@@ -1,0 +1,38 @@
+{
+  "browser": {
+    "engine": "actual Microsoft Edge",
+    "fullSuitePassed": 6,
+    "fullSuiteSkipped": 1,
+    "skipReason": "The separate live Linux screen environment was not supplied for this regression.",
+    "memoryJourney": [
+      "review existing originals",
+      "save account memory",
+      "switch nodes",
+      "merge offline edits",
+      "show and resolve competing edits",
+      "refresh keeps draft",
+      "restart Node",
+      "browse preserved originals"
+    ],
+    "widths": [390, 768, 1440],
+    "languages": ["zh", "en"],
+    "themes": ["light", "dark"],
+    "reducedMotion": true
+  },
+  "native": {
+    "platform": "dedicated Android emulator",
+    "framework": "Flutter native widgets, no WebView",
+    "integrationJourneysPassed": 1,
+    "journey": [
+      "Bot details to USER.md",
+      "native editing and saving",
+      "return to list",
+      "another node reads shared native document",
+      "refresh keeps draft",
+      "reconnect keeps draft"
+    ],
+    "transportObservation": "The initial VM driver connection was interrupted. Reconnecting the official integration driver to the same test process returned All tests passed and the two screenshots.",
+    "realModelEvidence": "Separate isolated WSL journey, see side-phase3-user-memory-native.json",
+    "physicalDeviceTested": false
+  }
+}

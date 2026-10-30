@@ -24,13 +24,16 @@ export const envelopeSchema = z
       'tunnel.open',
       'notify',
       'notify.ack',
+      'memory.user.req',
+      'memory.user.res',
+      'memory.user.changed',
     ]),
     nodeId: idSchema.optional(),
     replyTo: z.uuidv4().optional(),
     payload: z.unknown(),
   })
   .superRefine((value, ctx) => {
-    if (value.type === 'rpc.res' && !value.replyTo)
+    if ((value.type === 'rpc.res' || value.type === 'memory.user.res') && !value.replyTo)
       ctx.addIssue({
         code: 'custom',
         path: ['replyTo'],

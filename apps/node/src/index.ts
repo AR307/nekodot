@@ -57,6 +57,7 @@ async function main() {
     const connection = connectRelay({
       credentials,
       handleRpc: (request) => app.handle(request),
+      userMemory: app.userMemory,
       handleTransfer: (request) => app.files.transfer(request),
       onTunnel: (request) => app.screens.openTunnel(credentials, request),
       onReady: () => {

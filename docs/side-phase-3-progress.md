@@ -51,7 +51,7 @@
 - 已完成说明文件 / 列表、来源链接、图标及独立完整页；真实 Hermes 管理读取、Edge 响应式与 Android 模拟器 RPC 阅读 / 返回通过，报告见 `side-phase-3-extensions.md`。
 - 修复原生刷新和连接释放的实际错误。系统导入选择器、原生全部视觉及真机仍待验收。
 
-- 外部邮件重置/旧账号补验、账号级 USER 记忆、扩展安装原生旅程与原生通知仍需逐项验收；真实 OpenAI Codex 授权与自定义 API 共存已在 3.3 验证。
+- 外部邮件重置/旧账号补验、扩展安装原生旅程与原生通知仍需逐项验收；真实 OpenAI Codex 授权与自定义 API 共存已在 3.3 验证。账号级 USER 记忆见下方 3.5，本轮没有把原生真机或跨网络长时间测试标记完成。
 - Flutter 的基础构建与最小真实闭环已通过，全部页面和新后端接口尚未完成，不能切换产品或发布安装包。
 - Windows 完整安装、Android 真机、跨设备共享记忆及后台通知不得以构建、模拟器或浏览器手机尺寸替代。
 
@@ -61,3 +61,12 @@
 - 隔离 WSL 中真实模型通过：只有一次 createRun，无用户气泡，Node 重建及 snapshot/since 后不重复。录制与脱敏证据已保留，详见 `side-phase-3-welcome.md`。
 - Node 24 下 17 文件 / 29 项场景、lint/typecheck/build 通过，Edge 完整回归 4 通过 / 1 跳过（本轮真实 Linux 屏幕现场未提供）。Flutter analyze 和 2 项 widget 场景通过。Android 专用模拟器另外通过真实 RPC 的介绍显示、重连保持消息 ID、失败与手动重试，截图已核对。
 - 本项当时仅验 RPC 创建；后续 3.3 已补齐 Android 多来源创建表单旅程。Windows / Android 真机及本项后台通知仍待验收。未切换产品、未发布、未 push。
+
+## 3.5 同账号共享用户记忆
+
+- USER.md 按账号共享，自身设定、任务记忆、技能和聊天仍独立。Relay 保存修订、已有原件及冲突；Node 经现有出站 WS 与官方原生文件管理 API 同步，不建立 agent 或热更新运行中的提示词。
+- 首次已有内容先确认；独立条目修改可合并，相同条目的不同修改保留双方供确认。页面刷新不丢草稿，原件及处理记录可展开查看。
+- 真实模型与实际文件验收通过：两 Node / Hermes home、三个 profile、两个账号；原生工具写入、另一节点独立会话读取、文件监听、其他账号隔离、重建 Node 无重复任务，SOUL / MEMORY 保持不变。
+- Node 24 lint/typecheck、19 文件 / 31 项测试、build 通过；完整 Edge 6 通过 / 1 实屏跳过，共享记忆响应式、中英、浅深色及 reduced-motion 留图。Flutter analyze、既有 2 项测试与 Windows x64 / Android arm64 签名 release 构建通过。原生互动结果和未覆盖项见 side-phase-3-user-memory.md。
+- 本模块仅本地提交。全新检出、Windows 干净安装、Android 真机、原生 self-improvement 审核和通知等尚未完整验证，不发布 0.2.0、不切换线上。
+- 专用 Android 模拟器另完成原生编辑/保存、跨节点读取、返回、刷新及重连保留草稿；初始 VM driver 连接中断，续接同一测试进程后官方 driver 返回全部通过并保存截图，具体区别与证据见模块报告。不以此替代真机结果。

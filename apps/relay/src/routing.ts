@@ -11,9 +11,11 @@ import {
   type TransferResponse,
   notificationSchema,
   type TaskNotification,
+  userMemoryRequestSchema,
 } from '@nekodot/protocol';
 import type { RelayDatabase, NodeRow } from './database';
 import { HttpFault } from './auth';
+import { AccountUserMemory } from './user-memory';
 
 const frame = (type: Envelope['type'], payload: unknown, nodeId?: string): Envelope => ({
   v: 1,
@@ -37,6 +39,7 @@ export function registerRouting(
   notify: (userId: string, nodeId: string, signal: TaskNotification) => Promise<boolean>,
 ) {
   const wss = new WebSocketServer({ noServer: true });
+  const userMemory = new AccountUserMemory(database);
   const clients = new Set<Client>();
   const nodes = new Map<string, WebSocket>();
   const offlineListeners = new Set<(nodeId: string) => void>();
@@ -159,6 +162,35 @@ export function registerRouting(
           }, protocolTimings.rpcTimeoutMs);
           pending.set(envelope.id, { socket, nodeId, timer });
           send(nodes.get(nodeId)!, envelope);
+        } else if (node && envelope.type === 'memory.user.req') {
+          if (!database.owns(node.user_id, node.node_id)) throw new Error('Node unpaired');
+          const input = userMemoryRequestSchema.parse(envelope.payload);
+          try {
+            const { state, changed } = userMemory.apply(node, input);
+            send(socket, {
+              ...frame('memory.user.res', { ok: true, result: state }, node.node_id),
+              replyTo: envelope.id,
+            });
+            if (changed)
+              for (const sibling of database.nodes(node.user_id)) {
+                const target = nodes.get(sibling.node_id);
+                if (target && target !== socket)
+                  send(
+                    target,
+                    frame('memory.user.changed', { revision: state.revision }, sibling.node_id),
+                  );
+              }
+          } catch (error) {
+            if (!(error instanceof HttpFault)) throw error;
+            send(socket, {
+              ...frame(
+                'memory.user.res',
+                { ok: false, error: { code: error.code, message: error.message } },
+                node.node_id,
+              ),
+              replyTo: envelope.id,
+            });
+          }
         } else if (node && envelope.type === 'rpc.res') {
           const p = pending.get(envelope.replyTo!);
           if (p?.nodeId === node.node_id) {

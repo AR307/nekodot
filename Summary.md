@@ -427,3 +427,12 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 持久隔离 WSL 的真实验证通过：两自定义来源回复、OpenAI Codex 用户设备授权与真实回复、共存以及 Node/Hermes 重启后继续回复；没有复制 grant 或修改 Hermes 核心。原生上下文、最大输出与压缩结果如实展示，未知不猜测、不实现额外压缩。
 - Edge 来源与建 Bot 旅程、390/768/1440px 截图及 Android 专用模拟器原生表单/欢迎/重连通过。收尾 Node 24 lint/typecheck、18 文件 / 30 项测试、build 通过，完整 Edge 5 通过 / 1 真实 Linux 屏幕跳过；Flutter analyze、2 项测试及双端 release 构建通过。
 - 详见 docs/side-phase-3-providers.md。本轮只是模块收尾，不是 0.2.0 发布；全新检出、Windows 安装、Android 真机及共享用户记忆等仍待验收。仅本地提交，不部署、不分发、不 push；其余历史截图与私有现场保留。
+
+## 2026-10-30 / Side Phase 3 同账号共享用户记忆
+
+- 新增账号 USER 文档、修订、原件确认与可见冲突；通过既有 Node 出站连接和官方 profile 文件接口同步。按 Hermes 原生条目合并，不修改 SOUL / MEMORY / 会话，不热重建 agent 或新增记忆引擎。
+- Web / Flutter 记忆页支持共享编辑、刷新保留草稿、原件及处理记录。Node 在连接恢复、原生回合前后和 USER 写入后同步；活动 run 中不回写文件，停止和失败也走同步。
+- 持久隔离 WSL 真实模型验证：原生 memory 写入、跨电脑独立会话读取、实际文件监听、其他账号隔离、Node 重建无重复任务、独立自身设定及任务记忆均通过。
+- Node 24 lint/typecheck、19 文件 / 31 项测试及 build 通过；完整 Edge 6 通过 / 1 真实 Linux 屏幕跳过，共享记忆 390/768/1440px、中英、浅深色与 reduced-motion 已实拍。Flutter analyze、既有 2 项测试与双端 release 构建通过；原生交互结果见本模块报告，不以构建代替真机。
+- 详见 docs/side-phase-3-user-memory.md。保留既有数据及其他未提交截图；只做本地提交，不部署、不分发、不 push。全新检出、真机、Windows 安装、原生审核和通知等未验项目继续保留。
+- 原生共享记忆旅程在专用 Android 模拟器通过编辑/保存、另一节点读取、返回、刷新与重连保留草稿；官方 driver 初次连接不稳定，续接同一进程后取得通过结果和实际截图，记录不掩盖此工具限制。

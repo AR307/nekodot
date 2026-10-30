@@ -8,6 +8,7 @@ import '../screen/viewer.dart';
 import 'bot_editor.dart';
 import 'files.dart';
 import 'model_info.dart';
+import 'user_memory.dart';
 
 class BotDetails extends StatelessWidget {
   final NekodotClient client;
@@ -120,11 +121,13 @@ class BotDetails extends StatelessWidget {
                         onTap: () async {
                           await pushPage(
                             context,
-                            MemoryEditor(
-                              client: c,
-                              botId: bot['botId'] as String,
-                              document: doc,
-                            ),
+                            doc['name'] == 'USER.md'
+                                ? SharedUserMemoryPage(client: c)
+                                : MemoryEditor(
+                                    client: c,
+                                    botId: bot['botId'] as String,
+                                    document: doc,
+                                  ),
                           );
                           reload();
                         },

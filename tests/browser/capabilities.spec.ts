@@ -130,6 +130,7 @@ test('Bot details, native memory editing, library download, extension catalog an
     connection = connectRelay({
       credentials,
       handleRpc: (req) => app.handle(req),
+      userMemory: app.userMemory,
       handleTransfer: (req) => app.files.transfer(req),
     });
     app.onEvent = connection.event;
@@ -153,10 +154,10 @@ test('Bot details, native memory editing, library download, extension catalog an
       .locator('.document-tabs')
       .getByRole('button', { name: 'USER.md', exact: true })
       .click();
-    await page.locator('#native-memory-editor').fill('Prefer concise status notes: MAPLE');
+    await page.locator('#shared-user-memory-editor').fill('Prefer concise status notes: MAPLE');
     await page
       .locator('.details-scroll')
-      .getByRole('button', { name: '保存', exact: true })
+      .getByRole('button', { name: '保存并确认以上内容', exact: true })
       .click();
     await expect(page.getByText('记忆已保存', { exact: true })).toBeVisible();
     await page

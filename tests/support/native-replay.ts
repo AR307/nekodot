@@ -95,6 +95,7 @@ if (!welcome && !sources)
 const connection = connectRelay({
   credentials,
   handleRpc: (request) => app.handle(request),
+  userMemory: app.userMemory,
   handleTransfer: (request) => app.files.transfer(request),
 });
 app.onEvent = connection.event;

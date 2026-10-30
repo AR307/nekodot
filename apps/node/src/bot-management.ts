@@ -6,6 +6,7 @@ import type { NodeDatabase } from './database';
 import type { HermesRuntime } from './hermes/runtime';
 import type { Operations } from './operations';
 import { NodeFault } from './fault';
+import type { SharedUserMemory } from './user-memory';
 
 export class BotManagement {
   constructor(
@@ -13,6 +14,7 @@ export class BotManagement {
     readonly bots: BotService,
     readonly hermes: HermesRuntime,
     readonly operations: Operations,
+    readonly userMemory: SharedUserMemory,
   ) {}
   async jobs(botId: string): Promise<RpcResult<'bots.jobs'>> {
     this.bots.get(botId);
@@ -229,6 +231,7 @@ export class BotManagement {
           })
           .catch(finish);
       });
+      await this.userMemory.sync();
     });
   }
   async review(input: RpcParams<'memory.review'>) {
@@ -239,6 +242,7 @@ export class BotManagement {
       session_id: session,
       command: `/${input.kind} ${input.action} ${input.reviewId}`,
     });
+    if (input.action === 'approve') await this.userMemory.sync();
     return { output: result.output ?? '' };
   }
   restart(): Operation {

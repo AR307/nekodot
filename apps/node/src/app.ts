@@ -25,6 +25,7 @@ import { FileLibrary } from './files';
 import { Extensions } from './extensions';
 import { BotScreens } from './screens';
 import { Notifications } from './notifications';
+import { SharedUserMemory } from './user-memory';
 
 type TextMessage = Extract<Message, { kind: 'text' }>;
 
@@ -43,6 +44,7 @@ export class NodeApplication {
   readonly extensions: Extensions;
   readonly screens: BotScreens;
   readonly notifications: Notifications;
+  readonly userMemory: SharedUserMemory;
   onEvent: (event: PersistedEvent) => void = () => {};
   onLive: (event: LiveEvent) => void = () => {};
   private readonly consumers = new Map<string, AbortController>();
@@ -61,7 +63,14 @@ export class NodeApplication {
     this.bots = new BotService(this.database, hermes, this.providers);
     this.groups = new GroupService(this.database);
     this.operations = new Operations(this.database);
-    this.management = new BotManagement(this.database, this.bots, hermes, this.operations);
+    this.userMemory = new SharedUserMemory(this.database, hermes);
+    this.management = new BotManagement(
+      this.database,
+      this.bots,
+      hermes,
+      this.operations,
+      this.userMemory,
+    );
     this.files = new FileLibrary(this.database, hermes, this.operations);
     this.extensions = new Extensions(this.database, this.bots, hermes, this.operations);
     this.screens = new BotScreens(hermes, this.bots, this.operations);
@@ -84,7 +93,12 @@ export class NodeApplication {
       case 'bots.jobs.runs':
         return this.management.jobRuns(request.params.botId, request.params.jobId);
       case 'memory.get':
+        await this.userMemory.sync();
         return this.management.memory(request.params.botId);
+      case 'memory.user.get':
+        return this.userMemory.sync();
+      case 'memory.user.save':
+        return this.userMemory.save(request.params);
       case 'memory.save':
         return this.management.save(request.params);
       case 'memory.refine':
@@ -303,6 +317,7 @@ export class NodeApplication {
   }
 
   async close() {
+    await this.userMemory.close();
     this.screens.close();
     for (const run of this.activeRuns.values())
       this.persistText(run, this.currentText(run), run.lastSeq);
@@ -560,6 +575,7 @@ export class NodeApplication {
 
   private async startRun(run: RunRecord, input: string, instructions?: string) {
     try {
+      await this.userMemory.sync();
       await this.providers.configureBot(this.bots.get(run.botId));
       const api = await this.hermes.api(run.botId);
       const conversationId = run.groupId
@@ -949,6 +965,7 @@ export class NodeApplication {
       if (chain && status === 'cancelled') this.database.clearChain(run.conversationId);
       this.database.saveRun({ ...run, state: 'idle' });
       this.publishGroupIdle(run.conversationId);
+      await this.userMemory.sync();
       return;
     }
     if (status === 'failed') chain.failed = true;
@@ -966,6 +983,7 @@ export class NodeApplication {
     chain.requestId = randomUUID();
     this.database.saveRun({ ...run, state: 'idle' });
     this.database.saveChain(chain);
+    await this.userMemory.sync();
     await this.startNextGroupRun(chain);
   }
 
@@ -1046,6 +1064,7 @@ export class NodeApplication {
     this.activeRuns.delete(run.conversationId);
     if (run.runId) this.appliedSeq.delete(run.runId);
     this.publishActivity(run);
+    void this.userMemory.sync();
   }
 
   private publishActivity(run: RunRecord) {
@@ -1264,6 +1283,7 @@ export class NodeApplication {
     }
     this.activeRuns.delete(run.conversationId);
     this.publishActivity(this.idle(run));
+    await this.userMemory.sync();
     this.notifications.send({
       notificationId: `run:${run.runId}`,
       conversationId: run.conversationId,

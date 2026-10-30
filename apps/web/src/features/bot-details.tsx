@@ -7,6 +7,7 @@ import type { Texts } from '../shared';
 import { OperationProgress } from './operations';
 import { LibraryPanel } from './files';
 import { ModelInformation } from './model-info';
+import { SharedUserMemoryPanel } from './user-memory';
 
 export function BotDetails({
   bot,
@@ -250,6 +251,7 @@ function MemoryPanel({ bot, t }: { bot: Bot; t: Texts }) {
   }, [online, bot.botId]);
   const document = data?.documents.find((doc) => doc.name === name);
   async function save() {
+    if (name === 'USER.md') return;
     setBusy(true);
     setNotice('');
     try {
@@ -322,7 +324,9 @@ function MemoryPanel({ bot, t }: { bot: Bot; t: Texts }) {
               ? t.memoryDescription
               : t.userDescription}
         </p>
-        {data ? (
+        {name === 'USER.md' ? (
+          <SharedUserMemoryPanel t={t} online={online} />
+        ) : data ? (
           <>
             <label className="sr-only" htmlFor="native-memory-editor">
               {name}

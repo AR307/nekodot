@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
 import { NodeFault } from './fault';
+import type { SharedUserMemory } from './user-memory';
 import {
   envelopeSchema,
   rpcRequestSchema,
@@ -14,6 +15,8 @@ import {
   type TunnelOpen,
   type TaskNotification,
   payloadSchemas,
+  userMemoryResponseSchema,
+  type UserMemoryState,
 } from '@nekodot/protocol';
 
 export interface NodeCredentials {
@@ -30,18 +33,48 @@ export interface NodeConnectionOptions {
   onError?: (message: string) => void;
   onTunnel?: (request: TunnelOpen) => void;
   onNotifyAck?: (id: string) => void;
+  userMemory?: SharedUserMemory;
 }
 export function connectRelay(options: NodeConnectionOptions) {
   let socket: WebSocket;
   let closing = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let delay = 1000;
+  let ready = false;
+  const memoryRequests = new Map<
+    string,
+    { resolve(value: UserMemoryState): void; reject(error: Error): void }
+  >();
   function send(envelope: Envelope) {
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(envelope));
   }
   function frame(type: Envelope['type'], payload: unknown): Envelope {
     return { v: 1, id: randomUUID(), type, nodeId: options.credentials.nodeId, payload };
   }
+  options.userMemory?.bind(options.credentials.nodeId, (request) => {
+    if (!ready || socket?.readyState !== WebSocket.OPEN)
+      return Promise.reject(
+        new NodeFault('unavailable', 'Relay is disconnected. User memory is kept locally.'),
+      );
+    const message = frame('memory.user.req', request);
+    return new Promise<UserMemoryState>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        memoryRequests.delete(message.id);
+        reject(new NodeFault('timeout', 'User memory sync timed out. Local files are kept.'));
+      }, 30_000);
+      memoryRequests.set(message.id, {
+        resolve: (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        reject: (error) => {
+          clearTimeout(timer);
+          reject(error);
+        },
+      });
+      send(message);
+    });
+  });
   function connect() {
     socket = new WebSocket(
       options.credentials.relayUrl.replace(/^http/, 'ws').replace(/\/$/, '') + '/ws/node',
@@ -59,8 +92,22 @@ export function connectRelay(options: NodeConnectionOptions) {
         }
         if (envelope.type === 'hello.ok') {
           delay = 1000;
+          ready = true;
+          options.userMemory?.online(true);
           options.onStatus?.(true);
           options.onReady?.();
+          return;
+        }
+        if (envelope.type === 'memory.user.res') {
+          const response = userMemoryResponseSchema.parse(envelope.payload);
+          const waiter = memoryRequests.get(envelope.replyTo!);
+          memoryRequests.delete(envelope.replyTo!);
+          if (response.ok) waiter?.resolve(response.result);
+          else waiter?.reject(new NodeFault(response.error.code, response.error.message));
+          return;
+        }
+        if (envelope.type === 'memory.user.changed') {
+          void options.userMemory?.sync();
           return;
         }
         if (envelope.type === 'transfer.req' && options.handleTransfer) {
@@ -110,6 +157,13 @@ export function connectRelay(options: NodeConnectionOptions) {
       socket.close();
     });
     socket.on('close', (code, reason) => {
+      ready = false;
+      options.userMemory?.online(false);
+      for (const waiter of memoryRequests.values())
+        waiter.reject(
+          new NodeFault('unavailable', 'Relay disconnected. User memory is kept locally.'),
+        );
+      memoryRequests.clear();
       if (!closing) options.onError?.(`Relay connection closed (${code}): ${reason.toString()}`);
       options.onStatus?.(false);
       if (!closing && code !== 1008) {
