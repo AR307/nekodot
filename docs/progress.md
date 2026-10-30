@@ -500,3 +500,10 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 使用真实邮件服务和用户实际收取的验证码，在独立 Relay 完成注册、密码登录、重复验证码拒绝、退出后原 token 401；没有从数据库提取验证码。
 - SMTP 域名验证问题已由用户修正，TLS 保持开启。脱敏证据 `docs/evidence/side-phase3-smtp.json`，凭据和邮箱不提交。
 - 线上服务未更新；外部密码重置/旧账号补验和生产可信代理继续待验收，不把本项等同整个账号模块安全检查完成。
+
+## 2026-10-30 / Side Phase 3 Flutter 原生基础
+
+- 新增共用 Flutter Windows / Android 工程与原生 RFB 屏幕；不使用 WebView，不运行本地 Hermes。HTTPS/WSS、系统安全存储、snapshot/since/offset、进程内草稿及导航继续复用服务端。
+- Windows x64 与沿用既有签名的 Android arm64 release 构建通过；独立 Android 模拟器真实登录、流式回复、完整屏幕、只读/接管/交还和返回导航通过。实际远端表单文件核对 NEKODOT_NATIVE_INPUT_OK。
+- 修复 Rust TLS/native-assets feature 缓存与 RFB 有界通道积压造成的局部白屏。Flutter analyze 与账号表单 widget 测试通过，真实旅程和截图见 docs/side-phase-3-native.md。
+- 本项仅为基础闭环，不代表全部页面、Windows 安装或 Android 真机/后台推送验收。新提供方等后端仍待完成；不替换 Tauri、部署、上传候选包或 push。

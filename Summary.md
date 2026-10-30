@@ -394,3 +394,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 独立 Relay 使用本地私有 SMTP 配置完成 TLS 认证与实际发信。发件域名未验证的 550 拒绝由用户在邮件平台修正，未绕过 TLS 或改用其他发件人。
 - 用户从真实邮箱收到验证码并通过本地文件提供；注册、密码登录、验证码单次消费及服务端退出后 401 均通过。邮箱、密码、验证码和原始响应不入库。
 - 补充账号验收报告与脱敏证据。外部重置/旧账号补验、生产来源 IP 与原生完整账号页面仍分别待验收；不部署或推送。
+
+## 2026-10-30 / Side Phase 3 Flutter 原生基础
+
+- 新增共用 Flutter Windows / Android 工程与原生 RFB 屏幕；不使用 WebView，不运行本地 Hermes。HTTPS/WSS、系统安全存储、snapshot/since/offset、进程内草稿及导航继续复用服务端。
+- Windows x64 与沿用既有签名的 Android arm64 release 构建通过；独立 Android 模拟器真实登录、流式回复、完整屏幕、只读/接管/交还和返回导航通过。实际远端表单文件核对 NEKODOT_NATIVE_INPUT_OK。
+- 修复 Rust TLS/native-assets feature 缓存与 RFB 有界通道积压造成的局部白屏。Flutter analyze 与账号表单 widget 测试通过，真实旅程和截图见 docs/side-phase-3-native.md。
+- 本项仅为基础闭环，不代表全部页面、Windows 安装或 Android 真机/后台推送验收。新提供方等后端仍待完成；不替换 Tauri、部署、上传候选包或 push。

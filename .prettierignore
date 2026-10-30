@@ -7,6 +7,9 @@ dist/**
 node_modules/**
 .env*
 **/target/**
+apps/native/build/**
+apps/native/.dart_tool/**
+apps/native/windows/flutter/ephemeral/**
 apps/client/src-tauri/gen/**
 apps/client/src-tauri/icons/**
 **/Cargo.lock

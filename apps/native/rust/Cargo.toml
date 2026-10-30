@@ -1,0 +1,20 @@
+[package]
+name = "nekodot_screen"
+version = "0.2.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+anyhow = "1"
+flutter_rust_bridge = "=2.13.0"
+futures-util = "0.3"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-util", "sync", "time"] }
+tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
+vnc-rs = "0.6"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
