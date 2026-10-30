@@ -94,11 +94,17 @@ export const rpcContracts = {
   },
   'extensions.content': {
     params: z.strictObject({
+      kind: z.enum(['skills', 'plugins']),
       botId: botSchema.shape.botId.optional(),
       name: idSchema,
       identifier: z.string().optional(),
     }),
-    result: z.strictObject({ content: z.string() }),
+    result: z.strictObject({
+      content: z.string(),
+      files: z.array(z.string()),
+      repository: z.url().optional(),
+      icon: z.string().optional(),
+    }),
   },
   'extensions.install': {
     params: z

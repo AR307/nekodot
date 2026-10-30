@@ -460,9 +460,73 @@
   border-radius: 14px;
   border: 1px solid var(--line);
   background: var(--surface);
-  font: 12px/1.8 var(--font-mono);
+  font: 14px/1.8 var(--font-ui);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+.extension-icon-image {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+.extension-repository {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--accent);
+  font-size: 13px;
+}
+.extension-preview {
+  max-height: 320px;
+  overflow: auto;
+}
+.extension-files {
+  padding-left: 20px;
+  color: var(--ink-2);
+  font: 12px/1.8 var(--font-mono);
+  overflow-wrap: anywhere;
+}
+.extension-full-content {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  animation: extension-page-in 180ms ease-out;
+}
+.extension-full-content > header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.extension-full-content h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.extension-full-content .extension-detail-scroll {
+  width: min(100%, 960px);
+  align-self: center;
+}
+.skill-content .md-heading {
+  font-weight: 800;
+  font-size: 17px;
+}
+.skill-content code {
+  font-family: var(--font-mono);
+}
+@keyframes extension-page-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .extension-full-content {
+    animation: none;
+  }
 }
 .plugin-configuration {
   padding-top: 12px;

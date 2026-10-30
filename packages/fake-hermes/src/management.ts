@@ -1,5 +1,6 @@
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { WebSocketServer } from 'ws';
 import { createHash, randomBytes } from 'node:crypto';
@@ -18,6 +19,24 @@ export async function managementReplay(fixturesDirectory: string, apiKey: string
     pending: string;
   };
   const documents = new Map<string, typeof fixture.documents>();
+  const extensionFixture = JSON.parse(
+    await readFile(join(fixturesDirectory, 'extensions-native.json'), 'utf8'),
+  ) as {
+    plugin: Record<string, unknown> & { install_dir: string };
+    skill: { name: string; path: string; content: string };
+    preview: { identifier: string; skill_md: string; files: string[] };
+    listing: { entries: { name: string; path: string; isDirectory: boolean }[] };
+    skillListing: { entries: unknown[] };
+    readme: { text: string };
+    manifest: string;
+    icon: string;
+  };
+  const pluginDirectory = await mkdtemp(join(tmpdir(), 'nekodot-recorded-plugin-'));
+  await Promise.all([
+    writeFile(join(pluginDirectory, 'plugin.yaml'), extensionFixture.manifest),
+    writeFile(join(pluginDirectory, 'icon.svg'), extensionFixture.icon),
+    writeFile(join(pluginDirectory, 'README.md'), extensionFixture.readme.text),
+  ]);
   const displayFixture = JSON.parse(
     await readFile(join(fixturesDirectory, 'display-native.json'), 'utf8'),
   ) as {
@@ -43,7 +62,10 @@ export async function managementReplay(fixturesDirectory: string, apiKey: string
     if (!state) {
       state = {
         skills: structuredClone(fixture.skills),
-        plugins: structuredClone(fixture.plugins.plugins),
+        plugins: [
+          ...structuredClone(fixture.plugins.plugins),
+          { ...extensionFixture.plugin, install_dir: pluginDirectory },
+        ],
       };
       profiles.set(profile, state);
     }
@@ -77,20 +99,33 @@ export async function managementReplay(fixturesDirectory: string, apiKey: string
       const row = data(profile).skills.find((row) => row.name === body.name);
       if (row) row.enabled = body.enabled;
       json(response, { ok: true });
-    } else if (url.pathname === '/api/skills/content')
-      json(response, {
-        name: url.searchParams.get('name'),
-        path: '/isolated/profile/skills/' + url.searchParams.get('name') + '/SKILL.md',
-        content:
-          '---\nname: ' +
-          url.searchParams.get('name') +
-          '\n---\n' +
-          String(
-            data(profile).skills.find((row) => row.name === url.searchParams.get('name'))
-              ?.description ?? '',
-          ),
-      });
-    else if (url.pathname === '/api/fs/read-text') {
+    } else if (url.pathname === '/api/skills/content') {
+      if (url.searchParams.get('name') !== extensionFixture.skill.name) {
+        response.writeHead(404);
+        response.end();
+      } else json(response, extensionFixture.skill);
+    } else if (url.pathname === '/api/skills/hub/preview') {
+      if (url.searchParams.get('identifier') !== extensionFixture.preview.identifier) {
+        response.writeHead(404);
+        response.end();
+      } else json(response, extensionFixture.preview);
+    } else if (url.pathname === '/api/fs/list') {
+      json(
+        response,
+        url.searchParams.get('path') === pluginDirectory
+          ? {
+              entries: extensionFixture.listing.entries.map((file) => ({
+                ...file,
+                path: join(pluginDirectory, file.name),
+              })),
+            }
+          : extensionFixture.skillListing,
+      );
+    } else if (url.pathname === '/api/fs/read-text') {
+      if (url.searchParams.get('path') === join(pluginDirectory, 'README.md')) {
+        json(response, extensionFixture.readme);
+        return true;
+      }
       const name = url.searchParams.get('path')?.split(/[\\/]/).at(-1);
       const doc = docs.find((row) => row.name === name);
       json(response, { text: doc?.content ?? '' });

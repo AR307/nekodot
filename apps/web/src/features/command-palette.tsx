@@ -122,7 +122,7 @@ export function CommandPalette({
                     transition={
                       reduceMotion
                         ? { duration: 0 }
-                        : { type: 'spring', stiffness: 600, damping: 44 }
+                        : { type: 'tween', duration: 0.08, ease: 'easeOut' }
                     }
                   />
                 )}

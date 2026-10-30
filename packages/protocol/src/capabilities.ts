@@ -26,6 +26,8 @@ export const extensionSchema = z.strictObject({
   description: z.string(),
   category: z.string(),
   source: z.string(),
+  icon: z.string().optional(),
+  repository: z.url().optional(),
   identifier: z.string().optional(),
   platforms: z.array(z.string()),
   dependencies: z.array(z.string()),

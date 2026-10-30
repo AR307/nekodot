@@ -5,6 +5,7 @@ import {
   type Operation,
   type Bot,
   type RpcParams,
+  type RpcResult,
 } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
@@ -13,6 +14,7 @@ import type { Texts } from '../shared';
 import { OperationProgress } from './operations';
 import { relayUrl } from '../relay-url';
 import { native, android, chooseImportFiles } from '../native';
+import { Markdown } from './markdown';
 
 export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Texts }) {
   const node = useAppStore(selectNodeData);
@@ -28,7 +30,9 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
   const [operation, setOperation] = useState<Operation>();
   const [upload, setUpload] = useState('');
   const [busy, setBusy] = useState(false);
-  const [content, setContent] = useState<string>();
+  const [content, setContent] = useState<RpcResult<'extensions.content'>>();
+  const [contentError, setContentError] = useState('');
+  const [fullContent, setFullContent] = useState(false);
   const filesRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
   const activeBots = node.bots.filter((bot) => !bot.archived);
@@ -59,6 +63,23 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
       .catch((e: Error) => setError(e.message));
   }, [kind, node.online]);
   const entry = entries?.find((row) => row.id === selected);
+  useEffect(() => {
+    if (!entry || !node.online) return;
+    let current = true;
+    const installed = entry.states.find((row) => row.installed);
+    void callNode('extensions.content', {
+      kind,
+      name: entry.id,
+      botId: installed?.botId,
+      ...(!installed && entry.identifier ? { identifier: entry.identifier } : {}),
+    }).then(
+      (value) => current && setContent(value),
+      (e: Error) => current && setContentError(e.message),
+    );
+    return () => {
+      current = false;
+    };
+  }, [entry, kind, node.online]);
   const filtered = entries?.filter(
     (row) =>
       (!category || row.category === category) &&
@@ -163,20 +184,6 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
       setError(e instanceof Error ? e.message : t.failed);
     }
   }
-  async function showContent() {
-    if (!entry) return;
-    try {
-      const installed = entry.states.find((row) => row.installed);
-      const value = await callNode('extensions.content', {
-        botId: installed?.botId ?? activeBots[0]?.botId,
-        name: entry.id,
-        ...(!installed && entry.identifier ? { identifier: entry.identifier } : {}),
-      });
-      setContent(value.content);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t.failed);
-    }
-  }
   function openInstall(value?: Extension) {
     setIdentifier(value?.identifier ?? '');
     setBotIds([]);
@@ -264,11 +271,13 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
               onClick={() => {
                 setSelected(row.id);
                 setContent(undefined);
+                setContentError('');
+                setFullContent(false);
               }}
             >
               <div className="extension-card-heading">
                 <span className={`extension-mark ${kind}`}>
-                  {kind === 'skills' ? <Icon name="spark" /> : <Icon name="plugin" />}
+                  <ExtensionIcon icon={row.icon} kind={kind} />
                 </span>
                 <span className="source-badge">{sourceLabel(row.source)}</span>
               </div>
@@ -290,6 +299,7 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
         <div className="dialog-backdrop extension-overlay" onClick={() => setSelected(undefined)}>
           <section
             className="extension-detail"
+            style={fullContent ? { display: 'none' } : undefined}
             role="dialog"
             aria-modal="true"
             aria-label={entry.name}
@@ -307,7 +317,22 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
             </header>
             <div className="extension-detail-scroll">
               <h2>{entry.name}</h2>
+              <span className={`extension-mark ${kind}`}>
+                <ExtensionIcon icon={content?.icon ?? entry.icon} kind={kind} />
+              </span>
               <p className="preserve-lines">{entry.description}</p>
+              {content?.repository || entry.repository ? (
+                <a
+                  className="extension-repository"
+                  href={content?.repository ?? entry.repository}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  {content?.repository ?? entry.repository}
+                </a>
+              ) : (
+                <p className="muted">{t.noRepository}</p>
+              )}
               {entry.desktop && <p className="scope-badge">{t.desktopOnly}</p>}
               {entry.platforms.length > 0 && (
                 <p>
@@ -320,8 +345,8 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
                 </p>
               )}
               <div className="section-actions">
-                {kind === 'skills' && (
-                  <button className="secondary-button" onClick={() => void showContent()}>
+                {content?.content && (
+                  <button className="secondary-button" onClick={() => setFullContent(true)}>
                     {t.extensionContents}
                   </button>
                 )}
@@ -331,7 +356,33 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
                   </button>
                 )}
               </div>
-              {content !== undefined && <pre className="skill-content">{content}</pre>}
+              {contentError && (
+                <p className="form-error" role="alert">
+                  {contentError}
+                </p>
+              )}
+              {content ? (
+                <>
+                  <div className="skill-content extension-preview">
+                    {content.content ? (
+                      <Markdown
+                        text={content.content}
+                        copyLabel={t.copyText}
+                        copiedLabel={t.copied}
+                      />
+                    ) : (
+                      t.noExtensionDocument
+                    )}
+                  </div>
+                  <ul className="extension-files">
+                    {content.files.map((file) => (
+                      <li key={file}>{file}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                !contentError && <SpinnerDots />
+              )}
               <h3>{t.installedStates}</h3>
               {activeBots.map((bot) => {
                 const state = entry.states.find((row) => row.botId === bot.botId);
@@ -364,6 +415,36 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
               )}
             </div>
           </section>
+          {fullContent && content && (
+            <section
+              className="extension-full-content"
+              role="dialog"
+              aria-modal="true"
+              aria-label={t.extensionContents}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <header>
+                <button
+                  className="icon-button"
+                  aria-label={t.backPage}
+                  onClick={() => setFullContent(false)}
+                >
+                  <Icon name="back" />
+                </button>
+                <h2>{entry.name}</h2>
+              </header>
+              <div className="extension-detail-scroll">
+                <div className="skill-content">
+                  <Markdown text={content.content} copyLabel={t.copyText} copiedLabel={t.copied} />
+                </div>
+                <ul className="extension-files">
+                  {content.files.map((file) => (
+                    <li key={file}>{file}</li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+          )}
         </div>
       )}
       {importOpen && (
@@ -471,6 +552,15 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
         </div>
       )}
     </div>
+  );
+}
+function ExtensionIcon({ icon, kind }: { icon?: string; kind: 'skills' | 'plugins' }) {
+  return icon && /^(https:\/\/|data:image\/)/.test(icon) ? (
+    <img className="extension-icon-image" src={icon} alt="" />
+  ) : icon && [...icon].length <= 8 ? (
+    <span>{icon}</span>
+  ) : (
+    <Icon name={kind === 'skills' ? 'spark' : 'plugin'} />
   );
 }
 interface SettingField {

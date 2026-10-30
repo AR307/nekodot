@@ -227,6 +227,7 @@ class NekodotClient extends ChangeNotifier {
       _lastFrame = DateTime.now();
       socket.listen(
         (raw) {
+          if (_closed) return;
           try {
             _receive(object(jsonDecode(raw as String)));
           } catch (e) {
@@ -262,11 +263,12 @@ class NekodotClient extends ChangeNotifier {
       _disconnected();
     } finally {
       connecting = false;
-      notifyListeners();
+      if (!_closed) notifyListeners();
     }
   }
 
   void _disconnected() {
+    if (_closed) return;
     ready = false;
     _socket = null;
     _heartbeat?.cancel();
@@ -522,7 +524,9 @@ class NekodotClient extends ChangeNotifier {
     _closed = true;
     _reconnect?.cancel();
     _heartbeat?.cancel();
-    _socket?.close();
+    final socket = _socket;
+    _socket = null;
+    socket?.close();
     transport.close();
     notifications.close();
     destinations.close();

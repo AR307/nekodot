@@ -187,8 +187,14 @@ test('Bot details, native memory editing, library download, extension catalog an
     await expect(page.locator('.extension-card')).not.toHaveCount(0, { timeout: 30000 });
     await page.getByLabel('搜索名称、分类或说明').fill('claude-code');
     await page.locator('.extension-card').first().click();
+    await expect(page.locator('.extension-preview')).toContainText('claude-code');
+    await expect(page.getByText('没有提供仓库信息')).toBeVisible();
     await page.getByRole('button', { name: '完整内容', exact: true }).click();
-    await expect(page.locator('.skill-content')).toContainText('claude-code');
+    await expect(page.locator('.extension-full-content .skill-content')).toContainText(
+      'claude-code',
+    );
+    await page.getByRole('button', { name: '返回上页', exact: true }).click();
+    await expect(page.getByLabel('搜索名称、分类或说明')).toHaveValue('claude-code');
     await page
       .locator('.extension-bot-state')
       .filter({ hasText: 'Maple' })
@@ -204,10 +210,43 @@ test('Bot details, native memory editing, library download, extension catalog an
     )!.states;
     expect(states.find((row) => row.botId === bot.botId)?.enabled).toBe(false);
     expect(states.filter((row) => row.enabled)).toHaveLength(1);
+    await page.getByLabel('搜索名称、分类或说明').fill('agent-merge-conflict-arbiter');
+    await page.locator('.extension-card').click();
+    await expect(page.locator('.extension-repository')).toHaveAttribute(
+      'href',
+      'https://github.com/NousResearch/hermes-agent',
+    );
+    await expect(page.locator('.extension-preview')).toContainText('agent-merge-conflict-arbiter');
+    await page
+      .locator('.extension-detail>header')
+      .getByRole('button', { name: '关闭', exact: true })
+      .click();
     await page.getByRole('button', { name: '插件', exact: true }).click();
     await expect(page.locator('.extensions-page h1')).toHaveText('插件');
     await expect(page.locator('.extension-card')).not.toHaveCount(0);
     expect((await app.extensions.list('plugins')).entries.length).toBeGreaterThan(800);
+    await page.getByLabel('搜索名称、分类或说明').fill('docs-probe');
+    await page.locator('.extension-card').click();
+    await expect(page.locator('.extension-preview')).toContainText('Native documentation probe');
+    await expect(page.locator('.extension-files')).toContainText('README.md');
+    await expect(page.locator('.extension-detail .extension-icon-image')).toHaveAttribute(
+      'src',
+      /^data:image\/svg\+xml/,
+    );
+    await expect(page.getByText('没有提供仓库信息')).toBeVisible();
+    await page.getByRole('button', { name: '完整内容', exact: true }).click();
+    await expect(page.locator('.extension-full-content')).toContainText('does not execute tools');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.screenshot({
+      path: 'docs/evidence/side-phase3-plugin-document-1440.png',
+      animations: 'disabled',
+    });
+    await page.getByRole('button', { name: '返回上页', exact: true }).click();
+    await page
+      .locator('.extension-detail>header')
+      .getByRole('button', { name: '关闭', exact: true })
+      .click();
+    await page.getByLabel('搜索名称、分类或说明').fill('');
     for (const width of [1440, 768, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await page.evaluate(
@@ -227,7 +266,7 @@ test('Bot details, native memory editing, library download, extension catalog an
           .evaluate((paragraph) => getComputedStyle(paragraph).overflowWrap),
       ).toBe('anywhere');
       await page.screenshot({
-        path: `docs/evidence/sidephase-plugins-${width}.png`,
+        path: `.runtime/side-phase-3/native-evidence/extension-grid-${width}.png`,
         animations: 'disabled',
       });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(

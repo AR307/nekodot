@@ -144,7 +144,9 @@ class AsyncPane extends StatefulWidget {
 
 class _AsyncPaneState extends State<AsyncPane> {
   late Future<Json> value = widget.load();
-  void reload() => setState(() => value = widget.load());
+  void reload() => setState(() {
+    value = widget.load();
+  });
   @override
   Widget build(BuildContext context) => FutureBuilder<Json>(
     future: value,

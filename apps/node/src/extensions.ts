@@ -8,6 +8,12 @@ import type { BotService } from './bots';
 import type { HermesRuntime } from './hermes/runtime';
 import type { Operations } from './operations';
 import { NodeFault } from './fault';
+import {
+  documentMetadata,
+  localExtensionMetadata,
+  pluginDocument,
+  repositoryUrl,
+} from './extension-documents';
 
 type NativeRow = Record<string, unknown>;
 interface PluginField {
@@ -50,6 +56,8 @@ export class Extensions {
         description: String(row.description ?? ''),
         category: String(row.category ?? 'general'),
         source: String(row.tier ?? row.source ?? 'official'),
+        repository: repositoryUrl(row.repo),
+        icon: typeof row.image === 'string' && row.image ? row.image : undefined,
         identifier: String(row.identifier ?? row.name),
         platforms: strings(row.platforms),
         dependencies: strings(capabilities?.requires_env),
@@ -70,7 +78,7 @@ export class Extensions {
                 })
               ).plugins;
         for (const row of rows) {
-          const id = String(row.catalog_name ?? row.name);
+          const id = String(row.catalog_name ?? (kind === 'plugins' ? row.key : row.name));
           let entry = entries.get(id);
           if (!entry) {
             entry = {
@@ -86,6 +94,11 @@ export class Extensions {
               native: row,
             };
             entries.set(id, entry);
+          }
+          if (kind === 'plugins' && row.install_dir) {
+            const metadata = await localExtensionMetadata(String(row.install_dir));
+            entry.icon ??= metadata.icon;
+            entry.repository ??= metadata.repository;
           }
           entry.desktop ||= Boolean(row.has_desktop_half);
           entry.states.push({
@@ -112,18 +125,51 @@ export class Extensions {
   async content(input: RpcParams<'extensions.content'>) {
     if (input.botId) this.bots.get(input.botId);
     const profile = input.botId ?? 'default';
-    if (input.identifier) {
-      const result = await this.hermes.management.request<{ skill_md: string }>(
-        '/api/skills/hub/preview?identifier=' + encodeURIComponent(input.identifier),
-        profile,
+    if (input.kind === 'plugins') {
+      const [{ plugins }, catalog] = await Promise.all([
+        this.hermes.management.rpc<{ plugins: NativeRow[] }>('plugins.manage', {
+          profile,
+          action: 'list',
+        }),
+        this.hermes
+          .cli(profile, ['plugins', 'search', '--json'])
+          .then((raw) => (JSON.parse(raw) as { results: NativeRow[] }).results),
+      ]);
+      const installed = plugins.find((row) =>
+        [row.key, row.name, row.catalog_name].includes(input.name),
       );
-      return { content: result.skill_md };
+      const entry = catalog.find((row) => row.name === input.name || row.name === input.identifier);
+      if (!installed && !entry) throw new NodeFault('not_found', 'Plugin not found');
+      return pluginDocument(this.hermes.management, profile, installed, entry);
+    }
+    if (input.identifier) {
+      const result = await this.hermes.management.request<{
+        skill_md: string;
+        files: string[];
+        repo?: string;
+      }>('/api/skills/hub/preview?identifier=' + encodeURIComponent(input.identifier), profile);
+      return {
+        content: result.skill_md,
+        files: result.files,
+        repository: repositoryUrl(result.repo),
+      };
     }
     const result = await this.hermes.management.request<{ content: string } & NativeRow>(
       '/api/skills/content?name=' + encodeURIComponent(input.name),
       profile,
     );
-    return { content: result.content };
+    const path = String(result.path);
+    const directory = path.slice(0, Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')));
+    const listing = await this.hermes.management.request<{
+      entries: { name: string; isDirectory: boolean }[];
+    }>('/api/fs/list?path=' + encodeURIComponent(directory), profile);
+    const metadata = documentMetadata(result.content);
+    return {
+      content: result.content,
+      files: listing.entries.map((row) => row.name + (row.isDirectory ? '/' : '')),
+      repository: repositoryUrl(metadata.repository ?? metadata.repo),
+      icon: typeof metadata.icon === 'string' ? metadata.icon : undefined,
+    };
   }
   private batch(kind: string, botIds: string[], work: (botId: string) => Promise<NativeRow>) {
     for (const id of botIds) this.bots.get(id);
@@ -187,9 +233,17 @@ export class Extensions {
           method: 'PUT',
           body: JSON.stringify({ name: input.name, enabled: input.enabled, profile: botId }),
         });
+      const { plugins } = await this.hermes.management.rpc<{ plugins: NativeRow[] }>(
+        'plugins.manage',
+        { profile: botId, action: 'list' },
+      );
+      const plugin = plugins.find((row) =>
+        [row.key, row.catalog_name, row.name].includes(input.name),
+      );
+      if (!plugin) throw new NodeFault('not_found', 'Plugin not found in this profile');
       return this.hermes.management.rpc(
         'plugins.manage',
-        { profile: botId, action: 'toggle', key: input.name, enable: input.enabled },
+        { profile: botId, action: 'toggle', key: plugin.key, enable: input.enabled },
         120000,
       );
     });

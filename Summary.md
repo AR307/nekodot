@@ -407,3 +407,9 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 通知改为真实 Bot/群组名称和最终回复纯文本预览；保留群聊整链一次及停止不提醒，新增等待回答提醒。Relay 根据 UTF-8 载荷截断，不持久保存或记录正文。
 - 两个认证账号实测复现设备绑定可被其他账号覆盖，修复返回 409；2 文件 / 2 项 HTTP/WS 与业务数据测试、typecheck 通过。详见 docs/side-phase-3-notifications.md。
 - Flutter 原生权限/显示/点击代码已接入，但 Google 服务不足的模拟器不能替代真机推送；真实 FCM 与 Windows toast 完整验收尚未完成，不发布或部署。
+
+## 2026-10-30 / Side Phase 3 扩展说明与原生返回
+
+- Skills / 插件正确按种类、稳定标识及 profile 读取实际说明、文件列表、图标和仓库；简介直接预览，完整内容独立左推页面并保留返回位置。补齐 Flutter Windows 目录导入入口，Web 搜索高亮改为 80ms。
+- 隔离官方 Hermes 实际录制并经产品适配器核对 README / SKILL.md 和 SVG；Edge 响应式与独立 Android 模拟器真实 RPC 阅读 / 返回旅程通过。模拟器使用录制管理响应，不冒充新模型验收。
+- 实际设备复现并修复 Future 返回给 setState、客户端释放后 WebSocket 通知的问题。结果、截图及未覆盖范围见 docs/side-phase-3-extensions.md。原生系统文件选择与真机完整交互继续待验收；不部署或 push。

@@ -1,0 +1,9 @@
+{
+  "environment": "isolated WSL Ubuntu 24.04",
+  "profile": "nk-docs00",
+  "pluginReadmeMatchesNative": true,
+  "pluginIcon": "native local SVG",
+  "pluginFiles": ["icon.svg", "plugin.yaml", "README.md"],
+  "skillContentMatchesNative": true,
+  "officialPreviewRecorded": true
+}
