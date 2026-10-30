@@ -1,9 +1,23 @@
 import { screenZh } from './screen';
 import { clientZh } from './client';
 const zh = {
+  emailCode: '邮箱验证码',
+  sendCode: '发送验证码',
+  codeSent: '若邮箱符合条件，验证码已发出，10 分钟内有效。',
+  verifyRequired: '请验证这个账号的邮箱，已有电脑和历史会保留。',
+  verifyEmail: '验证邮箱',
+  resetPassword: '重置密码',
+  forgotPassword: '忘记密码？',
+  passwordResetDone: '密码已重置，请重新登录。',
+  streamReconnecting: '回复连接中断，正在恢复同一回合…',
+  botQuestionLine: '{name} 正在等待你的回答',
   ...clientZh,
   ...screenZh,
   appName: 'nekodot',
+  waitingQuestion: '等待回答',
+  questionAnswer: '补充回答',
+  submitAnswer: '提交回答',
+  questionClosed: '问题已结束',
   team: '团队',
   settings: '设置',
   logout: '退出登录',

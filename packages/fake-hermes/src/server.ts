@@ -20,6 +20,7 @@ const scenarios = [
   'runs-approval-deny',
   'runs-steer',
   'runs-stop',
+  'runs-clarify',
 ] as const;
 interface Fixture {
   events: ReturnType<typeof hermesSseEventSchema.parse>[];
@@ -110,7 +111,7 @@ export async function startFakeHermes(options: FakeHermesOptions) {
         run.state = { ...cancelled.final, run_id: runId, session_id: run.state.session_id };
       }
       let gate: Promise<void> | undefined;
-      if (event.event === 'approval.request' && !run.stopped) {
+      if (['approval.request', 'clarify.request'].includes(event.event) && !run.stopped) {
         run.state = { ...run.fixture.pending!, run_id: runId, session_id: run.state.session_id };
         gate = new Promise<void>((resolve) => {
           run.release = resolve;
@@ -271,6 +272,24 @@ export async function startFakeHermes(options: FakeHermesOptions) {
       run.state = { ...run.state, pending_steer: input.input };
       run.release?.();
       return json(response, 200, { run_id: runId, accepted: true });
+    }
+    if (request.method === 'POST' && path[6] === 'clarify') {
+      const input = (await body(request)) as {
+        request_id?: string;
+        execution_generation?: number;
+        answer?: string;
+      };
+      const pending = run.state.pending_controls?.find(
+        (item) => item.kind === 'clarify' && item.prompt_id === input.request_id,
+      );
+      if (!pending || input.execution_generation !== pending.execution_generation || !input.answer)
+        return json(response, 409, {
+          error: { code: 'clarify_not_active', message: 'Question is no longer pending' },
+        });
+      run.state = { ...run.state, status: 'running', pending_controls: [] };
+      json(response, 200, { run_id: runId, status: 'resolved', prompt_id: input.request_id });
+      run.release?.();
+      return;
     }
     if (request.method === 'POST' && path[6] === 'approval') {
       const approval = hermesApprovalSchema.parse(await body(request));

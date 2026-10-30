@@ -38,6 +38,7 @@ export function GroupChatView({
       conversation={conversation}
       messages={messages}
       activity={activity.state}
+      connection={activity.connection}
       online={online}
       onBack={onBack}
       onEdit={onEdit}

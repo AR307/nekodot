@@ -1,0 +1,59 @@
+{
+  "created": {
+    "run_id": "run_b2b59988861c470cbd59660935fb919c",
+    "status": "started",
+    "replayed": false
+  },
+  "pending": {
+    "run_id": "run_b2b59988861c470cbd59660935fb919c",
+    "status": "running",
+    "output": "",
+    "execution_generation": 1,
+    "pending_controls": [
+      {
+        "prompt_id": "7b124f222b",
+        "kind": "clarify",
+        "execution_generation": 1,
+        "choices": [
+          "Amber (Recommended)",
+          "Teal"
+        ],
+        "question": "Which harmless test label should I use?\nReply \"skip\" to skip this question.",
+        "multi_select": false
+      }
+    ],
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "created_at": 1793333649.4713192,
+    "session_id": "nk_clarify_110f51e4-8af6-4771-97e9-f5020e44c66d",
+    "admission_id": "3fd79cbe6a794c6c853730309f4b4665",
+    "usage": {}
+  },
+  "response": {
+    "run_id": "run_b2b59988861c470cbd59660935fb919c",
+    "status": "resolved",
+    "prompt_id": "7b124f222b"
+  },
+  "final": {
+    "run_id": "run_b2b59988861c470cbd59660935fb919c",
+    "status": "completed",
+    "output": "NEKODOT_CLARIFY_OK Amber",
+    "execution_generation": 1,
+    "pending_controls": [],
+    "object": "hermes.run",
+    "model": "hermes-agent",
+    "runtime": {
+      "provider": "",
+      "model": "",
+      "route_source": "global"
+    },
+    "created_at": 1793333649.4713192,
+    "session_id": "nk_clarify_110f51e4-8af6-4771-97e9-f5020e44c66d",
+    "admission_id": "3fd79cbe6a794c6c853730309f4b4665",
+    "usage": {
+      "input_tokens": 20872,
+      "output_tokens": 51,
+      "total_tokens": 20923
+    }
+  }
+}

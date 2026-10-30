@@ -1,0 +1,42 @@
+id: 0
+data: {"event": "tool.started", "run_id": "run_b2b59988861c470cbd59660935fb919c", "timestamp": 1793333662.1687586, "tool": "clarify", "preview": "Which harmless test label should I use?", "tool_call_id": "call_hogG1OwO89dcxGiDJsIW2rC2", "seq": 0}
+
+id: 1
+data: {"event": "clarify.request", "run_id": "run_b2b59988861c470cbd59660935fb919c", "timestamp": 1793333662.2111964, "kind": "clarify", "prompt_id": "7b124f222b", "execution_generation": 1, "question": "Which harmless test label should I use?\nReply \"skip\" to skip this question.", "choices": ["Amber (Recommended)", "Teal"], "multi_select": false, "seq": 1}
+
+id: 2
+data: {"event": "clarify.settled", "run_id": "run_b2b59988861c470cbd59660935fb919c", "timestamp": 1793333662.2285614, "prompt_id": "7b124f222b", "execution_generation": 1, "seq": 2}
+
+id: 3
+data: {"event": "tool.completed", "run_id": "run_b2b59988861c470cbd59660935fb919c", "timestamp": 1793333662.2365623, "tool": "clarify", "duration": 0, "error": false, "tool_call_id": "call_hogG1OwO89dcxGiDJsIW2rC2", "preview": "", "seq": 3}
+
+id: 4
+data: {"event": "message.delta", "run_id": "run_b2b59988861c470cbd59660935fb919c", "timestamp": 1793333665.8314111, "delta": "\n\nNE", "seq": 4}
+
+id: 5
+data: {"event": "message.delta", "run_id": "run_b2b59988861c470cbd59660935fb919c", "timestamp": 1793333665.859161, "delta": "K", "seq": 5}
+
+id: 6
+data: {"event": "message.delta", "run_id": "run_b2b59988861c470cbd59660935fb919c", "timestamp": 1793333665.895016, "delta": "OD", "seq": 6}
+
+id: 7
+data: {"event": "message.delta", "run_id": "run_b2b59988861c470cbd59660935fb919c", "timestamp": 1793333665.939507, "delta": "OT", "seq": 7}
+
+id: 8
+data: {"event": "message.delta", "run_id": "run_b2b59988861c470cbd59660935fb919c", "timestamp": 1793333665.9431107, "delta": "_CL", "seq": 8}
+
+id: 9
+data: {"event": "message.delta", "run_id": "run_b2b59988861c470cbd59660935fb919c", "timestamp": 1793333665.9635015, "delta": "AR", "seq": 9}
+
+id: 10
+data: {"event": "message.delta", "run_id": "run_b2b59988861c470cbd59660935fb919c", "timestamp": 1793333665.996239, "delta": "IFY", "seq": 10}
+
+id: 11
+data: {"event": "message.delta", "run_id": "run_b2b59988861c470cbd59660935fb919c", "timestamp": 1793333666.029633, "delta": "_OK", "seq": 11}
+
+id: 12
+data: {"event": "message.delta", "run_id": "run_b2b59988861c470cbd59660935fb919c", "timestamp": 1793333666.3905237, "delta": " Amber", "seq": 12}
+
+id: 13
+data: {"event": "run.completed", "run_id": "run_b2b59988861c470cbd59660935fb919c", "timestamp": 1793333666.4633777, "output": "NEKODOT_CLARIFY_OK Amber", "usage": {"input_tokens": 20872, "output_tokens": 51, "total_tokens": 20923}, "runtime": {"provider": "", "model": "", "route_source": "global"}, "completed": true, "partial": false, "interrupted": false, "seq": 13}
+

@@ -8,12 +8,13 @@ import type {
   RpcRequest,
   RpcResult,
   ApprovalChoice,
+  HermesRunState,
+  HermesEvent,
 } from '@nekodot/protocol';
 import { NodeDatabase, type GroupChainRecord, type RunRecord } from './database';
 import type { HermesRuntime } from './hermes/runtime';
 import type { HermesApi } from './hermes/api';
 import { NodeFault } from './fault';
-import type { SseFrame } from './hermes/sse';
 import { BotService } from './bots';
 import { GroupService } from './groups';
 import { groupPrompt, MAX_CHAIN, mentionedBots } from './group-routing';
@@ -24,25 +25,6 @@ import { Extensions } from './extensions';
 import { BotScreens } from './screens';
 import { Notifications } from './notifications';
 
-type HermesEvent = SseFrame['data'] & {
-  event: string;
-  seq: number;
-  delta?: string;
-  text?: string;
-  already_streamed?: boolean;
-  tool?: string;
-  preview?: string;
-  tool_call_id?: string;
-  duration?: number;
-  error?: boolean | string;
-  output?: string;
-  prompt_id?: string;
-  execution_generation?: number;
-  command?: string;
-  description?: string;
-  accepted?: boolean;
-  choices?: ApprovalChoice[];
-};
 type TextMessage = Extract<Message, { kind: 'text' }>;
 
 const now = () => new Date().toISOString();
@@ -169,6 +151,8 @@ export class NodeApplication {
         return this.stop(request.params.conversationId);
       case 'approvals.respond':
         return this.respondToApproval(request.params);
+      case 'questions.respond':
+        return this.respondToQuestion(request.params);
       case 'providers.get':
         return this.bots.provider();
       case 'providers.set':
@@ -238,6 +222,7 @@ export class NodeApplication {
         const state = await api.state(run.runId);
         if (isActiveStatus(state.status)) {
           this.activeRuns.set(run.conversationId, run);
+          this.restoreQuestion(run, state);
           if (state.status === 'waiting_for_approval') {
             const pending = state.pending_controls?.find((control) => control.kind === 'approval');
             if (pending && !this.database.approval(run.runId, pending.prompt_id)) {
@@ -258,7 +243,7 @@ export class NodeApplication {
                     prompt.execution_generation ?? state.execution_generation ?? 0,
                   prompt: prompt.description ?? prompt.command ?? 'Approval required',
                   ...(prompt.command ? { command: prompt.command } : {}),
-                  ...(prompt.choices ? { choices: prompt.choices } : {}),
+                  ...(prompt.choices ? { choices: prompt.choices as ApprovalChoice[] } : {}),
                 },
               };
               run.state = 'waiting_approval';
@@ -268,7 +253,13 @@ export class NodeApplication {
           this.publishActivity(run);
           this.consume(run, api);
         } else {
-          await this.finishFromState(run, state.status, state.output, state.pending_steer);
+          await this.finishFromState(
+            run,
+            state.status,
+            state.output,
+            state.pending_steer,
+            state.error ?? state.turn_exit_reason,
+          );
         }
       } catch {
         await this.finishInterrupted(
@@ -316,7 +307,7 @@ export class NodeApplication {
 
     if (active) {
       this.activeRuns.set(active.conversationId, active);
-      if (active.state === 'waiting_approval')
+      if (active.state === 'waiting_approval' || active.state === 'waiting_question')
         throw new NodeFault(
           'conflict',
           'Resolve the pending approval or stop this run before sending.',
@@ -384,7 +375,7 @@ export class NodeApplication {
       content: { text: params.text },
     };
     if (active) {
-      if (active.state === 'waiting_approval')
+      if (active.state === 'waiting_approval' || active.state === 'waiting_question')
         throw new NodeFault(
           'conflict',
           'Resolve the pending approval or stop this run before sending.',
@@ -566,10 +557,15 @@ export class NodeApplication {
 
   private async readRun(run: RunRecord, api: HermesApi, signal: AbortSignal) {
     let reconnectDelay = 1000;
+    let disconnected = false;
     while (!signal.aborted && run.runId) {
       try {
         for await (const frame of api.events(run.runId, run.lastSeq, signal)) {
-          const event = frame.data as HermesEvent;
+          if (disconnected) {
+            disconnected = false;
+            this.publishActivity(run);
+          }
+          const event = frame.data;
           if (event.seq <= Math.max(run.lastSeq, this.appliedSeq.get(run.runId) ?? -1)) continue;
           await this.acceptEvent(run, api, event);
           if (run.state === 'idle') return;
@@ -578,12 +574,60 @@ export class NodeApplication {
         if (signal.aborted) return;
         const state = await api.state(run.runId);
         if (!isActiveStatus(state.status)) {
-          await this.finishFromState(run, state.status, state.output, state.pending_steer);
+          await this.finishFromState(
+            run,
+            state.status,
+            state.output,
+            state.pending_steer,
+            state.error ?? state.turn_exit_reason,
+          );
           return;
         }
+        this.restoreQuestion(run, state);
         reconnectDelay = 1000;
-      } catch {
+      } catch (error) {
         if (signal.aborted) return;
+        if (error instanceof Error && error.name === 'ZodError') {
+          await this.finishInterrupted(
+            run,
+            'Hermes returned an unsupported event. The task was not restarted.',
+          );
+          return;
+        }
+        if (!disconnected) {
+          disconnected = true;
+          this.persistText(run, this.currentText(run), run.lastSeq);
+          this.onLive({
+            kind: 'activity',
+            conversationId: run.conversationId,
+            botId: run.botId,
+            state: run.state,
+            connection: 'reconnecting',
+            detail: error instanceof Error ? error.message : 'Hermes stream disconnected',
+          });
+        }
+        try {
+          const state = await api.state(run.runId);
+          if (!isActiveStatus(state.status)) {
+            await this.finishFromState(
+              run,
+              state.status,
+              state.output,
+              state.pending_steer,
+              state.error ?? state.turn_exit_reason,
+            );
+            return;
+          }
+          this.restoreQuestion(run, state);
+        } catch (stateError) {
+          if (stateError instanceof NodeFault && stateError.code === 'not_found') {
+            await this.finishInterrupted(
+              run,
+              'Hermes no longer has this run. It was not restarted.',
+            );
+            return;
+          }
+        }
       }
       if (signal.aborted) return;
       await new Promise((resolve) => setTimeout(resolve, reconnectDelay));
@@ -593,6 +637,29 @@ export class NodeApplication {
 
   private async acceptEvent(run: RunRecord, api: HermesApi, event: HermesEvent) {
     const runId = run.runId!;
+    if (event.event === 'clarify.request') {
+      this.persistText(run, this.currentText(run), event.seq);
+      this.restoreQuestion(run, await api.state(runId));
+      run.lastSeq = event.seq;
+      this.database.saveRun(run);
+      return;
+    }
+    if (event.event === 'clarify.settled') {
+      const question = this.database
+        .messagesForRun(runId)
+        .find(
+          (message) => message.kind === 'question' && message.content.requestId === event.prompt_id,
+        );
+      if (question?.kind === 'question' && question.status === 'streaming') {
+        question.status = 'done';
+        this.database.putMessage(question, { runId });
+      }
+      run.state = 'thinking';
+      run.lastSeq = event.seq;
+      this.database.saveRun(run);
+      this.publishActivity(run);
+      return;
+    }
     if (event.event === 'message.delta') {
       const textMessage = this.ensureText(run);
       const delta = event.delta ?? '';
@@ -704,7 +771,7 @@ export class NodeApplication {
           requestId: pending.prompt_id,
           executionGeneration: pending.execution_generation ?? event.execution_generation ?? 0,
           ...((pending.choices ?? event.choices)
-            ? { choices: pending.choices ?? event.choices }
+            ? { choices: (pending.choices ?? event.choices) as ApprovalChoice[] }
             : {}),
           prompt:
             details.description ??
@@ -766,15 +833,7 @@ export class NodeApplication {
       event.event === 'run.interrupted' ||
       event.event === 'run.failed'
     ) {
-      for (const message of this.database.messagesForRun(runId)) {
-        if (
-          message.status === 'streaming' &&
-          (message.kind === 'tool' || message.kind === 'approval')
-        ) {
-          message.status = event.event === 'run.cancelled' ? 'cancelled' : 'failed';
-          this.database.putMessage(message, { runId });
-        }
-      }
+      this.settleControls(run, event.event === 'run.cancelled' ? 'cancelled' : 'failed');
       const reply =
         this.currentText(run) ??
         this.newText(
@@ -786,6 +845,12 @@ export class NodeApplication {
         );
       if (event.event !== 'run.cancelled' && !reply.content.text)
         reply.content = { text: event.output ?? 'Run failed.' };
+      if (event.event !== 'run.cancelled')
+        reply.content.failureReason =
+          typeof event.error === 'string'
+            ? event.error
+            : (event.turn_exit_reason ??
+              'Hermes interrupted this turn. Send a message to continue; the task was not restarted.');
       reply.status = event.event === 'run.cancelled' ? 'cancelled' : 'failed';
       this.persistText(run, reply, event.seq);
       const state = await api.state(runId);
@@ -977,6 +1042,74 @@ export class NodeApplication {
     return {};
   }
 
+  private restoreQuestion(run: RunRecord, state: HermesRunState) {
+    const pending = state.pending_controls?.find((control) => control.kind === 'clarify');
+    if (!pending || !run.runId) return;
+    const existing = this.database
+      .messagesForRun(run.runId)
+      .find(
+        (message) => message.kind === 'question' && message.content.requestId === pending.prompt_id,
+      );
+    run.state = 'waiting_question';
+    if (!existing)
+      this.database.putMessage(
+        {
+          messageId: randomUUID(),
+          conversationId: run.conversationId,
+          seq: this.database.head(),
+          author: { type: 'bot', id: run.botId },
+          kind: 'question',
+          status: 'streaming',
+          createdAt: now(),
+          content: {
+            runId: run.runId,
+            botId: run.botId,
+            requestId: pending.prompt_id,
+            executionGeneration: pending.execution_generation ?? state.execution_generation ?? 0,
+            question: pending.question ?? 'Hermes needs your answer',
+            choices: pending.choices ?? [],
+            multiSelect: pending.multi_select ?? false,
+          },
+        },
+        { runId: run.runId },
+        run,
+      );
+    else this.database.saveRun(run);
+    this.publishActivity(run);
+  }
+
+  private async respondToQuestion(params: RpcParams<'questions.respond'>) {
+    const message = this.database.message(params.messageId);
+    if (message?.kind !== 'question' || message.status !== 'streaming')
+      throw new NodeFault('conflict', 'This question is no longer pending');
+    const run =
+      this.activeRuns.get(message.conversationId) ??
+      this.database.runs().find((item) => item.runId === message.content.runId);
+    if (!run?.runId) throw new NodeFault('conflict', 'Run is no longer active');
+    const response = await (
+      await this.hermes.api(run.botId)
+    ).clarify(
+      run.runId,
+      message.content.requestId,
+      message.content.executionGeneration,
+      params.answer,
+    );
+    if (response.status === 'already_resolved') {
+      message.status = 'done';
+      this.database.putMessage(message, { runId: run.runId });
+      throw new NodeFault(
+        'conflict',
+        'Hermes already closed this question. Your answer was not sent.',
+      );
+    }
+    message.content.answer = params.answer;
+    message.status = 'done';
+    run.state = 'thinking';
+    this.database.putMessage(message, { runId: run.runId }, run);
+    this.publishActivity(run);
+    return {};
+  }
+
   private pendingInstruction(run: RunRecord, text?: string) {
     if (!text) return;
     this.database.putMessage(
@@ -1002,11 +1135,19 @@ export class NodeApplication {
     status: string,
     output?: string,
     pendingSteer?: string,
+    failureReason?: string,
   ) {
+    this.settleControls(
+      run,
+      status === 'cancelled' ? 'cancelled' : status === 'completed' ? 'done' : 'failed',
+    );
     const activeMessage = this.currentText(run);
+    if (activeMessage && status !== 'completed' && status !== 'cancelled')
+      activeMessage.content.failureReason =
+        failureReason ?? 'Hermes interrupted this turn. The task was not restarted.';
     if (run.groupId) {
       const reply = activeMessage ?? this.newText(run, output ?? '', 'done');
-      reply.content = { text: output ?? reply.content.text };
+      reply.content = { ...reply.content, text: output ?? reply.content.text };
       reply.status =
         status === 'cancelled' ? 'cancelled' : status === 'completed' ? 'done' : 'failed';
       if (status === 'completed') await this.files.capture(reply);
@@ -1032,6 +1173,8 @@ export class NodeApplication {
     } else {
       const reply = activeMessage ?? this.newText(run, output ?? 'Run was interrupted.', 'failed');
       if (!reply.content.text) reply.content = { text: output ?? 'Run was interrupted.' };
+      reply.content.failureReason =
+        failureReason ?? 'Hermes interrupted this turn. The task was not restarted.';
       reply.status = 'failed';
       this.persistText(run, reply, run.lastSeq);
     }
@@ -1046,10 +1189,13 @@ export class NodeApplication {
   }
 
   private async finishInterrupted(run: RunRecord, text: string) {
+    this.settleControls(run, 'failed');
     const message = this.currentText(run) ?? this.newText(run, text, 'failed');
     if (!message.content.text) message.content = { text };
+    message.content.failureReason = text;
     message.status = 'failed';
     this.database.putMessage(message, { runId: run.runId }, this.idle(run));
+    run.state = 'idle';
     if (run.groupId) {
       await this.finishGroupRun(run, 'failed', text);
       return;
@@ -1061,5 +1207,18 @@ export class NodeApplication {
       conversationId: run.conversationId,
       kind: 'failed',
     });
+  }
+
+  private settleControls(run: RunRecord, status: Message['status']) {
+    if (!run.runId) return;
+    for (const message of this.database.messagesForRun(run.runId)) {
+      if (
+        message.status === 'streaming' &&
+        (message.kind === 'tool' || message.kind === 'approval' || message.kind === 'question')
+      ) {
+        message.status = status;
+        this.database.putMessage(message, { runId: run.runId });
+      }
+    }
   }
 }

@@ -481,3 +481,10 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 补充启动期提示、连接错误和关闭原因日志；Hermes 初始化失败时结束受管子进程。启动失败显示日志并保留已安装程序、节点身份和历史。
 - 独立 Linux 用户真实重复安装与配置错误预检通过，身份保持不变；恢复配置后重新上线。26 项测试、typecheck、lint、build 及 Edge 私聊完整旅程通过。验收记录见 docs/node-install-readiness.md 和 docs/evidence/node-ready-install.json。
 - 公网只更新安装器及 Node 单文件；没有重启用户节点、产品 Relay 或其他服务，没有更新双端客户端包，也没有修改 Hermes 核心。源码只做本地提交，不推送。
+
+## 2026-10-30 / Side Phase 3 原生提问与输出恢复
+
+- 原生 clarify 普通选项不再被审批枚举拒绝；问题、审批分别保存，恢复依据实际 pending_controls。回答、刷新和 Node 重建保持同 run，不把回答转成普通发送。
+- 隔离 WSL 的真实模型提问 Amber / Teal，回答 Amber 后同 run 实际完成；已保存脱敏 fixture。Edge 完整私聊验证刷新、重建、草稿、回答及后续审批/steer/停止；新增问题截图单独留存。
+- 本轮 typecheck、15 文件 27 项测试、Flutter analyze 通过；完整 Edge 4 passed / 1 skipped，跳过项为需要真实 Linux 屏幕的既有测试。原生 Flutter 构建和设备旅程尚不能标记完成，外部 SMTP 等待用户准备，不部署未验收账号变更。
+- 实施记录见 docs/side-phase-3-progress.md；所有修改仅本地，不 push、不重启线上服务。

@@ -53,8 +53,26 @@ const messageBase = {
   status: z.enum(['streaming', 'done', 'failed', 'cancelled']),
   createdAt: timestampSchema,
 };
-const textContent = z.strictObject({ text: z.string(), files: z.array(z.uuid()).optional() });
+const textContent = z.strictObject({
+  text: z.string(),
+  files: z.array(z.uuid()).optional(),
+  failureReason: z.string().optional(),
+});
 export const messageSchema = z.discriminatedUnion('kind', [
+  z.strictObject({
+    ...messageBase,
+    kind: z.literal('question'),
+    content: z.strictObject({
+      runId: idSchema,
+      botId: botSchema.shape.botId,
+      requestId: idSchema,
+      executionGeneration: z.number().int().nonnegative(),
+      question: z.string(),
+      choices: z.array(z.string()),
+      multiSelect: z.boolean(),
+      answer: z.string().optional(),
+    }),
+  }),
   z.strictObject({ ...messageBase, kind: z.literal('text'), content: textContent }),
   z.strictObject({ ...messageBase, kind: z.literal('commentary'), content: textContent }),
   z.strictObject({

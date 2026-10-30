@@ -143,6 +143,39 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
       );
       expect(notifications.map((signal) => signal.kind)).toEqual(['completed']);
 
+      await send('runs-clarify');
+      await waitFor(() =>
+        messages().some((message) => message.kind === 'question' && message.status === 'streaming'),
+      );
+      const question = messages().find(
+        (message) => message.kind === 'question' && message.status === 'streaming',
+      );
+      if (question?.kind !== 'question') throw new Error('Native question was not shown.');
+      expect(question.content.choices).toContain('Teal');
+      expect(
+        app.database.runs().find((run) => run.conversationId === conversation.conversationId)
+          ?.state,
+      ).toBe('waiting_question');
+      await expect(send('This must not become a steer while waiting')).rejects.toThrow();
+      await app.handle(
+        request('questions.respond', { messageId: question.messageId, answer: 'Amber' }),
+      );
+      await waitFor(() =>
+        messages().some(
+          (message) =>
+            message.kind === 'text' &&
+            message.status === 'done' &&
+            message.content.text === 'NEKODOT_CLARIFY_OK Amber',
+        ),
+      );
+      expect(messages().find((message) => message.messageId === question.messageId)).toMatchObject({
+        status: 'done',
+        content: { answer: 'Amber' },
+      });
+      await expect(
+        app.handle(request('questions.respond', { messageId: question.messageId, answer: 'Teal' })),
+      ).rejects.toThrow();
+
       const toolScenario = await send('runs-tools-approval');
       void toolScenario;
       await waitFor(() =>
@@ -167,7 +200,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
         messages()
           .filter((message) => message.kind === 'tool')
           .map((message) => message.content.tool),
-      ).toEqual(['read_file', 'patch']);
+      ).toEqual(['clarify', 'read_file', 'patch']);
       expect(messages().find((message) => message.messageId === pending.messageId)?.status).toBe(
         'done',
       );
@@ -234,7 +267,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
       expect(secondInstruction).toHaveProperty('messageId');
       const lastRun = relay.inspectRuns().at(-1)!;
       expect(lastRun.steers).toEqual(['Please keep the same run and explain what you found.']);
-      expect(relay.inspectRuns().filter((run) => run.profile === bot.botId)).toHaveLength(5);
+      expect(relay.inspectRuns().filter((run) => run.profile === bot.botId)).toHaveLength(6);
       await waitFor(
         () =>
           !app.database.runs().some((run) => run.conversationId === conversation.conversationId),

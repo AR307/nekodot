@@ -1,9 +1,23 @@
 import { screenEn } from './screen';
 import { clientEn } from './client';
 const en = {
+  emailCode: 'Email code',
+  sendCode: 'Send code',
+  codeSent: 'If eligible, a code has been sent. It expires in 10 minutes.',
+  verifyRequired: 'Verify this account’s email. Your computers and history are kept.',
+  verifyEmail: 'Verify email',
+  resetPassword: 'Reset password',
+  forgotPassword: 'Forgot password?',
+  passwordResetDone: 'Password reset. Sign in again.',
+  streamReconnecting: 'Stream disconnected. Reconnecting to the same run…',
+  botQuestionLine: '{name} is waiting for your answer',
   ...screenEn,
   ...clientEn,
   appName: 'nekodot',
+  waitingQuestion: 'Waiting for your answer',
+  questionAnswer: 'Your answer',
+  submitAnswer: 'Submit answer',
+  questionClosed: 'Question closed',
   team: 'Team',
   settings: 'Settings',
   logout: 'Sign out',

@@ -296,6 +296,7 @@ export function TeamPage({ t, onLanguage }: { t: Texts; onLanguage(): void }) {
               conversation={conversation}
               messages={node.messages[conversation.conversationId] ?? []}
               activity={node.activity[conversation.conversationId]?.state ?? 'idle'}
+              connection={node.activity[conversation.conversationId]?.connection}
               online={online}
               onBack={() => setMobileChat(false)}
               onEdit={() => setDetailBotId(bot.botId)}

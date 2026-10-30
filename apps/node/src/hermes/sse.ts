@@ -1,8 +1,8 @@
-import { hermesSseEventSchema } from '@nekodot/protocol';
+import { hermesSseEventSchema, type HermesEvent } from '@nekodot/protocol';
 
 export interface SseFrame {
   event: string;
-  data: Record<string, unknown>;
+  data: HermesEvent;
   raw: string;
 }
 export function parseSseFrame(raw: string): SseFrame | undefined {

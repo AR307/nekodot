@@ -609,7 +609,8 @@
 }
 
 /* approval card */
-.approval-card {
+.approval-card,
+.question-card {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -652,7 +653,8 @@
   width: 18px;
   height: 18px;
 }
-.approval-card p {
+.approval-card p,
+.question-card p {
   margin: 0;
   font-size: 13px;
   line-height: 1.55;

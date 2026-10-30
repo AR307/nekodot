@@ -18,7 +18,7 @@ import { Markdown, MentionText } from './markdown';
 import { useDrafts } from '../drafts';
 import { writeClipboard } from '../native';
 
-type Activity = 'thinking' | 'tool' | 'waiting_approval' | 'idle';
+type Activity = 'thinking' | 'tool' | 'waiting_approval' | 'waiting_question' | 'idle';
 
 export function ChatView({
   t,
@@ -29,6 +29,7 @@ export function ChatView({
   conversation,
   messages,
   activity,
+  connection,
   online,
   onBack,
   onEdit,
@@ -42,6 +43,7 @@ export function ChatView({
   conversation: Conversation;
   messages: Message[];
   activity: Activity;
+  connection?: 'connected' | 'reconnecting';
   online: boolean;
   onBack(): void;
   onEdit(): void;
@@ -62,6 +64,7 @@ export function ChatView({
   const [historyComplete, setHistoryComplete] = useState(false);
   const reduceMotion = useReducedMotion();
   const running = activity !== 'idle';
+  const waiting = activity === 'waiting_approval' || activity === 'waiting_question';
   const members = group ? bots.filter((member) => group.botIds.includes(member.botId)) : [];
   const handles = group ? members.map((member) => member.handle) : undefined;
   const lead = group ? bots.find((member) => member.botId === group.leadBotId) : undefined;
@@ -124,7 +127,7 @@ export function ChatView({
   async function send(event: FormEvent) {
     event.preventDefault();
     const text = draft.trim();
-    if (!text || sending || !online || activity === 'waiting_approval') return;
+    if (!text || sending || !online || waiting) return;
     setSending(true);
     setError('');
     setInstructionAdded(false);
@@ -159,21 +162,27 @@ export function ChatView({
 
   const statusText = !online
     ? t.offline
-    : activity === 'thinking'
-      ? t.thinking
-      : activity === 'tool'
-        ? t.usingTool
-        : activity === 'waiting_approval'
-          ? t.waitingApproval
-          : group
-            ? `${members.length} ${t.members}`
-            : '@' + bot.handle;
+    : connection === 'reconnecting'
+      ? t.streamReconnecting
+      : activity === 'thinking'
+        ? t.thinking
+        : activity === 'tool'
+          ? t.usingTool
+          : activity === 'waiting_approval'
+            ? t.waitingApproval
+            : activity === 'waiting_question'
+              ? t.waitingQuestion
+              : group
+                ? `${members.length} ${t.members}`
+                : '@' + bot.handle;
   const bannerText = fill(
-    activity === 'waiting_approval'
-      ? t.botWaitingLine
-      : activity === 'tool'
-        ? t.botToolLine
-        : t.botThinkingLine,
+    activity === 'waiting_question'
+      ? t.botQuestionLine
+      : waiting
+        ? t.botWaitingLine
+        : activity === 'tool'
+          ? t.botToolLine
+          : t.botThinkingLine,
     { name: bot.displayName },
   );
   const blocks = buildBlocks(messages, t);
@@ -215,9 +224,9 @@ export function ChatView({
                 </span>
               )}
               <span
-                className={`chat-status${online ? ' online' : ''}${running && online ? ' is-busy' : ''}${activity === 'waiting_approval' ? ' is-waiting' : ''}`}
+                className={`chat-status${online ? ' online' : ''}${running && online ? ' is-busy' : ''}${waiting ? ' is-waiting' : ''}`}
               >
-                {online && running && activity !== 'waiting_approval' && <SpinnerDots />}
+                {online && running && !waiting && <SpinnerDots />}
                 {statusText}
               </span>
             </small>
@@ -307,10 +316,7 @@ export function ChatView({
               );
             const author = bots.find((member) => member.botId === block.botId) ?? bot;
             const working =
-              running &&
-              author.botId === bot.botId &&
-              block === lastBlock &&
-              activity !== 'waiting_approval';
+              running && author.botId === bot.botId && block === lastBlock && !waiting;
             return (
               <div
                 className="bot-block"
@@ -388,22 +394,20 @@ export function ChatView({
         <AnimatePresence initial={false}>
           {running && (
             <motion.div
-              className={`run-banner${activity === 'waiting_approval' ? ' approval-waiting' : ''}`}
+              className={`run-banner${waiting ? ' approval-waiting' : ''}`}
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: reduceMotion ? 0.1 : 0.22, ease }}
             >
               <span className="run-banner-copy">
-                {activity === 'waiting_approval' ? (
+                {waiting ? (
                   <Icon name="warning" />
                 ) : (
                   <BotAvatar color={bot.avatar.color} size={20} working />
                 )}
-                <span>{bannerText}</span>
-                {activity !== 'waiting_approval' && (
-                  <small className="run-banner-hint">· {t.steerHint}</small>
-                )}
+                <span>{connection === 'reconnecting' ? t.streamReconnecting : bannerText}</span>
+                {!waiting && <small className="run-banner-hint">· {t.steerHint}</small>}
               </span>
               <button className="stop-button" onClick={() => void stop()}>
                 <i />
@@ -503,16 +507,14 @@ export function ChatView({
           />
           <motion.button
             className="send-button"
-            disabled={!draft.trim() || sending || !online || activity === 'waiting_approval'}
+            disabled={!draft.trim() || sending || !online || waiting}
             aria-label={t.send}
             whileTap={reduceMotion ? undefined : { scale: 0.9 }}
           >
             {sending ? <SpinnerDots /> : <Icon name="arrowUp" />}
           </motion.button>
         </form>
-        {activity === 'waiting_approval' && (
-          <div className="composer-hint">{t.approvalDraftHint}</div>
-        )}
+        {waiting && <div className="composer-hint">{t.approvalDraftHint}</div>}
       </div>
     </div>
   );
@@ -704,6 +706,86 @@ function SystemLine({
   );
 }
 
+function QuestionCard({
+  message,
+  t,
+}: {
+  message: Extract<Message, { kind: 'question' }>;
+  t: Texts;
+}) {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [answer, setAnswer] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const pending = message.status === 'streaming';
+  async function respond(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      await callNode('questions.respond', {
+        messageId: message.messageId,
+        answer: [...selected, answer.trim()].filter(Boolean).join('\n'),
+      });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form className="question-card" onSubmit={(event) => void respond(event)}>
+      <strong>{message.content.question}</strong>
+      {pending ? (
+        <>
+          <div className="approval-actions">
+            {message.content.choices.map((choice) => (
+              <button
+                type="button"
+                className="secondary-button"
+                key={choice}
+                aria-pressed={selected.includes(choice)}
+                onClick={() =>
+                  setSelected(
+                    message.content.multiSelect
+                      ? selected.includes(choice)
+                        ? selected.filter((item) => item !== choice)
+                        : [...selected, choice]
+                      : [choice],
+                  )
+                }
+              >
+                {choice}
+              </button>
+            ))}
+          </div>
+          <textarea
+            aria-label={t.questionAnswer}
+            value={answer}
+            onChange={(event) => setAnswer(event.target.value)}
+          />
+          <button
+            className="primary-button"
+            disabled={busy || (!selected.length && !answer.trim())}
+          >
+            {t.submitAnswer}
+          </button>
+        </>
+      ) : (
+        <p>
+          {message.content.answer ??
+            (message.status === 'cancelled' ? t.stopped : t.questionClosed)}
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="form-error">
+          {error}
+        </p>
+      )}
+    </form>
+  );
+}
+
 function BotMessage({
   t,
   bot,
@@ -718,6 +800,7 @@ function BotMessage({
   const reduceMotion = useReducedMotion();
   if (message.kind === 'tool') return <ToolCard t={t} message={message} />;
   if (message.kind === 'approval') return <ApprovalCard t={t} message={message} />;
+  if (message.kind === 'question') return <QuestionCard message={message} t={t} />;
   if (message.kind !== 'text' && message.kind !== 'commentary') return null;
   const displayText = readableMessageText(message.content.text);
   const handoffs =
@@ -746,7 +829,9 @@ function BotMessage({
           <span className="stream-cursor">▍</span>
         )}
         {message.status === 'failed' && (
-          <small className="message-state failed-state">{t.failed}</small>
+          <small className="message-state failed-state">
+            {message.content.failureReason ?? t.failed}
+          </small>
         )}
         {message.status === 'cancelled' && <small className="message-state">{t.stopped}</small>}
       </div>

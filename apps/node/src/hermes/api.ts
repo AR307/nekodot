@@ -77,6 +77,13 @@ export class HermesApi {
     });
     return hermesControlResponseSchema.parse(await response.json());
   }
+  async clarify(runId: string, requestId: string, generation: number, answer: string) {
+    const response = await this.request('/v1/runs/' + encodeURIComponent(runId) + '/clarify', {
+      method: 'POST',
+      body: JSON.stringify({ request_id: requestId, execution_generation: generation, answer }),
+    });
+    return hermesControlResponseSchema.parse(await response.json());
+  }
   async steer(runId: string, input: string) {
     const response = await this.request('/v1/runs/' + encodeURIComponent(runId) + '/steer', {
       method: 'POST',

@@ -210,6 +210,7 @@ function previewText(message: Message) {
   if (message.kind === 'text' || message.kind === 'commentary' || message.kind === 'system')
     return plainText(readableMessageText(message.content.text)).replace(/\s+/g, ' ').slice(0, 80);
   if (message.kind === 'tool') return message.content.tool;
+  if (message.kind === 'question') return message.content.question;
   return message.content.command ?? message.content.prompt;
 }
 

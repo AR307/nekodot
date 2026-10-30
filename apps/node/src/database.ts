@@ -18,7 +18,7 @@ export interface RunRecord {
   requestId?: string;
   stopRequested?: boolean;
   lastSeq: number;
-  state: 'thinking' | 'tool' | 'waiting_approval' | 'idle';
+  state: 'thinking' | 'tool' | 'waiting_approval' | 'waiting_question' | 'idle';
   textMessageId?: string;
   inputMessageId: string;
 }

@@ -376,3 +376,9 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 补充启动期提示、连接错误和关闭原因日志；Hermes 初始化失败时结束受管子进程。启动失败显示日志并保留已安装程序、节点身份和历史。
 - 独立 Linux 用户真实重复安装与配置错误预检通过，身份保持不变；恢复配置后重新上线。26 项测试、typecheck、lint、build 及 Edge 私聊完整旅程通过。验收记录见 docs/node-install-readiness.md 和 docs/evidence/node-ready-install.json。
 - 公网只更新安装器及 Node 单文件；没有重启用户节点、产品 Relay 或其他服务，没有更新双端客户端包，也没有修改 Hermes 核心。源码只做本地提交，不推送。
+
+## 2026-10-30 / Side Phase 3 原生提问与输出恢复
+
+- 提问卡与执行审批分开建模，接入 Hermes 原生 clarify；刷新、Node 恢复仍回答原 run，等待期间保留草稿。断流明确显示重连，协议错误与终止原因可见，不自动重跑。
+- 隔离真实模型提问回答完成，脱敏 SSE 与 run 状态入库；Edge 实际旅程覆盖问题中刷新、Node 重建、回答及后续聊天。真实模型与回放浏览器证据分别标明。
+- 最新 typecheck、15 文件 / 27 项测试及 Flutter analyze 通过；完整 Edge 4 项通过，Linux 实屏项跳过。详见 docs/side-phase-3-progress.md。线上未部署，新客户端未切换。

@@ -180,6 +180,10 @@ export const rpcContracts = {
     params: z.strictObject({ messageId: idSchema, choice: approvalChoiceSchema }),
     result: empty,
   },
+  'questions.respond': {
+    params: z.strictObject({ messageId: idSchema, answer: z.string().min(1).max(16384) }),
+    result: empty,
+  },
   'bots.create': {
     params: z.strictObject({ ...botFields, approvalMode: approvalModeSchema.optional() }),
     result: z.strictObject({ bot: botSchema, conversation: conversationSchema }),

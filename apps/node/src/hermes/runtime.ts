@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { mkdir, readFile, writeFile, access, chmod } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, access, chmod, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseEnv } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -150,6 +150,11 @@ export class ManagedHermes implements HermesRuntime {
     );
     const document = parseDocument(raw);
     if (document.errors.length) throw new Error('Hermes config is not valid YAML');
+    const apiTools = document.toJS().platform_toolsets?.api_server as string[] | undefined;
+    document.setIn(
+      ['platform_toolsets', 'api_server'],
+      [...new Set([...(apiTools ?? ['hermes-api-server']), 'clarify'])],
+    );
     if (approvalMode) document.setIn(['approvals', 'mode'], approvalMode);
     if (profile === 'default') {
       const gateway = document.get('gateway');
@@ -287,6 +292,10 @@ export class ManagedHermes implements HermesRuntime {
     try {
       await this.writeEnv('default');
       await this.config('default');
+      const profiles = await readdir(join(this.options.home, 'profiles'), {
+        withFileTypes: true,
+      }).catch(() => []);
+      for (const profile of profiles) if (profile.isDirectory()) await this.config(profile.name);
       this.launchGateway(1000);
       await this.waitHealthy('default');
       this.launchManagement(1000);

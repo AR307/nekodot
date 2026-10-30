@@ -24,7 +24,9 @@ export interface NodeState {
 }
 export type ActivityState = {
   botId?: string;
-  state: 'thinking' | 'tool' | 'waiting_approval' | 'idle';
+  state: 'thinking' | 'tool' | 'waiting_approval' | 'waiting_question' | 'idle';
+  connection?: 'connected' | 'reconnecting';
+  detail?: string;
   chain?: { count: number; max: number };
 };
 export interface TeamState extends Omit<NodeState, 'activity'> {
@@ -259,6 +261,8 @@ export const useAppStore = create<AppState>((set) => ({
                   state: event.state,
                   botId: event.botId,
                   chain: event.chain,
+                  connection: event.connection,
+                  detail: event.detail,
                 },
               },
             },

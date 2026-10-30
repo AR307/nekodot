@@ -15,6 +15,7 @@ export const hermesSseEventSchema = z
     duration: z.number().optional(),
     error: z.union([z.boolean(), z.string()]).optional(),
     output: z.string().optional(),
+    turn_exit_reason: z.string().optional(),
     prompt_id: z.string().optional(),
     execution_generation: z.number().int().optional(),
     command: z.string().optional(),
@@ -24,7 +25,9 @@ export const hermesSseEventSchema = z
     status: z.string().optional(),
     usage: z.unknown().optional(),
     runtime: z.unknown().optional(),
-    choices: z.array(approvalChoiceSchema).optional(),
+    choices: z.array(z.string()).optional(),
+    question: z.string().optional(),
+    multi_select: z.boolean().optional(),
     kind: z.string().optional(),
     role: z.string().optional(),
   })
@@ -60,6 +63,8 @@ export const hermesRunStateSchema = z.looseObject({
   run_id: z.string(),
   status: z.string(),
   output: z.string().optional(),
+  error: z.string().optional(),
+  turn_exit_reason: z.string().optional(),
   pending_steer: z.string().optional(),
   execution_generation: z.number().int().optional(),
   pending_controls: z
@@ -68,12 +73,16 @@ export const hermesRunStateSchema = z.looseObject({
         prompt_id: z.string(),
         kind: z.string(),
         execution_generation: z.number().int().optional(),
-        choices: z.array(approvalChoiceSchema).optional(),
+        choices: z.array(z.string()).optional(),
+        question: z.string().optional(),
+        multi_select: z.boolean().optional(),
+        timeout_s: z.number().optional(),
       }),
     )
     .optional(),
 });
 export type HermesRunState = z.infer<typeof hermesRunStateSchema>;
+export type HermesEvent = z.infer<typeof hermesSseEventSchema>;
 export const hermesModelOptionsSchema = z.looseObject({
   provider: z.string(),
   providers: z.array(
