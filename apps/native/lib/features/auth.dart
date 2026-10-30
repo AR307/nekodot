@@ -124,25 +124,25 @@ class _AuthPageState extends State<AuthPage> {
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 380),
+                constraints: const BoxConstraints(maxWidth: 320),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Center(child: CatAvatar(size: 84)),
-                    const SizedBox(height: 14),
+                    const Center(child: CatAvatar(size: 56)),
+                    const SizedBox(height: 10),
                     Text(
                       'nekodot',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
                     TextField(
                       key: const ValueKey('auth-email'),
                       controller: email,
                       keyboardType: TextInputType.emailAddress,
                       autofillHints: const [AutofillHints.email],
                       decoration: InputDecoration(
-                        labelText: c.tr('邮箱', 'Email'),
+                        hintText: c.tr('邮箱', 'Email'),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -152,7 +152,7 @@ class _AuthPageState extends State<AuthPage> {
                       obscureText: true,
                       autofillHints: const [AutofillHints.password],
                       decoration: InputDecoration(
-                        labelText: c.tr('密码', 'Password'),
+                        hintText: c.tr('密码', 'Password'),
                       ),
                       onSubmitted: (_) {
                         if (mode == 'login') submit();
@@ -167,7 +167,7 @@ class _AuthPageState extends State<AuthPage> {
                               controller: code,
                               keyboardType: TextInputType.number,
                               decoration: InputDecoration(
-                                labelText: c.tr('6 位验证码', '6-digit code'),
+                                hintText: c.tr('6 位验证码', '6-digit code'),
                               ),
                             ),
                           ),

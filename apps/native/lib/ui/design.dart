@@ -60,6 +60,10 @@ class Tone extends ThemeExtension<Tone> {
   final Color base, sidebar, surface, ink, ink2, ink3, line;
   final Color bubble, raised, hover, menu, danger;
   final bool glass;
+
+  /// Control height, control corner and icon size. A desktop is pointer-driven
+  /// and dense; a phone keeps Material's 40 dp controls inside 48 dp targets.
+  final double control, corner, icon;
   final Color fillTop, fillBottom, bar, fieldFocus;
   final List<Color> orbs;
   const Tone({
@@ -76,6 +80,9 @@ class Tone extends ThemeExtension<Tone> {
     required this.menu,
     required this.danger,
     this.glass = false,
+    this.control = 32,
+    this.corner = 8,
+    this.icon = 18,
     this.fillTop = Colors.transparent,
     this.fillBottom = Colors.transparent,
     this.bar = Colors.transparent,
@@ -112,6 +119,9 @@ class Tone extends ThemeExtension<Tone> {
   );
   static const glassLight = Tone(
     glass: true,
+    control: 40,
+    corner: 10,
+    icon: 22,
     base: Color(0xffe6e6e9),
     sidebar: Colors.transparent,
     surface: Color(0x8cffffff),
@@ -132,6 +142,9 @@ class Tone extends ThemeExtension<Tone> {
   );
   static const glassDark = Tone(
     glass: true,
+    control: 40,
+    corner: 10,
+    icon: 22,
     base: Color(0xff08080a),
     sidebar: Colors.transparent,
     surface: Color(0x17ffffff),
@@ -162,6 +175,10 @@ extension ToneOf on BuildContext {
 
 class _PageTransitions extends PageTransitionsBuilder {
   const _PageTransitions();
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 200);
+  @override
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 160);
   @override
   Widget buildTransitions<T>(
     PageRoute<T> route,
@@ -225,59 +242,78 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       (dark ? Typography.whiteMountainView : Typography.blackMountainView)
           .copyWith(
             headlineMedium: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
               height: 1.2,
               color: tone.ink,
             ),
             headlineSmall: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
               height: 1.2,
               color: tone.ink,
             ),
             titleLarge: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w800,
+              fontSize: frosted ? 17 : 15,
+              fontWeight: FontWeight.w700,
               color: tone.ink,
             ),
             titleMedium: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
+              fontSize: frosted ? 15 : 13.5,
+              fontWeight: FontWeight.w600,
               color: tone.ink,
             ),
             titleSmall: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: tone.ink3,
-            ),
-            bodyLarge: TextStyle(fontSize: 15, height: 1.5, color: tone.ink),
-            bodyMedium: TextStyle(fontSize: 15, height: 1.5, color: tone.ink),
-            bodySmall: TextStyle(fontSize: 13, height: 1.4, color: tone.ink2),
-            labelLarge: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
-            labelMedium: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
+              color: tone.ink2,
+            ),
+            bodyLarge: TextStyle(
+              fontSize: frosted ? 15 : 14,
+              height: 1.45,
+              color: tone.ink,
+            ),
+            bodyMedium: TextStyle(
+              fontSize: frosted ? 15 : 14,
+              height: 1.45,
+              color: tone.ink,
+            ),
+            bodySmall: TextStyle(
+              fontSize: frosted ? 13 : 12.5,
+              height: 1.35,
+              color: tone.ink2,
+            ),
+            labelLarge: TextStyle(
+              fontSize: frosted ? 14 : 13,
+              fontWeight: FontWeight.w600,
+            ),
+            labelMedium: TextStyle(
+              fontSize: frosted ? 12 : 11.5,
+              fontWeight: FontWeight.w500,
               color: tone.ink3,
             ),
           )
           .apply(fontFamily: 'Nunito', fontFamilyFallback: _sansFallback);
   InputBorder field(Color color) => frosted
-      ? const UnderlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(20)),
+      ? UnderlineInputBorder(
+          borderRadius: BorderRadius.circular(tone.corner),
           borderSide: BorderSide.none,
         )
       : OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(tone.corner),
           borderSide: BorderSide(color: color),
         );
+  final control = RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(tone.corner),
+  );
+  final buttonSize = Size(0, tone.control);
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
-    visualDensity: VisualDensity.standard,
+    visualDensity: frosted ? VisualDensity.standard : VisualDensity.compact,
+    materialTapTargetSize: frosted
+        ? MaterialTapTargetSize.padded
+        : MaterialTapTargetSize.shrinkWrap,
     colorScheme: scheme,
     fontFamily: 'Nunito',
     fontFamilyFallback: _sansFallback,
@@ -303,7 +339,11 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
-      titleTextStyle: text.titleMedium?.copyWith(fontSize: 17),
+      toolbarHeight: frosted ? 52 : 44,
+      titleSpacing: 4,
+      iconTheme: IconThemeData(color: tone.ink, size: tone.icon),
+      actionsIconTheme: IconThemeData(color: tone.ink, size: tone.icon),
+      titleTextStyle: text.titleLarge,
       systemOverlayStyle: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
@@ -314,14 +354,18 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
             : Brightness.dark,
       ),
     ),
-    iconTheme: IconThemeData(color: tone.ink, size: 22),
+    iconTheme: IconThemeData(color: tone.ink, size: tone.icon),
     iconButtonTheme: IconButtonThemeData(
       style: IconButton.styleFrom(
         foregroundColor: tone.ink,
         disabledForegroundColor: tone.ink3,
         hoverColor: tone.hover,
         highlightColor: tone.hover,
-        shape: const CircleBorder(),
+        visualDensity: VisualDensity.standard,
+        minimumSize: Size.square(tone.control),
+        padding: EdgeInsets.zero,
+        iconSize: tone.icon,
+        shape: frosted ? const CircleBorder() : control,
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
@@ -345,7 +389,11 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       focusedBorder: field(tone.ink),
       errorBorder: field(tone.danger),
       focusedErrorBorder: field(tone.danger),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      isDense: true,
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: frosted ? 12 : 10,
+        vertical: frosted ? 10 : 7,
+      ),
     ),
     textSelectionTheme: TextSelectionThemeData(
       cursorColor: tone.ink,
@@ -358,9 +406,11 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
         foregroundColor: tone.base,
         disabledBackgroundColor: tone.raised,
         disabledForegroundColor: tone.ink3,
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
+        visualDensity: VisualDensity.standard,
+        minimumSize: buttonSize,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         textStyle: text.labelLarge,
-        shape: const StadiumBorder(),
+        shape: control,
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -368,17 +418,22 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
         foregroundColor: tone.ink,
         disabledForegroundColor: tone.ink3,
         side: BorderSide(color: tone.line),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        visualDensity: VisualDensity.standard,
+        minimumSize: buttonSize,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         textStyle: text.labelLarge,
-        shape: const StadiumBorder(),
+        shape: control,
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: tone.ink2,
         disabledForegroundColor: tone.ink3,
+        visualDensity: VisualDensity.standard,
+        minimumSize: buttonSize,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         textStyle: text.labelLarge,
-        shape: const StadiumBorder(),
+        shape: control,
       ),
     ),
     listTileTheme: ListTileThemeData(
@@ -387,12 +442,15 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       selectedColor: tone.ink,
       selectedTileColor: tone.raised,
       subtitleTextStyle: text.bodySmall,
-      titleTextStyle: text.titleMedium,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-      minVerticalPadding: 12,
+      titleTextStyle: text.titleMedium?.copyWith(fontWeight: FontWeight.w500),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+      minVerticalPadding: frosted ? 8 : 6,
+      minTileHeight: frosted ? 52 : 38,
+      minLeadingWidth: 0,
+      horizontalTitleGap: 10,
     ),
     checkboxTheme: CheckboxThemeData(
-      shape: const CircleBorder(),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       side: BorderSide(color: tone.ink3, width: 1.5),
       fillColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
@@ -402,7 +460,8 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       checkColor: WidgetStatePropertyAll(tone.base),
     ),
     chipTheme: ChipThemeData(
-      shape: const StadiumBorder(),
+      shape: control,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       side: BorderSide(color: tone.line),
       backgroundColor: Colors.transparent,
       selectedColor: tone.ink,
@@ -427,7 +486,7 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       indicatorSize: TabBarIndicatorSize.tab,
       indicator: ShapeDecoration(
         color: frosted ? tone.ink : tone.raised,
-        shape: const StadiumBorder(),
+        shape: control,
       ),
       labelColor: frosted ? tone.base : tone.ink,
       unselectedLabelColor: tone.ink2,
@@ -442,7 +501,7 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       elevation: 8,
       shadowColor: Colors.black.withValues(alpha: .18),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         side: BorderSide(color: tone.line),
       ),
       textStyle: text.bodyMedium,
@@ -450,23 +509,25 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
     tooltipTheme: TooltipThemeData(
       decoration: ShapeDecoration(
         color: tone.ink,
-        shape: const StadiumBorder(),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
       textStyle: text.labelMedium?.copyWith(color: tone.base),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       waitDuration: const Duration(milliseconds: 500),
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
+      // Above the phone's dock and composer, so it never covers an action.
+      insetPadding: EdgeInsets.fromLTRB(16, 0, 16, frosted ? 76 : 60),
       backgroundColor: tone.ink,
       contentTextStyle: text.bodyMedium?.copyWith(color: tone.base),
-      shape: const StadiumBorder(),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       elevation: 0,
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: tone.menu,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       titleTextStyle: text.titleLarge,
       contentTextStyle: text.bodyMedium,
     ),
@@ -492,14 +553,22 @@ MarkdownStyleSheet markdownStyle(BuildContext context, {Color? color}) {
   return MarkdownStyleSheet(
     p: body,
     a: body.copyWith(decoration: TextDecoration.underline),
-    strong: body.copyWith(fontWeight: FontWeight.w800),
+    strong: body.copyWith(fontWeight: FontWeight.w700),
     em: body.copyWith(fontStyle: FontStyle.italic),
-    h1: body.copyWith(fontSize: 22, fontWeight: FontWeight.w800, height: 1.3),
-    h2: body.copyWith(fontSize: 19, fontWeight: FontWeight.w800, height: 1.3),
-    h3: body.copyWith(fontSize: 16, fontWeight: FontWeight.w800, height: 1.3),
-    h4: body.copyWith(fontWeight: FontWeight.w800),
-    h5: body.copyWith(fontWeight: FontWeight.w800),
-    h6: body.copyWith(fontWeight: FontWeight.w800),
+    h1: body.copyWith(
+      fontSize: body.fontSize! + 4,
+      fontWeight: FontWeight.w700,
+      height: 1.3,
+    ),
+    h2: body.copyWith(
+      fontSize: body.fontSize! + 2,
+      fontWeight: FontWeight.w700,
+      height: 1.3,
+    ),
+    h3: body.copyWith(fontWeight: FontWeight.w700, height: 1.3),
+    h4: body.copyWith(fontWeight: FontWeight.w700),
+    h5: body.copyWith(fontWeight: FontWeight.w700),
+    h6: body.copyWith(fontWeight: FontWeight.w700),
     listBullet: body,
     blockSpacing: 10,
     code: body.copyWith(
@@ -507,10 +576,10 @@ MarkdownStyleSheet markdownStyle(BuildContext context, {Color? color}) {
       fontSize: 13,
       backgroundColor: tone.raised,
     ),
-    codeblockPadding: const EdgeInsets.all(14),
+    codeblockPadding: const EdgeInsets.all(10),
     codeblockDecoration: ShapeDecoration(
       color: tone.raised,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     ),
     blockquote: body.copyWith(color: tone.ink2),
     blockquotePadding: const EdgeInsets.only(left: 14),
@@ -537,14 +606,14 @@ class CatAvatar extends StatefulWidget {
     super.key,
     this.color,
     this.shape = 'dot',
-    this.size = 38,
+    this.size = 32,
     this.working = false,
     this.twitch = false,
   });
   CatAvatar.of(
     Json bot, {
     super.key,
-    this.size = 38,
+    this.size = 32,
     this.working = false,
     this.twitch = false,
   }) : color = '${bot['avatar']['color']}',
@@ -830,7 +899,7 @@ class GroupAvatar extends StatelessWidget {
   const GroupAvatar({
     super.key,
     required this.avatars,
-    this.size = 38,
+    this.size = 32,
     this.working = false,
   });
   @override
@@ -975,7 +1044,7 @@ class _AsyncPaneState extends State<AsyncPane> {
                 IconButton(
                   tooltip: '重试 / Retry',
                   onPressed: reload,
-                  icon: const Icon(Icons.refresh_rounded),
+                  icon: const Icon(Icons.refresh),
                 ),
               ],
             ),

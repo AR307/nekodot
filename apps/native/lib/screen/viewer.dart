@@ -311,7 +311,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
           tooltip: c.tr('键盘', 'Keyboard'),
           isSelected: typing,
           onPressed: () => setState(() => typing = !typing),
-          icon: const Icon(Icons.keyboard_rounded),
+          icon: const Icon(Icons.keyboard_outlined),
         ),
       IconButton(
         tooltip: c.tr('重新连接', 'Reconnect'),
@@ -319,13 +319,13 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
           disconnect(intentional: false);
           connect();
         },
-        icon: const Icon(Icons.refresh_rounded),
+        icon: const Icon(Icons.refresh),
       ),
       if (status?['running'] == true)
         IconButton(
           tooltip: c.tr('停止屏幕', 'Stop screen'),
           onPressed: busy ? null : () => action('screen.stop'),
-          icon: const Icon(Icons.power_settings_new_rounded),
+          icon: const Icon(Icons.power_settings_new_outlined),
         ),
     ],
     body: SafeArea(
@@ -347,7 +347,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
                             child: ChoiceChip(
                               labelPadding: EdgeInsets.zero,
                               padding: const EdgeInsets.all(4),
-                              label: CatAvatar.of(b, size: 24),
+                              label: CatAvatar.of(b, size: 20),
                               selected: b['botId'] == bot['botId'],
                               onSelected: (_) {
                                 disconnect(intentional: true);
@@ -369,7 +369,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
               ),
             ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 12, 8),
+            padding: const EdgeInsets.fromLTRB(14, 4, 12, 6),
             child: Row(
               children: [
                 connected && !own && status?['holder'] != 'human'
@@ -433,25 +433,25 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
             ),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: own ? context.tone.ink : context.tone.line,
                     width: own ? 2 : 1,
                   ),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(9),
                   child: ColoredBox(
                     color: Colors.black,
                     child: image == null
                         ? const Center(
                             child: Opacity(
                               opacity: .25,
-                              child: CatAvatar(color: '#FFFFFF', size: 72),
+                              child: CatAvatar(color: '#FFFFFF', size: 56),
                             ),
                           )
                         : LayoutBuilder(

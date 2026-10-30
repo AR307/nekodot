@@ -63,7 +63,7 @@ class FileCard extends StatelessWidget {
           }
         }
       },
-      icon: const Icon(Icons.attach_file_rounded, size: 18),
+      icon: const Icon(Icons.attach_file, size: 18),
       label: Text(client.tr('附件', 'Attachment')),
     ),
   );
@@ -99,7 +99,7 @@ class _LibraryPageState extends State<LibraryPage> {
         children: [
           TextField(
             decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search_rounded),
+              prefixIcon: const Icon(Icons.search),
               hintText: widget.client.tr('搜索', 'Search'),
             ),
             onSubmitted: (value) => setState(() => search = value),
@@ -131,8 +131,8 @@ class _LibraryPageState extends State<LibraryPage> {
                   ListTile(
                     leading: Icon(
                       file['available'] == true
-                          ? Icons.description_rounded
-                          : Icons.broken_image_rounded,
+                          ? Icons.description_outlined
+                          : Icons.broken_image_outlined,
                     ),
                     title: Text('${file['name']}'),
                     subtitle: Text(fileSize(file['size'] as num)),
@@ -206,11 +206,11 @@ class _FilePageState extends State<FilePage> {
         onPressed: file['available'] == true && !busy
             ? () => deliver(share: true)
             : null,
-        icon: const Icon(Icons.ios_share_rounded),
+        icon: const Icon(Icons.ios_share_outlined),
       ),
       IconButton(
         tooltip: client.tr('保存文件', 'Save file'),
-        icon: const Icon(Icons.download_rounded),
+        icon: const Icon(Icons.download_outlined),
         onPressed: file['available'] != true || busy
             ? null
             : () => deliver(share: false),
@@ -233,7 +233,7 @@ class _FilePageState extends State<FilePage> {
           Expanded(
             child: file['available'] != true
                 ? const Center(
-                    child: Icon(Icons.broken_image_rounded, size: 48),
+                    child: Icon(Icons.broken_image_outlined, size: 48),
                   )
                 : FutureBuilder<Uint8List>(
                     future: content,
@@ -268,7 +268,7 @@ class _FilePageState extends State<FilePage> {
                       }
                       return Center(
                         child: Icon(
-                          Icons.description_rounded,
+                          Icons.description_outlined,
                           size: 48,
                           color: context.tone.ink3,
                         ),

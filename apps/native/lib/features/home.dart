@@ -103,7 +103,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 if (node['nodeId'] == c.selectedNodeId)
-                  const Icon(Icons.check_rounded, size: 18),
+                  const Icon(Icons.check, size: 18),
               ],
             ),
           ),
@@ -131,7 +131,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(width: 2),
-            Icon(Icons.expand_more_rounded, size: 18, color: context.tone.ink3),
+            Icon(Icons.expand_more, size: 18, color: context.tone.ink3),
           ],
         ),
       ),
@@ -142,7 +142,7 @@ class _HomePageState extends State<HomePage> {
     children: [
       const Positioned.fill(child: WindowDrag()),
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 4),
         child: Row(
           children: [
             Expanded(
@@ -151,41 +151,32 @@ class _HomePageState extends State<HomePage> {
                 child: nodePicker(),
               ),
             ),
-            const SizedBox(width: 8),
-            RoundButton(
+            IconAction(
               tooltip: c.tr('搜索', 'Search'),
-              icon: searching ? Icons.close_rounded : Icons.search_rounded,
+              icon: searching ? Icons.close : Icons.search,
               onPressed: () => setState(() {
                 searching = !searching;
                 search = '';
               }),
             ),
-            const SizedBox(width: 8),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: floating(context),
+            PopupMenuButton<String>(
+              tooltip: c.tr('新建', 'Create'),
+              position: PopupMenuPosition.under,
+              icon: const Icon(Icons.add),
+              onSelected: (value) => pushPage(
+                context,
+                BotEditor(client: c, group: value == 'group'),
               ),
-              child: PopupMenuButton<String>(
-                tooltip: c.tr('新建', 'Create'),
-                position: PopupMenuPosition.under,
-                icon: const Icon(Icons.add_rounded),
-                style: roundStyle(context),
-                onSelected: (value) => pushPage(
-                  context,
-                  BotEditor(client: c, group: value == 'group'),
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'bot',
+                  child: Text(c.tr('新建 Bot', 'New Bot')),
                 ),
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: 'bot',
-                    child: Text(c.tr('新建 Bot', 'New Bot')),
-                  ),
-                  PopupMenuItem(
-                    value: 'group',
-                    child: Text(c.tr('新建群组', 'New group')),
-                  ),
-                ],
-              ),
+                PopupMenuItem(
+                  value: 'group',
+                  child: Text(c.tr('新建群组', 'New group')),
+                ),
+              ],
             ),
           ],
         ),
@@ -195,10 +186,10 @@ class _HomePageState extends State<HomePage> {
 
   /// Phone header: the mark, the computer, search.
   Widget glassTop() => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+    padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
     child: Row(
       children: [
-        const CatAvatar(size: 34),
+        const CatAvatar(size: 28),
         const SizedBox(width: 6),
         Expanded(
           child: Align(alignment: Alignment.centerLeft, child: nodePicker()),
@@ -210,7 +201,7 @@ class _HomePageState extends State<HomePage> {
             searching = !searching;
             search = '';
           }),
-          icon: const Icon(Icons.search_rounded),
+          icon: const Icon(Icons.search),
         ),
       ],
     ),
@@ -224,7 +215,6 @@ class _HomePageState extends State<HomePage> {
       child: Row(
         children: [
           Panel(
-            radius: 16,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -234,7 +224,7 @@ class _HomePageState extends State<HomePage> {
                     context,
                     ExtensionsPage(client: c, kind: 'skills'),
                   ),
-                  icon: const Icon(Icons.auto_awesome_rounded),
+                  icon: const Icon(Icons.auto_awesome_outlined),
                 ),
                 IconButton(
                   tooltip: c.tr('插件', 'Plugins'),
@@ -242,12 +232,12 @@ class _HomePageState extends State<HomePage> {
                     context,
                     ExtensionsPage(client: c, kind: 'plugins'),
                   ),
-                  icon: const Icon(Icons.extension_rounded),
+                  icon: const Icon(Icons.extension_outlined),
                 ),
                 IconButton(
                   tooltip: c.tr('设置', 'Settings'),
                   onPressed: () => pushPage(context, SettingsPage(client: c)),
-                  icon: const Icon(Icons.tune_rounded),
+                  icon: const Icon(Icons.tune),
                 ),
               ],
             ),
@@ -256,11 +246,14 @@ class _HomePageState extends State<HomePage> {
           PopupMenuButton<String>(
             tooltip: c.tr('新建', 'Create'),
             position: PopupMenuPosition.over,
-            icon: const Icon(Icons.add_rounded),
+            icon: const Icon(Icons.add),
             iconColor: tone.base,
             style: IconButton.styleFrom(
               backgroundColor: tone.ink,
-              fixedSize: const Size.square(50),
+              fixedSize: const Size.square(44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onSelected: (value) => pushPage(
               context,
@@ -299,19 +292,17 @@ class _HomePageState extends State<HomePage> {
       onEnter: (_) => setState(() => hovered = id),
       onExit: (_) => setState(() => hovered = null),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
         child: ListTile(
           key: ValueKey('conversation-$id'),
           selected: !narrow && conversation == id,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(glass ? 20 : 14),
+            borderRadius: BorderRadius.circular(context.tone.corner),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-          minVerticalPadding: 8,
-          horizontalTitleGap: 10,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
           leading: isGroup
               ? GroupAvatar(
-                  size: glass ? 38 : 42,
+                  size: glass ? 38 : 30,
                   working: working,
                   avatars: [
                     for (final bot in c.node.bots)
@@ -321,7 +312,7 @@ class _HomePageState extends State<HomePage> {
                 )
               : CatAvatar.of(
                   entity,
-                  size: glass ? 38 : 42,
+                  size: glass ? 38 : 30,
                   working: working,
                   twitch: hovered == id,
                 ),
@@ -329,6 +320,7 @@ class _HomePageState extends State<HomePage> {
             '${entity[isGroup ? 'name' : 'displayName']}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleMedium,
           ),
           subtitle: preview == null
               ? null
@@ -354,7 +346,7 @@ class _HomePageState extends State<HomePage> {
     final tone = context.tone;
     final email = '${c.me?['user']['email'] ?? ''}';
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 8, 12, 12),
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
       child: Row(
         children: [
           Expanded(
@@ -386,7 +378,7 @@ class _HomePageState extends State<HomePage> {
                     value: 'logout',
                     child: Row(
                       children: [
-                        const Icon(Icons.logout_rounded, size: 18),
+                        const Icon(Icons.logout, size: 18),
                         const SizedBox(width: 12),
                         Text(c.tr('退出账号', 'Sign out')),
                       ],
@@ -394,13 +386,13 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
                 child: Padding(
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(4),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 32,
-                        height: 32,
+                        width: 24,
+                        height: 24,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
@@ -408,10 +400,10 @@ class _HomePageState extends State<HomePage> {
                         ),
                         child: Text(
                           email.isEmpty ? '' : email[0].toUpperCase(),
-                          style: Theme.of(context).textTheme.labelLarge,
+                          style: Theme.of(context).textTheme.labelMedium,
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       Flexible(
                         child: Text(
                           email.split('@').first,
@@ -425,10 +417,9 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          RoundButton(
+          IconAction(
             tooltip: c.tr('Skills 与插件', 'Skills & plugins'),
-            icon: Icons.grid_view_rounded,
+            icon: Icons.grid_view,
             onPressed: () => narrow
                 ? pushPage(context, ExtensionsPage(client: c, kind: 'skills'))
                 : showExtensionsDialog(context, c),
@@ -477,7 +468,7 @@ class _HomePageState extends State<HomePage> {
                         ? PairingPage(client: c)
                         : BotEditor(client: c),
                   ),
-                  icon: const CatAvatar(size: 72),
+                  icon: const CatAvatar(size: 56),
                 ),
               )
             : ListView(
@@ -506,7 +497,7 @@ class _HomePageState extends State<HomePage> {
                     IconButton(
                       tooltip: c.tr('重新连接', 'Reconnect'),
                       onPressed: () => c.bootstrap(),
-                      icon: const Icon(Icons.refresh_rounded),
+                      icon: const Icon(Icons.refresh),
                     ),
                   ],
                 ),
@@ -544,7 +535,7 @@ class _HomePageState extends State<HomePage> {
                 : Row(
                     children: [
                       SizedBox(
-                        width: 280,
+                        width: 248,
                         child: Material(color: tone.sidebar, child: list),
                       ),
                       const VerticalDivider(width: 1),
@@ -568,7 +559,7 @@ class _HomePageState extends State<HomePage> {
                                   Center(
                                     child: Opacity(
                                       opacity: .08,
-                                      child: CatAvatar(size: 96),
+                                      child: CatAvatar(size: 72),
                                     ),
                                   ),
                                 ],
@@ -577,7 +568,7 @@ class _HomePageState extends State<HomePage> {
                       if (panel != null) ...[
                         const VerticalDivider(width: 1),
                         SizedBox(
-                          width: 340,
+                          width: 320,
                           child: BotDetails(
                             key: ValueKey(panel['botId']),
                             client: c,

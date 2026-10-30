@@ -574,3 +574,13 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 验证：Flutter analyze 与 8 项 widget 测试、全仓 vitest 32 项、typecheck、eslint、prettier 通过；`product_journey_test` 在 Windows 与 Android 模拟器通过（回放 Hermes，去掉等待后不再复现竞争）。Edge 实测网页版：选择幽灵形象、保存，节点接受，侧栏和消息同步更新。
 - 未覆盖：Edge E2E 未重跑，它会改写 `docs/evidence` 里其他人未提交的截图；Android 真机上的动画帧率未测；未打包、未部署、未 push。
 - 证据：`docs/evidence/native-ui-avatars.png`、`native-ui-android-editor-light.png`、`native-ui-desk-light-editor.png`、`web-ui-avatar-editor.png`。
+
+## 2026-10-31 / Flutter 客户端密度调整
+
+- 用户反馈按钮太高太胖、AI 味重。对照 impeccable 的 craft-floor、mode-operate、layout 与 android 规则调整；只读其文档，未安装其钩子和检测器。
+- 尺寸：`Tone` 增加 `control`、`corner`、`icon`（电脑 32 / 8 / 18，手机 40 / 10 / 22），手机保留 48 dp 触控区。按钮改小圆角并按内容宽度靠右或靠左，只有登录按钮全宽。输入框电脑约 34、手机约 42 高。正文电脑 14、手机 15，行标题 500/600，页面标题 700。转场缩短到 200ms。
+- 结构：标签移到框外（`LabeledField`）；图标统一为线性或无圆头版本；`IconAction` 取代带边框和阴影的圆形按钮；工具调用在电脑版改为无底色单行；输入框两端合用一套；侧栏 248、详情面板 320。提示条抬到手机底部栏和输入框上方，原先会盖住“+”。
+- 测试：`providers_journey` 的两个字段标签在上一轮改文案后已过期，本轮修正。
+- 验证（真实 Node / Relay，Hermes 为回放）：最终代码上 Windows `product_journey`、Android `providers_journey` 通过；Android `product_journey` 在最后两处小改（转场时长、提示条位置）之前通过。Flutter analyze 与 8 项 widget 测试通过，Android 模拟器实拍已核对。
+- 未覆盖：用户要求尽快收尾，电脑版输入框高度的修复没有重新截图，只跑了功能流程；`extensions`、`welcome`、`user_memory`、`live` 旅程未跑；`providers_journey` 的截图步骤不支持 Windows；真机未测。未打包、未部署、未 push。
+- 证据：`docs/evidence/native-ui-density-android-light.png`、`native-ui-density-android-dark.png`。

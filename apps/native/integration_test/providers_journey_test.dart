@@ -39,8 +39,9 @@ void main() {
       }
 
       Future<void> fill(String label, String text) async {
-        final field = find.byWidgetPredicate(
-          (w) => w is TextField && w.decoration?.labelText == label,
+        final field = find.descendant(
+          of: find.widgetWithText(LabeledField, label),
+          matching: find.byType(TextField),
         );
         await tester.ensureVisible(field);
         await tester.enterText(field, text);
@@ -98,8 +99,8 @@ void main() {
       await tester.pageBack();
       await tester.pump(const Duration(milliseconds: 400));
       for (final name in ['Research API', 'Writing API']) {
-        await tester.scrollUntilVisible(find.byIcon(Icons.add_rounded), 300);
-        await tap(find.byIcon(Icons.add_rounded));
+        await tester.scrollUntilVisible(find.byIcon(Icons.add), 300);
+        await tap(find.byIcon(Icons.add));
         await fill('名称', name);
         await fill('API URL', 'https://models.example.test/v1');
         await fill('API KEY', 'test-only-$name');
@@ -116,24 +117,24 @@ void main() {
       await tester.scrollUntilVisible(find.text('Writing API'), 300);
       await screenshot('native-sources');
       await tester.pageBack();
-      await tester.pump(const Duration(milliseconds: 400));
+      await until(() => find.byType(SourcesPage).evaluate().isEmpty);
       await tester.pageBack();
-      await tester.pump(const Duration(milliseconds: 400));
+      await until(() => find.byType(SettingsPage).evaluate().isEmpty);
       await tap(find.byTooltip('新建'));
       await tap(find.text('新建 Bot'));
       await until(() => find.byType(BotEditor).evaluate().isNotEmpty);
       await fill('名称', 'Maple');
       await fill('@handle', 'maple-sources');
       await fill('角色设定', 'Helpful source specialist');
-      final sourceField = find.ancestor(
-        of: find.text('模型来源'),
+      final sourceField = find.descendant(
+        of: find.widgetWithText(LabeledField, '模型来源'),
         matching: find.byType(DropdownButtonFormField<String>),
       );
       await tap(sourceField);
       await tap(find.text('Writing API').last);
-      await fill('选择模型或填写代号', 'recorded-model');
+      await fill('模型', 'recorded-model');
       await tap(find.text('高级'));
-      await fill('上下文覆盖值（可选）', '64000');
+      await fill('上下文覆盖', '64000');
       debugPrint('QA: native source bot form ready');
       await screenshot('native-source-bot-form');
       await tap(find.text('保存'));

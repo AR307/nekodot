@@ -151,8 +151,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    final name = find.byWidgetPredicate(
-      (w) => w is TextField && w.decoration?.labelText == '名称',
+    final name = find.descendant(
+      of: find.widgetWithText(LabeledField, '名称'),
+      matching: find.byType(TextField),
     );
     await tester.enterText(name, 'Maple updated');
     await tester.scrollUntilVisible(

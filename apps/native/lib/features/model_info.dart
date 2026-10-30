@@ -84,7 +84,7 @@ class ModelInformation extends StatelessWidget {
               child: IconButton(
                 tooltip: client.tr('刷新', 'Refresh'),
                 onPressed: reload,
-                icon: const Icon(Icons.refresh_rounded, size: 20),
+                icon: const Icon(Icons.refresh, size: 20),
               ),
             ),
           ],

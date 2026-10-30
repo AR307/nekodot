@@ -121,7 +121,7 @@ class _ChromeScope extends InheritedWidget {
 class WindowChrome extends StatelessWidget {
   final Widget child;
   const WindowChrome({super.key, required this.child});
-  static const _width = 114.0;
+  static const _width = 108.0;
 
   /// Room a header leaves at its right edge for the controls.
   static double reserved(BuildContext context) =>
@@ -134,8 +134,8 @@ class WindowChrome extends StatelessWidget {
     Widget control(IconData icon, VoidCallback onTap, double size) => InkWell(
       onTap: onTap,
       child: SizedBox(
-        width: 38,
-        height: 32,
+        width: 36,
+        height: 30,
         child: Icon(icon, size: size, color: color),
       ),
     );
@@ -151,13 +151,13 @@ class WindowChrome extends StatelessWidget {
               type: MaterialType.transparency,
               child: Row(
                 children: [
-                  control(Icons.remove_rounded, windowManager.minimize, 16),
-                  control(Icons.crop_square_rounded, () async {
+                  control(Icons.remove, windowManager.minimize, 15),
+                  control(Icons.crop_square, () async {
                     await windowManager.isMaximized()
                         ? await windowManager.unmaximize()
                         : await windowManager.maximize();
                   }, 14),
-                  control(Icons.close_rounded, windowManager.close, 16),
+                  control(Icons.close, windowManager.close, 15),
                 ],
               ),
             ),

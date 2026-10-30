@@ -76,8 +76,9 @@ void main() {
       }
 
       Future<void> fill(String label, String text) async {
-        final field = find.byWidgetPredicate(
-          (w) => w is TextField && w.decoration?.labelText == label,
+        final field = find.descendant(
+          of: find.widgetWithText(LabeledField, label),
+          matching: find.byType(TextField),
         );
         if (field.evaluate().isEmpty) {
           await tester.scrollUntilVisible(

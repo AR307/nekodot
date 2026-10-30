@@ -7,18 +7,6 @@ import 'package:flutter/rendering.dart';
 import '../platform/desktop.dart';
 import 'design.dart';
 
-/// Quiet floating shadow; dark surfaces rely on their hairline alone.
-List<BoxShadow> floating(BuildContext context) =>
-    context.tone.glass || Theme.of(context).brightness == Brightness.dark
-    ? const []
-    : [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: .08),
-          blurRadius: 14,
-          offset: const Offset(0, 3),
-        ),
-      ];
-
 const _blur = 26.0;
 
 /// The one backdrop every phone page floats over. Soft neutral orbs give the
@@ -94,12 +82,12 @@ class Frost extends StatelessWidget {
 class Panel extends StatelessWidget {
   final Widget child;
   final double radius;
-  const Panel({super.key, required this.child, this.radius = 14});
+  const Panel({super.key, required this.child, this.radius = 12});
   @override
   Widget build(BuildContext context) {
     final tone = context.tone;
     if (tone.glass) {
-      final corners = BorderRadius.circular(radius + 10);
+      final corners = BorderRadius.circular(radius + 2);
       return ClipRSuperellipse(
         borderRadius: corners,
         child: BackdropFilter.grouped(
@@ -133,51 +121,22 @@ class Panel extends StatelessWidget {
   }
 }
 
-/// The white circle every secondary action sits in.
-ButtonStyle roundStyle(BuildContext context, {double size = 36}) {
-  final tone = context.tone;
-  return IconButton.styleFrom(
-    backgroundColor: tone.surface,
-    foregroundColor: tone.ink,
-    disabledBackgroundColor: tone.surface,
-    disabledForegroundColor: tone.ink3,
-    hoverColor: tone.hover,
-    fixedSize: Size.square(size),
-    minimumSize: Size.square(size),
-    padding: EdgeInsets.zero,
-    iconSize: 19,
-    shape: CircleBorder(side: BorderSide(color: tone.line)),
-  );
-}
-
-class RoundButton extends StatelessWidget {
+class IconAction extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final VoidCallback? onPressed;
-  const RoundButton({
+  const IconAction({
     super.key,
     required this.icon,
     required this.tooltip,
     this.onPressed,
   });
   @override
-  Widget build(BuildContext context) => context.tone.glass
-      ? IconButton(tooltip: tooltip, onPressed: onPressed, icon: Icon(icon))
-      : DecoratedBox(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: floating(context),
-          ),
-          child: IconButton(
-            tooltip: tooltip,
-            style: roundStyle(context),
-            onPressed: onPressed,
-            icon: Icon(icon),
-          ),
-        );
+  Widget build(BuildContext context) =>
+      IconButton(tooltip: tooltip, onPressed: onPressed, icon: Icon(icon));
 }
 
-/// Page shell: plain background, small bar, actions as round buttons.
+/// Page shell: plain background, small bar, quiet icon actions.
 class AppPage extends StatelessWidget {
   final String? title;
   final List<Widget>? actions;
@@ -198,7 +157,7 @@ class AppPage extends StatelessWidget {
       title: title == null ? null : Text(title!),
       actions: [
         ...?actions,
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         SizedBox(width: WindowChrome.reserved(context)),
       ],
       bottom: bottom,
@@ -207,11 +166,29 @@ class AppPage extends StatelessWidget {
   );
 }
 
+/// A field with its label above it, always visible and never inside the box.
+class LabeledField extends StatelessWidget {
+  final String label;
+  final Widget child;
+  const LabeledField({super.key, required this.label, required this.child});
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Text(label, style: Theme.of(context).textTheme.titleSmall),
+      ),
+      child,
+    ],
+  );
+}
+
 /// A centered column of content.
 class PageList extends StatelessWidget {
   final List<Widget> children;
   final double maxWidth;
-  const PageList({super.key, required this.children, this.maxWidth = 620});
+  const PageList({super.key, required this.children, this.maxWidth = 560});
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
@@ -255,7 +232,7 @@ class SectionLabel extends StatelessWidget {
   const SectionLabel(this.text, {super.key, this.trailing});
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(4, 20, 0, 8),
+    padding: const EdgeInsets.fromLTRB(2, 18, 0, 6),
     child: Row(
       children: [
         Expanded(
@@ -365,13 +342,13 @@ class Segment<T> extends StatelessWidget {
     final keys = options.keys.toList();
     final selected = keys.indexOf(value);
     final still = MediaQuery.disableAnimationsOf(context);
+    final corners = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(tone.corner - 1),
+    );
     return Container(
-      height: 36,
-      padding: const EdgeInsets.all(3),
-      decoration: ShapeDecoration(
-        color: tone.raised,
-        shape: const StadiumBorder(),
-      ),
+      height: tone.glass ? 36 : 28,
+      padding: const EdgeInsets.all(2),
+      decoration: ShapeDecoration(color: tone.raised, shape: corners),
       child: IntrinsicWidth(
         child: Stack(
           children: [
@@ -391,7 +368,9 @@ class Segment<T> extends StatelessWidget {
                   child: DecoratedBox(
                     decoration: ShapeDecoration(
                       color: tone.ink,
-                      shape: const StadiumBorder(),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(tone.corner - 2),
+                      ),
                     ),
                   ),
                 ),
@@ -409,10 +388,10 @@ class Segment<T> extends StatelessWidget {
                         onTap: () => onChanged(key),
                         child: Center(
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
                             child: IconTheme(
                               data: IconThemeData(
-                                size: 16,
+                                size: tone.glass ? 18 : 15,
                                 color: key == value ? tone.base : tone.ink2,
                               ),
                               child: DefaultTextStyle.merge(

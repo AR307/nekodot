@@ -65,23 +65,22 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                 onChanged: (value) => setState(() => kind = value),
               ),
         actions: [
-          RoundButton(
+          IconAction(
             tooltip: c.tr('导入', 'Import'),
-            icon: Icons.add_rounded,
+            icon: Icons.add,
             onPressed: () async {
               await pushPage(context, ExtensionInstall(client: c, kind: kind));
               setState(() => revision++);
             },
           ),
           if (widget.dialog) ...[
-            const SizedBox(width: 8),
-            RoundButton(
+            IconAction(
               tooltip: c.tr('关闭', 'Close'),
-              icon: Icons.close_rounded,
+              icon: Icons.close,
               onPressed: () => Navigator.pop(context),
             ),
           ],
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           if (!widget.dialog) SizedBox(width: WindowChrome.reserved(context)),
         ],
       ),
@@ -98,9 +97,9 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               .toList();
           Widget tile(Json entry) => ListTile(
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(context.tone.corner),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8),
             leading: entry['icon'] == null ? null : ExtensionIcon(entry: entry),
             title: Text(
               '${entry['name']}',
@@ -127,7 +126,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                   onChanged: (value) =>
                       setState(() => query = value.toLowerCase()),
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search_rounded),
+                    prefixIcon: const Icon(Icons.search),
                     hintText: c.tr('搜索', 'Search'),
                   ),
                 ),
@@ -156,7 +155,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                         onChanged: (value) =>
                             setState(() => query = value.toLowerCase()),
                         decoration: InputDecoration(
-                          prefixIcon: const Icon(Icons.search_rounded),
+                          prefixIcon: const Icon(Icons.search),
                           hintText: c.tr('搜索', 'Search'),
                         ),
                       ),
@@ -194,30 +193,30 @@ class ExtensionIcon extends StatelessWidget {
       final data = UriData.parse(icon);
       final bytes = data.contentAsBytes();
       return data.mimeType == 'image/svg+xml'
-          ? SvgPicture.memory(bytes, width: 36, height: 36)
-          : Image.memory(bytes, width: 36, height: 36);
+          ? SvgPicture.memory(bytes, width: 24, height: 24)
+          : Image.memory(bytes, width: 24, height: 24);
     }
     if (icon != null && icon.startsWith('https://')) {
       if (Uri.parse(icon).path.toLowerCase().endsWith('.svg')) {
-        return SvgPicture.network(icon, width: 36, height: 36);
+        return SvgPicture.network(icon, width: 24, height: 24);
       }
       return Image.network(
         icon,
-        width: 36,
-        height: 36,
+        width: 24,
+        height: 24,
         errorBuilder: (context, error, stack) =>
-            const Icon(Icons.extension_rounded, size: 32),
+            const Icon(Icons.extension_outlined, size: 32),
       );
     }
     if (icon != null && icon.runes.length <= 8) {
-      return Text(icon, style: const TextStyle(fontSize: 32));
+      return Text(icon, style: const TextStyle(fontSize: 20));
     }
     return Icon(
       entry['category'] == 'development'
-          ? Icons.code_rounded
-          : Icons.auto_awesome_rounded,
+          ? Icons.code
+          : Icons.auto_awesome_outlined,
       color: context.tone.ink2,
-      size: 32,
+      size: 24,
     );
   }
 }
@@ -297,28 +296,31 @@ class _ExtensionPageState extends State<ExtensionPage> {
                     Uri.parse(repository),
                     mode: LaunchMode.externalApplication,
                   ),
-                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                  icon: const Icon(Icons.open_in_new, size: 16),
                   label: Text(repository),
                 ),
               ),
             const SizedBox(height: 12),
-            FilledButton(
-              onPressed: () async {
-                await pushPage(
-                  context,
-                  ExtensionInstall(
-                    client: client,
-                    kind: widget.kind,
-                    entry: entry,
-                  ),
-                );
-                if (mounted) {
-                  setState(() {
-                    document = load();
-                  });
-                }
-              },
-              child: Text(client.tr('安装 / 管理', 'Install / manage')),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton(
+                onPressed: () async {
+                  await pushPage(
+                    context,
+                    ExtensionInstall(
+                      client: client,
+                      kind: widget.kind,
+                      entry: entry,
+                    ),
+                  );
+                  if (mounted) {
+                    setState(() {
+                      document = load();
+                    });
+                  }
+                },
+                child: Text(client.tr('安装 / 管理', 'Install / manage')),
+              ),
             ),
             const SizedBox(height: 20),
             if (snapshot.connectionState == ConnectionState.waiting)
@@ -331,7 +333,7 @@ class _ExtensionPageState extends State<ExtensionPage> {
                   onPressed: () => setState(() {
                     document = load();
                   }),
-                  icon: const Icon(Icons.refresh_rounded),
+                  icon: const Icon(Icons.refresh),
                 ),
               ),
             ],
@@ -363,7 +365,7 @@ class _ExtensionPageState extends State<ExtensionPage> {
                       ),
                     ),
                   ),
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                  icon: const Icon(Icons.arrow_forward, size: 16),
                   label: Text(client.tr('完整内容', 'Full content')),
                 ),
               ),
@@ -558,21 +560,22 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
       IconButton(
         tooltip: c.tr('导入文件或 ZIP', 'Import file or ZIP'),
         onPressed: busy ? null : () => upload(),
-        icon: const Icon(Icons.upload_file_rounded),
+        icon: const Icon(Icons.upload_file_outlined),
       ),
       if (Platform.isWindows)
         IconButton(
           tooltip: c.tr('导入完整目录', 'Import folder'),
           onPressed: busy ? null : () => upload(directory: true),
-          icon: const Icon(Icons.folder_open_rounded),
+          icon: const Icon(Icons.folder_open_outlined),
         ),
     ],
     body: PageList(
       children: [
-        TextField(
-          controller: identifier,
-          decoration: InputDecoration(
-            labelText: c.tr('标识或 Git 仓库', 'Identifier or Git repository'),
+        LabeledField(
+          label: c.tr('标识或 Git 仓库', 'Identifier or Git repository'),
+          child: TextField(
+            controller: identifier,
+            decoration: InputDecoration(),
           ),
         ),
         const SizedBox(height: 14),
@@ -596,11 +599,14 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
           ],
         ),
         const SizedBox(height: 16),
-        FilledButton(
-          onPressed: target.isEmpty || busy
-              ? null
-              : () => run('extensions.install'),
-          child: Text(c.tr('安装', 'Install')),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton(
+            onPressed: target.isEmpty || busy
+                ? null
+                : () => run('extensions.install'),
+            child: Text(c.tr('安装', 'Install')),
+          ),
         ),
         if (widget.entry != null)
           Center(

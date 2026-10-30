@@ -110,7 +110,7 @@ class _SharedUserMemoryPageState extends State<SharedUserMemoryPage> {
         IconButton(
           tooltip: c.tr('刷新', 'Refresh'),
           onPressed: busy ? null : load,
-          icon: const Icon(Icons.refresh_rounded),
+          icon: const Icon(Icons.refresh),
         ),
       ],
       body: PageList(
@@ -166,7 +166,7 @@ class _SharedUserMemoryPageState extends State<SharedUserMemoryPage> {
                               ]);
                               edited = true;
                             },
-                            icon: const Icon(Icons.playlist_add_rounded),
+                            icon: const Icon(Icons.playlist_add),
                           ),
                         ),
                       ],
@@ -180,20 +180,26 @@ class _SharedUserMemoryPageState extends State<SharedUserMemoryPage> {
               child: Padding(padding: EdgeInsets.all(16), child: Breathing()),
             ),
           const SizedBox(height: 8),
-          TextField(
-            key: const ValueKey('shared-user-memory-editor'),
-            controller: text,
-            minLines: 8,
-            maxLines: 24,
-            onChanged: (_) => edited = true,
-            decoration: const InputDecoration(labelText: 'USER.md'),
+          LabeledField(
+            label: 'USER.md',
+            child: TextField(
+              key: const ValueKey('shared-user-memory-editor'),
+              controller: text,
+              minLines: 8,
+              maxLines: 24,
+              onChanged: (_) => edited = true,
+              decoration: const InputDecoration(),
+            ),
           ),
           const SizedBox(height: 16),
-          FilledButton(
-            onPressed: busy || !c.online || view?['connected'] != true
-                ? null
-                : save,
-            child: busy ? const Breathing() : Text(c.tr('保存', 'Save')),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton(
+              onPressed: busy || !c.online || view?['connected'] != true
+                  ? null
+                  : save,
+              child: busy ? const Breathing() : Text(c.tr('保存', 'Save')),
+            ),
           ),
           ErrorNotice(
             error.isNotEmpty

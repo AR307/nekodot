@@ -20,12 +20,10 @@ class SettingsPage extends StatelessWidget {
           PanelGroup(
             children: [
               ListTile(
-                leading: const Icon(Icons.key_rounded),
                 title: Text(client.tr('模型来源', 'Model sources')),
                 onTap: () => pushPage(context, SourcesPage(client: client)),
               ),
               ListTile(
-                leading: const Icon(Icons.notifications_rounded),
                 title: Text(client.tr('通知', 'Notifications')),
                 subtitle: client.notificationError.isEmpty
                     ? null
@@ -58,7 +56,6 @@ class SettingsPage extends StatelessWidget {
           PanelGroup(
             children: [
               ListTile(
-                leading: const Icon(Icons.translate_rounded),
                 title: Text(client.tr('语言', 'Language')),
                 trailing: Segment<String>(
                   value: client.language,
@@ -67,22 +64,21 @@ class SettingsPage extends StatelessWidget {
                 ),
               ),
               ListTile(
-                leading: const Icon(Icons.contrast_rounded),
                 title: Text(client.tr('外观', 'Appearance')),
                 trailing: Segment<String>(
                   value: client.theme,
                   options: {
                     'system': Tooltip(
                       message: client.tr('跟随系统', 'System'),
-                      child: const Icon(Icons.brightness_auto_rounded),
+                      child: const Icon(Icons.brightness_auto_outlined),
                     ),
                     'light': Tooltip(
                       message: client.tr('浅色', 'Light'),
-                      child: const Icon(Icons.light_mode_rounded),
+                      child: const Icon(Icons.light_mode_outlined),
                     ),
                     'dark': Tooltip(
                       message: client.tr('深色', 'Dark'),
-                      child: const Icon(Icons.dark_mode_rounded),
+                      child: const Icon(Icons.dark_mode_outlined),
                     ),
                   },
                   onChanged: (value) => client.preferences(appearance: value),
@@ -93,18 +89,13 @@ class SettingsPage extends StatelessWidget {
           const SizedBox(height: 14),
           PanelGroup(
             children: [
+              ListTile(title: Text('${client.me?['user']['email'] ?? ''}')),
               ListTile(
-                title: Text('${client.me?['user']['email'] ?? ''}'),
-                leading: const Icon(Icons.person_rounded),
-              ),
-              ListTile(
-                leading: const Icon(Icons.password_rounded),
                 title: Text(client.tr('修改密码', 'Change password')),
                 onTap: () => pushPage(context, PasswordPage(client: client)),
               ),
               if (context.tone.glass)
                 ListTile(
-                  leading: const Icon(Icons.logout_rounded),
                   title: Text(client.tr('退出账号', 'Sign out')),
                   onTap: () async {
                     try {
@@ -188,7 +179,7 @@ class _SourcesPageState extends State<SourcesPage> {
                   );
                   reload();
                 },
-                icon: const Icon(Icons.add_rounded),
+                icon: const Icon(Icons.add),
               ),
             ),
             if (custom.isNotEmpty)
@@ -254,75 +245,81 @@ class _CustomSourcePageState extends State<CustomSourcePage> {
     title: widget.client.tr('自定义 API', 'Custom API'),
     body: PageList(
       children: [
-        TextField(
-          controller: name,
-          decoration: InputDecoration(
-            labelText: widget.client.tr('名称', 'Name'),
+        LabeledField(
+          label: widget.client.tr('名称', 'Name'),
+          child: TextField(controller: name, decoration: InputDecoration()),
+        ),
+        const SizedBox(height: 10),
+        LabeledField(
+          label: 'API URL',
+          child: TextField(
+            controller: url,
+            keyboardType: TextInputType.url,
+            decoration: const InputDecoration(),
           ),
         ),
         const SizedBox(height: 10),
-        TextField(
-          controller: url,
-          keyboardType: TextInputType.url,
-          decoration: const InputDecoration(labelText: 'API URL'),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: key,
-          obscureText: true,
-          decoration: InputDecoration(
-            labelText: 'API KEY',
-            hintText: savedId == null
-                ? null
-                : '••••${widget.source?['apiKeyLast4'] ?? ''}',
-            floatingLabelBehavior: savedId == null
-                ? null
-                : FloatingLabelBehavior.always,
+        LabeledField(
+          label: 'API KEY',
+          child: TextField(
+            controller: key,
+            obscureText: true,
+            decoration: InputDecoration(
+              hintText: savedId == null
+                  ? null
+                  : '••••${widget.source?['apiKeyLast4'] ?? ''}',
+              floatingLabelBehavior: savedId == null
+                  ? null
+                  : FloatingLabelBehavior.always,
+            ),
           ),
         ),
         ErrorNotice(error),
         const SizedBox(height: 16),
-        FilledButton(
-          onPressed: busy
-              ? null
-              : () async {
-                  setState(() => busy = true);
-                  try {
-                    final saved = await widget.client.rpc('providers.set', {
-                      'kind': 'custom',
-                      if (savedId != null) 'sourceId': savedId,
-                      'name': name.text,
-                      'baseUrl': url.text.trim(),
-                      if (key.text.isNotEmpty) 'apiKey': key.text,
-                    });
-                    if (mounted) {
-                      setState(() => savedId = saved['sourceId'] as String);
-                    }
-                    key.clear();
-                    final catalog = await widget.client.rpc('models.options', {
-                      'sourceId': saved['sourceId'],
-                      'refresh': true,
-                    });
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            widget.client.tr(
-                              '${(catalog['models'] as List).length} 个模型',
-                              '${(catalog['models'] as List).length} models',
+        Align(
+          alignment: Alignment.centerRight,
+          child: FilledButton(
+            onPressed: busy
+                ? null
+                : () async {
+                    setState(() => busy = true);
+                    try {
+                      final saved = await widget.client.rpc('providers.set', {
+                        'kind': 'custom',
+                        if (savedId != null) 'sourceId': savedId,
+                        'name': name.text,
+                        'baseUrl': url.text.trim(),
+                        if (key.text.isNotEmpty) 'apiKey': key.text,
+                      });
+                      if (mounted) {
+                        setState(() => savedId = saved['sourceId'] as String);
+                      }
+                      key.clear();
+                      final catalog = await widget.client.rpc(
+                        'models.options',
+                        {'sourceId': saved['sourceId'], 'refresh': true},
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              widget.client.tr(
+                                '${(catalog['models'] as List).length} 个模型',
+                                '${(catalog['models'] as List).length} models',
+                              ),
                             ),
                           ),
-                        ),
-                      );
+                        );
+                      }
+                      if (context.mounted) Navigator.pop(context);
+                    } catch (e) {
+                      if (mounted) setState(() => error = '$e');
+                    } finally {
+                      if (mounted) setState(() => busy = false);
                     }
-                    if (context.mounted) Navigator.pop(context);
-                  } catch (e) {
-                    if (mounted) setState(() => error = '$e');
-                  } finally {
-                    if (mounted) setState(() => busy = false);
-                  }
-                },
-          child: Text(widget.client.tr('保存', 'Save')),
+                  },
+            child: Text(widget.client.tr('保存', 'Save')),
+          ),
         ),
       ],
     ),
@@ -411,7 +408,7 @@ class _AuthorizationPageState extends State<AuthorizationPage> {
               Uri.parse(docs),
               mode: LaunchMode.externalApplication,
             ),
-            icon: const Icon(Icons.open_in_new_rounded),
+            icon: const Icon(Icons.open_in_new),
           ),
       ],
       body: PageList(
@@ -428,11 +425,14 @@ class _AuthorizationPageState extends State<AuthorizationPage> {
               ],
             )
           else if (widget.provider['flow'] == 'device_code')
-            FilledButton(
-              onPressed: busy || session?['status'] == 'pending'
-                  ? null
-                  : () => action('start'),
-              child: Text(widget.client.tr('开始授权', 'Start authorization')),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                onPressed: busy || session?['status'] == 'pending'
+                    ? null
+                    : () => action('start'),
+                child: Text(widget.client.tr('开始授权', 'Start authorization')),
+              ),
             )
           else
             Panel(
@@ -476,29 +476,32 @@ class _AuthorizationPageState extends State<AuthorizationPage> {
                       Uri.parse(session!['verification_url'] as String),
                       mode: LaunchMode.externalApplication,
                     ),
-                    icon: const Icon(Icons.open_in_browser_rounded),
+                    icon: const Icon(Icons.open_in_browser),
                   ),
                 IconButton(
                   tooltip: widget.client.tr('检查状态', 'Check status'),
                   onPressed: busy || session?['session_id'] == null
                       ? null
                       : () => action('poll'),
-                  icon: const Icon(Icons.refresh_rounded),
+                  icon: const Icon(Icons.refresh),
                 ),
                 if (session?['status'] == 'pending')
                   IconButton(
                     tooltip: widget.client.tr('取消', 'Cancel'),
                     onPressed: busy ? null : () => action('cancel'),
-                    icon: const Icon(Icons.close_rounded),
+                    icon: const Icon(Icons.close),
                   ),
               ],
             ),
           ],
           if (widget.provider['disconnectable'] == true && authorized) ...[
             const SizedBox(height: 16),
-            OutlinedButton(
-              onPressed: busy ? null : () => action('disconnect'),
-              child: Text(widget.client.tr('断开', 'Disconnect')),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton(
+                onPressed: busy ? null : () => action('disconnect'),
+                child: Text(widget.client.tr('断开', 'Disconnect')),
+              ),
             ),
           ],
           ErrorNotice(error),
@@ -530,40 +533,45 @@ class _PasswordPageState extends State<PasswordPage> {
     title: widget.client.tr('修改密码', 'Change password'),
     body: PageList(
       children: [
-        TextField(
-          controller: old,
-          obscureText: true,
-          decoration: InputDecoration(
-            labelText: widget.client.tr('当前密码', 'Current password'),
+        LabeledField(
+          label: widget.client.tr('当前密码', 'Current password'),
+          child: TextField(
+            controller: old,
+            obscureText: true,
+            decoration: InputDecoration(),
           ),
         ),
         const SizedBox(height: 10),
-        TextField(
-          controller: next,
-          obscureText: true,
-          decoration: InputDecoration(
-            labelText: widget.client.tr('新密码', 'New password'),
+        LabeledField(
+          label: widget.client.tr('新密码', 'New password'),
+          child: TextField(
+            controller: next,
+            obscureText: true,
+            decoration: InputDecoration(),
           ),
         ),
         ErrorNotice(error),
         const SizedBox(height: 16),
-        FilledButton(
-          onPressed: () async {
-            try {
-              await widget.client.request(
-                '/auth/password/change',
-                method: 'POST',
-                body: {'currentPassword': old.text, 'password': next.text},
-              );
-              await widget.client.clearSession();
-              if (context.mounted) {
-                Navigator.popUntil(context, (route) => route.isFirst);
+        Align(
+          alignment: Alignment.centerRight,
+          child: FilledButton(
+            onPressed: () async {
+              try {
+                await widget.client.request(
+                  '/auth/password/change',
+                  method: 'POST',
+                  body: {'currentPassword': old.text, 'password': next.text},
+                );
+                await widget.client.clearSession();
+                if (context.mounted) {
+                  Navigator.popUntil(context, (route) => route.isFirst);
+                }
+              } catch (e) {
+                if (mounted) setState(() => error = '$e');
               }
-            } catch (e) {
-              if (mounted) setState(() => error = '$e');
-            }
-          },
-          child: Text(widget.client.tr('修改', 'Change')),
+            },
+            child: Text(widget.client.tr('修改', 'Change')),
+          ),
         ),
       ],
     ),

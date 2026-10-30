@@ -188,11 +188,11 @@ class _BotEditorState extends State<BotEditor> {
                   key: ValueKey('$shape$color'),
                   color: color,
                   shape: shape,
-                  size: 84,
+                  size: tone.glass ? 72 : 56,
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Center(
               child: Wrap(
                 alignment: WrapAlignment.center,
@@ -219,8 +219,8 @@ class _BotEditorState extends State<BotEditor> {
                           selected: value == shape,
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 160),
-                            width: 40,
-                            height: 40,
+                            width: tone.glass ? 40 : 32,
+                            height: tone.glass ? 40 : 32,
                             padding: const EdgeInsets.all(5),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
@@ -242,7 +242,7 @@ class _BotEditorState extends State<BotEditor> {
             const SizedBox(height: 10),
             Center(
               child: SizedBox(
-                width: 34.0 * 8,
+                width: (tone.glass ? 34.0 : 26.0) * 8,
                 child: Wrap(
                   alignment: WrapAlignment.center,
                   spacing: 4,
@@ -257,9 +257,9 @@ class _BotEditorState extends State<BotEditor> {
                           label: value,
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 160),
-                            width: 30,
-                            height: 30,
-                            padding: const EdgeInsets.all(3),
+                            width: tone.glass ? 30 : 22,
+                            height: tone.glass ? 30 : 22,
+                            padding: const EdgeInsets.all(2.5),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
@@ -282,11 +282,11 @@ class _BotEditorState extends State<BotEditor> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
           ],
-          TextField(
-            controller: name,
-            decoration: InputDecoration(labelText: c.tr('名称', 'Name')),
+          LabeledField(
+            label: c.tr('名称', 'Name'),
+            child: TextField(controller: name, decoration: InputDecoration()),
           ),
           gap,
           if (widget.group) ...[
@@ -319,61 +319,71 @@ class _BotEditorState extends State<BotEditor> {
               ],
             ),
             const SizedBox(height: 14),
-            DropdownButtonFormField<String>(
-              key: ValueKey(lead),
-              initialValue: lead,
-              borderRadius: BorderRadius.circular(20),
-              decoration: InputDecoration(labelText: c.tr('主答', 'Lead')),
-              items: c.node.bots
-                  .where((b) => members.contains(b['botId']))
-                  .map(
-                    (b) => DropdownMenuItem(
-                      value: b['botId'] as String,
-                      child: Text('${b['displayName']}'),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) => setState(() => lead = value),
+            LabeledField(
+              label: c.tr('主答', 'Lead'),
+              child: DropdownButtonFormField<String>(
+                key: ValueKey(lead),
+                initialValue: lead,
+                borderRadius: BorderRadius.circular(20),
+                decoration: InputDecoration(),
+                items: c.node.bots
+                    .where((b) => members.contains(b['botId']))
+                    .map(
+                      (b) => DropdownMenuItem(
+                        value: b['botId'] as String,
+                        child: Text('${b['displayName']}'),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) => setState(() => lead = value),
+              ),
             ),
           ] else ...[
-            TextField(
-              controller: handle,
-              decoration: const InputDecoration(labelText: '@handle'),
-            ),
-            gap,
-            TextField(
-              controller: role,
-              minLines: 3,
-              maxLines: 8,
-              decoration: InputDecoration(labelText: c.tr('角色设定', 'Role')),
-            ),
-            gap,
-            DropdownButtonFormField<String>(
-              key: ValueKey(source),
-              initialValue: source,
-              isExpanded: true,
-              borderRadius: BorderRadius.circular(20),
-              decoration: InputDecoration(
-                labelText: c.tr('模型来源', 'Model source'),
+            LabeledField(
+              label: '@handle',
+              child: TextField(
+                controller: handle,
+                decoration: const InputDecoration(),
               ),
-              items: sources
-                  .map(
-                    (s) => DropdownMenuItem(
-                      value: s['sourceId'] as String,
-                      child: Text(
-                        '${s['name']}',
-                        overflow: TextOverflow.ellipsis,
+            ),
+            gap,
+            LabeledField(
+              label: c.tr('角色设定', 'Role'),
+              child: TextField(
+                controller: role,
+                minLines: 3,
+                maxLines: 8,
+                decoration: InputDecoration(),
+              ),
+            ),
+            gap,
+            LabeledField(
+              label: c.tr('模型来源', 'Model source'),
+              child: DropdownButtonFormField<String>(
+                key: ValueKey(source),
+                initialValue: source,
+                isExpanded: true,
+                borderRadius: BorderRadius.circular(20),
+                decoration: InputDecoration(),
+                items: sources
+                    .map(
+                      (s) => DropdownMenuItem(
+                        value: s['sourceId'] as String,
+                        child: Text(
+                          '${s['name']}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                setState(() {
-                  source = value;
-                  model.clear();
-                });
-                loadModels();
-              },
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    source = value;
+                    model.clear();
+                  });
+                  loadModels();
+                },
+              ),
             ),
             gap,
             Autocomplete<String>(
@@ -384,36 +394,42 @@ class _BotEditorState extends State<BotEditor> {
               ),
               onSelected: (value) => model.text = value,
               fieldViewBuilder: (context, controller, focus, submit) =>
-                  TextField(
-                    controller: controller,
-                    focusNode: focus,
-                    onChanged: (value) => model.text = value,
-                    decoration: InputDecoration(labelText: c.tr('模型', 'Model')),
+                  LabeledField(
+                    label: c.tr('模型', 'Model'),
+                    child: TextField(
+                      controller: controller,
+                      focusNode: focus,
+                      onChanged: (value) => model.text = value,
+                      decoration: InputDecoration(),
+                    ),
                   ),
             ),
             gap,
-            DropdownButtonFormField<String>(
-              key: ValueKey('approval-$mode-$permissionsReady'),
-              initialValue: mode,
-              borderRadius: BorderRadius.circular(20),
-              decoration: InputDecoration(labelText: c.tr('审批', 'Approval')),
-              items: [
-                DropdownMenuItem(
-                  value: 'manual',
-                  child: Text(c.tr('每次询问', 'Ask each time')),
-                ),
-                DropdownMenuItem(
-                  value: 'smart',
-                  child: Text(c.tr('智能审批', 'Smart approval')),
-                ),
-                DropdownMenuItem(
-                  value: 'off',
-                  child: Text(c.tr('全部允许', 'Allow all')),
-                ),
-              ],
-              onChanged: permissionsReady
-                  ? (value) => setState(() => mode = value!)
-                  : null,
+            LabeledField(
+              label: c.tr('审批', 'Approval'),
+              child: DropdownButtonFormField<String>(
+                key: ValueKey('approval-$mode-$permissionsReady'),
+                initialValue: mode,
+                borderRadius: BorderRadius.circular(20),
+                decoration: InputDecoration(),
+                items: [
+                  DropdownMenuItem(
+                    value: 'manual',
+                    child: Text(c.tr('每次询问', 'Ask each time')),
+                  ),
+                  DropdownMenuItem(
+                    value: 'smart',
+                    child: Text(c.tr('智能审批', 'Smart approval')),
+                  ),
+                  DropdownMenuItem(
+                    value: 'off',
+                    child: Text(c.tr('全部允许', 'Allow all')),
+                  ),
+                ],
+                onChanged: permissionsReady
+                    ? (value) => setState(() => mode = value!)
+                    : null,
+              ),
             ),
             if (!permissionsReady)
               Align(
@@ -421,7 +437,7 @@ class _BotEditorState extends State<BotEditor> {
                 child: IconButton(
                   tooltip: c.tr('重新读取审批设置', 'Reload approval settings'),
                   onPressed: loadPermissions,
-                  icon: const Icon(Icons.refresh_rounded),
+                  icon: const Icon(Icons.refresh),
                 ),
               ),
             ExpansionTile(
@@ -432,11 +448,12 @@ class _BotEditorState extends State<BotEditor> {
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               children: [
-                TextField(
-                  controller: contextLength,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: c.tr('上下文覆盖', 'Context override'),
+                LabeledField(
+                  label: c.tr('上下文覆盖', 'Context override'),
+                  child: TextField(
+                    controller: contextLength,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(),
                   ),
                 ),
               ],
@@ -444,45 +461,50 @@ class _BotEditorState extends State<BotEditor> {
           ],
           ErrorNotice(error),
           const SizedBox(height: 16),
-          FilledButton(
-            onPressed:
-                busy ||
-                    !permissionsReady ||
-                    !c.online ||
-                    (!widget.group &&
-                        widget.existing == null &&
-                        source == null) ||
-                    (widget.group && (members.length < 2 || members.length > 6))
-                ? null
-                : save,
-            child: busy ? const Breathing() : Text(c.tr('保存', 'Save')),
-          ),
-          if (widget.existing != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: TextButton(
-                style: TextButton.styleFrom(foregroundColor: tone.danger),
-                onPressed: busy
+          Row(
+            children: [
+              if (widget.existing != null)
+                TextButton(
+                  style: TextButton.styleFrom(foregroundColor: tone.danger),
+                  onPressed: busy
+                      ? null
+                      : () async {
+                          try {
+                            await c.rpc(
+                              widget.group ? 'groups.archive' : 'bots.archive',
+                              {
+                                widget.group ? 'groupId' : 'botId':
+                                    widget.existing![widget.group
+                                        ? 'groupId'
+                                        : 'botId'],
+                              },
+                            );
+                            if (context.mounted) Navigator.pop(context);
+                          } catch (e) {
+                            if (mounted) setState(() => error = '$e');
+                          }
+                        },
+                  child: Text(c.tr('归档', 'Archive')),
+                ),
+              const Spacer(),
+              FilledButton(
+                onPressed:
+                    busy ||
+                        !permissionsReady ||
+                        !c.online ||
+                        (!widget.group &&
+                            widget.existing == null &&
+                            source == null) ||
+                        (widget.group &&
+                            (members.length < 2 || members.length > 6))
                     ? null
-                    : () async {
-                        try {
-                          await c.rpc(
-                            widget.group ? 'groups.archive' : 'bots.archive',
-                            {
-                              widget.group ? 'groupId' : 'botId':
-                                  widget.existing![widget.group
-                                      ? 'groupId'
-                                      : 'botId'],
-                            },
-                          );
-                          if (context.mounted) Navigator.pop(context);
-                        } catch (e) {
-                          if (mounted) setState(() => error = '$e');
-                        }
-                      },
-                child: Text(c.tr('归档', 'Archive')),
+                    : save,
+                child: busy
+                    ? const Breathing(size: 8)
+                    : Text(c.tr('保存', 'Save')),
               ),
-            ),
+            ],
+          ),
         ],
       ),
     );

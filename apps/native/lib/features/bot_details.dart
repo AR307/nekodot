@@ -50,7 +50,7 @@ class BotDetails extends StatelessWidget {
               return PageList(
                 children: [
                   if (context.tone.glass) ...[
-                    Center(child: CatAvatar.of(bot, size: 84)),
+                    Center(child: CatAvatar.of(bot, size: 64)),
                     const SizedBox(height: 6),
                     Center(
                       child: Text('@${bot['handle']}', style: text.labelMedium),
@@ -140,7 +140,7 @@ class BotDetails extends StatelessWidget {
                                   'Shared with every Bot on your account',
                                 ),
                                 child: Icon(
-                                  Icons.group_rounded,
+                                  Icons.group_outlined,
                                   size: 18,
                                   color: context.tone.ink3,
                                 ),
@@ -163,16 +163,19 @@ class BotDetails extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 14),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    await pushPage(
-                      context,
-                      RefinePage(client: c, botId: bot['botId'] as String),
-                    );
-                    reload();
-                  },
-                  icon: const Icon(Icons.auto_fix_high_rounded, size: 18),
-                  label: Text(c.tr('整理记忆', 'Refine memory')),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      await pushPage(
+                        context,
+                        RefinePage(client: c, botId: bot['botId'] as String),
+                      );
+                      reload();
+                    },
+                    icon: const Icon(Icons.auto_fix_high_outlined, size: 18),
+                    label: Text(c.tr('整理记忆', 'Refine memory')),
+                  ),
                 ),
                 if ('${data['pending'] ?? ''}'.isNotEmpty)
                   Padding(
@@ -194,18 +197,18 @@ class BotDetails extends StatelessWidget {
           child: AppPage(
             title: '${bot['displayName']}',
             bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(50),
+              preferredSize: const Size.fromHeight(44),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 320),
                     child: TabBar(
                       tabs: [
-                        Tab(height: 36, text: c.tr('详情', 'Details')),
-                        Tab(height: 36, text: c.tr('记忆', 'Memory')),
-                        Tab(height: 36, text: c.tr('资料库', 'Files')),
+                        Tab(height: 34, text: c.tr('详情', 'Details')),
+                        Tab(height: 34, text: c.tr('记忆', 'Memory')),
+                        Tab(height: 34, text: c.tr('资料库', 'Files')),
                       ],
                     ),
                   ),
@@ -213,15 +216,15 @@ class BotDetails extends StatelessWidget {
               ),
             ),
             actions: [
-              RoundButton(
+              IconAction(
                 tooltip: c.tr('屏幕', 'Screen'),
-                icon: Icons.desktop_windows_rounded,
+                icon: Icons.desktop_windows_outlined,
                 onPressed: () =>
                     pushPage(context, ScreenPage(client: c, bot: bot)),
               ),
-              RoundButton(
+              IconAction(
                 tooltip: c.tr('编辑', 'Edit'),
-                icon: Icons.edit_rounded,
+                icon: Icons.edit_outlined,
                 onPressed: () =>
                     pushPage(context, BotEditor(client: c, existing: bot)),
               ),
@@ -237,35 +240,33 @@ class BotDetails extends StatelessWidget {
             automaticallyImplyLeading: !panel,
             flexibleSpace: const WindowDrag(),
             actions: [
-              RoundButton(
+              IconAction(
                 tooltip: c.tr('屏幕', 'Screen'),
                 icon: Icons.desktop_windows_outlined,
                 onPressed: () =>
                     pushPage(context, ScreenPage(client: c, bot: bot)),
               ),
-              const SizedBox(width: 8),
-              RoundButton(
+              IconAction(
                 tooltip: c.tr('编辑', 'Edit'),
                 icon: Icons.edit_outlined,
                 onPressed: () =>
                     pushPage(context, BotEditor(client: c, existing: bot)),
               ),
               if (panel) ...[
-                const SizedBox(width: 8),
-                RoundButton(
+                IconAction(
                   tooltip: c.tr('关闭', 'Close'),
-                  icon: Icons.close_rounded,
+                  icon: Icons.close,
                   onPressed: onClose,
                 ),
               ],
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               SizedBox(width: WindowChrome.reserved(context)),
             ],
           ),
           body: Column(
             children: [
-              CatAvatar.of(bot, size: 76),
-              const SizedBox(height: 10),
+              CatAvatar.of(bot, size: 56),
+              const SizedBox(height: 8),
               Text(
                 '${bot['displayName']}',
                 style: text.titleLarge,
@@ -273,15 +274,15 @@ class BotDetails extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               Text('@${bot['handle']}', style: text.labelMedium),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               TabBar(
                 isScrollable: true,
                 tabAlignment: TabAlignment.center,
-                labelPadding: const EdgeInsets.symmetric(horizontal: 14),
+                labelPadding: const EdgeInsets.symmetric(horizontal: 10),
                 tabs: [
-                  Tab(height: 32, text: c.tr('详情', 'Details')),
-                  Tab(height: 32, text: c.tr('记忆', 'Memory')),
-                  Tab(height: 32, text: c.tr('资料库', 'Files')),
+                  Tab(height: 28, text: c.tr('详情', 'Details')),
+                  Tab(height: 28, text: c.tr('记忆', 'Memory')),
+                  Tab(height: 28, text: c.tr('资料库', 'Files')),
                 ],
               ),
               const SizedBox(height: 4),
@@ -397,46 +398,50 @@ class _RefinePageState extends State<RefinePage> {
     title: widget.client.tr('整理记忆', 'Refine memory'),
     body: PageList(
       children: [
-        TextField(
-          controller: focus,
-          minLines: 3,
-          maxLines: 8,
-          decoration: InputDecoration(
-            labelText: widget.client.tr('重点', 'Focus'),
+        LabeledField(
+          label: widget.client.tr('重点', 'Focus'),
+          child: TextField(
+            controller: focus,
+            minLines: 3,
+            maxLines: 8,
+            decoration: InputDecoration(),
           ),
         ),
         const SizedBox(height: 16),
-        FilledButton(
-          onPressed: operation?['status'] == 'running'
-              ? null
-              : () async {
-                  try {
-                    final value = await widget.client.rpc('memory.refine', {
-                      'botId': widget.botId,
-                      'focus': focus.text,
-                    });
-                    if (!mounted) return;
-                    setState(() => operation = value);
-                    timer = Timer.periodic(const Duration(seconds: 2), (
-                      _,
-                    ) async {
-                      try {
-                        final value = await widget.client.rpc(
-                          'operations.get',
-                          {'operationId': operation!['operationId']},
-                        );
-                        if (mounted) setState(() => operation = value);
-                        if (value['status'] != 'running') timer?.cancel();
-                      } catch (e) {
-                        if (mounted) setState(() => error = '$e');
-                        timer?.cancel();
-                      }
-                    });
-                  } catch (e) {
-                    if (mounted) setState(() => error = '$e');
-                  }
-                },
-          child: Text(widget.client.tr('开始整理', 'Refine')),
+        Align(
+          alignment: Alignment.centerRight,
+          child: FilledButton(
+            onPressed: operation?['status'] == 'running'
+                ? null
+                : () async {
+                    try {
+                      final value = await widget.client.rpc('memory.refine', {
+                        'botId': widget.botId,
+                        'focus': focus.text,
+                      });
+                      if (!mounted) return;
+                      setState(() => operation = value);
+                      timer = Timer.periodic(const Duration(seconds: 2), (
+                        _,
+                      ) async {
+                        try {
+                          final value = await widget.client.rpc(
+                            'operations.get',
+                            {'operationId': operation!['operationId']},
+                          );
+                          if (mounted) setState(() => operation = value);
+                          if (value['status'] != 'running') timer?.cancel();
+                        } catch (e) {
+                          if (mounted) setState(() => error = '$e');
+                          timer?.cancel();
+                        }
+                      });
+                    } catch (e) {
+                      if (mounted) setState(() => error = '$e');
+                    }
+                  },
+            child: Text(widget.client.tr('开始整理', 'Refine')),
+          ),
         ),
         if (operation != null)
           Padding(

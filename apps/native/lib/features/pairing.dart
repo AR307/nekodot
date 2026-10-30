@@ -109,19 +109,19 @@ class _PairingPageState extends State<PairingPage> {
                 onPressed: busy || code == null
                     ? null
                     : () => generate(extend: true),
-                icon: const Icon(Icons.more_time_rounded, size: 20),
+                icon: const Icon(Icons.more_time),
               ),
               IconButton(
                 tooltip: c.tr('生成新码', 'Generate new code'),
                 onPressed: busy ? null : generate,
-                icon: const Icon(Icons.refresh_rounded, size: 20),
+                icon: const Icon(Icons.refresh),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Panel(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 8, 18),
+              padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -132,8 +132,8 @@ class _PairingPageState extends State<PairingPage> {
                             code!['installCommand'] as String,
                             style: const TextStyle(
                               fontFamily: monoFont,
-                              fontSize: 13,
-                              height: 1.6,
+                              fontSize: 12,
+                              height: 1.5,
                             ),
                           ),
                   ),
@@ -149,10 +149,7 @@ class _PairingPageState extends State<PairingPage> {
                             );
                             if (mounted) setState(() => copied = true);
                           },
-                    icon: Icon(
-                      copied ? Icons.check_rounded : Icons.copy_rounded,
-                      size: 20,
-                    ),
+                    icon: Icon(copied ? Icons.check : Icons.copy_outlined),
                   ),
                 ],
               ),

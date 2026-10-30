@@ -97,7 +97,7 @@ class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
             : Ambient(child: child!),
       ),
       home: loading
-          ? const Scaffold(body: Center(child: CatAvatar(size: 72)))
+          ? const Scaffold(body: Center(child: CatAvatar(size: 56)))
           : error.isNotEmpty
           ? Scaffold(
               body: Padding(

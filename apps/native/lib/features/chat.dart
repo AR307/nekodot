@@ -214,12 +214,12 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                   children: [
                     if (group != null)
                       GroupAvatar(
-                        size: 36,
+                        size: 30,
                         working: running,
                         avatars: memberAvatars,
                       )
                     else if (bot != null)
-                      CatAvatar.of(bot, size: 36, working: running),
+                      CatAvatar.of(bot, size: 30, working: running),
                     const SizedBox(width: 10),
                     Flexible(
                       child: Column(
@@ -274,7 +274,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                     context,
                     ScreenPage(client: c, bot: bot, members: members),
                   ),
-            icon: const Icon(Icons.desktop_windows_rounded),
+            icon: const Icon(Icons.desktop_windows_outlined),
           ),
           const SizedBox(width: 8),
         ],
@@ -301,7 +301,6 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                   decoration: ShapeDecoration(
                     color: tone.surface,
                     shape: StadiumBorder(side: BorderSide(color: tone.line)),
-                    shadows: floating(context),
                   ),
                   child: Material(
                     type: MaterialType.transparency,
@@ -322,18 +321,18 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                         }
                       },
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(6, 5, 14, 5),
+                        padding: const EdgeInsets.fromLTRB(4, 3, 10, 3),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (group != null)
                               GroupAvatar(
-                                size: 28,
+                                size: 20,
                                 working: running,
                                 avatars: memberAvatars,
                               )
                             else if (bot != null)
-                              CatAvatar.of(bot, size: 28, working: running),
+                              CatAvatar.of(bot, size: 20, working: running),
                             const SizedBox(width: 8),
                             Flexible(
                               child: Text(
@@ -371,7 +370,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 ),
               ),
               actions: [
-                RoundButton(
+                IconAction(
                   tooltip: c.tr('屏幕', 'Screen'),
                   icon: Icons.desktop_windows_outlined,
                   onPressed: bot == null
@@ -386,63 +385,77 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                   SizedBox(width: WindowChrome.reserved(context)),
               ],
             );
-      final glassRow = Row(
+      final composerRow = Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
-            child: Panel(
-              radius: 15,
-              child: CallbackShortcuts(
-                bindings: {
-                  const SingleActivator(
-                    LogicalKeyboardKey.enter,
-                    control: true,
-                  ): () {
-                    if (!waiting && c.online) send();
-                  },
+            child: CallbackShortcuts(
+              bindings: {
+                const SingleActivator(
+                  LogicalKeyboardKey.enter,
+                  control: true,
+                ): () {
+                  if (!waiting && c.online) send();
                 },
-                child: TextField(
-                  key: const ValueKey('chat-input'),
-                  controller: input,
-                  minLines: 1,
-                  maxLines: 7,
-                  textCapitalization: TextCapitalization.sentences,
-                  onChanged: (_) => setState(() {}),
-                  decoration: InputDecoration(
-                    filled: false,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    disabledBorder: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 13,
-                    ),
-                    hintText: c.tr('发消息', 'Message'),
+              },
+              child: TextField(
+                key: const ValueKey('chat-input'),
+                controller: input,
+                minLines: 1,
+                maxLines: 7,
+                textCapitalization: TextCapitalization.sentences,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  filled: false,
+                  isDense: true,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: tone.glass ? 13 : 4,
                   ),
+                  hintText: c.tr('发消息', 'Message'),
                 ),
               ),
             ),
           ),
-          if (running) ...[
-            const SizedBox(width: 8),
+          if (running)
             IconButton.filled(
               tooltip: c.tr('停止', 'Stop'),
               style: IconButton.styleFrom(
-                fixedSize: const Size.square(50),
+                fixedSize: Size.square(tone.control - 4),
+                minimumSize: Size.square(tone.control - 4),
+                padding: EdgeInsets.zero,
+                iconSize: tone.icon - 2,
+                tapTargetSize: tone.glass
+                    ? MaterialTapTargetSize.padded
+                    : MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(tone.corner - 2),
+                ),
                 backgroundColor: hasText ? tone.raised : tone.ink,
                 foregroundColor: hasText ? tone.ink : tone.base,
               ),
               onPressed: c.online ? stop : null,
-              icon: const Icon(Icons.stop_rounded),
+              icon: const Icon(Icons.stop),
             ),
-          ],
           if (!running || hasText) ...[
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
             IconButton.filled(
               tooltip: c.tr('发送', 'Send'),
               style: IconButton.styleFrom(
-                fixedSize: const Size.square(50),
+                fixedSize: Size.square(tone.control - 4),
+                minimumSize: Size.square(tone.control - 4),
+                padding: EdgeInsets.zero,
+                iconSize: tone.icon - 2,
+                tapTargetSize: tone.glass
+                    ? MaterialTapTargetSize.padded
+                    : MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(tone.corner - 2),
+                ),
                 backgroundColor: tone.ink,
                 foregroundColor: tone.base,
                 disabledBackgroundColor: tone.raised,
@@ -451,7 +464,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
               onPressed: !c.online || waiting || sending || !hasText
                   ? null
                   : send,
-              icon: const Icon(Icons.arrow_upward_rounded),
+              icon: const Icon(Icons.arrow_upward),
             ),
           ],
         ],
@@ -459,17 +472,17 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       final composer = SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 780),
+              constraints: const BoxConstraints(maxWidth: 720),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (error.isNotEmpty) ErrorNotice(error),
                   if (group != null && input.text.contains('@'))
                     SizedBox(
-                      height: 44,
+                      height: tone.control + 4,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
                         children: members
@@ -481,7 +494,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                                       '${input.text.substring(0, start)}@${b['handle']} ';
                                   setState(() {});
                                 },
-                                icon: CatAvatar.of(b, size: 22),
+                                icon: CatAvatar.of(b, size: 18),
                                 label: Text('${b['displayName']}'),
                               ),
                             )
@@ -489,94 +502,21 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                       ),
                     ),
                   if (tone.glass)
-                    glassRow
+                    Panel(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: composerRow,
+                      ),
+                    )
                   else
                     Container(
-                      decoration: ShapeDecoration(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
                         color: tone.surface,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                          side: BorderSide(color: tone.line),
-                        ),
-                        shadows: floating(context),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: tone.line),
                       ),
-                      padding: const EdgeInsets.all(6),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            child: CallbackShortcuts(
-                              bindings: {
-                                const SingleActivator(
-                                  LogicalKeyboardKey.enter,
-                                  control: true,
-                                ): () {
-                                  if (!waiting && c.online) send();
-                                },
-                              },
-                              child: TextField(
-                                key: const ValueKey('chat-input'),
-                                controller: input,
-                                minLines: 1,
-                                maxLines: 7,
-                                textCapitalization:
-                                    TextCapitalization.sentences,
-                                onChanged: (_) => setState(() {}),
-                                decoration: InputDecoration(
-                                  filled: false,
-                                  isDense: true,
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  disabledBorder: InputBorder.none,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 9,
-                                  ),
-                                  hintText: c.tr('发消息', 'Message'),
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (running)
-                            IconButton.filled(
-                              tooltip: c.tr('停止', 'Stop'),
-                              style: IconButton.styleFrom(
-                                fixedSize: const Size.square(36),
-                                minimumSize: const Size.square(36),
-                                padding: EdgeInsets.zero,
-                                iconSize: 18,
-                                backgroundColor: hasText
-                                    ? tone.raised
-                                    : tone.ink,
-                                foregroundColor: hasText ? tone.ink : tone.base,
-                              ),
-                              onPressed: c.online ? stop : null,
-                              icon: const Icon(Icons.stop_rounded),
-                            ),
-                          if (!running || hasText) ...[
-                            const SizedBox(width: 6),
-                            IconButton.filled(
-                              tooltip: c.tr('发送', 'Send'),
-                              style: IconButton.styleFrom(
-                                fixedSize: const Size.square(36),
-                                minimumSize: const Size.square(36),
-                                padding: EdgeInsets.zero,
-                                iconSize: 18,
-                                backgroundColor: tone.ink,
-                                foregroundColor: tone.base,
-                                disabledBackgroundColor: tone.raised,
-                                disabledForegroundColor: tone.ink3,
-                              ),
-                              onPressed:
-                                  !c.online || waiting || sending || !hasText
-                                  ? null
-                                  : send,
-                              icon: const Icon(Icons.arrow_upward_rounded),
-                            ),
-                          ],
-                        ],
-                      ),
+                      child: composerRow,
                     ),
                 ],
               ),
@@ -594,18 +534,18 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 child: bot == null
                     ? null
                     : group == null
-                    ? CatAvatar.of(bot, size: 72)
-                    : GroupAvatar(size: 72, avatars: memberAvatars),
+                    ? CatAvatar.of(bot, size: 56)
+                    : GroupAvatar(size: 56, avatars: memberAvatars),
               )
             else
               ListView.builder(
                 controller: scroll,
                 reverse: true,
                 padding: EdgeInsets.fromLTRB(
-                  16,
-                  inset.top + 8,
-                  16,
-                  composerHeight + 4,
+                  14,
+                  inset.top + 6,
+                  14,
+                  composerHeight + 2,
                 ),
                 itemCount: messages.length + 1 + lead,
                 findChildIndexCallback: (key) {
@@ -619,7 +559,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                     return Align(
                       alignment: Alignment.topCenter,
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 780),
+                        constraints: const BoxConstraints(maxWidth: 720),
                         child: ThinkingRow(bot: bot, showName: group != null),
                       ),
                     );
@@ -641,7 +581,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                                   if (mounted) setState(() => error = '$e');
                                 }
                               },
-                              icon: const Icon(Icons.expand_less_rounded),
+                              icon: const Icon(Icons.expand_less),
                             ),
                           );
                   }
@@ -655,7 +595,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                     key: ValueKey(m['messageId']),
                     alignment: Alignment.topCenter,
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 780),
+                      constraints: const BoxConstraints(maxWidth: 720),
                       child: MessageTile(
                         client: c,
                         message: m,
@@ -702,11 +642,11 @@ class ThinkingRow extends StatelessWidget {
   const ThinkingRow({super.key, this.bot, this.showName = false});
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 14),
+    padding: const EdgeInsets.only(top: 10),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        if (bot != null) CatAvatar.of(bot!, size: 28, working: true),
+        if (bot != null) CatAvatar.of(bot!, size: 24, working: true),
         const SizedBox(width: 10),
         const ThinkingDots(),
       ],
@@ -737,14 +677,14 @@ class _ToolRowState extends State<ToolRow> {
     ].where((text) => text.isNotEmpty).join('\n');
     final mono = TextStyle(
       fontFamily: monoFont,
-      fontSize: 12.5,
+      fontSize: 12,
       color: tone.ink2,
     );
     return Material(
-      color: tone.bubble,
+      color: tone.glass ? tone.bubble : Colors.transparent,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(tone.glass ? 18 : 14),
+        borderRadius: BorderRadius.circular(tone.corner),
         side: tone.glass ? BorderSide(color: tone.line) : BorderSide.none,
       ),
       child: InkWell(
@@ -756,7 +696,10 @@ class _ToolRowState extends State<ToolRow> {
               : const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: EdgeInsets.symmetric(
+              horizontal: tone.glass ? 10 : 4,
+              vertical: tone.glass ? 7 : 3,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -765,7 +708,7 @@ class _ToolRowState extends State<ToolRow> {
                     running
                         ? const Breathing(size: 8)
                         : StatusDot(color: failed ? tone.danger : tone.ink3),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Text(
                       '${body['tool']}',
                       style: mono.copyWith(color: tone.ink),
@@ -909,7 +852,7 @@ class MessageTile extends StatelessWidget {
                         }
                       }
                     },
-              icon: const Icon(Icons.refresh_rounded),
+              icon: const Icon(Icons.refresh),
               label: Text(c.tr('重试自我介绍', 'Retry introduction')),
             ),
         ],
@@ -917,14 +860,14 @@ class MessageTile extends StatelessWidget {
     }
     if (user) {
       return Padding(
-        padding: EdgeInsets.only(top: continued ? 4 : 14, left: 48),
+        padding: EdgeInsets.only(top: continued ? 3 : 12, left: 56),
         child: Align(
           alignment: Alignment.centerRight,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
             decoration: BoxDecoration(
               color: tone.ink,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: content,
           ),
@@ -933,19 +876,19 @@ class MessageTile extends StatelessWidget {
     }
     if (tone.glass) {
       return Padding(
-        padding: EdgeInsets.only(top: continued ? 6 : 18),
+        padding: EdgeInsets.only(top: continued ? 4 : 14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
-              width: 28,
+              width: 24,
               child: continued
                   ? null
                   : bot == null
-                  ? const CatAvatar(color: '#8C8376', size: 28)
-                  : CatAvatar.of(bot!, size: 28, working: working),
+                  ? const CatAvatar(color: '#8C8376', size: 24)
+                  : CatAvatar.of(bot!, size: 24, working: working),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -969,10 +912,10 @@ class MessageTile extends StatelessWidget {
     final bubble = kind == 'tool' || kind == 'question' || kind == 'approval'
         ? content
         : Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
             decoration: BoxDecoration(
               color: tone.bubble,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: content,
           );
@@ -988,25 +931,25 @@ class MessageTile extends StatelessWidget {
             ),
           ),
         ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 680),
+          constraints: const BoxConstraints(maxWidth: 620),
           child: bubble,
         ),
       ],
     );
     return Padding(
-      padding: EdgeInsets.only(top: continued ? 5 : 14, right: 32),
+      padding: EdgeInsets.only(top: continued ? 3 : 12, right: 40),
       child: !showName
           ? Align(alignment: Alignment.centerLeft, child: column)
           : Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: 28,
+                  width: 24,
                   child: continued
                       ? null
                       : bot == null
-                      ? const CatAvatar(color: '#8C8376', size: 28)
-                      : CatAvatar.of(bot!, size: 28, working: working),
+                      ? const CatAvatar(color: '#8C8376', size: 24)
+                      : CatAvatar.of(bot!, size: 24, working: working),
                 ),
                 const SizedBox(width: 10),
                 Flexible(child: column),
@@ -1073,9 +1016,8 @@ class _ControlCardState extends State<ControlCard> {
       _ => '$choice',
     };
     return Panel(
-      radius: 16,
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1085,16 +1027,16 @@ class _ControlCardState extends State<ControlCard> {
                 width: double.infinity,
                 margin: const EdgeInsets.only(top: 10),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
+                  horizontal: 10,
+                  vertical: 7,
                 ),
                 decoration: BoxDecoration(
                   color: tone.bubble,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: SelectableText(
                   '${data['command']}',
-                  style: const TextStyle(fontFamily: monoFont, fontSize: 13),
+                  style: const TextStyle(fontFamily: monoFont, fontSize: 12),
                 ),
               ),
             if (!pending)
@@ -1102,7 +1044,7 @@ class _ControlCardState extends State<ControlCard> {
                 padding: const EdgeInsets.only(top: 12),
                 child: Row(
                   children: [
-                    Icon(Icons.check_rounded, size: 16, color: tone.ink3),
+                    Icon(Icons.check, size: 16, color: tone.ink3),
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
@@ -1118,6 +1060,7 @@ class _ControlCardState extends State<ControlCard> {
               for (final option in data['choices'] as List? ?? [])
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
+                  dense: true,
                   controlAffinity: ListTileControlAffinity.leading,
                   title: Text('$option'),
                   value: selected.contains('$option'),
@@ -1159,8 +1102,8 @@ class _ControlCardState extends State<ControlCard> {
             if (pending && !question) ...[
               const SizedBox(height: 12),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 6,
+                runSpacing: 6,
                 children: [
                   for (final (index, choice)
                       in (data['choices'] as List? ?? ['once', 'deny']).indexed)
