@@ -563,4 +563,3 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 过程发现：手动 `connect()` 后 `ready` 不复位，握手完成前发出的 RPC 可能因断开报错。这是连接层已有问题，不在本轮范围，旅程测试里加了等待来避开，未修改 `client.dart`。
 - 未覆盖：Android 真机与性能（毛玻璃在低端机的帧率）、Windows 安装包实际观感、真实屏幕接管画面。Web、Tauri 与官网未改，官网截图仍是旧界面。未构建发布包，未部署，未 push。
 - 证据：`docs/evidence/native-ui-desk-*.png`（Windows 走查）、`native-ui-android-chat-*.png`（模拟器实拍）与 `native-ui-android-home-light.png`、`native-ui-android-settings-dark.png`（手机尺寸走查）。
-
