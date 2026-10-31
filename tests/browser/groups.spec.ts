@@ -56,7 +56,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     await expect(page.getByRole('status')).toContainText('验证码已发出');
     await page.getByLabel('邮箱验证码', { exact: true }).fill(mailbox.code());
     await page.getByRole('button', { name: '继续', exact: true }).click();
-    await expect(page.locator('.pair-wait')).toBeVisible();
+    await expect(page.locator('.pair-wait')).toContainText(/[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}/);
     const code = (await page.locator('.pair-wait').innerText()).match(
       /[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}/,
     )![0];

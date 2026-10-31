@@ -523,3 +523,4 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 
 - GitHub main 已同步本轮完整产品更新与官网缓存修复，v0.2.0 采用开发者预览版，保留既有 Release。双端安装包已上传，Windows 为 15,684,634 字节，Android 为 34,054,104 字节，与官网包一致。
 - 官网与仓库主页均为 `https://nekodot.com`，README 链接到 v0.2.0，许可证继续 MIT。Windows 安装器未做 Authenticode 签名，Android 延续原签名；用户其他未提交截图未纳入发布提交。
+- GitHub 包已用未登录请求完整下载验证，v0.2.0 标签 CI 通过。另一轮 CI 暴露群聊测试抢先读取配对码，等待可见码后隔离 Edge 完整旅程通过；仅补测试断言，不改发布标签或产品包。
