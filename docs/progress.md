@@ -676,3 +676,13 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 验证：Node 24 lint/typecheck 和全部 24 文件 / 38 测试通过；Node/Web 构建通过；Flutter analyze 与 12 项测试通过。私聊和群聊用例覆盖重启、确认失败后重试、保留输出、清队列及同 profile 的后续新任务。
 - Edge 实际运行隔离的 Relay → Node → 原生状态契约/已录制 Hermes SSE，验证 390/1440px、草稿保留、一次确认、一次后续新 run；截图为 `unknown-execution-390.png`、`unknown-execution-1440.png`、`unknown-execution-recovered.png`。这些是 Web 回放界面证据，不能替代 Android 真机或用户故障 VPS 的验收。
 - 部署状态：仅本地提交，不 push、不替换已发布资产。现有产品环境未找到此次故障会话；用户仅确认使用 VPS，尚待提供准确 SSH 地址或 App 节点名称。实际故障日志、原生未确认及排队执行仍待该节点核对，未执行任何会话恢复或服务器变更。
+
+## 2026-11-01 / 实际故障 VPS 已恢复
+
+- 用户补充准确 SSH 目标后，只读核对实际节点。一个原生 admission 在旧 owner epoch 中断后仍为 unknown，四个后续 admission 为 queued；Node 将本地记录提前置 idle。实际状态返回 `execution_generation: null`，造成第二条 unsupported event 错误，已在现场确认。
+- 保留 SQLite 现场副本、私有原始日志及旧 Node 程序。使用原生 `/stop` 取消四个 queued run，之后对唯一 unknown run 调用 `/resolve-unknown`，结果为 terminal/interrupted；没有直接修改 Hermes 数据库，没有重放更新任务，待执行数量归零。
+- 协议接受原生尚未取得执行代次时的 null；Node 遇到失败 SSE 时以原生 queued 状态为准，保留回合和停止入口。新增真实契约场景覆盖 unknown_execution SSE、null generation、停止队列及不自动重跑。同步修正 spike 对空代次的检查。
+- 本地 25 文件 / 39 测试、typecheck、针对性 eslint/Prettier 通过。独立构建并部署受影响 Node 版本 `20261031155700`，复用既有发布方式，不替换公开下载资产。只重启本项目 Node 及其托管的 Hermes 后端；Relay、其他项目和整机未重启。
+- 真实验收：同 Bot、同原生 session 在恢复后及服务重启后均完成真实模型请求，回复匹配 `NEKODOT_RECOVERY_OK`，没有执行工具。使用修复后的 HermesApi 读取实际终态 SSE，8 个事件正常解析，末事件为 run.completed；此前排队的取消状态及 null generation 也正常解析。
+- 最终服务 active、Relay 已连接、原生待执行数 0；Bot、会话和聊天记录数量与恢复前一致。仍保留旧失败气泡，不自动重发之前的消息。Android 真机没有在本次操作中直接控制；本次证据为实际节点服务、真实模型和真实 API/SSE，不冒充手机端手动验收。
+- 脱敏结果：`docs/evidence/hermes-execution-recovery.json`。原始备份、凭据、SSH 目标与私有日志均不入 Git；代码仅本地提交，不 push。

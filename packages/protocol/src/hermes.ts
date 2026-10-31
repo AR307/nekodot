@@ -67,7 +67,7 @@ export const hermesRunStateSchema = z.looseObject({
   turn_exit_reason: z.string().optional(),
   pending_steer: z.string().optional(),
   admission_id: z.string().optional(),
-  execution_generation: z.number().int().optional(),
+  execution_generation: z.number().int().nullable().optional(),
   pending_controls: z
     .array(
       z.looseObject({

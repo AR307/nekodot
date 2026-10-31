@@ -942,6 +942,11 @@ export class NodeApplication {
         this.pauseUnknown(run);
         return;
       }
+      if (state.status === 'queued') {
+        run.lastSeq = event.seq;
+        this.database.saveRun(run);
+        return;
+      }
       this.settleControls(run, event.event === 'run.cancelled' ? 'cancelled' : 'failed');
       const reply =
         this.currentText(run) ??
@@ -1126,7 +1131,7 @@ export class NodeApplication {
       const api = await this.hermes.api(run.botId);
       const state = await api.state(run.runId);
       if (state.status === 'unknown') {
-        if (!state.admission_id || state.execution_generation === undefined)
+        if (!state.admission_id || state.execution_generation == null)
           throw new NodeFault(
             'unavailable',
             'Hermes did not return the interrupted execution identity.',

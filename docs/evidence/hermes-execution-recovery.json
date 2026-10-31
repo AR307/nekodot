@@ -1,0 +1,44 @@
+{
+  "scope": "affected Linux Node only",
+  "observed": {
+    "unknownExecutions": 1,
+    "queuedExecutions": 4,
+    "queuedExecutionGeneration": null,
+    "nodeSymptoms": ["unknown_execution", "unsupported event"]
+  },
+  "recovery": {
+    "queuedRunsCancelledThroughNativeApi": 4,
+    "unknownRunResolvedThroughNativeApi": 1,
+    "resolvedAdmissionOutcome": "interrupted",
+    "pendingExecutionsAfter": 0,
+    "originalTaskReplayed": false
+  },
+  "deployment": {
+    "nodeVersion": "20261031155700",
+    "service": "active",
+    "relayConnected": true,
+    "nodeChatHistoryRetained": true,
+    "profilesRetained": true,
+    "privateBackupRetained": true,
+    "hermesCoreChanged": false,
+    "publicReleaseAssetsChanged": false
+  },
+  "realModelValidation": {
+    "sameBotAndNativeSession": true,
+    "passedBeforeAndAfterNodeRestart": true,
+    "expectedReply": "NEKODOT_RECOVERY_OK",
+    "status": "completed",
+    "toolStarts": 0,
+    "patchedApiParsedActualSse": true,
+    "sseEventCount": 8,
+    "lastSseEvent": "run.completed",
+    "patchedApiParsedNullGeneration": true
+  },
+  "automatedChecks": {
+    "serverTestFiles": 25,
+    "serverTestsPassed": 39,
+    "typecheck": "passed",
+    "targetedLintAndFormatting": "passed"
+  },
+  "boundary": "The actual Node and native API were verified. An Android physical device was not operated during this recovery. Previous failed chat messages were retained and were not automatically resent."
+}

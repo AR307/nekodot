@@ -164,7 +164,7 @@ try {
         const control = state.pending_controls?.find((item) => item.kind === 'approval');
         if (!control) throw new Error('Approval event has no pending control.');
         const generation = control.execution_generation ?? state.execution_generation;
-        if (generation === undefined) throw new Error('Approval has no execution generation.');
+        if (generation == null) throw new Error('Approval has no execution generation.');
         approvalSeen = true;
         states[name + '-approval-response'] = await api.approve(
           created.run_id,
