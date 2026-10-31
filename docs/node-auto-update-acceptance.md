@@ -26,6 +26,8 @@
 
 实际安装还复现了现有管理后端占用相邻端口的情况。安装器现在同时检查 Runs 与相邻管理端口；本次在独立端口重跑成功，没有停止已有服务。
 
+更新后 Edge 又通过实际创建表单选择非 dot 头像，收到真实欢迎回复，刷新后仍保留。
+
 ## 界面证据
 
 - [Edge 1440px 旧节点提示](evidence/node-update-edge-legacy-1440.png)
@@ -33,6 +35,8 @@
 - [Edge 同页面恢复](evidence/node-update-edge-recovered.png)
 - [Windows 原生提示](evidence/node-update-native-legacy.png)
 - [Windows 原生恢复](evidence/node-update-native-recovered.png)
+- [Edge 更新后创建非 dot Bot](evidence/node-update-edge-avatar.png)
+- [脱敏运行证据](evidence/node-update-observations.json)：实际更新/回滚/拒绝日志、历史保留、工具次数及表单保存结果；无凭据、模型端点或个人路径。
 
 Windows 实际运行本次 Flutter 代码及独立测试登录态；未覆盖或读取用户原产品登录凭据。Flutter 集成旅程通过真实 HTTP / WS 验证命令复制和自动消失。截图已视觉检查，只收录隔离测试窗口。
 
@@ -40,7 +44,8 @@ Windows 实际运行本次 Flutter 代码及独立测试登录态；未覆盖或
 
 - 当前源码：Node 24 typecheck、23 文件 / 36 项测试和 build 通过；新增更新器场景也检查无效语法、32 MB 上限和失败冷却。
 - Flutter analyze、11 项测试通过，Windows 原生集成旅程通过；专用 Edge 命令复制/连接替换旅程通过。
-- 最终独立源码的 frozen install、lint、typecheck、test、build 和完整 Edge 回归待收尾记录。首次 lint 只发现用户计划文档的格式问题，已经格式化；不会把失败写成通过。
+- 最终使用 `45f91029c4` 的独立 `git archive` 源码与新 node_modules：frozen install、lint、typecheck、23 文件 / 36 项测试、build 全部通过；完整 Edge 为 **7 通过 / 1 跳过**（既有真实 Linux 屏幕专项，本模块未重验）。构建有既有大 chunk 提示，无构建错误。之后只补充本报告及证据，不改产品代码。
+- Edge 回归在独立源码目录输出截图，不覆盖主工作区其他人的未提交图片。WSL 也使用独立 Linux 依赖，没有共享 Windows node_modules。首次 lint 只发现用户计划文档的格式问题，格式化后在独立源码复测通过，不把首次失败隐藏为通过。
 - 原始日志、测试密钥和运行资料保留在忽略的验收目录，不提交凭据或私有日志；原有未提交截图不暂存、不还原。本次没有重跑 Android 模拟器/真机、屏幕、生产模型环境或 App 发布包构建；不以本模块验收替代原 Side Phase 3 尚未完成的项目。
 
 ## 发布前提

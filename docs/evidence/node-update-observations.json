@@ -1,0 +1,62 @@
+{
+  "environment": "isolated WSL Ubuntu 24.04; Node 24.22.1; actual install.sh and systemd user service",
+  "legacySourceCommit": "8c9a4b4931",
+  "nodeIdentityRetained": true,
+  "originalHistoryCount": 4,
+  "busyRun": {
+    "toolCount": 1,
+    "tools": [
+      {
+        "tool": "terminal",
+        "status": "done"
+      }
+    ],
+    "finalText": "UPDATE_BUSY_DONE"
+  },
+  "finalVersion": "20261031060000",
+  "avatarForm": {
+    "shape": "ghost",
+    "reloaded": true
+  },
+  "updateEvents": [
+    {
+      "time": 1793426484520,
+      "message": "Node release 20261031020000 downloaded; waiting for idle"
+    },
+    {
+      "time": 1793426544531,
+      "message": "Switching to Node release 20261031020000"
+    },
+    {
+      "time": 1793426591942,
+      "message": "Node release 20261031030000 downloaded; waiting for idle"
+    },
+    {
+      "time": 1793426591945,
+      "message": "Switching to Node release 20261031030000"
+    },
+    {
+      "message": "Node update did not become ready; restored the previous release."
+    },
+    {
+      "time": 1793426653980,
+      "message": "Node update failed; current service kept: Node bundle does not match its signed manifest"
+    },
+    {
+      "time": 1793426682522,
+      "message": "Node update failed; current service kept: Node bundle does not match its signed manifest"
+    },
+    {
+      "time": 1793426702838,
+      "message": "Node update failed; current service kept: Release signature is invalid"
+    },
+    {
+      "time": 1793426781642,
+      "message": "Node release 20261031060000 downloaded; waiting for idle"
+    },
+    {
+      "time": 1793426781646,
+      "message": "Switching to Node release 20261031060000"
+    }
+  ]
+}
