@@ -24,7 +24,7 @@ export interface NodeState {
 }
 export type ActivityState = {
   botId?: string;
-  state: 'thinking' | 'tool' | 'waiting_approval' | 'waiting_question' | 'idle';
+  state: 'thinking' | 'tool' | 'waiting_approval' | 'waiting_question' | 'unknown' | 'idle';
   connection?: 'connected' | 'reconnecting';
   detail?: string;
   chain?: { count: number; max: number };

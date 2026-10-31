@@ -271,7 +271,9 @@ export class NodeApplication {
       try {
         const api = await this.hermes.api(run.botId);
         const state = await api.state(run.runId);
-        if (isActiveStatus(state.status)) {
+        if (state.status === 'unknown') {
+          this.pauseUnknown(run);
+        } else if (isActiveStatus(state.status)) {
           this.activeRuns.set(run.conversationId, run);
           this.restoreQuestion(run, state);
           if (state.status === 'waiting_for_approval') {
@@ -313,10 +315,12 @@ export class NodeApplication {
           );
         }
       } catch {
-        await this.finishInterrupted(
-          run,
-          'Hermes could not resume this run. It was not restarted.',
-        );
+        if (run.state === 'unknown') this.pauseUnknown(run);
+        else
+          await this.finishInterrupted(
+            run,
+            'Hermes could not resume this run. It was not restarted.',
+          );
       }
     }
     const activeConversations = new Set(this.database.runs().map((run) => run.conversationId));
@@ -384,6 +388,11 @@ export class NodeApplication {
 
     if (active) {
       this.activeRuns.set(active.conversationId, active);
+      if (active.state === 'unknown')
+        throw new NodeFault(
+          'conflict',
+          'The previous execution was interrupted. Click Stop to acknowledge it before sending a new task. Completed effects will be kept.',
+        );
       if (active.state === 'waiting_approval' || active.state === 'waiting_question')
         throw new NodeFault(
           'conflict',
@@ -453,6 +462,11 @@ export class NodeApplication {
       content: { text: params.text },
     };
     if (active) {
+      if (active.state === 'unknown')
+        throw new NodeFault(
+          'conflict',
+          'The previous execution was interrupted. Click Stop to acknowledge it before sending a new task. Completed effects will be kept.',
+        );
       if (active.state === 'waiting_approval' || active.state === 'waiting_question')
         throw new NodeFault(
           'conflict',
@@ -649,11 +663,15 @@ export class NodeApplication {
           const event = frame.data;
           if (event.seq <= Math.max(run.lastSeq, this.appliedSeq.get(run.runId) ?? -1)) continue;
           await this.acceptEvent(run, api, event);
-          if (run.state === 'idle') return;
+          if (run.state === 'idle' || run.state === 'unknown') return;
           this.appliedSeq.set(run.runId, event.seq);
         }
         if (signal.aborted) return;
         const state = await api.state(run.runId);
+        if (state.status === 'unknown') {
+          this.pauseUnknown(run);
+          return;
+        }
         if (!isActiveStatus(state.status)) {
           await this.finishFromState(
             run,
@@ -689,6 +707,10 @@ export class NodeApplication {
         }
         try {
           const state = await api.state(run.runId);
+          if (state.status === 'unknown') {
+            this.pauseUnknown(run);
+            return;
+          }
           if (!isActiveStatus(state.status)) {
             await this.finishFromState(
               run,
@@ -914,6 +936,12 @@ export class NodeApplication {
       event.event === 'run.interrupted' ||
       event.event === 'run.failed'
     ) {
+      const state = await api.state(runId);
+      if (state.status === 'unknown') {
+        run.lastSeq = event.seq;
+        this.pauseUnknown(run);
+        return;
+      }
       this.settleControls(run, event.event === 'run.cancelled' ? 'cancelled' : 'failed');
       const reply =
         this.currentText(run) ??
@@ -934,7 +962,6 @@ export class NodeApplication {
               'Hermes interrupted this turn. Send a message to continue; the task was not restarted.');
       reply.status = event.event === 'run.cancelled' ? 'cancelled' : 'failed';
       this.persistText(run, reply, event.seq);
-      const state = await api.state(runId);
       this.pendingInstruction(run, state.pending_steer);
       if (run.groupId)
         await this.finishGroupRun(
@@ -1096,7 +1123,21 @@ export class NodeApplication {
     run.stopRequested = true;
     this.database.saveRun(run);
     try {
-      await (await this.hermes.api(run.botId)).stop(run.runId);
+      const api = await this.hermes.api(run.botId);
+      const state = await api.state(run.runId);
+      if (state.status === 'unknown') {
+        if (!state.admission_id || state.execution_generation === undefined)
+          throw new NodeFault(
+            'unavailable',
+            'Hermes did not return the interrupted execution identity.',
+          );
+        await api.resolveUnknown(run.runId, state.admission_id, state.execution_generation);
+        this.consumers.get(run.runId)?.abort();
+        if (run.groupId) this.database.clearChain(conversationId);
+        await this.finishFromState(run, 'cancelled');
+      } else {
+        await api.stop(run.runId);
+      }
     } catch (error) {
       run.stopRequested = false;
       this.database.saveRun(run);
@@ -1104,6 +1145,19 @@ export class NodeApplication {
     }
     if (run.groupId) this.database.clearChain(conversationId);
     return {};
+  }
+
+  private pauseUnknown(run: RunRecord) {
+    this.settleControls(run, 'failed');
+    const reply = this.currentText(run) ?? this.newText(run, '', 'failed');
+    reply.status = 'failed';
+    reply.content.failureReason =
+      'Hermes lost the execution during a restart. Click Stop to acknowledge the interrupted task, then send a new message. Completed effects are kept; this task will not be replayed.';
+    run.textMessageId = reply.messageId;
+    run.state = 'unknown';
+    this.activeRuns.set(run.conversationId, run);
+    this.persistText(run, reply, run.lastSeq);
+    this.publishActivity(run);
   }
 
   private async respondToApproval(params: RpcParams<'approvals.respond'>) {
@@ -1240,6 +1294,7 @@ export class NodeApplication {
       reply.content = { ...reply.content, text: output ?? reply.content.text };
       reply.status =
         status === 'cancelled' ? 'cancelled' : status === 'completed' ? 'done' : 'failed';
+      if (status === 'cancelled') delete reply.content.failureReason;
       if (status === 'completed') await this.files.capture(reply);
       this.persistText(run, reply, run.lastSeq);
       this.pendingInstruction(run, pendingSteer);
@@ -1258,6 +1313,8 @@ export class NodeApplication {
       this.persistText(run, reply, run.lastSeq);
     } else if (status === 'cancelled') {
       const reply = activeMessage ?? this.newText(run, 'Run stopped.', 'cancelled');
+      if (!reply.content.text) reply.content.text = 'Run stopped.';
+      delete reply.content.failureReason;
       reply.status = 'cancelled';
       this.persistText(run, reply, run.lastSeq);
     } else {

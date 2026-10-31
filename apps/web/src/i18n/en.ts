@@ -15,6 +15,9 @@ const en = {
   forgotPassword: 'Forgot password?',
   passwordResetDone: 'Password reset. Sign in again.',
   streamReconnecting: 'Stream disconnected. Reconnecting to the same run…',
+  executionUnknown: 'Execution interrupted',
+  executionUnknownHint:
+    'Click Stop to acknowledge the interrupted task before sending again. Completed effects are kept.',
   botQuestionLine: '{name} is waiting for your answer',
   ...screenEn,
   ...clientEn,

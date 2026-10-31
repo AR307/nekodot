@@ -117,6 +117,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   Future<void> stop() async {
     try {
       await c.rpc('runs.stop', {'conversationId': id});
+      if (mounted) setState(() => error = '');
     } catch (e) {
       if (mounted) setState(() => error = '$e');
     }
@@ -138,7 +139,11 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       final activity = c.node.activities[id] ?? {'state': 'idle'};
       final state = activity['state'],
           running = state != 'idle',
-          waiting = state == 'waiting_approval' || state == 'waiting_question';
+          working = state != 'idle' && state != 'unknown',
+          waiting =
+              state == 'waiting_approval' ||
+              state == 'waiting_question' ||
+              state == 'unknown';
       final members = c.node.bots
           .where(
             (b) => group == null
@@ -183,6 +188,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
               'tool' => c.tr('工具运行中', 'Using tools'),
               'waiting_approval' => c.tr('等你确认', 'Needs your OK'),
               'waiting_question' => c.tr('等你回答', 'Needs your answer'),
+              'unknown' => c.tr('执行中断，待确认', 'Execution interrupted'),
               _ => null,
             };
       final chain = activity['chain'] as Map?;
@@ -215,11 +221,11 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                     if (group != null)
                       GroupAvatar(
                         size: 30,
-                        working: running,
+                        working: working,
                         avatars: memberAvatars,
                       )
                     else if (bot != null)
-                      CatAvatar.of(bot, size: 30, working: running),
+                      CatAvatar.of(bot, size: 30, working: working),
                     const SizedBox(width: 10),
                     Flexible(
                       child: Column(
@@ -328,11 +334,11 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                             if (group != null)
                               GroupAvatar(
                                 size: 20,
-                                working: running,
+                                working: working,
                                 avatars: memberAvatars,
                               )
                             else if (bot != null)
-                              CatAvatar.of(bot, size: 20, working: running),
+                              CatAvatar.of(bot, size: 20, working: working),
                             const SizedBox(width: 8),
                             Flexible(
                               child: Text(
@@ -483,6 +489,13 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (error.isNotEmpty) ErrorNotice(error),
+                  if (state == 'unknown')
+                    ErrorNotice(
+                      c.tr(
+                        '执行已中断。请先点击停止确认，再发送新任务；已完成的操作会保留。',
+                        'Click Stop to acknowledge the interrupted execution before sending a new task. Completed effects are kept.',
+                      ),
+                    ),
                   if (group != null && input.text.contains('@'))
                     SizedBox(
                       height: tone.control + 4,
@@ -604,7 +617,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                         message: m,
                         bot: author,
                         showName: group != null,
-                        working: running && index == 0,
+                        working: working && index == 0,
                         continued:
                             previous != null &&
                             previous['kind'] != 'system' &&

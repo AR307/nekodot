@@ -832,6 +832,10 @@
 .run-banner-copy > span {
   white-space: nowrap;
 }
+.execution-unknown .run-banner-copy > span {
+  white-space: normal;
+  padding: 8px 0;
+}
 .run-banner-copy .icon {
   width: 16px;
   height: 16px;

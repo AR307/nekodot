@@ -77,6 +77,16 @@ export class HermesApi {
     });
     return hermesControlResponseSchema.parse(await response.json());
   }
+  async resolveUnknown(runId: string, admissionId: string, generation: number) {
+    const response = await this.request(
+      '/v1/runs/' + encodeURIComponent(runId) + '/resolve-unknown',
+      {
+        method: 'POST',
+        body: JSON.stringify({ admission_id: admissionId, execution_generation: generation }),
+      },
+    );
+    return hermesControlResponseSchema.parse(await response.json());
+  }
   async clarify(runId: string, requestId: string, generation: number, answer: string) {
     const response = await this.request('/v1/runs/' + encodeURIComponent(runId) + '/clarify', {
       method: 'POST',

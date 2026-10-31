@@ -667,3 +667,12 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 官网中英文、README、Release 正文及当前验收说明统一为正式版；为更新后的 `main.js` 使用 `?v=0.2.0-release`，保留此前的截图和样式缓存修复。旧站点文件另存，服务没有重启。
 - Edge 原标签普通刷新确认中文「0.2.0 正式版」、英文「0.2.0 release」和下载入口；GitHub latest API 返回 v0.2.0。eslint 与针对性格式检查通过。本次只调整发布标识及文案，既有未验收事项不改结论。
 - 证据：`docs/evidence/release-0.2.0-official.json`、`release-0.2.0-official-site.json` 及同名官网截图。
+
+## 2026-10-31 / 执行中断后无法继续聊天：本地修复
+
+- 已确认源码缺陷：Node 将 Hermes 原生 `unknown` 当作失败终态，而原生会话仍等待确认；后续任务可能继续被 `unknown_execution` 拒绝。依据为 Hermes 的 `api_server_authority_runs.run_projection/resolve_unknown_run`，不是对用户 VPS 日志的推断结论。
+- Node 保留中断的 run 和输出，停止按钮直接使用原生 `/v1/runs/{run_id}/resolve-unknown`，携带原生返回的 admission/generation。确认请求失败时不结束回合、不丢群聊队列，成功后取消本次接力。不调用新会话、不改写 Hermes 数据库、不重新执行原任务。
+- Web / Flutter 展示“执行中断，待确认”，保留草稿；确认前禁用发送，仍可点击停止。中断的 Bot 不再播放工作动效。窄屏提示换行，停止按钮可见。
+- 验证：Node 24 lint/typecheck 和全部 24 文件 / 38 测试通过；Node/Web 构建通过；Flutter analyze 与 12 项测试通过。私聊和群聊用例覆盖重启、确认失败后重试、保留输出、清队列及同 profile 的后续新任务。
+- Edge 实际运行隔离的 Relay → Node → 原生状态契约/已录制 Hermes SSE，验证 390/1440px、草稿保留、一次确认、一次后续新 run；截图为 `unknown-execution-390.png`、`unknown-execution-1440.png`、`unknown-execution-recovered.png`。这些是 Web 回放界面证据，不能替代 Android 真机或用户故障 VPS 的验收。
+- 部署状态：仅本地提交，不 push、不替换已发布资产。现有产品环境未找到此次故障会话；用户仅确认使用 VPS，尚待提供准确 SSH 地址或 App 节点名称。实际故障日志、原生未确认及排队执行仍待该节点核对，未执行任何会话恢复或服务器变更。

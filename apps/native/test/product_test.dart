@@ -20,6 +20,7 @@ final bot = <String, dynamic>{
 class JourneyClient extends NekodotClient {
   final accepted = Completer<Json>();
   Json? update;
+  var stops = 0;
   JourneyClient() {
     selectedNodeId = 'test-node';
     ready = true;
@@ -55,6 +56,11 @@ class JourneyClient extends NekodotClient {
         return {'messages': node.messages['dm'] ?? []};
       case 'messages.send':
         return accepted.future;
+      case 'runs.stop':
+        stops++;
+        node.activities['dm'] = {'state': 'idle'};
+        notifyListeners();
+        return {};
       default:
         throw StateError('Unexpected test request: $method');
     }
@@ -62,6 +68,44 @@ class JourneyClient extends NekodotClient {
 }
 
 void main() {
+  testWidgets(
+    'An interrupted execution keeps the draft and offers Stop before a new send',
+    (tester) async {
+      final client = JourneyClient();
+      client.node.activities['dm'] = {
+        'state': 'unknown',
+        'botId': bot['botId'],
+      };
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: appTheme(Brightness.light),
+          home: ChatPage(client: client, conversationId: 'dm'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final input = find.byKey(const ValueKey('chat-input'));
+      await tester.enterText(input, 'My next task stays drafted');
+      await tester.pump();
+      expect(find.textContaining('执行已中断'), findsOneWidget);
+      final send = find.ancestor(
+        of: find.byTooltip('发送'),
+        matching: find.byType(IconButton),
+      );
+      expect(tester.widget<IconButton>(send).onPressed, isNull);
+      await tester.tap(find.byTooltip('停止'));
+      await tester.pumpAndSettle();
+      expect(client.stops, 1);
+      expect(find.textContaining('执行已中断'), findsNothing);
+      expect(
+        tester.widget<TextField>(input).controller!.text,
+        'My next task stays drafted',
+      );
+      expect(tester.widget<IconButton>(send).onPressed, isNotNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      client.dispose();
+    },
+  );
+
   testWidgets('A notice is centered and only as wide as its text', (
     tester,
   ) async {

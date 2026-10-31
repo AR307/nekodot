@@ -42,7 +42,7 @@ export const liveSchema = z.discriminatedUnion('kind', [
     kind: z.literal('activity'),
     conversationId: idSchema,
     botId: botSchema.shape.botId,
-    state: z.enum(['thinking', 'tool', 'waiting_approval', 'waiting_question', 'idle']),
+    state: z.enum(['thinking', 'tool', 'waiting_approval', 'waiting_question', 'unknown', 'idle']),
     connection: z.enum(['connected', 'reconnecting']).optional(),
     detail: z.string().optional(),
     chain: z

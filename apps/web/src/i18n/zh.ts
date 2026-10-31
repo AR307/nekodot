@@ -15,6 +15,8 @@ const zh = {
   forgotPassword: '忘记密码？',
   passwordResetDone: '密码已重置，请重新登录。',
   streamReconnecting: '回复连接中断，正在恢复同一回合…',
+  executionUnknown: '执行中断，待确认',
+  executionUnknownHint: '执行已中断。请先点击停止确认，再发送新任务；已完成的操作会保留。',
   botQuestionLine: '{name} 正在等待你的回答',
   ...clientZh,
   ...screenZh,

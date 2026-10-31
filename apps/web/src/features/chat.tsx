@@ -18,7 +18,7 @@ import { Markdown, MentionText } from './markdown';
 import { useDrafts } from '../drafts';
 import { writeClipboard } from '../native';
 
-type Activity = 'thinking' | 'tool' | 'waiting_approval' | 'waiting_question' | 'idle';
+type Activity = 'thinking' | 'tool' | 'waiting_approval' | 'waiting_question' | 'unknown' | 'idle';
 
 export function ChatView({
   t,
@@ -64,7 +64,8 @@ export function ChatView({
   const [historyComplete, setHistoryComplete] = useState(false);
   const reduceMotion = useReducedMotion();
   const running = activity !== 'idle';
-  const waiting = activity === 'waiting_approval' || activity === 'waiting_question';
+  const waiting =
+    activity === 'waiting_approval' || activity === 'waiting_question' || activity === 'unknown';
   const members = group ? bots.filter((member) => group.botIds.includes(member.botId)) : [];
   const handles = group ? members.map((member) => member.handle) : undefined;
   const lead = group ? bots.find((member) => member.botId === group.leadBotId) : undefined;
@@ -162,27 +163,31 @@ export function ChatView({
 
   const statusText = !online
     ? t.offline
-    : connection === 'reconnecting'
-      ? t.streamReconnecting
-      : activity === 'thinking'
-        ? t.thinking
-        : activity === 'tool'
-          ? t.usingTool
-          : activity === 'waiting_approval'
-            ? t.waitingApproval
-            : activity === 'waiting_question'
-              ? t.waitingQuestion
-              : group
-                ? `${members.length} ${t.members}`
-                : '@' + bot.handle;
+    : activity === 'unknown'
+      ? t.executionUnknown
+      : connection === 'reconnecting'
+        ? t.streamReconnecting
+        : activity === 'thinking'
+          ? t.thinking
+          : activity === 'tool'
+            ? t.usingTool
+            : activity === 'waiting_approval'
+              ? t.waitingApproval
+              : activity === 'waiting_question'
+                ? t.waitingQuestion
+                : group
+                  ? `${members.length} ${t.members}`
+                  : '@' + bot.handle;
   const bannerText = fill(
-    activity === 'waiting_question'
-      ? t.botQuestionLine
-      : waiting
-        ? t.botWaitingLine
-        : activity === 'tool'
-          ? t.botToolLine
-          : t.botThinkingLine,
+    activity === 'unknown'
+      ? t.executionUnknownHint
+      : activity === 'waiting_question'
+        ? t.botQuestionLine
+        : waiting
+          ? t.botWaitingLine
+          : activity === 'tool'
+            ? t.botToolLine
+            : t.botThinkingLine,
     { name: bot.displayName },
   );
   const blocks = buildBlocks(messages, t);
@@ -216,7 +221,7 @@ export function ChatView({
                 color={bot.avatar.color}
                 shape={bot.avatar.shape}
                 size={36}
-                working={running}
+                working={running && activity !== 'unknown'}
               />
             )}
           </span>
@@ -404,7 +409,7 @@ export function ChatView({
         <AnimatePresence initial={false}>
           {running && (
             <motion.div
-              className={`run-banner${waiting ? ' approval-waiting' : ''}`}
+              className={`run-banner${waiting ? ' approval-waiting' : ''}${activity === 'unknown' ? ' execution-unknown' : ''}`}
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
