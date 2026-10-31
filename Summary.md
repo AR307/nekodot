@@ -518,3 +518,8 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 公网 HTTPS/WSS 真实流式回复及重复 clientMsgId 去重通过，临时内部验收会话已撤销；不作为新的真实邮箱登录验证。官网两个包实际完整下载成功。独立源码全部基础检查和 Edge 7 通过 / 1 实屏专项跳过。
 - 在用户原有 Edge 标签复现新版 HTML 混用 CDN/浏览器旧资源；给 CSS、JS、截图及主题切换地址加发布版本。上线后普通刷新已显示白底、猫 logo、8 头像和新版 Flutter 截图，无需清缓存。原站点文件保留，无服务重启。
 - 记录见 `docs/release-0.2.0-acceptance.md`。GitHub 发布继续执行，真机通知、干净用户安装等未验项目保持待验。
+
+## 2026-10-31 / 0.2.0 公开交付
+
+- GitHub main 已同步本轮完整产品更新与官网缓存修复，v0.2.0 采用开发者预览版，保留既有 Release。双端安装包已上传，Windows 为 15,684,634 字节，Android 为 34,054,104 字节，与官网包一致。
+- 官网与仓库主页均为 `https://nekodot.com`，README 链接到 v0.2.0，许可证继续 MIT。Windows 安装器未做 Authenticode 签名，Android 延续原签名；用户其他未提交截图未纳入发布提交。

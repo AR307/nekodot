@@ -23,7 +23,7 @@
 - 公网 HTTPS/WSS 经升级后的 Relay 与 Node，调用原 Hermes profile 获得真实流式回复 `NEKODOT_020_RELEASE_OK`；同一 clientMsgId 重复提交返回同一消息，只新增一次用户输入。该检查使用原有 QA 账号的 15 分钟内部验收会话，完成后已撤销，不作为新的邮箱登录验收。
 - Windows / Android 官网包实际完整下载通过，分别为 15,684,634 / 34,054,104 字节；Node 发布号为 `20261031080359`。本轮没有重跑所有原生安装、系统通知或屏幕输入旅程。
 - 为 www 入口补充规范域名重定向并 reload Caddy，四种 HTTP/HTTPS 与裸域名/www 入口最终均到 HTTPS 官网；没有重启其他产品。
-- GitHub 发布链接及资产结果在发布完成后追加。
+- GitHub 交付入口为 [v0.2.0](https://github.com/AR307/nekodot/releases/tag/v0.2.0)，按开发者预览版发布，保留 v0.1.0。两个资产已上传，名称和大小与官网下载包一致；源码使用正常 fast-forward 推送，不强制覆盖已有分支。
 
 ## 官网缓存修复
 
