@@ -32,6 +32,7 @@ export function registerAuth(
   revoke: (id: string) => void,
   revokeUser: (userId: string, sessionId?: string) => void,
   smtp?: SmtpConfiguration,
+  needsManualUpdate: (id: string) => boolean = () => false,
 ) {
   const key = new TextEncoder().encode(secret);
   const emailCodes = new EmailVerification(database, secret, smtp);
@@ -166,6 +167,9 @@ export function registerAuth(
         name: n.name,
         platform: n.platform,
         online: online(n.node_id),
+        updateCommand: needsManualUpdate(n.node_id)
+          ? `curl -fsSL '${publicUrl.replace(/\/$/, '')}/install.sh' | bash`
+          : null,
       })),
     };
   });

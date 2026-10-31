@@ -5,7 +5,7 @@ import cors from '@fastify/cors';
 import { RelayDatabase } from './database';
 import { HttpFault, registerAuth } from './auth';
 import { registerRouting } from './routing';
-import { registerDownloads } from './downloads';
+import { registerDownloads, latestNodeRelease } from './downloads';
 import { registerFileTransfer } from './files';
 import { registerTunnels } from './tunnels';
 import { registerNotifications } from './notifications';
@@ -47,6 +47,7 @@ export async function createRelay(options: RelayOptions) {
       tunnels.revokeUser(userId, sessionId);
     },
     options.smtp,
+    (id) => routing.needsManualUpdate(id),
   );
   const notify = registerNotifications(
     app,
@@ -54,7 +55,11 @@ export async function createRelay(options: RelayOptions) {
     auth.authenticate,
     options.firebaseCredentials,
   );
-  const routing = registerRouting(app.server, database, auth.authenticateToken, notify);
+  const routing = registerRouting(app.server, database, auth.authenticateToken, notify, () =>
+    options.distributionDirectory
+      ? latestNodeRelease(options.distributionDirectory, app.log)
+      : Promise.resolve(undefined),
+  );
   const tunnels = registerTunnels(app, database, auth.authenticate, routing);
   registerFileTransfer(app, auth.authenticate, routing.transfer, (userId, nodeId) =>
     database.owns(userId, nodeId),

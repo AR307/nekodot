@@ -12,6 +12,8 @@ import {
   notificationSchema,
   type TaskNotification,
   userMemoryRequestSchema,
+  nodeVersionSchema,
+  type NodeRelease,
 } from '@nekodot/protocol';
 import type { RelayDatabase, NodeRow } from './database';
 import { HttpFault } from './auth';
@@ -37,11 +39,21 @@ export function registerRouting(
   database: RelayDatabase,
   authenticate: (token: string) => Promise<{ user_id: string; session_id?: string }>,
   notify: (userId: string, nodeId: string, signal: TaskNotification) => Promise<boolean>,
+  latestRelease: () => Promise<NodeRelease | undefined>,
 ) {
   const wss = new WebSocketServer({ noServer: true });
   const userMemory = new AccountUserMemory(database);
   const clients = new Set<Client>();
   const nodes = new Map<string, WebSocket>();
+  const versions = new Map<string, string>();
+  async function offerUpdate(nodeId: string) {
+    const version = versions.get(nodeId);
+    if (!nodeVersionSchema.safeParse(version).success) return;
+    const release = await latestRelease();
+    const socket = nodes.get(nodeId);
+    if (release && version! < release.version && socket && versions.get(nodeId) === version)
+      send(socket, frame('node.update', { version: release.version }, nodeId));
+  }
   const offlineListeners = new Set<(nodeId: string) => void>();
   const transfers = new Map<
     string,
@@ -116,6 +128,7 @@ export function registerRouting(
             if (!node) throw new Error('Unknown node');
             nodes.get(node.node_id)?.close(1000, 'Reconnected');
             nodes.set(node.node_id, socket);
+            versions.set(node.node_id, hello.version);
           } else {
             const hello = payloadSchemas.hello.parse(envelope.payload);
             if (!('token' in hello)) throw new Error('User token required');
@@ -127,6 +140,9 @@ export function registerRouting(
           clearTimeout(helloTimer);
           send(socket, frame('hello.ok', {}));
           if (node) broadcast(node.user_id, frame('node.status', { online: true }, node.node_id));
+          if (node) void offerUpdate(node.node_id);
+          if (client)
+            for (const owned of database.nodes(client.userId)) void offerUpdate(owned.node_id);
           return;
         }
         if (envelope.type === 'pong') {
@@ -223,6 +239,7 @@ export function registerRouting(
       if (client) clients.delete(client);
       if (node && nodes.get(node.node_id) === socket) {
         nodes.delete(node.node_id);
+        versions.delete(node.node_id);
         clearPending(node.node_id);
         broadcast(node.user_id, frame('node.status', { online: false }, node.node_id));
       }
@@ -266,6 +283,7 @@ export function registerRouting(
       });
     },
     online: (id: string) => nodes.has(id),
+    needsManualUpdate: (id: string) => versions.get(id) === '1.0.0',
     revoke: (id: string) => nodes.get(id)?.close(1008, 'Node unpaired'),
     revokeUser: (userId: string, sessionId?: string) => {
       for (const client of clients)
