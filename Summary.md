@@ -499,3 +499,9 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 
 - 独立源码 frozen install、lint、typecheck、23 文件 / 36 项测试及 build 全部通过；完整 Edge 7 通过 / 1 既有真实屏幕专项跳过。全部回归截图写在独立检出，不覆盖主工作区他人图片。
 - 真实 Edge 表单在更新后保存 ghost 头像、收到模型欢迎并刷新保留；补齐脱敏服务日志、工具次数和截图证据。实现与本地验收完成；未生成生产私钥、未部署、未 push。现有 Hermes 核心、旧 UI 改动及其他验收范围保持原样。
+
+## 2026-10-31 / 官网与 README 更新
+
+- 官网按 impeccable 的 Persuade 文档重做，配色跟随 Windows 客户端：纯黑白，只有 Bot 头像有颜色。首屏是下载按钮和站在窗口上的 8 个头像，眼睛跟随指针。
+- 回放改成客户端窗口样式，新增「停下来问你」场景；新增 8 形象 16 颜色的头像选择、Windows / Android 黑白分屏、滚动切换的功能窗口。截图全部换成 Flutter 客户端的演示数据实拍。
+- README 和官网补上多模型来源、共享用户记忆、原生提问、Bot 欢迎、节点自动更新和 Flutter 客户端，移除 OpenRouter 专用说法。README 写明 0.2.0 仍是候选版。详见 docs/progress.md。

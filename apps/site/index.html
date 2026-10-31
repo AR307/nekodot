@@ -8,7 +8,7 @@
       name="description"
       content="组建一支各有专长的 Bot 团队，单独聊，或拉进群里接力协作。它们运行在你自己的电脑或服务器上，由 Hermes Agent 驱动。"
     />
-    <meta name="theme-color" content="#faf7f2" />
+    <meta name="theme-color" content="#ffffff" />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <meta property="og:title" content="nekodot" />
     <link rel="canonical" href="https://nekodot.com/" />
@@ -24,7 +24,6 @@
     />
     <link rel="stylesheet" href="styles.css" />
     <script>
-      document.documentElement.classList.add('js');
       try {
         const saved = localStorage.getItem('nekodot-site-theme');
         if (saved) document.documentElement.dataset.theme = saved;
@@ -34,33 +33,20 @@
     </script>
   </head>
   <body>
-    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
-      <defs>
-        <symbol id="cat" viewBox="0 0 40 40">
-          <polygon points="7,15 10,3 18,10" fill="currentColor" />
-          <polygon points="33,15 30,3 22,10" fill="currentColor" />
-          <circle cx="20" cy="23" r="15" fill="currentColor" />
-          <ellipse cx="15" cy="23" rx="2" ry="2.6" fill="var(--cat-eye, #1f1b16)" />
-          <ellipse cx="25" cy="23" rx="2" ry="2.6" fill="var(--cat-eye, #1f1b16)" />
-        </symbol>
-      </defs>
-    </svg>
-
     <header class="nav" id="top">
-      <div class="nav-inner">
+      <div class="container nav-inner">
         <a class="brand" href="#top" aria-label="nekodot">
-          <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><use href="#cat" /></svg>
+          <span data-avatar="dot" aria-hidden="true"></span>
           <span>nekodot</span>
         </a>
         <nav class="nav-links" aria-label="Primary">
-          <a href="#why" data-i18n="navWhy">为什么</a>
           <a href="#demo" data-i18n="navDemo">演示</a>
           <a href="#features" data-i18n="navFeatures">能力</a>
           <a href="#how" data-i18n="navHow">工作原理</a>
           <a href="#start" data-i18n="navStart">开始使用</a>
         </nav>
         <div class="nav-actions">
-          <button class="chip-button" id="lang-toggle" type="button" aria-label="Switch language">
+          <button class="text-btn" id="lang-toggle" type="button" aria-label="Switch language">
             EN
           </button>
           <button
@@ -80,741 +66,448 @@
               <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
             </svg>
           </button>
-          <a class="btn btn-ink btn-sm" href="https://github.com/AR307/nekodot">
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="i-gh">
+          <a class="icon-btn" href="https://github.com/AR307/nekodot" aria-label="GitHub">
+            <svg class="i-gh" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .8.1-.7.4-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7 3.6 3.6 0 0 1 .1-2.7s.8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7a3.9 3.9 0 0 1 1 2.7c0 3.9-2.3 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"
               />
             </svg>
-            <span>GitHub</span>
           </a>
         </div>
       </div>
     </header>
 
     <main>
-      <!-- hero -->
       <section class="hero">
-        <div class="hero-glow" aria-hidden="true"></div>
-        <div class="container hero-copy">
-          <p class="badge reveal">
-            <span class="badge-dot"></span
-            ><span data-i18n="heroBadge">开发者预览版 · 由 Hermes Agent 驱动</span>
-          </p>
-          <h1 class="reveal" data-i18n="heroTitle">把你的 AI 小队，<br />带到自己的电脑上。</h1>
-          <p class="lead reveal" data-i18n="heroLead">
-            组建一支各有专长的 Bot
-            团队，单独聊，或拉进群里接力协作。它们运行在你自己的电脑或服务器上，数据和密钥都留在你手里。
-          </p>
-          <div class="hero-cta reveal">
-            <a class="btn btn-ink" href="https://github.com/AR307/nekodot">
-              <span data-i18n="ctaGithub">在 GitHub 查看</span>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
-            </a>
-            <a class="btn btn-line" href="#start" data-i18n="ctaStart">三步开始</a>
+        <div class="container">
+          <h1 data-i18n="heroTitle">把你的 AI 小队，<br />带到自己的电脑上。</h1>
+          <div class="hero-row">
+            <p class="lead" data-i18n="heroLead">
+              一个 Bot
+              一个专长。单独聊，或拉进群里接力。它们跑在你自己的机器上，数据和密钥都在你手里。
+            </p>
+            <div class="downloads" data-downloads>
+              <a
+                class="btn btn-ink"
+                href="/downloads/nekodot-windows-x64.exe"
+                data-platform="windows"
+              >
+                <span data-i18n="downloadWindows">下载 Windows 版</span>
+              </a>
+              <a
+                class="btn btn-line"
+                href="/downloads/nekodot-android-arm64.apk"
+                data-platform="android"
+              >
+                <span data-i18n="downloadAndroid">下载 Android 版</span>
+              </a>
+            </div>
           </div>
-          <ul class="hero-meta reveal">
-            <li data-i18n="metaModels">任意模型</li>
-            <li data-i18n="metaPorts">无需开放端口</li>
-            <li data-i18n="metaSync">多端同步</li>
-            <li data-i18n="metaLang">中文 / English</li>
-          </ul>
-        </div>
-
-        <div class="container hero-stage">
-          <div class="stage" id="hero-stage">
+          <div class="hero-stage">
+            <div class="crew" id="crew" aria-hidden="true">
+              <span data-avatar="dot" data-color="#E8603C"></span>
+              <span data-avatar="bunny" data-color="#2E8BFF"></span>
+              <span data-avatar="puppy" data-color="#F2C230"></span>
+              <span data-avatar="mochi" data-color="#2F9E8F"></span>
+              <span data-avatar="bear" data-color="#B05FD0"></span>
+              <span data-avatar="flower" data-color="#FF4FA3"></span>
+              <span data-avatar="ghost" data-color="#19B5C9"></span>
+              <span data-avatar="antenna" data-color="#22C55E"></span>
+            </div>
             <div class="window">
-              <div class="window-bar" aria-hidden="true">
-                <i></i><i></i><i></i><span>nekodot</span>
-              </div>
               <img
-                class="shot"
+                class="shot only-wide"
                 data-shot="desk-group"
                 src="assets/shots/desk-group-light.webp"
                 width="2400"
                 height="1500"
-                alt="nekodot 桌面界面：两位 Bot 在群里接力整理周报"
+                alt="nekodot Windows 客户端：两位 Bot 在群里接力整理周报"
                 data-i18n-alt="altHero"
                 fetchpriority="high"
               />
-            </div>
-            <div class="float float-approval" aria-hidden="true">
-              <div class="mini-approval">
-                <strong data-i18n="miniApprovalTitle">需要你确认</strong>
-                <code>pip install arxiv</code>
-                <div>
-                  <span class="mini-btn ink" data-i18n="allowOnce">允许一次</span
-                  ><span class="mini-btn" data-i18n="deny">拒绝</span>
-                </div>
-              </div>
-            </div>
-            <div class="float float-handoff" aria-hidden="true">
-              <span class="mini-chip">
-                <svg viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
-                <span data-i18n="handoff">交给</span>&nbsp;@xiaoyan
-                <svg class="cat-sm" viewBox="0 0 40 40" style="color: #5b7ce6">
-                  <use href="#cat" />
-                </svg>
-              </span>
-            </div>
-            <div class="phone float-phone" aria-hidden="true">
               <img
-                class="shot"
+                class="shot only-narrow"
                 data-shot="phone-home"
                 src="assets/shots/phone-home-light.webp"
                 width="780"
-                height="1688"
-                alt=""
+                height="1690"
+                alt="nekodot Android 客户端：Bot 与群聊列表"
+                data-i18n-alt="altPhone"
                 loading="lazy"
               />
             </div>
-            <div class="hero-cats" aria-hidden="true">
-              <svg class="cat cat-a" viewBox="0 0 40 40" style="color: #5b7ce6">
-                <use href="#cat" />
-              </svg>
-              <svg class="cat cat-b" viewBox="0 0 40 40" style="color: #e8603c">
-                <use href="#cat" />
-              </svg>
-              <svg class="cat cat-c" viewBox="0 0 40 40" style="color: #2f9e8f">
-                <use href="#cat" />
-              </svg>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="demo">
+        <div class="container">
+          <h2 data-i18n="demoTitle">不只有回答，<br />还有它正在做的事。</h2>
+          <div class="app">
+            <div class="app-side" role="tablist" data-i18n-aria="demoTabs" aria-label="演示场景">
+              <button class="app-row" role="tab" aria-selected="true" data-scene="dm">
+                <span class="app-face" data-avatar="bunny" data-color="#2E8BFF"></span>
+                <span class="app-row-copy">
+                  <strong data-i18n="botYan">小研</strong>
+                  <small data-i18n="sceneDm">工具与审批</small>
+                </span>
+              </button>
+              <button class="app-row" role="tab" aria-selected="false" data-scene="group">
+                <span class="app-face app-faces">
+                  <span data-avatar="bunny" data-color="#2E8BFF"></span>
+                  <span data-avatar="dot" data-color="#E8603C"></span>
+                </span>
+                <span class="app-row-copy">
+                  <strong data-i18n="groupName">周报小组</strong>
+                  <small data-i18n="sceneGroup">Bot 接力</small>
+                </span>
+              </button>
+              <button class="app-row" role="tab" aria-selected="false" data-scene="ask">
+                <span class="app-face" data-avatar="puppy" data-color="#2F9E8F"></span>
+                <span class="app-row-copy">
+                  <strong data-i18n="botPao">跑腿</strong>
+                  <small data-i18n="sceneAsk">停下来问你</small>
+                </span>
+              </button>
+            </div>
+            <div class="app-main" aria-live="off">
+              <div class="app-top">
+                <span class="pill" id="dw-pill">
+                  <span class="pill-face" id="dw-avatar"></span>
+                  <strong id="dw-name"></strong>
+                  <small id="dw-status"></small>
+                </span>
+                <button
+                  class="icon-btn app-replay"
+                  id="demo-replay"
+                  type="button"
+                  data-i18n-aria="replay"
+                  aria-label="重播"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" />
+                  </svg>
+                </button>
+              </div>
+              <div class="app-body" id="dw-body"></div>
+              <div class="app-composer">
+                <span data-i18n="composer">发消息</span>
+                <i class="app-send" id="dw-send"></i>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- works with -->
-      <section class="strip">
-        <div class="container strip-inner">
-          <p data-i18n="stripLabel">接入你选择的模型与平台</p>
-          <ul>
-            <li>OpenRouter</li>
-            <li data-i18n="stripCompat">OpenAI 兼容接口</li>
-            <li>Hermes Agent</li>
-            <li>Linux x64</li>
-            <li>WSL2</li>
-            <li><span>Windows</span><small data-i18n="soon">即将推出</small></li>
-            <li><span>Android</span><small data-i18n="soon">即将推出</small></li>
-          </ul>
-        </div>
-      </section>
-
-      <!-- why -->
-      <section class="section" id="why">
-        <div class="container">
-          <div class="section-head reveal">
-            <p class="eyebrow" data-i18n="whyEyebrow">为什么是 nekodot</p>
-            <h2 data-i18n="whyTitle">像 App 一样好用，<br />却完全属于你。</h2>
+      <section class="duo">
+        <div class="duo-half duo-light">
+          <div class="duo-copy">
+            <h2>Windows</h2>
+            <p data-i18n="duoWindows">纯黑白。只有你的 Bot 有颜色。</p>
           </div>
-          <div class="pillars">
-            <article class="pillar reveal">
-              <span class="pillar-icon">
-                <svg viewBox="0 0 24 24">
-                  <path d="m12 3 2.8 6.2L21 12l-6.2 2.8L12 21l-2.8-6.2L3 12l6.2-2.8L12 3Z" />
-                </svg>
-              </span>
-              <h3 data-i18n="p1Title">模型由你决定</h3>
-              <p data-i18n="p1Body">
-                接 OpenRouter，或任何 OpenAI 兼容接口，包括你自己平台上的模型。每个 Bot
-                都可以用不同的模型。
-              </p>
-            </article>
-            <article class="pillar reveal">
-              <span class="pillar-icon">
-                <svg viewBox="0 0 24 24">
-                  <rect x="4" y="10" width="16" height="11" rx="2.5" />
-                  <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-                </svg>
-              </span>
-              <h3 data-i18n="p2Title">数据留在你的机器上</h3>
-              <p data-i18n="p2Body">
-                聊天记录、Bot
-                配置和完整密钥都保存在你自己的电脑或服务器。电脑只主动向外连接，不需要开放任何端口。
-              </p>
-            </article>
-            <article class="pillar reveal">
-              <span class="pillar-icon">
-                <svg viewBox="0 0 24 24"><path d="m5 7 5 5-5 5M12 17h7" /></svg>
-              </span>
-              <h3 data-i18n="p3Title">不用碰配置文件</h3>
-              <p data-i18n="p3Body">
-                复制一行命令接入电脑，之后的模型、Bot、技能和插件都在界面里完成。手机、平板、电脑看到同一份进度。
-              </p>
-            </article>
-            <article class="pillar reveal">
-              <span class="pillar-icon">
-                <svg viewBox="0 0 24 24">
-                  <path d="M6 9.5 7 3l4.5 3.5M18 9.5 17 3l-4.5 3.5" />
-                  <circle cx="12" cy="14" r="7.5" />
-                </svg>
-              </span>
-              <h3 data-i18n="p4Title">站在 Hermes 的肩上</h3>
-              <p data-i18n="p4Body">
-                每个 Bot 就是一个原生 Hermes profile，记忆、技能和工具循环都由 Hermes 完成。nekodot
-                专注于易用的界面和多 Bot 协作。
-              </p>
-            </article>
+          <div class="duo-window">
+            <img
+              src="assets/shots/desk-dm-light.webp"
+              width="2400"
+              height="1500"
+              alt="Windows 客户端：工具过程与审批卡片"
+              data-i18n-alt="altDm"
+              loading="lazy"
+            />
+          </div>
+        </div>
+        <div class="duo-half duo-dark">
+          <div class="duo-copy">
+            <h2>Android</h2>
+            <p data-i18n="duoAndroid">毛玻璃和悬浮底栏，一只手就够。</p>
+          </div>
+          <div class="duo-phone">
+            <img
+              src="assets/shots/phone-home-dark.webp"
+              width="780"
+              height="1690"
+              alt="nekodot Android 客户端：Bot 与群聊列表"
+              data-i18n-alt="altPhone"
+              loading="lazy"
+            />
           </div>
         </div>
       </section>
 
-      <!-- live demo -->
-      <section class="section section-tint" id="demo">
-        <div class="container demo-layout">
-          <div class="demo-copy reveal">
-            <p class="eyebrow" data-i18n="demoEyebrow">现场演示</p>
-            <h2 data-i18n="demoTitle">看它们，<br />怎么干活。</h2>
-            <p class="section-lead" data-i18n="demoLead">
-              按真实界面复刻的一段回放：流式回复、工具过程、等你确认，再到群里的 Bot 接力。
+      <section class="section maker" id="team">
+        <div class="container maker-layout">
+          <div class="maker-copy">
+            <h2 data-i18n="teamTitle">8 种形象，<br />16 种颜色。</h2>
+            <p class="section-lead" data-i18n="teamBody">
+              起个名字，写一句它负责什么。每个 Bot 是一个独立的 Hermes
+              profile，创建后它会先跟你打招呼。
             </p>
-            <div class="demo-tabs" role="tablist" data-i18n-aria="demoTabs" aria-label="演示场景">
-              <button role="tab" aria-selected="true" data-scene="dm">
-                <span class="tab-index">01</span>
-                <span>
-                  <strong data-i18n="sceneDm">私聊：工具与审批</strong>
-                  <small data-i18n="sceneDmSub">看过程、该你拍板时停下来等你</small>
-                </span>
-              </button>
-              <button role="tab" aria-selected="false" data-scene="group">
-                <span class="tab-index">02</span>
-                <span>
-                  <strong data-i18n="sceneGroup">群聊：Bot 接力</strong>
-                  <small data-i18n="sceneGroupSub">@ 谁就交给谁，最多连续 6 轮</small>
-                </span>
-              </button>
-            </div>
-            <button class="btn btn-line btn-sm" id="demo-replay" type="button">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" />
-              </svg>
-              <span data-i18n="replay">重播</span>
-            </button>
           </div>
-          <div class="demo-window reveal" aria-live="off">
-            <div class="dw-header">
-              <span class="dw-avatar" id="dw-avatar"></span>
-              <span class="dw-title">
-                <strong id="dw-name">小研</strong>
-                <small id="dw-status">@xiaoyan</small>
-              </span>
-            </div>
-            <div class="dw-body" id="dw-body"></div>
-            <div class="dw-banner" id="dw-banner" hidden>
-              <span id="dw-banner-text"></span>
-              <span class="dw-stop"><i></i><span data-i18n="stop">停止</span></span>
-            </div>
-            <div class="dw-composer">
-              <span id="dw-placeholder" data-i18n="composer">发消息…</span><i></i>
-            </div>
+          <div class="maker-tool">
+            <button
+              class="maker-face"
+              id="maker-face"
+              type="button"
+              data-i18n-aria="makerFace"
+              aria-label="切换运行动画"
+            ></button>
+            <div
+              class="maker-shapes"
+              id="maker-shapes"
+              role="group"
+              data-i18n-aria="makerShapes"
+              aria-label="形象"
+            ></div>
+            <div
+              class="maker-colors"
+              id="maker-colors"
+              role="group"
+              data-i18n-aria="makerColors"
+              aria-label="颜色"
+            ></div>
           </div>
         </div>
       </section>
 
-      <!-- features -->
-      <section class="section" id="features">
-        <div class="container">
-          <div class="section-head reveal">
-            <p class="eyebrow" data-i18n="featEyebrow">能力</p>
-            <h2 data-i18n="featTitle">每一步都看得见，<br />每一处都管得住。</h2>
+      <section class="section features" id="features">
+        <div class="container features-layout">
+          <div class="steps" id="steps">
+            <article class="step" data-step="0">
+              <h3 data-i18n="f1Title">每个 Bot，用自己的模型</h3>
+              <p data-i18n="f1Body">
+                用账号授权登录，或添加自定义 API。多个来源可以并存，每个 Bot 单独选来源和模型。
+              </p>
+              <figure class="step-media"></figure>
+            </article>
+            <article class="step" data-step="1">
+              <h3 data-i18n="f2Title">它记得的，你都能改</h3>
+              <p data-i18n="f2Body">
+                自身设定、长期经验、对你的了解，都是 Hermes
+                的原生记忆，直接编辑。对你的了解在账号下的所有电脑间共享。
+              </p>
+              <figure class="step-media"></figure>
+            </article>
+            <article class="step" data-step="2">
+              <h3 data-i18n="f3Title">一个目录，装给任何 Bot</h3>
+              <p data-i18n="f3Body">
+                浏览 Hermes 的 Skills 与插件，读完说明再装。按 Bot 启停和配置，也能从 Git、目录或
+                ZIP 导入。
+              </p>
+              <figure class="step-media"></figure>
+            </article>
+            <article class="step" data-step="3">
+              <h3 data-i18n="f4Title">打开它的屏幕，亲自接手</h3>
+              <p data-i18n="f4Body">
+                在 Linux 服务器上，每个 Bot
+                有独立的浏览器和桌面。默认只看；遇到验证码或登录，点接管，用完交还。
+              </p>
+              <figure class="step-media"></figure>
+            </article>
           </div>
-
-          <div class="feature reveal">
-            <div class="feature-copy">
-              <p class="feature-tag" data-i18n="f1Tag">执行过程</p>
-              <h3 data-i18n="f1Title">不只有回答，还有它正在做的事</h3>
-              <ul class="ticks">
-                <li data-i18n="f1a">
-                  <b>看见过程</b>：实时文本、工具的开始与完成、等你确认的状态集中呈现。
-                </li>
-                <li data-i18n="f1b">
-                  <b>随时补充</b>：运行中发的消息并入当前回合，已经完成的工作不会白做。
-                </li>
-                <li data-i18n="f1c">
-                  <b>该你拍板时</b>：需要授权的操作，Bot 停下来等你；等待期间可以先写草稿。
-                </li>
-                <li data-i18n="f1d">
-                  <b>随时叫停</b>：一个按钮停止当前执行；刷新、换设备后进度自动同步。
-                </li>
-              </ul>
-            </div>
-            <figure class="feature-media">
-              <div class="window">
-                <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="stage" id="stage">
+            <div class="stage-sticky">
+              <div class="stage-item window is-active">
                 <img
                   class="shot"
-                  data-shot="desk-dm"
-                  src="assets/shots/desk-dm-light.webp"
+                  data-shot="desk-sources"
+                  src="assets/shots/desk-sources-light.webp"
                   width="2400"
                   height="1500"
-                  alt="私聊中的工具卡片与审批卡片"
-                  data-i18n-alt="altDm"
+                  alt="模型来源：授权登录与自定义 API"
+                  data-i18n-alt="altSources"
                   loading="lazy"
                 />
               </div>
-            </figure>
-          </div>
-
-          <div class="feature feature-flip reveal">
-            <div class="feature-copy">
-              <p class="feature-tag" data-i18n="f2Tag">群聊接力</p>
-              <h3 data-i18n="f2Title">把任务交给一个小组</h3>
-              <p data-i18n="f2Body">
-                2–6 个 Bot 组成小组并指定主答。没有 @ 任何人时由主答开始；@
-                了谁，就按顺序交给谁。Bot 在回复里 @ 队友，工作就自动接力下去。
-              </p>
-              <ul class="ticks">
-                <li data-i18n="f2a">每条消息最多连续 6 个 Bot 回合，到上限会暂停提示你。</li>
-                <li data-i18n="f2b">同一个 Bot 在私聊和群聊之间共享上下文，群里说过的它都记得。</li>
-                <li data-i18n="f2c">不同的群可以同时工作，「全部停止」一键清空接力队列。</li>
-              </ul>
-            </div>
-            <figure class="feature-media feature-media-phone">
-              <div class="phone">
-                <img
-                  class="shot"
-                  data-shot="phone-group"
-                  src="assets/shots/phone-group-light.webp"
-                  width="780"
-                  height="1688"
-                  alt="手机上的群聊接力：笔笔把核对工作交给小研"
-                  data-i18n-alt="altGroup"
-                  loading="lazy"
-                />
-              </div>
-              <div class="relay-card" aria-hidden="true">
-                <div class="relay-steps">
-                  <i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i>
-                </div>
-                <span data-i18n="relayCard">接力已进行 2 / 6 轮</span>
-              </div>
-            </figure>
-          </div>
-
-          <div class="feature reveal">
-            <div class="feature-copy">
-              <p class="feature-tag" data-i18n="f3Tag">记忆与积累</p>
-              <h3 data-i18n="f3Title">每个 Bot 都有自己的积累</h3>
-              <p data-i18n="f3Body">
-                打开 Bot
-                详情，直接查看和编辑它的原生记忆：自身设定、长期经验、对你的了解。一键「整理记忆」，让它从经验里变得更好用。
-              </p>
-              <ul class="ticks">
-                <li data-i18n="f3a">
-                  <code>SOUL.md</code> · <code>MEMORY.md</code> · <code>USER.md</code>，所见即所存。
-                </li>
-                <li data-i18n="f3b">聊天里安排的定时任务，在详情里看计划和执行记录。</li>
-                <li data-i18n="f3c">它交付的文件统一进资料库：预览、下载，或跳回当时的对话。</li>
-              </ul>
-            </div>
-            <figure class="feature-media">
-              <div class="window">
-                <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+              <div class="stage-item window">
                 <img
                   class="shot"
                   data-shot="desk-memory"
                   src="assets/shots/desk-memory-light.webp"
                   width="2400"
                   height="1500"
-                  alt="Bot 详情中的原生记忆编辑"
+                  alt="Bot 的原生记忆编辑"
                   data-i18n-alt="altMemory"
                   loading="lazy"
                 />
               </div>
-            </figure>
-          </div>
-
-          <div class="feature feature-flip reveal">
-            <div class="feature-copy">
-              <p class="feature-tag" data-i18n="f4Tag">屏幕接管</p>
-              <h3 data-i18n="f4Title">打开它的屏幕，亲自接手</h3>
-              <p data-i18n="f4Body">
-                在 Linux 服务器上，每个 Bot
-                都有独立的浏览器与桌面。默认只读观看；遇到验证码、登录或付款，点「接管」用你的鼠标键盘完成，再交还给它继续。
-              </p>
-              <ul class="ticks">
-                <li data-i18n="f4a">交还只释放控制权，不会自动重跑任务。</li>
-                <li data-i18n="f4b">关闭画面与停止聊天任务相互独立，浏览器资料持久保留。</li>
-              </ul>
-            </div>
-            <figure class="feature-media">
-              <div class="screen-mock" aria-hidden="true">
-                <div class="sm-head">
-                  <svg
-                    class="cat-sm"
-                    viewBox="0 0 40 40"
-                    style="color: #2f9e8f; --cat-eye: #16130f"
-                  >
-                    <use href="#cat" />
-                  </svg>
-                  <strong data-i18n="smTitle">跑腿的屏幕</strong>
-                  <span class="sm-live"><i></i><span data-i18n="live">实时</span></span>
-                </div>
-                <div class="sm-strip">
-                  <strong data-i18n="smControl">你正在控制 · 跑腿已暂停</strong
-                  ><span data-i18n="smHint">点画面即可操作</span>
-                </div>
-                <div class="sm-view">
-                  <div class="sm-browser"><i></i><i></i><span>example.com/login</span></div>
-                  <div class="sm-form">
-                    <b data-i18n="smLogin">登录</b>
-                    <span>nekodot_user</span>
-                    <span class="dim">••••••••</span>
-                    <div>
-                      <span class="focus"></span
-                      ><span class="captcha" data-i18n="smCaptcha">验证码</span>
-                    </div>
-                    <span class="submit"></span>
-                  </div>
-                  <span class="sm-breathe"></span>
-                </div>
-                <div class="sm-message">
-                  <svg
-                    class="cat-sm"
-                    viewBox="0 0 40 40"
-                    style="color: #2f9e8f; --cat-eye: #16130f"
-                  >
-                    <use href="#cat" />
-                  </svg>
-                  <p data-i18n="smMessage">
-                    登录需要验证码。用户名我已经填好了，麻烦你输入验证码，再点「交还」，我接着做。
-                  </p>
-                </div>
-                <div class="sm-actions">
-                  <span data-i18n="smKeyboard">键盘</span
-                  ><span data-i18n="smWatch">只看不操作</span>
-                  <b data-i18n="smReturn">交还给跑腿</b>
-                </div>
-              </div>
-              <figcaption data-i18n="smCaption">
-                示意图 · 需在 Linux 节点安装时加上 --with-computer
-              </figcaption>
-            </figure>
-          </div>
-
-          <div class="feature reveal">
-            <div class="feature-copy">
-              <p class="feature-tag" data-i18n="f5Tag">Skills 与插件</p>
-              <h3 data-i18n="f5Title">一个目录，装给任何 Bot</h3>
-              <p data-i18n="f5Body">
-                直接浏览 Hermes 的 Skills 与插件目录，看说明、依赖和平台要求，按 Bot
-                安装、启停和配置。也可以从 Git、本地目录或 ZIP 导入你自己的扩展。
-              </p>
-            </div>
-            <figure class="feature-media">
-              <div class="window">
-                <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+              <div class="stage-item window">
                 <img
                   class="shot"
                   data-shot="desk-skills"
                   src="assets/shots/desk-skills-light.webp"
                   width="2400"
                   height="1500"
-                  alt="Skills 目录"
+                  alt="Skills 与插件目录"
                   data-i18n-alt="altSkills"
                   loading="lazy"
                 />
               </div>
-            </figure>
-          </div>
-        </div>
-      </section>
-
-      <!-- bento -->
-      <section class="section section-tint">
-        <div class="container">
-          <div class="section-head reveal">
-            <p class="eyebrow" data-i18n="allEyebrow">全部能力</p>
-            <h2 data-i18n="allTitle">一个团队需要的，都在这里。</h2>
-          </div>
-          <div class="bento">
-            <article class="tile tile-wide reveal">
-              <div class="tile-cats" aria-hidden="true">
-                <svg viewBox="0 0 40 40" style="color: #e8603c"><use href="#cat" /></svg>
-                <svg viewBox="0 0 40 40" style="color: #2f9e8f"><use href="#cat" /></svg>
-                <svg viewBox="0 0 40 40" style="color: #5b7ce6"><use href="#cat" /></svg>
-                <svg viewBox="0 0 40 40" style="color: #d9932b"><use href="#cat" /></svg>
-                <svg viewBox="0 0 40 40" style="color: #b05fd0"><use href="#cat" /></svg>
-                <svg viewBox="0 0 40 40" style="color: #3fa45b"><use href="#cat" /></svg>
-                <svg viewBox="0 0 40 40" style="color: #e05a8a"><use href="#cat" /></svg>
-                <svg viewBox="0 0 40 40" style="color: #6b645b"><use href="#cat" /></svg>
+              <div class="stage-item window screen-mock" aria-hidden="true">
+                <div class="sm-head">
+                  <span class="sm-face" data-avatar="puppy" data-color="#2F9E8F"></span>
+                  <strong data-i18n="smTitle">跑腿 · 屏幕</strong>
+                </div>
+                <div class="sm-strip">
+                  <span data-i18n="smControl">你正在控制</span>
+                  <b data-i18n="smReturn">交还</b>
+                </div>
+                <div class="sm-view">
+                  <div class="sm-page">
+                    <b data-i18n="smLogin">登录</b>
+                    <span class="sm-field">nekodot_user</span>
+                    <span class="sm-field sm-focus" data-i18n="smCaptcha">验证码</span>
+                    <span class="sm-submit"></span>
+                  </div>
+                  <svg class="sm-cursor" viewBox="0 0 24 24"><path d="M5 3l14 10-6 1-3 6z" /></svg>
+                </div>
+                <p class="sm-caption" data-i18n="smCaption">
+                  示意图 · 节点安装时加上 --with-computer
+                </p>
               </div>
-              <h3 data-i18n="t1Title">Bot 团队</h3>
-              <p data-i18n="t1Body">名字、头像、角色、模型，随时调整；历史与记忆都保留。</p>
-            </article>
-            <article class="tile reveal">
-              <h3 data-i18n="t2Title">私聊</h3>
-              <p data-i18n="t2Body">流式回复、工具过程、审批卡片，运行中补充或停止。</p>
-            </article>
-            <article class="tile reveal">
-              <h3 data-i18n="t3Title">群聊接力</h3>
-              <p data-i18n="t3Body">2–6 个 Bot，用 @ 指定，Bot 之间也能交接。</p>
-            </article>
-            <article class="tile reveal">
-              <h3 data-i18n="t4Title">记忆与自我改进</h3>
-              <p data-i18n="t4Body">编辑原生记忆，一键调用 Hermes 整理经验。</p>
-            </article>
-            <article class="tile reveal">
-              <h3 data-i18n="t5Title">定时任务</h3>
-              <p data-i18n="t5Body">在聊天里安排，在详情里看计划与执行记录。</p>
-            </article>
-            <article class="tile reveal">
-              <h3 data-i18n="t6Title">资料库</h3>
-              <p data-i18n="t6Body">交付文件统一收录，可预览、下载、跳回对话。</p>
-            </article>
-            <article class="tile reveal">
-              <h3 data-i18n="t7Title">Skills 与插件</h3>
-              <p data-i18n="t7Body">按 Bot 安装、启用、配置；支持 Git / 本地 / ZIP。</p>
-            </article>
-            <article class="tile reveal">
-              <h3 data-i18n="t8Title">实时屏幕与接管</h3>
-              <p data-i18n="t8Body">观看 Linux Bot 的浏览器与桌面，随时接手。</p>
-            </article>
-            <article class="tile tile-wider tile-dark reveal">
-              <div class="tile-kbd" aria-hidden="true"><kbd>⌘</kbd><kbd>K</kbd></div>
-              <h3 data-i18n="t9Title">多电脑、多端，一样顺手</h3>
-              <p data-i18n="t9Body">
-                一个账号连接多台电脑；命令面板随时跳转；中英文、浅深色，并遵循系统的「减少动态效果」。
-              </p>
-            </article>
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- how it works -->
-      <section class="section" id="how">
+      <section class="section" id="more">
         <div class="container">
-          <div class="section-head reveal">
-            <p class="eyebrow" data-i18n="howEyebrow">工作原理</p>
-            <h2 data-i18n="howTitle">你的电脑只向外连接，<br />一个端口也不用开。</h2>
-          </div>
-          <div class="flow reveal" aria-label="Browser → Relay → Node → Hermes">
-            <div class="flow-node">
-              <span class="flow-icon"
-                ><svg viewBox="0 0 24 24">
-                  <rect x="3" y="4" width="18" height="12" rx="2" />
-                  <path d="M8 20h8M12 16v4" /></svg
-              ></span>
-              <strong data-i18n="n1Title">浏览器 / App</strong>
-              <small data-i18n="n1Body">只保存登录状态与偏好</small>
+          <h2 data-i18n="moreTitle">还有这些。</h2>
+          <dl class="more">
+            <div>
+              <dt data-i18n="m1Title">运行中补充</dt>
+              <dd data-i18n="m1Body">消息并入当前回合，做完的不白做。</dd>
             </div>
-            <div class="flow-link">
-              <span class="packet"></span><small>HTTPS · WebSocket</small>
+            <div>
+              <dt data-i18n="m2Title">随时叫停</dt>
+              <dd data-i18n="m2Body">一个按钮停止；群里一键清空接力。</dd>
             </div>
-            <div class="flow-node">
-              <span class="flow-icon"
-                ><svg viewBox="0 0 24 24"><path d="M4 12h4l2-5 4 10 2-5h4" /></svg
-              ></span>
-              <strong>Relay</strong>
-              <small data-i18n="n2Body">账号、配对与路由，不落盘聊天</small>
+            <div>
+              <dt data-i18n="m3Title">群聊接力</dt>
+              <dd data-i18n="m3Body">2–6 个 Bot，@ 谁交给谁，每条消息最多连续 6 轮。</dd>
             </div>
-            <div class="flow-link flow-link-back">
-              <span class="packet"></span><small data-i18n="outbound">节点主动连出</small>
+            <div>
+              <dt data-i18n="m4Title">回来接着看</dt>
+              <dd data-i18n="m4Body">断线、换设备，历史和进度自动同步。</dd>
             </div>
-            <div class="flow-node flow-node-home">
-              <span class="flow-icon"
-                ><svg viewBox="0 0 24 24">
-                  <rect x="3" y="4" width="18" height="7" rx="2" />
-                  <rect x="3" y="13" width="18" height="7" rx="2" />
-                  <path d="M7 7.5h.01M7 16.5h.01" /></svg
-              ></span>
-              <strong data-i18n="n3Title">你的电脑（Node）</strong>
-              <small data-i18n="n3Body">聊天记录、Bot 配置、交付文件</small>
+            <div>
+              <dt data-i18n="m5Title">资料库</dt>
+              <dd data-i18n="m5Body">交付的文件单独存一份，可预览、下载、跳回对话。</dd>
             </div>
-            <div class="flow-link"><span class="packet"></span><small>127.0.0.1</small></div>
-            <div class="flow-node">
-              <span class="flow-icon"
-                ><svg viewBox="0 0 40 40" class="flow-cat"><use href="#cat" /></svg
-              ></span>
-              <strong>Hermes</strong>
-              <small data-i18n="n4Body">每个 Bot 一个 profile：会话、记忆、技能</small>
+            <div>
+              <dt data-i18n="m6Title">多台电脑</dt>
+              <dd data-i18n="m6Body">一个账号连接多台，随时切换。</dd>
             </div>
-          </div>
-          <div class="facts">
-            <div class="fact reveal">
-              <strong data-i18n="fact1Title">密钥只在你的节点上</strong>
-              <p data-i18n="fact1Body">完整的模型密钥只保存在节点，界面里永远只显示后四位。</p>
+            <div>
+              <dt data-i18n="m7Title">节点自动更新</dt>
+              <dd data-i18n="m7Body">校验签名，空闲时切换，启动失败自动回滚。</dd>
             </div>
-            <div class="fact reveal">
-              <strong data-i18n="fact2Title">不修改 Hermes</strong>
-              <p data-i18n="fact2Body">
-                只通过官方 CLI 与 API 集成，Hermes 升级不需要改动 nekodot。
-              </p>
+            <div>
+              <dt data-i18n="m8Title">中文 / English</dt>
+              <dd data-i18n="m8Body">浅色深色跟随系统，也遵循减少动态效果。</dd>
             </div>
-            <div class="fact reveal">
-              <strong data-i18n="fact3Title">诚实地说</strong>
-              <p data-i18n="fact3Body">
-                模型请求会发往你配置的服务商；nekodot 不是离线运行，也没有端到端加密。
-              </p>
-            </div>
-          </div>
+          </dl>
         </div>
       </section>
 
-      <!-- get started -->
-      <section class="section section-tint" id="start">
-        <div class="container start-layout">
-          <div class="reveal">
-            <p class="eyebrow" data-i18n="startEyebrow">开始使用</p>
-            <h2 data-i18n="startTitle">三步，<br />开始第一段对话。</h2>
-            <p class="section-lead" data-i18n="startLead">
-              下载 nekodot 0.1.1，打开 App 即可连接产品服务。Bot
-              在你配对的服务器上运行，本机无需启动开发环境。
-            </p>
-            <div class="download-actions">
-              <a
-                class="btn btn-ink"
-                href="/downloads/nekodot-windows-x64.exe"
-                data-i18n="downloadWindows"
-                >下载 Windows x64</a
-              >
-              <a
-                class="btn btn-line"
-                href="/downloads/nekodot-android-arm64.apk"
-                data-i18n="downloadAndroid"
-                >下载 Android APK</a
-              >
-            </div>
-            <p class="download-note" data-i18n="downloadNote">
-              Windows 10 / 11 x64 · Android 10+ arm64。Windows 安装器未做发布者签名；Android APK
-              已签名。真机与完整安装验收范围见发布说明。
-            </p>
-            <ol class="steps">
-              <li>
-                <span>1</span>
-                <div>
-                  <strong data-i18n="s1Title">安装 App，注册账号</strong>
-                  <p data-i18n="s1Body">
-                    安装包自带界面，通过 HTTPS 连接服务，无需本地网页或 SSH。
-                  </p>
-                </div>
-              </li>
-              <li>
-                <span>2</span>
-                <div>
-                  <strong data-i18n="s2Title">配对你的服务器</strong>
-                  <p data-i18n="s2Body">
-                    复制 App 生成的一行命令，在 Linux
-                    服务器上安装节点。注册不会自动获得其他人的节点权限。
-                  </p>
-                </div>
-              </li>
-              <li>
-                <span>3</span>
-                <div>
-                  <strong data-i18n="s3Title">连接模型，创建 Bot</strong>
-                  <p data-i18n="s3Body">
-                    填入 OpenRouter 或兼容接口的 Key，起个名字，写一句它负责什么。
-                  </p>
-                </div>
-              </li>
-            </ol>
-          </div>
-          <div class="terminal reveal">
-            <div class="terminal-bar">
-              <i></i><i></i><i></i>
-              <button class="copy" type="button" data-copy="terminal-code">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="9" y="9" width="11" height="11" rx="2" />
-                  <path d="M5 15V5a2 2 0 0 1 2-2h10" />
-                </svg>
-                <span data-i18n="copy">复制</span>
-              </button>
-            </div>
-            <pre
-              id="terminal-code"
-            ><code><span class="c"># <span data-i18n="tComment1">获取代码并安装依赖（Node 24 · pnpm 10）</span></span>
-git clone https://github.com/AR307/nekodot.git
-cd nekodot
-pnpm install --frozen-lockfile
-
-<span class="c"># <span data-i18n="tComment2">通过 SSH 连接你的 Relay，打开网页</span></span>
-pnpm dev:remote --ssh <span class="v">&lt;your-ssh-alias&gt;</span></code></pre>
-            <div class="terminal-foot">
-              <a
-                href="https://github.com/AR307/nekodot/blob/main/deploy/README.md"
-                data-i18n="docDeploy"
-                >部署文档</a
-              >
-              <a href="https://github.com/AR307/nekodot#快速开始" data-i18n="docQuick"
-                >完整快速开始</a
-              >
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- roadmap -->
-      <section class="section">
-        <div class="container roadmap-layout">
-          <div class="section-head reveal">
-            <p class="eyebrow" data-i18n="roadEyebrow">路线图</p>
-            <h2 data-i18n="roadTitle">已经能用的，<br />和接下来要做的。</h2>
-          </div>
-          <ul class="roadmap">
-            <li class="done reveal" data-i18n="r1">
-              私聊：流式回复、工具过程、审批、补充指令、停止
+      <section class="section how" id="how">
+        <div class="container">
+          <h2 data-i18n="howTitle">你的电脑只向外连接，<br />一个端口也不用开。</h2>
+          <ol class="route" aria-label="App → Relay → Node → Hermes">
+            <li>
+              <strong>App</strong>
+              <span data-i18n="n1Body">只保存登录状态和偏好</span>
             </li>
-            <li class="done reveal" data-i18n="r2">群聊：@ 指定成员、Bot 之间接力、接力上限</li>
-            <li class="done reveal" data-i18n="r3">一行命令接入电脑，多端同步与断线恢复</li>
-            <li class="done reveal" data-i18n="r4">Bot 详情：原生记忆、定时任务、资料库</li>
-            <li class="done reveal" data-i18n="r5">Skills 与插件中心</li>
-            <li class="done reveal" data-i18n="r6">实时画面与接管（Linux VPS）</li>
-            <li class="done reveal" data-i18n="r7">全新界面设计</li>
-            <li class="done reveal" data-i18n="r8">Windows / Android 0.1.1 预览安装包</li>
-            <li class="reveal" data-i18n="r9">PWA：添加到手机主屏幕</li>
-            <li class="reveal" data-i18n="r10">macOS 与 ARM 节点</li>
+            <li>
+              <strong>Relay</strong>
+              <span data-i18n="n2Body">账号、配对和路由，不保存聊天</span>
+            </li>
+            <li>
+              <strong>Node</strong>
+              <span data-i18n="n3Body">你的机器：聊天记录、Bot 配置、交付文件</span>
+            </li>
+            <li>
+              <strong>Hermes</strong>
+              <span data-i18n="n4Body">每个 Bot 一个 profile：会话、记忆、技能</span>
+            </li>
+          </ol>
+          <ul class="facts">
+            <li data-i18n="fact1">完整密钥只在你的节点上，界面只显示后四位。</li>
+            <li data-i18n="fact2">不修改 Hermes，只通过官方 CLI 与 API 集成。</li>
+            <li data-i18n="fact3">
+              模型请求会发往你选的服务商；nekodot 不是离线运行，也没有端到端加密。
+            </li>
           </ul>
         </div>
       </section>
 
-      <!-- final cta -->
-      <section class="cta">
-        <div class="container cta-inner">
-          <div class="cta-cats" aria-hidden="true">
-            <svg viewBox="0 0 40 40" style="color: #5b7ce6; --cat-eye: #16130f">
-              <use href="#cat" />
-            </svg>
-            <svg viewBox="0 0 40 40" style="color: #e8603c; --cat-eye: #16130f">
-              <use href="#cat" />
-            </svg>
-            <svg viewBox="0 0 40 40" style="color: #2f9e8f; --cat-eye: #16130f">
-              <use href="#cat" />
-            </svg>
-            <svg viewBox="0 0 40 40" style="color: #d9932b; --cat-eye: #16130f">
-              <use href="#cat" />
-            </svg>
+      <section class="start" id="start">
+        <div class="container start-layout">
+          <div>
+            <h2 data-i18n="startTitle">三步，<br />开始第一段对话。</h2>
+            <div class="downloads" data-downloads>
+              <a
+                class="btn btn-paper"
+                href="/downloads/nekodot-windows-x64.exe"
+                data-platform="windows"
+              >
+                <span data-i18n="downloadWindows">下载 Windows 版</span>
+              </a>
+              <a
+                class="btn btn-ghost"
+                href="/downloads/nekodot-android-arm64.apk"
+                data-platform="android"
+              >
+                <span data-i18n="downloadAndroid">下载 Android 版</span>
+              </a>
+            </div>
+            <p class="fine" data-i18n="downloadNote">
+              Windows 10 / 11 x64，安装器未做发布者签名。Android 10+ arm64，APK 已签名。
+            </p>
           </div>
-          <h2 data-i18n="ctaTitle">组建你的第一支 AI 小队。</h2>
-          <p data-i18n="ctaBody">在 GitHub 上关注进展、提出想法，或者直接自己部署一套。</p>
-          <a class="btn btn-paper" href="https://github.com/AR307/nekodot">
-            <span data-i18n="ctaGithub">在 GitHub 查看</span>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
-          </a>
+          <ol class="start-steps">
+            <li>
+              <strong data-i18n="s1Title">安装 App，用邮箱注册</strong>
+              <p data-i18n="s1Body">App 自带界面，通过 HTTPS 连接服务。</p>
+            </li>
+            <li>
+              <strong data-i18n="s2Title">配对你的服务器</strong>
+              <p data-i18n="s2Body">
+                复制 App 生成的一行命令，在 Linux x64 服务器或 WSL2
+                上运行。注册不会获得别人节点的权限。
+              </p>
+            </li>
+            <li>
+              <strong data-i18n="s3Title">添加模型，创建 Bot</strong>
+              <p data-i18n="s3Body">授权登录或填自定义 API，起个名字，写一句它负责什么。</p>
+            </li>
+          </ol>
         </div>
       </section>
     </main>
 
     <footer class="footer">
       <div class="container footer-inner">
-        <div>
-          <a class="brand" href="#top" aria-label="nekodot">
-            <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><use href="#cat" /></svg>
-            <span>nekodot</span>
-          </a>
-          <p data-i18n="footTag">把你的 AI 小队，带到自己的电脑上。</p>
-        </div>
+        <a class="brand" href="#top" aria-label="nekodot">
+          <span data-avatar="dot" aria-hidden="true"></span>
+          <span>nekodot</span>
+        </a>
         <nav class="footer-links" aria-label="Footer">
           <a href="https://github.com/AR307/nekodot">GitHub</a>
           <a href="https://hermes-agent.nousresearch.com">Hermes Agent</a>
+          <a
+            href="https://github.com/AR307/nekodot/blob/main/deploy/README.md"
+            data-i18n="footDeploy"
+            >自行部署</a
+          >
           <a
             href="https://github.com/AR307/nekodot/blob/main/docs/development.md"
             data-i18n="footDev"
             >开发说明</a
           >
         </nav>
-        <p class="footer-fine" data-i18n="footFine">
-          界面字体 Nunito 与 JetBrains Mono，以 SIL Open Font License 1.1 授权。项目采用 MIT
-          License。截图使用演示数据。
+        <p class="fine" data-i18n="footFine">
+          MIT License。界面字体 Nunito 与 JetBrains Mono，以 SIL Open Font License 1.1
+          授权。截图使用演示数据。
         </p>
       </div>
     </footer>

@@ -1,4 +1,4 @@
-// nekodot site: language and theme switching, scroll effects and the live chat replay.
+// nekodot site: avatars, language and theme switching, the feature stage and the live chat replay.
 const root = document.documentElement;
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -18,188 +18,233 @@ function savePreference(key, value) {
   }
 }
 
+/* ---------- avatars: the same 40-unit geometry as the client's painter ---------- */
+const shapes = ['dot', 'bear', 'bunny', 'puppy', 'mochi', 'flower', 'ghost', 'antenna'];
+const colors = [
+  '#E8603C',
+  '#FF3B47',
+  '#FF4FA3',
+  '#B05FD0',
+  '#8B75AF',
+  '#5B7CE6',
+  '#2E8BFF',
+  '#19B5C9',
+  '#2F9E8F',
+  '#22C55E',
+  '#77A979',
+  '#F2C230',
+  '#D9932B',
+  '#A9683A',
+  '#8C8376',
+  '#5A5A60',
+];
+
+function luminance(hex) {
+  const channel = (start) => {
+    const value = parseInt(hex.slice(start, start + 2), 16) / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+}
+
+function avatarBody(shape, c) {
+  const ears = (x, y, inner) =>
+    `<g class="ear" style="--px:${x}px;--py:${y}px">${inner}</g>` +
+    `<g transform="matrix(-1 0 0 1 40 0)"><g class="ear" style="--px:${x}px;--py:${y}px">${inner}</g></g>`;
+  const soft = (points, round) =>
+    `<polygon points="${points}" fill="${c}" stroke="${c}" stroke-width="${round}" stroke-linejoin="round"/>`;
+  const circle = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>`;
+  const tilted = (x, y, rx, ry, angle) =>
+    `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" transform="rotate(${angle} ${x} ${y})" fill="${c}"/>`;
+  switch (shape) {
+    case 'bear':
+      return {
+        body: ears(13, 15, circle(9.5, 11.5, 5.8)) + circle(20, 23, 15),
+        y: 23.5,
+        gap: 5.5,
+      };
+    case 'bunny':
+      return {
+        body: ears(14.5, 17, tilted(13, 9, 3.8, 8.5, -8)) + circle(20, 25.5, 13.5),
+        y: 26,
+        gap: 5,
+      };
+    case 'puppy':
+      return {
+        body: ears(9, 13, tilted(6.6, 22, 4.2, 9, 10)) + circle(20, 21.5, 14.5),
+        y: 22,
+        gap: 5.2,
+      };
+    case 'mochi':
+      return {
+        body:
+          ears(14, 13, soft('8.5,13 10,7 15.5,11', 2.6)) +
+          `<rect x="3" y="11" width="34" height="27" rx="13.5" fill="${c}"/>`,
+        y: 24,
+        gap: 7,
+      };
+    case 'flower': {
+      const petals = [0, 60, 120, 180, 240, 300]
+        .map((a) =>
+          circle(
+            (20 + 10.2 * Math.cos((a * Math.PI) / 180)).toFixed(2),
+            (20 + 10.2 * Math.sin((a * Math.PI) / 180)).toFixed(2),
+            7.2,
+          ),
+        )
+        .join('');
+      return { body: `<g class="petals">${petals}</g>` + circle(20, 20, 11), y: 20, gap: 4.4 };
+    }
+    case 'ghost': {
+      let path = 'M6 20A14 14 0 0 1 34 20L34 35';
+      for (let hop = 0; hop < 6; hop++) {
+        const from = 34 - (hop * 28) / 6;
+        path += `Q${(from - 28 / 12).toFixed(2)} ${hop % 2 ? 31 : 39} ${(from - 28 / 6).toFixed(2)} 35`;
+      }
+      return { body: `<path class="ghost" d="${path}Z" fill="${c}"/>`, y: 19.5, gap: 5 };
+    }
+    case 'antenna':
+      return {
+        body:
+          ears(
+            15,
+            12,
+            `<line x1="15" y1="11" x2="11.5" y2="4.5" stroke="${c}" stroke-width="2.6" stroke-linecap="round"/>` +
+              circle(11, 3.8, 2.8),
+          ) + `<rect x="5.5" y="9.5" width="29" height="28" rx="11" fill="${c}"/>`,
+        y: 23.5,
+        gap: 5.6,
+      };
+    default:
+      return {
+        body: ears(15, 16, soft('7.6,16 9.6,6.4 15.4,11', 3)) + circle(20, 23, 15),
+        y: 23.5,
+        gap: 5.5,
+      };
+  }
+}
+
+/** Without a color the avatar is the brand mark: ink body, eyes in the page color. */
+function avatar(shape, color, working = false) {
+  const { body, y, gap } = avatarBody(shape, color ?? 'currentColor');
+  const eyes = color ? (luminance(color) > 0.45 ? '#141414' : '#ffffff') : 'var(--bg)';
+  return (
+    `<svg class="avatar${working ? ' working' : ''}" viewBox="0 0 40 40" aria-hidden="true">${body}` +
+    `<g class="track"><g class="lid" style="--ey:${y}px" fill="${eyes}">` +
+    `<circle cx="${20 - gap}" cy="${y}" r="2.2"/><circle cx="${20 + gap}" cy="${y}" r="2.2"/>` +
+    `</g></g></svg>`
+  );
+}
+
+document.querySelectorAll('[data-avatar]').forEach((node) => {
+  node.innerHTML = avatar(node.dataset.avatar, node.dataset.color);
+});
+document.querySelectorAll('.crew > span').forEach((node, index) => {
+  node.style.setProperty('--i', index);
+});
+
+// Each feature step shows its own picture on narrow screens: a copy of the sticky stage's.
+const stageItems = [...document.querySelectorAll('.stage-item')];
+document.querySelectorAll('.step').forEach((step, index) => {
+  step.querySelector('.step-media').appendChild(stageItems[index].cloneNode(true));
+});
+
+/* ---------- language ---------- */
 const en = {
-  navWhy: 'Why',
   navDemo: 'Demo',
   navFeatures: 'Features',
   navHow: 'How it works',
   navStart: 'Get started',
   themeToggle: 'Toggle theme',
-  heroBadge: 'Developer preview · Powered by Hermes Agent',
   heroTitle: 'Your AI team,<br />on your own computer.',
   heroLead:
-    'Build a team of bots with their own specialties. Chat one-on-one, or bring them into a group and let them hand work to each other. They run on your own computer or server, so your data and keys stay with you.',
-  ctaGithub: 'View on GitHub',
-  ctaStart: 'Start in 3 steps',
-  metaModels: 'Any model',
-  metaPorts: 'No open ports',
-  metaSync: 'Synced everywhere',
-  metaLang: '中文 / English',
-  altHero: 'nekodot on desktop: two bots relaying a weekly report in a group',
-  miniApprovalTitle: 'Needs your OK',
-  allowOnce: 'Allow once',
-  deny: 'Deny',
-  handoff: 'Hand to',
-  stripLabel: 'Works with your models and machines',
-  stripCompat: 'OpenAI-compatible APIs',
-  soon: 'soon',
-  whyEyebrow: 'Why nekodot',
-  whyTitle: 'As easy as an app,<br />yet entirely yours.',
-  p1Title: 'Your model, your call',
-  p1Body:
-    'Use OpenRouter or any OpenAI-compatible endpoint, including models on your own platform. Every bot can run a different model.',
-  p2Title: 'Data stays on your machine',
-  p2Body:
-    'Chats, bot settings and full API keys live on your own computer or server. It only connects out, so there are no ports to open.',
-  p3Title: 'No config files',
-  p3Body:
-    'Paste one command to connect a computer. Models, bots, skills and plugins are all set up in the app, and every device sees the same progress.',
-  p4Title: 'Standing on Hermes',
-  p4Body:
-    'Every bot is a native Hermes profile, so memory, skills and the tool loop come from Hermes. nekodot focuses on a friendly app and multi-bot teamwork.',
-  demoEyebrow: 'Live demo',
-  demoTitle: 'Watch them<br />get to work.',
-  demoLead:
-    'A replay recreated from the real interface: streaming replies, tool steps, pausing for your approval, then bots relaying work in a group.',
+    'One bot, one specialty. Chat one-on-one, or bring them into a group and let them hand work to each other. They run on your own machine, so your data and keys stay with you.',
+  downloadWindows: 'Download for Windows',
+  downloadAndroid: 'Download for Android',
+  altHero: 'nekodot on Windows: two bots relaying a weekly report in a group',
+  demoTitle: 'Not just answers,<br />but what it is doing.',
   demoTabs: 'Demo scenes',
-  sceneDm: 'Private chat: tools & approval',
-  sceneDmSub: 'See every step; it stops when it needs you',
-  sceneGroup: 'Group chat: bot relay',
-  sceneGroupSub: '@ someone to hand off, up to 6 turns',
+  botYan: 'Scout',
+  botPao: 'Errand',
+  groupName: 'Weekly report',
+  sceneDm: 'Tools and approval',
+  sceneGroup: 'Bot relay',
+  sceneAsk: 'Stops to ask you',
   replay: 'Replay',
-  stop: 'Stop',
-  composer: 'Message…',
-  featEyebrow: 'Features',
-  featTitle: 'See every step,<br />stay in control.',
-  f1Tag: 'Run visibility',
-  f1Title: 'Not just answers, but what it is doing',
-  f1a: '<b>See the work</b>: live text, tool starts and finishes, and approvals in one place.',
-  f1b: '<b>Add as you go</b>: messages sent mid-run join the current turn, so finished work is kept.',
-  f1c: '<b>Your call</b>: sensitive actions pause for you, and you can draft while it waits.',
-  f1d: '<b>Stop anytime</b>: one button stops the run; refresh or switch devices and it stays in sync.',
-  altDm: 'Tool cards and an approval card in a private chat',
-  f2Tag: 'Group relay',
-  f2Title: 'Hand a task to a team',
+  composer: 'Message',
+  duoWindows: 'Pure black and white. Only your bots have color.',
+  duoAndroid: 'Frosted glass and a floating dock, for one hand.',
+  altDm: 'nekodot on Windows: tool steps and an approval card',
+  altPhone: 'nekodot on Android: bots and groups',
+  teamTitle: '8 faces,<br />16 colors.',
+  teamBody:
+    'Give it a name and one line about what it does. Every bot is its own Hermes profile, and it says hello once created.',
+  makerFace: 'Toggle the working animation',
+  makerShapes: 'Faces',
+  makerColors: 'Colors',
+  f1Title: 'Every bot, its own model',
+  f1Body:
+    'Sign in with an authorized account, or add a custom API. Sources sit side by side, and each bot picks its own source and model.',
+  altSources: 'Model sources: authorized services and custom APIs',
+  f2Title: 'What it remembers, you can edit',
   f2Body:
-    'Put 2–6 bots in a group with a lead. Without an @, the lead answers; @ someone and it goes to them in order. When a bot @mentions a teammate, the work relays on its own.',
-  f2a: 'At most 6 bot turns per message, then it pauses and tells you.',
-  f2b: 'A bot shares context between private and group chats, so it remembers the group discussion.',
-  f2c: 'Different groups can work at once, and “Stop all” clears the relay queue.',
-  altGroup: 'Group relay on a phone: one bot hands the check to another',
-  relayCard: 'Relay turns 2 / 6',
-  f3Tag: 'Memory',
-  f3Title: 'Every bot builds its own experience',
+    'Who it is, what it has learned and what it knows about you are native Hermes memory, edited in place. What it knows about you is shared across your account’s computers.',
+  altMemory: 'Editing a bot’s native memory',
+  f3Title: 'One catalog, for any bot',
   f3Body:
-    'Open a bot to read and edit its native memory: who it is, what it has learned, and what it knows about you. One tap on “Refine” turns experience into better habits.',
-  f3a: '<code>SOUL.md</code> · <code>MEMORY.md</code> · <code>USER.md</code>, edited in place.',
-  f3b: 'Tasks scheduled in chat show their plan and run history here.',
-  f3c: 'Files it delivers land in a library: preview, download or jump back to the chat.',
-  altMemory: 'Native memory editing in bot details',
-  f4Tag: 'Screen takeover',
+    'Browse Hermes skills and plugins and read the docs before installing. Toggle and configure per bot, or import from Git, a folder or a ZIP.',
+  altSkills: 'The Skills and plugins catalog',
   f4Title: 'Open its screen and take over',
   f4Body:
-    'On Linux servers each bot gets its own browser and desktop. Watch read-only by default; for captchas, sign-ins or payments, take over with your mouse and keyboard, then hand it back.',
-  f4a: 'Handing back only releases control; it never reruns the task.',
-  f4b: 'Closing the viewer is separate from stopping the chat, and browser profiles persist.',
-  smTitle: 'Errand’s screen',
-  live: 'Live',
-  smControl: 'You have control · Errand paused',
-  smHint: 'Click to interact',
+    'On Linux servers each bot has its own browser and desktop. Watch by default; for captchas or sign-ins, take control, then hand it back.',
+  smTitle: 'Errand · Screen',
+  smControl: 'You are in control',
+  smReturn: 'Hand back',
   smLogin: 'Sign in',
   smCaptcha: 'captcha',
-  smMessage:
-    'Sign-in needs a captcha. I filled in the username. Please enter the code, then hand it back and I will continue.',
-  smKeyboard: 'Keyboard',
-  smWatch: 'Watch only',
-  smReturn: 'Hand back to Errand',
-  smCaption: 'Illustration · requires installing the Linux node with --with-computer',
-  f5Tag: 'Skills & plugins',
-  f5Title: 'One catalog, for any bot',
-  f5Body:
-    'Browse the Hermes skill and plugin catalog with descriptions, dependencies and platforms. Install, toggle and configure per bot, or import your own from Git, a folder or a ZIP.',
-  altSkills: 'The Skills catalog',
-  allEyebrow: 'Everything',
-  allTitle: 'Everything a team needs.',
-  t1Title: 'A team of bots',
-  t1Body: 'Name, avatar, role and model, all adjustable anytime, with history and memory kept.',
-  t2Title: 'Private chat',
-  t2Body: 'Streaming replies, tool steps and approvals; add to or stop a run.',
-  t3Title: 'Group relay',
-  t3Body: '2–6 bots, pick who answers with @, and bots hand work to each other.',
-  t4Title: 'Memory & self-improvement',
-  t4Body: 'Edit native memory and let Hermes refine experience in one tap.',
-  t5Title: 'Scheduled tasks',
-  t5Body: 'Schedule them in chat, review plans and runs in details.',
-  t6Title: 'Library',
-  t6Body: 'Every delivered file in one place: preview, download, jump back.',
-  t7Title: 'Skills & plugins',
-  t7Body: 'Install, enable and configure per bot; import from Git, folder or ZIP.',
-  t8Title: 'Live screen & takeover',
-  t8Body: 'Watch a Linux bot’s browser and desktop, and step in anytime.',
-  t9Title: 'Many computers, every device',
-  t9Body:
-    'One account, several computers; a command palette to jump anywhere; Chinese and English, light and dark, and it respects “reduce motion”.',
-  howEyebrow: 'How it works',
+  smCaption: 'Illustration · install the node with --with-computer',
+  moreTitle: 'And also.',
+  m1Title: 'Add as you go',
+  m1Body: 'Messages sent mid-run join the current turn, so finished work is kept.',
+  m2Title: 'Stop anytime',
+  m2Body: 'One button stops the run; in a group it clears the relay too.',
+  m3Title: 'Group relay',
+  m3Body: '2–6 bots. @ someone to hand off, at most 6 turns per message.',
+  m4Title: 'Pick up where you left',
+  m4Body: 'Lose the network or switch devices; history and progress sync back.',
+  m5Title: 'Library',
+  m5Body: 'Delivered files are kept as copies: preview, download, jump back to the chat.',
+  m6Title: 'Many computers',
+  m6Body: 'One account, several computers, switch anytime.',
+  m7Title: 'Node self-update',
+  m7Body: 'Verifies the signature, switches when idle, rolls back if startup fails.',
+  m8Title: '中文 / English',
+  m8Body: 'Light and dark follow your system, and so does reduced motion.',
   howTitle: 'Your computer only connects out.<br />Not a single port to open.',
-  n1Title: 'Browser / App',
   n1Body: 'Keeps only sign-in and preferences',
   n2Body: 'Accounts, pairing and routing; no chat stored',
-  outbound: 'node dials out',
-  n3Title: 'Your computer (Node)',
-  n3Body: 'Chats, bot settings, delivered files',
+  n3Body: 'Your machine: chats, bot settings, delivered files',
   n4Body: 'One profile per bot: sessions, memory, skills',
-  fact1Title: 'Keys stay on your node',
-  fact1Body:
-    'Full model keys live only on the node; the app only ever shows the last four characters.',
-  fact2Title: 'Hermes, unmodified',
-  fact2Body:
-    'Integrated only through the official CLI and API, so Hermes upgrades need no changes.',
-  fact3Title: 'To be clear',
-  fact3Body:
+  fact1: 'Full keys live only on your node; the app shows the last four characters.',
+  fact2: 'Hermes stays unmodified, integrated only through its official CLI and API.',
+  fact3:
     'Model requests go to the provider you choose. nekodot is not offline and not end-to-end encrypted.',
-  startEyebrow: 'Get started',
   startTitle: 'Three steps<br />to your first chat.',
-  startLead:
-    'Download nekodot 0.1.1 and connect straight from the app. Bots run on your paired server; no local development setup is needed.',
-  downloadWindows: 'Download Windows x64',
-  downloadAndroid: 'Download Android APK',
   downloadNote:
-    'Windows 10 / 11 x64 · Android 10+ arm64. The Windows installer is not publisher-signed; the Android APK is signed. See release notes for tested scope and pending device checks.',
-  s1Title: 'Install the app and sign up',
-  s1Body:
-    'The app includes its interface and connects over HTTPS. No local web server or SSH required.',
+    'Windows 10 / 11 x64; the installer is not publisher-signed. Android 10+ arm64; the APK is signed.',
+  s1Title: 'Install the app, sign up by email',
+  s1Body: 'The app includes its interface and connects over HTTPS.',
   s2Title: 'Pair your server',
   s2Body:
-    'Run the one-line setup command from the app on your Linux server. Signing up does not grant access to anyone else’s node.',
-  s3Title: 'Connect a model, create a bot',
-  s3Body: 'Paste an OpenRouter or compatible API key, give your bot a name and say what it does.',
-  copy: 'Copy',
-  copied: 'Copied',
-  tComment1: 'Get the code and install dependencies (Node 24 · pnpm 10)',
-  tComment2: 'Reach your Relay over SSH and open the app',
-  docDeploy: 'Deployment guide',
-  docQuick: 'Full quick start',
-  roadEyebrow: 'Roadmap',
-  roadTitle: 'What works today,<br />and what comes next.',
-  r1: 'Private chat: streaming, tool steps, approvals, mid-run additions, stop',
-  r2: 'Group chat: @ members, bot-to-bot relay, relay limit',
-  r3: 'One-command computer setup, multi-device sync and recovery',
-  r4: 'Bot details: native memory, scheduled tasks, library',
-  r5: 'Skills and plugin center',
-  r6: 'Live screen and takeover (Linux VPS)',
-  r7: 'Brand-new interface design',
-  r8: 'Windows / Android 0.1.1 preview installers',
-  r9: 'PWA: add to home screen',
-  r10: 'macOS and ARM nodes',
-  ctaTitle: 'Build your first AI team.',
-  ctaBody: 'Follow along on GitHub, share ideas, or deploy your own today.',
-  footTag: 'Your AI team, on your own computer.',
+    'Run the one-line command from the app on a Linux x64 server or WSL2. Signing up grants no access to anyone else’s node.',
+  s3Title: 'Add a model, create a bot',
+  s3Body: 'Sign in or add a custom API, then give it a name and one line about what it does.',
+  footDeploy: 'Self-hosting',
   footDev: 'Development guide',
   footFine:
-    'nekodot is MIT licensed. Interface fonts Nunito and JetBrains Mono use the SIL Open Font License 1.1. Screenshots use demo data.',
+    'MIT License. Interface fonts Nunito and JetBrains Mono use the SIL Open Font License 1.1. Screenshots use demo data.',
 };
 
-/* ---------- language ---------- */
 const zh = {};
 const textNodes = document.querySelectorAll('[data-i18n]');
 textNodes.forEach((node) => {
@@ -211,7 +256,6 @@ document.querySelectorAll('[data-i18n-alt]').forEach((node) => {
 document.querySelectorAll('[data-i18n-aria]').forEach((node) => {
   zh[node.dataset.i18nAria] = node.getAttribute('aria-label');
 });
-zh.copied = '已复制';
 const titles = {
   zh: document.title,
   en: 'nekodot · Your AI team, on your own computer',
@@ -255,7 +299,7 @@ function applyTheme() {
     if (!image.src.endsWith(next)) image.src = next;
   });
   document.querySelector('meta[name="theme-color"]').content =
-    theme === 'dark' ? '#16130f' : '#faf7f2';
+    theme === 'dark' ? '#000000' : '#ffffff';
 }
 document.getElementById('theme-toggle').addEventListener('click', () => {
   root.dataset.theme = currentTheme() === 'dark' ? 'light' : 'dark';
@@ -264,36 +308,26 @@ document.getElementById('theme-toggle').addEventListener('click', () => {
 });
 systemDark.addEventListener('change', applyTheme);
 
-/* ---------- nav, reveal, hero tilt ---------- */
+/* ---------- download: the visitor's own platform comes first ---------- */
+if (/Android/i.test(navigator.userAgent)) {
+  document.querySelectorAll('[data-downloads]').forEach((group) => {
+    group.dataset.primary = 'android';
+    const [windows, android] = [
+      group.querySelector('[data-platform="windows"]'),
+      group.querySelector('[data-platform="android"]'),
+    ];
+    const primary = windows.className;
+    windows.className = android.className;
+    android.className = primary;
+  });
+}
+
+/* ---------- nav and sections ---------- */
 const nav = document.querySelector('.nav');
-const stage = document.getElementById('hero-stage');
 function onScroll() {
   nav.classList.toggle('is-scrolled', window.scrollY > 8);
-  if (!reduceMotion && stage) {
-    const progress = Math.min(1, Math.max(0, window.scrollY / 520));
-    stage.style.setProperty('--tilt', `${14 * (1 - progress)}deg`);
-    stage.style.setProperty('--scale', String(0.94 + 0.06 * progress));
-  }
 }
 window.addEventListener('scroll', onScroll, { passive: true });
-
-const revealObserver = new IntersectionObserver(
-  (entries) => {
-    for (const entry of entries)
-      if (entry.isIntersecting) {
-        entry.target.classList.add('is-visible');
-        revealObserver.unobserve(entry.target);
-      }
-  },
-  { rootMargin: '0px 0px -8% 0px' },
-);
-document.querySelectorAll('.reveal').forEach((node) => {
-  const siblings = [...node.parentElement.children].filter((child) =>
-    child.classList.contains('reveal'),
-  );
-  node.style.setProperty('--delay', `${Math.min(siblings.indexOf(node), 5) * 70}ms`);
-  revealObserver.observe(node);
-});
 
 const sectionLinks = [...document.querySelectorAll('.nav-links a')];
 const sectionObserver = new IntersectionObserver(
@@ -307,124 +341,198 @@ const sectionObserver = new IntersectionObserver(
   { rootMargin: '-45% 0px -50% 0px' },
 );
 sectionLinks.forEach((link) => {
-  const section = document.querySelector(link.hash);
-  if (section) sectionObserver.observe(section);
+  sectionObserver.observe(document.querySelector(link.hash));
 });
 
-/* ---------- copy ---------- */
-document.querySelectorAll('[data-copy]').forEach((button) => {
-  button.addEventListener('click', () => {
-    const text = document.getElementById(button.dataset.copy).innerText;
-    void navigator.clipboard.writeText(text).then(() => {
-      const label = button.querySelector('span');
-      label.textContent = t('copied');
-      window.setTimeout(() => {
-        label.textContent = t('copy');
-      }, 1600);
+/* ---------- the team watches the pointer ---------- */
+if (!reduceMotion && window.matchMedia('(pointer: fine)').matches) {
+  let frame = 0;
+  window.addEventListener(
+    'pointermove',
+    (event) => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        document.querySelectorAll('.crew .track, .maker-face .track').forEach((track) => {
+          const box = track.ownerSVGElement.getBoundingClientRect();
+          if (box.bottom < 0 || box.top > window.innerHeight) return;
+          const dx = event.clientX - (box.left + box.width / 2);
+          const dy = event.clientY - (box.top + box.height / 2);
+          const distance = Math.hypot(dx, dy) || 1;
+          const reach = Math.min(1.6, distance / 60);
+          track.setAttribute(
+            'transform',
+            `translate(${((dx / distance) * reach).toFixed(2)} ${((dy / distance) * reach).toFixed(2)})`,
+          );
+        });
+      });
+    },
+    { passive: true },
+  );
+}
+
+/* ---------- avatar maker ---------- */
+(() => {
+  const face = document.getElementById('maker-face');
+  const shapeRow = document.getElementById('maker-shapes');
+  const colorRow = document.getElementById('maker-colors');
+  let shape = 'dot';
+  let color = '#E8603C';
+  let working = false;
+
+  function render() {
+    face.innerHTML = avatar(shape, color, working);
+    face.setAttribute('aria-pressed', String(working));
+    shapeRow.querySelectorAll('button').forEach((button) => {
+      button.innerHTML = avatar(button.dataset.value, color);
+      button.setAttribute('aria-pressed', String(button.dataset.value === shape));
     });
+    colorRow.querySelectorAll('button').forEach((button) => {
+      button.setAttribute('aria-pressed', String(button.dataset.value === color));
+    });
+  }
+  for (const value of shapes) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.value = value;
+    button.setAttribute('aria-label', value);
+    button.addEventListener('click', () => {
+      shape = value;
+      render();
+    });
+    shapeRow.appendChild(button);
+  }
+  for (const value of colors) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.value = value;
+    button.style.setProperty('--c', value);
+    button.setAttribute('aria-label', value);
+    button.addEventListener('click', () => {
+      color = value;
+      render();
+    });
+    colorRow.appendChild(button);
+  }
+  face.addEventListener('click', () => {
+    working = !working;
+    render();
   });
-});
+  render();
+})();
+
+/* ---------- feature stage: the step in the middle of the screen owns the window ---------- */
+(() => {
+  const steps = [...document.querySelectorAll('.step')];
+  const items = [...document.querySelectorAll('#stage .stage-item')];
+  const activate = (index) => {
+    steps.forEach((step, i) => step.classList.toggle('is-active', i === index));
+    items.forEach((item, i) => item.classList.toggle('is-active', i === index));
+  };
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries)
+        if (entry.isIntersecting) activate(Number(entry.target.dataset.step));
+    },
+    { rootMargin: '-48% 0px -48% 0px' },
+  );
+  steps.forEach((step) => observer.observe(step));
+  activate(0);
+})();
 
 /* ---------- live chat replay ---------- */
 const bots = {
-  yan: { color: '#5b7ce6', zh: '小研', en: 'Scout', handles: { zh: 'xiaoyan', en: 'scout' } },
-  bi: { color: '#e8603c', zh: '笔笔', en: 'Quill', handles: { zh: 'bibi', en: 'quill' } },
+  yan: {
+    shape: 'bunny',
+    color: '#2E8BFF',
+    zh: '小研',
+    en: 'Scout',
+    handles: { zh: 'xiaoyan', en: 'scout' },
+  },
+  bi: {
+    shape: 'dot',
+    color: '#E8603C',
+    zh: '笔笔',
+    en: 'Quill',
+    handles: { zh: 'bibi', en: 'quill' },
+  },
+  pao: {
+    shape: 'puppy',
+    color: '#2F9E8F',
+    zh: '跑腿',
+    en: 'Errand',
+    handles: { zh: 'paotui', en: 'errand' },
+  },
 };
-const handle = (bot) => bot.handles[lang];
-const icons = {
-  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
-  globe:
-    '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
-  terminal: '<path d="m5 7 5 5-5 5M12 17h7"/>',
-  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
-  arrow: '<path d="M5 12h14m-6-6 6 6-6 6"/>',
-};
-const svg = (name) => `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[name]}</svg>`;
-const cat = (color, working = false) =>
-  `<svg viewBox="0 0 40 40" class="${working ? 'working' : ''}" style="color:${color}" aria-hidden="true">` +
-  `<polygon class="ear-l" points="7,15 10,3 18,10" fill="currentColor"/>` +
-  `<polygon class="ear-r" points="33,15 30,3 22,10" fill="currentColor"/>` +
-  `<circle cx="20" cy="23" r="15" fill="currentColor"/>` +
-  `<ellipse cx="15" cy="23" rx="2" ry="2.6" fill="var(--cat-eye)"/>` +
-  `<ellipse cx="25" cy="23" rx="2" ry="2.6" fill="var(--cat-eye)"/></svg>`;
+const face = (bot, working = false) => avatar(bot.shape, bot.color, working);
 
 const copy = {
   zh: {
     dmAsk: '帮我找 3 篇今年关于 agent 记忆的综述，各用一句话总结。',
     dmNote: '先搜一下最近的综述，再挑引用最多的三篇。',
-    dmSearch: '"agent memory survey 2026"',
-    dmRead: 'arxiv.org/list/cs.AI',
-    dmPrompt: '小研想在你的电脑上运行这条命令：',
-    approval: '需要你确认',
-    allow: '允许一次',
-    deny: '拒绝',
+    dmPrompt: (name) => `${name}想在你的电脑上运行这条命令：`,
+    choices: ['允许一次', '本会话允许', '总是允许', '拒绝'],
     allowed: '已允许一次',
     dmAnswer:
-      '整理好了，三篇方向各不相同：\n1. 记忆机制综述：把 agent 记忆分成工作、情节和语义三层。\n2. 长期记忆评测：比较多种检索策略在长对话里的表现。\n3. 记忆与规划：讨论记忆如何影响多步任务的成功率。',
+      '整理好了，三篇方向各不相同：\n1. 记忆机制：把 agent 记忆分成工作、情节和语义三层。\n2. 长期记忆评测：比较多种检索策略在长对话里的表现。\n3. 记忆与规划：记忆如何影响多步任务的成功率。',
     groupName: '周报小组',
-    groupAsk: '这周的周报，<b>@bibi</b> 先起个草稿',
+    groupAsk: '这周的周报，@bibi 先起个草稿',
     groupDraft: '草稿好了：本周新版注册流程上线，活跃用户增长 12%，下周重点是支付页改版。\n\n',
     groupMention: '@xiaoyan 帮我核对一下第二句里的数据来源。',
     groupTool: '打开运营看板',
     groupCheck:
       '核对完了：12% 来自运营看板，口径是周活，不是日活。建议改成「周活跃用户增长 12%」。',
-    handTo: '交给',
-    lead: '主答',
-    members: '2 个成员',
-    thinking: '正在回复',
-    tool: '正在运行工具',
+    askAsk: '帮我把下个月去成都的机票比个价。',
+    askTool: '打开航班搜索',
+    askQuestion: '你想哪天出发？',
+    askOptions: ['第一个周五', '第二个周五', '都可以'],
+    askAnswered: '第二个周五',
+    askAnswer: '第二个周五最便宜的是早上 7:40 的直飞，比同日其他航班便宜不少。要我继续看返程吗？',
+    thinking: '回复中',
+    tool: '运行工具',
     waiting: '等你确认',
-    seconds: (value) => `${value} 秒`,
-    line: (name, state) => `${name}${state}`,
-    waitingLine: (name) => `${name}在等你确认`,
-    chain: (count) => `接力已进行 ${count} / 6 轮`,
-    placeholder: (name) => `发消息给${name}…`,
-    groupPlaceholder: '发消息，用 @ 指定谁来回答',
+    waitingAnswer: '等你回答',
+    seconds: (value) => `${value}s`,
   },
   en: {
     dmAsk: 'Find 3 survey papers on agent memory from this year and sum each up in one line.',
     dmNote: 'I’ll search recent surveys first, then pick the three most cited.',
-    dmSearch: '"agent memory survey 2026"',
-    dmRead: 'arxiv.org/list/cs.AI',
-    dmPrompt: 'Scout wants to run this command on your computer:',
-    approval: 'Needs your OK',
-    allow: 'Allow once',
-    deny: 'Deny',
+    dmPrompt: (name) => `${name} wants to run this command on your computer:`,
+    choices: ['Allow once', 'This session', 'Always', 'Deny'],
     allowed: 'Allowed once',
     dmAnswer:
-      'Done. Three different angles:\n1. Memory mechanisms: splits agent memory into working, episodic and semantic layers.\n2. Long-term memory benchmarks: compares retrieval strategies across long conversations.\n3. Memory and planning: how memory affects success on multi-step tasks.',
+      'Done. Three different angles:\n1. Mechanisms: splits agent memory into working, episodic and semantic layers.\n2. Long-term benchmarks: compares retrieval strategies across long conversations.\n3. Memory and planning: how memory affects success on multi-step tasks.',
     groupName: 'Weekly report',
-    groupAsk: 'For this week’s report, <b>@quill</b> please start a draft',
+    groupAsk: 'For this week’s report, @quill please start a draft',
     groupDraft:
-      'Draft ready: the new sign-up flow shipped, active users grew 12%, and next week we focus on the checkout page.\n\n',
+      'Draft ready: the new sign-up flow shipped, active users grew 12%, and next week we focus on checkout.\n\n',
     groupMention: '@scout could you check the source of the number in the second sentence?',
     groupTool: 'Opening the ops dashboard',
     groupCheck:
       'Checked: the 12% comes from the dashboard and counts weekly, not daily, actives. Suggest “weekly active users grew 12%”.',
-    handTo: 'Hand to',
-    lead: 'Lead',
-    members: '2 members',
+    askAsk: 'Compare flights to Chengdu for next month.',
+    askTool: 'Opening flight search',
+    askQuestion: 'Which day do you want to leave?',
+    askOptions: ['First Friday', 'Second Friday', 'Either'],
+    askAnswered: 'Second Friday',
+    askAnswer:
+      'The cheapest second-Friday option is the 7:40 direct flight, well below the rest of that day. Shall I look at returns?',
     thinking: 'Replying',
     tool: 'Running a tool',
-    waiting: 'Waiting for you',
+    waiting: 'Needs your OK',
+    waitingAnswer: 'Needs your answer',
     seconds: (value) => `${value}s`,
-    line: (name, state) => `${name} · ${state}`,
-    waitingLine: (name) => `${name} is waiting for you`,
-    chain: (count) => `Relay turns ${count} / 6`,
-    placeholder: (name) => `Message ${name}…`,
-    groupPlaceholder: 'Message the group — @ to pick who answers',
   },
 };
 
 const demo = (() => {
   const body = document.getElementById('dw-body');
-  const avatar = document.getElementById('dw-avatar');
+  const avatarSlot = document.getElementById('dw-avatar');
   const name = document.getElementById('dw-name');
   const status = document.getElementById('dw-status');
-  const banner = document.getElementById('dw-banner');
-  const bannerText = document.getElementById('dw-banner-text');
-  const placeholder = document.getElementById('dw-placeholder');
-  const tabs = [...document.querySelectorAll('.demo-tabs [data-scene]')];
+  const send = document.getElementById('dw-send');
+  const tabs = [...document.querySelectorAll('.app-side [data-scene]')];
+  const order = ['dm', 'group', 'ask'];
   let token = 0;
   let scene = 'dm';
   let visible = false;
@@ -443,56 +551,48 @@ const demo = (() => {
     holder.innerHTML = html.trim();
     return holder.firstElementChild;
   };
-  const add = (node) => body.appendChild(node);
+  const escape = (value) =>
+    value.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[ch]);
 
-  function header(html, title, line = '', waiting = false) {
-    avatar.innerHTML = html;
+  function header(html, title, line = '') {
+    avatarSlot.innerHTML = html;
     name.textContent = title;
     status.innerHTML = line;
-    status.classList.toggle('is-waiting', waiting);
   }
-  function setBanner(text, waiting = false) {
-    banner.hidden = !text;
-    banner.classList.toggle('is-waiting', waiting);
-    bannerText.textContent = text;
+  const running = (value) => send.classList.toggle('running', value);
+  function user(text) {
+    lastBlock = null;
+    body.appendChild(el(`<div class="m m-user">${escape(text)}</div>`));
   }
-  function block(bot, group) {
-    if (lastBlock?.dataset.bot === bot) return lastBlock.querySelector('.m-stack');
-    lastBlock = add(
+  /** A speaker's stack in a group; a private chat has no avatar column. */
+  function stackFor(key, group) {
+    if (!group) return body;
+    if (lastBlock?.dataset.bot === key) return lastBlock.querySelector('.m-stack');
+    lastBlock = body.appendChild(
       el(
-        `<div class="m m-bot" data-bot="${bot}" style="--tool:${bots[bot].color}">${cat(bots[bot].color)}<div class="m-stack">${
-          group
-            ? `<span class="m-author"><b>${bots[bot][lang]}</b> @${handle(bots[bot])}</span>`
-            : ''
-        }</div></div>`,
+        `<div class="m m-block" data-bot="${key}"><span class="m-face">${face(bots[key])}</span><div class="m-stack"><span class="m-author">${bots[key][lang]}</span></div></div>`,
       ),
     );
     return lastBlock.querySelector('.m-stack');
   }
-  function user(html) {
-    lastBlock = null;
-    add(el(`<div class="m m-user">${html}</div>`));
-  }
-  function tool(stack, icon, label, preview) {
+  function tool(stack, label, preview) {
     return stack.appendChild(
       el(
-        `<div class="m m-tool running"><span class="m-tool-icon">${svg(icon)}</span><span class="m-tool-copy"><span>${label}</span><small>${preview}</small></span><span class="m-tool-state"><span class="spinner"></span></span></div>`,
+        `<div class="m m-tool running"><b>${label}</b><span>${escape(preview)}</span><em></em></div>`,
       ),
     );
   }
   function toolDone(node, seconds) {
     node.classList.remove('running');
-    node.querySelector('.m-tool-state').innerHTML = `${copy[lang].seconds(seconds)}${svg('check')}`;
+    node.querySelector('em').textContent = copy[lang].seconds(seconds);
   }
   async function stream(stack, text, id, mentions = []) {
-    const node = stack.appendChild(el('<div class="m m-text"></div>'));
-    const caret = '<span class="caret">▍</span>';
-    const escape = (value) =>
-      value.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[ch]);
+    const node = stack.appendChild(el('<div class="m m-bubble"></div>'));
+    const caret = '<span class="caret"></span>';
     const render = (value) => {
       let html = escape(value);
       for (const handle of mentions)
-        html = html.replaceAll('@' + handle, `<span class="mention">@${handle}</span>`);
+        html = html.replaceAll('@' + handle, `<span class="at">@${handle}</span>`);
       return html;
     };
     const step = reduceMotion ? text.length : 3;
@@ -500,132 +600,126 @@ const demo = (() => {
       node.innerHTML = render(text.slice(0, index)) + caret;
       await wait(32, id);
     }
-    node.innerHTML = render(text) + caret;
-    return node;
+    node.innerHTML = render(text);
   }
-  const endStream = (node) => node.querySelector('.caret')?.remove();
-  function dots(stack) {
-    return stack.appendChild(el('<span class="dots"><i></i><i></i><i></i></span>'));
-  }
-  function chainPill(count) {
-    body.querySelector('.m-chain')?.remove();
-    const steps = Array.from(
-      { length: 6 },
-      (_, i) => `<i class="${i < count ? 'on' : ''}"></i>`,
-    ).join('');
-    add(el(`<div class="m m-chain"><span>${steps}</span>${copy[lang].chain(count)}</div>`));
-  }
+  const thinkingDots = (stack) =>
+    stack.appendChild(el('<span class="m thinking"><i></i><i></i><i></i></span>'));
 
   async function playDm(id) {
     const c = copy[lang];
     const bot = bots.yan;
-    const live = () => cat(bot.color, true);
-    header(cat(bot.color), bot[lang], '@' + handle(bot));
-    placeholder.textContent = c.placeholder(bot[lang]);
+    const title = bot[lang];
+    header(face(bot), title);
     await wait(700, id);
     user(c.dmAsk);
-    await wait(600, id);
-    header(live(), bot[lang], `<span class="dots"><i></i><i></i><i></i></span>${c.thinking}`);
-    setBanner(c.line(bot[lang], c.thinking));
-    const stack = block('yan');
-    const thinking = dots(stack);
-    await wait(1100, id);
-    thinking.remove();
-    stack.appendChild(el(`<p class="m m-note">${c.dmNote}</p>`));
+    running(true);
     await wait(500, id);
-    header(live(), bot[lang], `<span class="dots"><i></i><i></i><i></i></span>${c.tool}`);
-    setBanner(c.line(bot[lang], c.tool));
-    const search = tool(stack, 'search', 'web_search', c.dmSearch);
-    await wait(1300, id);
+    header(face(bot, true), title, c.thinking);
+    const thinking = thinkingDots(body);
+    await wait(1000, id);
+    thinking.remove();
+    body.appendChild(el(`<div class="m m-bubble">${c.dmNote}</div>`));
+    await wait(500, id);
+    header(face(bot, true), title, c.tool);
+    const search = tool(body, 'web_search', '"agent memory survey 2026"');
+    await wait(1200, id);
     toolDone(search, '0.9');
-    const read = tool(stack, 'globe', 'read_url', c.dmRead);
-    await wait(1500, id);
+    const read = tool(body, 'read_url', 'arxiv.org/abs/2604.01234');
+    await wait(1400, id);
     toolDone(read, '1.8');
+    const run = tool(body, 'terminal', 'pip install arxiv');
     await wait(300, id);
-    header(cat(bot.color), bot[lang], c.waiting, true);
-    setBanner(c.waitingLine(bot[lang]), true);
-    const card = stack.appendChild(
+    header(face(bot), title, c.waiting);
+    const card = body.appendChild(
       el(
-        `<div class="m m-approval"><strong>${c.approval}</strong><span>${c.dmPrompt}</span><code>pip install arxiv</code><div class="m-approval-actions"><span class="ink">${c.allow}</span><span>${c.deny}</span></div></div>`,
+        `<div class="m m-card"><span>${c.dmPrompt(title)}</span><code>pip install arxiv</code><div class="m-actions"><span class="ink">${c.choices[0]}</span><span>${c.choices[1]}</span><span>${c.choices[2]}</span><span>${c.choices[3]}</span></div></div>`,
       ),
     );
-    await wait(2200, id);
+    await wait(2300, id);
     card.querySelector('.ink').classList.add('pressed');
     await wait(220, id);
-    card.classList.add('done');
-    card.querySelector('.m-approval-actions').outerHTML =
-      `<span class="m-result">${svg('check')}${c.allowed}</span>`;
-    header(live(), bot[lang], `<span class="dots"><i></i><i></i><i></i></span>${c.tool}`);
-    setBanner(c.line(bot[lang], c.tool));
-    const run = tool(stack, 'terminal', 'terminal', 'pip install arxiv');
-    await wait(1400, id);
+    card.querySelector('.m-actions').outerHTML = `<span class="m-result">${c.allowed}</span>`;
+    header(face(bot, true), title, c.tool);
+    await wait(1200, id);
     toolDone(run, '3.2');
-    header(live(), bot[lang], `<span class="dots"><i></i><i></i><i></i></span>${c.thinking}`);
-    setBanner(c.line(bot[lang], c.thinking));
-    const answer = await stream(stack, c.dmAnswer, id);
-    endStream(answer);
-    header(cat(bot.color), bot[lang], '@' + handle(bot));
-    setBanner('');
+    header(face(bot, true), title, c.thinking);
+    await stream(body, c.dmAnswer, id);
+    header(face(bot), title);
+    running(false);
   }
 
   async function playGroup(id) {
     const c = copy[lang];
     const { yan, bi } = bots;
-    const dotsGroup = `<span style="display:inline-flex;gap:0"><svg viewBox="0 0 40 40" style="width:24px;height:24px;color:${yan.color}"><circle cx="20" cy="20" r="17" fill="currentColor"/></svg><svg viewBox="0 0 40 40" style="width:24px;height:24px;margin-left:-9px;color:${bi.color}"><circle cx="20" cy="20" r="17" fill="currentColor" stroke="var(--bg)" stroke-width="4"/></svg></span>`;
-    const idle = `${c.lead}: ${bi[lang]} · ${c.members}`;
-    header(dotsGroup, c.groupName, idle);
-    placeholder.textContent = c.groupPlaceholder;
+    const pair = `<span class="app-faces" style="display:block;width:100%;height:100%"><span>${face(yan)}</span><span>${face(bi)}</span></span>`;
+    const chain = (count) =>
+      `<span class="chain">${Array.from({ length: 6 }, (_, i) => `<i class="${i < count ? 'on' : ''}"></i>`).join('')}</span>`;
+    const busy = (count, state) => header(pair, c.groupName, `${chain(count)}${state}`);
+    header(pair, c.groupName);
     await wait(700, id);
     user(c.groupAsk);
+    running(true);
     await wait(600, id);
-    const busy = (bot, state) =>
-      header(
-        dotsGroup,
-        c.groupName,
-        `${c.lead}: ${bi[lang]} · <span class="dots"><i></i><i></i><i></i></span>${c.line(bot[lang], state)}`,
-      );
-    busy(bi, c.thinking);
-    setBanner(c.line(bi[lang], c.thinking));
-    chainPill(1);
-    let stack = block('bi', true);
-    body.appendChild(body.querySelector('.m-chain'));
-    const draft = await stream(stack, c.groupDraft + c.groupMention, id, [handle(yan)]);
-    endStream(draft);
-    await wait(300, id);
-    stack.appendChild(
-      el(
-        `<span class="m-handoff">${svg('arrow')}${c.handTo} @${handle(yan)}${cat(yan.color)}</span>`,
-      ),
-    );
+    busy(1, c.thinking);
+    let stack = stackFor('bi', true);
+    await stream(stack, c.groupDraft + c.groupMention, id, [yan.handles[lang]]);
     await wait(900, id);
-    chainPill(2);
-    busy(yan, c.tool);
-    setBanner(c.line(yan[lang], c.tool));
-    stack = block('yan', true);
-    body.appendChild(body.querySelector('.m-chain'));
-    const look = tool(stack, 'globe', 'browser', c.groupTool);
+    busy(2, c.tool);
+    stack = stackFor('yan', true);
+    const look = tool(stack, 'browser', c.groupTool);
     await wait(1600, id);
     toolDone(look, '2.4');
-    busy(yan, c.thinking);
-    setBanner(c.line(yan[lang], c.thinking));
-    const check = await stream(stack, c.groupCheck, id);
-    body.appendChild(body.querySelector('.m-chain'));
-    endStream(check);
-    await wait(400, id);
-    header(dotsGroup, c.groupName, idle);
-    setBanner('');
+    busy(2, c.thinking);
+    await stream(stack, c.groupCheck, id);
+    await wait(300, id);
+    header(pair, c.groupName);
+    running(false);
   }
 
+  async function playAsk(id) {
+    const c = copy[lang];
+    const bot = bots.pao;
+    const title = bot[lang];
+    header(face(bot), title);
+    await wait(700, id);
+    user(c.askAsk);
+    running(true);
+    await wait(500, id);
+    header(face(bot, true), title, c.tool);
+    const look = tool(body, 'browser', c.askTool);
+    await wait(1500, id);
+    toolDone(look, '2.1');
+    header(face(bot), title, c.waitingAnswer);
+    const card = body.appendChild(
+      el(
+        `<div class="m m-card"><span>${c.askQuestion}</span><div class="m-actions">${c.askOptions.map((o, i) => `<span class="${i === 1 ? 'choice' : ''}">${o}</span>`).join('')}</div></div>`,
+      ),
+    );
+    await wait(2200, id);
+    const choice = card.querySelector('.choice');
+    choice.classList.add('ink', 'pressed');
+    await wait(260, id);
+    card.querySelector('.m-actions').outerHTML = `<span class="m-result">${c.askAnswered}</span>`;
+    header(face(bot, true), title, c.thinking);
+    const thinking = thinkingDots(body);
+    await wait(900, id);
+    thinking.remove();
+    await stream(body, c.askAnswer, id);
+    header(face(bot), title);
+    running(false);
+  }
+
+  const players = { dm: playDm, group: playGroup, ask: playAsk };
   async function play() {
     const id = ++token;
     body.innerHTML = '';
     lastBlock = null;
-    setBanner('');
+    running(false);
     tabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.scene === scene)));
     try {
-      await (scene === 'dm' ? playDm(id) : playGroup(id));
-      await wait(4200, id);
-      scene = scene === 'dm' ? 'group' : 'dm';
+      await players[scene](id);
+      await wait(3600, id);
+      scene = order[(order.indexOf(scene) + 1) % order.length];
       if (visible) void play();
     } catch {
       // A newer replay or a scene switch cancelled this one.
@@ -647,7 +741,7 @@ const demo = (() => {
       if (!visible) token++;
     },
     { threshold: 0.35 },
-  ).observe(document.querySelector('.demo-window'));
+  ).observe(document.querySelector('.app'));
 
   return {
     restart() {
