@@ -1,8 +1,18 @@
 import { build } from 'esbuild';
-import { mkdir, copyFile, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, copyFile, readFile, writeFile, rename } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 await mkdir('dist/distribution', { recursive: true });
+// Retain stale manifests privately instead of serving them with a new bundle.
+try {
+  await mkdir('.runtime/recycle', { recursive: true });
+  await rename(
+    'dist/distribution/nekodot-node.json',
+    `.runtime/recycle/nekodot-node-${Date.now()}.json`,
+  );
+} catch (error) {
+  if (error.code !== 'ENOENT') throw error;
+}
 await copyFile('apps/node/dist/index.cjs', 'dist/distribution/nekodot-node.cjs');
 await copyFile('deploy/install.sh', 'dist/distribution/install.sh');
 await build({

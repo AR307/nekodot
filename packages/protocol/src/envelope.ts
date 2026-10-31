@@ -4,6 +4,7 @@ import { eventSchema, liveSchema } from './events';
 import { rpcRequestSchema } from './rpc';
 import { rpcErrorSchema } from './errors';
 import { notificationSchema } from './notifications';
+import { nodeVersionSchema } from './node-release';
 export const envelopeSchema = z
   .strictObject({
     v: z.literal(1),
@@ -19,6 +20,7 @@ export const envelopeSchema = z
       'ping',
       'pong',
       'node.status',
+      'node.update',
       'transfer.req',
       'transfer.res',
       'tunnel.open',
@@ -64,6 +66,7 @@ export const payloadSchemas = {
   ping: z.strictObject({}),
   pong: z.strictObject({}),
   'node.status': z.strictObject({ online: z.boolean() }),
+  'node.update': z.strictObject({ version: nodeVersionSchema }),
   notify: notificationSchema,
   'notify.ack': z.strictObject({ notificationId: z.string().min(1).max(240) }),
 };

@@ -14,6 +14,7 @@ export const nodeSummarySchema = z.strictObject({
   name: z.string(),
   platform: z.string(),
   online: z.boolean(),
+  updateCommand: z.string().nullable(),
 });
 export const meSchema = z.strictObject({
   user: z.strictObject({ userId: z.string(), email: z.email() }),

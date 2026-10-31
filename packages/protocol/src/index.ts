@@ -11,3 +11,4 @@ export * from './screen';
 export * from './notifications';
 export * from './providers';
 export * from './user-memory';
+export * from './node-release';
