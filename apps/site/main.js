@@ -231,7 +231,7 @@ const en = {
     'Model requests go to the provider you choose. nekodot is not offline and not end-to-end encrypted.',
   startTitle: 'Three steps<br />to your first chat.',
   downloadNote:
-    'Windows 10 / 11 x64; the installer is not publisher-signed. Android 10+ arm64; the APK is signed.',
+    '0.2.0 developer preview. Windows 10 / 11 x64; the installer is not publisher-signed. Android 10+ arm64; the APK is signed. Physical Android devices and background notifications still need full acceptance.',
   s1Title: 'Install the app, sign up by email',
   s1Body: 'The app includes its interface and connects over HTTPS.',
   s2Title: 'Pair your server',

@@ -5,12 +5,11 @@
 ## 部署顺序
 
 1. 本地 `pnpm build`，然后用仓库及服务器外保存的发布私钥执行 `NEKODOT_RELEASE_KEY_FILE=/private/nekodot-release.pem pnpm release:node`。将盖章后的 Node bundle 与 JSON 清单作为同一批产物；先部署 Relay/Node，再按客户端文档用实际 HTTPS 域名构建及分发安装包。普通构建不自动成为发布版，不能漏掉盖章步骤。
-2. 本地构建 `docker build -f deploy/docker/Dockerfile -t nekodot-relay:product-0.1.1 .`，将镜像归档和 `dist/distribution` 上传到产品部署目录。
+2. 本地构建 `docker build -f deploy/docker/Dockerfile -t nekodot-relay:product-0.2.0 .`，将镜像归档和 `dist/distribution` 上传到产品部署目录。镜像包含已盖章的 Node bundle 和发布清单，可脱离源码启动。
 3. 复制 `compose.yml`，将 `apps/site` 内容上传到部署目录的 `site/`；在服务器私有 `.env` 配置随机 `JWT_SECRET`、实际 `PUBLIC_URL` 和允许的 App origins。`data` 由容器用户 1000 读写，`downloads` 与 `site` 只读挂载。Compose 设置 `WEB_DIR=/app/site`，官网和既有 API、WebSocket、下载共用同一 HTTPS 入口。
 4. 运行该项目的 `docker compose up -d`。示例复用当前 Caddy 的 `getplus_default` 网络，仅新增 Relay；不要重启其他服务。
-5. DNS 指向服务器后，备份既有 Caddyfile、追加独立 site block、执行 `caddy validate`，仅 reload Caddy 配置。不要覆盖已有站点块。
-6. 创建独立产品用户 `nekodot-product`。用新产品账号生成配对码，在该用户下执行产品安装脚本（可加 `--with-computer`）；使用该用户自己的 Hermes home、源码及 PM runtime。安装器生成持久 systemd user service，启用 linger。
-7. 产品 Node 的 Relay 地址使用同机 loopback。产品账号和 Node 凭据不复制测试数据。若采用附带 system service 模板，应先停用同一产品用户的 user service，避免启动两个产品进程。
+
+0.2.0 的邮箱注册需要将 SMTP 私有 JSON 放入服务器 `private/`，设置 `SMTP_CONFIG=/run/nekodot-private/smtp.json`。字段为 `host`、`port`、`secure`、`user`、`password`、`from`，不要提交此文件。`TRUSTED_PROXY` 只配置实际反向代理地址或受控网段，不信任公网客户端传入的转发头。既有账号保留原 ID、节点和历史，首次重新登录时使用原密码补验邮箱；旧登录凭证需要重新登录。5. DNS 指向服务器后，备份既有 Caddyfile、追加独立 site block、执行 `caddy validate`，仅 reload Caddy 配置。不要覆盖已有站点块。6. 创建独立产品用户 `nekodot-product`。用新产品账号生成配对码，在该用户下执行产品安装脚本（可加 `--with-computer`）；使用该用户自己的 Hermes home、源码及 PM runtime。安装器生成持久 systemd user service，启用 linger。7. 产品 Node 的 Relay 地址使用同机 loopback。产品账号和 Node 凭据不复制测试数据。若采用附带 system service 模板，应先停用同一产品用户的 user service，避免启动两个产品进程。
 
 后续更新 downloads 时同步替换 `nekodot-node.cjs` 与 `nekodot-node.json`，Relay 在下次连接时读取清单并通知可更新的在线 Node。`1.0.0` 节点先按客户端提示手动重跑一次安装命令；后续空闲更新由 Node 完成。数据库必须可被上一版打开，继续支持仍在使用的客户端。回退发布使用更高 UTC 时间戳；私钥备份、启动确认和本地回滚说明见 [部署说明](../README.md#node-releases)。不要重启其他项目或整机。
 

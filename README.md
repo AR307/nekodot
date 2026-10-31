@@ -16,7 +16,7 @@
 <p align="center">
   <a href="https://github.com/AR307/nekodot/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AR307/nekodot/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Node 24 LTS" src="https://img.shields.io/badge/node-24%20LTS-000000">
-  <a href="https://nekodot.com/#start"><img alt="Release v0.1.1" src="docs/assets/release-0.1.1.svg"></a>
+  <a href="https://github.com/AR307/nekodot/releases/tag/v0.2.0"><img alt="Release v0.2.0" src="docs/assets/release-0.2.0.svg"></a>
 </p>
 
 <p align="center">
@@ -38,7 +38,7 @@
 <p align="center"><sub>两位 Bot 在群里接力整理周报：一位起草，再交给另一位核对数据来源。截图使用演示数据。</sub></p>
 
 > [!NOTE]
-> 本页的界面和功能是 **0.2.0 候选版**（Flutter 客户端，`apps/native`），正在验收，尚未发布。官网当前提供的下载仍是 0.1.1 旧界面。
+> **0.2.0 开发者预览版**采用 Flutter 原生客户端（`apps/native`）。[更新说明](docs/releases/v0.2.0.md)记录安装方式、账号补验和仍待完成的真机验收。截图使用演示数据。
 
 ## 为什么是 nekodot
 
@@ -156,7 +156,7 @@ App 本身不运行 Hermes。完整的模型密钥只保存在节点上，界面
 ### 用 App
 
 1. **下载安装。** [Windows x64](https://nekodot.com/downloads/nekodot-windows-x64.exe)（Windows 10 / 11，未做 Authenticode 签名）或 [Android arm64](https://nekodot.com/downloads/nekodot-android-arm64.apk)（Android 10+，已签名）。
-2. **用邮箱注册。** 注册不会取得其他账号的服务器访问权。
+2. **用邮箱验证码注册。** 登录继续使用密码；旧账号首次重新登录需补验邮箱，原节点和历史保留。注册不会取得其他账号的服务器访问权。
 3. **配对你的服务器。** 复制 App 生成的一行命令，在 **Linux x64** 或启用了 systemd 的 **WSL2 Ubuntu 24.04** 上运行。安装器把独立的 Node 24、Hermes 和节点服务装进 `~/.nekodot`，不改动系统环境。
 4. **添加模型来源。** 在设置里用账号授权登录，或填写自定义 API 的名称、地址和 Key。
 5. **创建 Bot。** 起个名字，选好形象、来源和模型，写一句它负责什么。需要协作时，再建一个群。
@@ -194,9 +194,9 @@ pnpm native:analyze && pnpm native:test
 自动化测试使用录制的真实 Hermes 事件回放，不调用付费模型。本地运行、远程 Relay 调试、节点数据位置与测试策略见 [开发说明](docs/development.md)。Flutter 客户端的构建与验收范围见 [原生客户端记录](docs/side-phase-3-native-product.md)；旧 Tauri 客户端见 [客户端说明](docs/client-development.md)。
 
 ```text
-apps/native            Flutter Windows / Android 客户端（候选）与原生 RFB 屏幕
+apps/native            Flutter Windows / Android 产品客户端与原生 RFB 屏幕
 apps/web               React 网页与同步逻辑
-apps/client            Tauri 2 Windows / Android 宿主（已发布的 0.1.x）
+apps/client            旧 Tauri 2 宿主（保留源码，0.2.0 不构建此路径）
 apps/site              双语静态官网
 apps/relay             账号、配对、WebSocket 路由、文件转发与节点发布通知
 apps/node              节点：持久化、Hermes 接入、群聊路由与自动更新
@@ -220,7 +220,8 @@ docs                   开发说明、Hermes 调研、实施记录与截图
 - [x] 同账号共享用户记忆
 - [x] 节点签名更新与自动回滚
 - [x] Flutter Windows / Android 客户端
-- [ ] 0.2.0 发布：Windows 干净安装、Android 真机、后台通知验收
+- [x] 0.2.0 开发者预览版
+- [ ] Windows 干净用户安装、Android 真机与后台通知完整验收
 - [ ] PWA：添加到手机主屏幕
 - [ ] macOS 与 ARM 节点
 

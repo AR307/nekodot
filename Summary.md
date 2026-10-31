@@ -505,3 +505,9 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 官网按 impeccable 的 Persuade 文档重做，配色跟随 Windows 客户端：纯黑白，只有 Bot 头像有颜色。首屏是下载按钮和站在窗口上的 8 个头像，眼睛跟随指针。
 - 回放改成客户端窗口样式，新增「停下来问你」场景；新增 8 形象 16 颜色的头像选择、Windows / Android 黑白分屏、滚动切换的功能窗口。截图全部换成 Flutter 客户端的演示数据实拍。
 - README 和官网补上多模型来源、共享用户记忆、原生提问、Bot 欢迎、节点自动更新和 Flutter 客户端，移除 OpenRouter 专用说法。README 写明 0.2.0 仍是候选版。详见 docs/progress.md。
+
+## 2026-10-31 / 0.2.0 发布构建与候选验收
+
+- 统一为 0.2.0 开发者预览版；Flutter 0.2.0+5，Android arm64 versionCode 2005。Windows 安装包与 Android 原签名包构建通过，保留 MIT 及 Windows 未签名说明。
+- 使用用户在仓库外生成的生产密钥盖章 Node，Relay 镜像在本地构建并实际启动；明确打包发布清单。候选服务使用生产数据库副本，SMTP TLS/认证、旧账号补验、登录/退出与 WS 撤销通过。
+- Node 24 frozen install、lint/typecheck、23 文件 / 36 项测试、build，Flutter analyze 与 11 项测试通过；新官网 12 组 Edge 视觉/交互检查通过。线上切换和发布结果另行追加，不把真机通知等遗留项标记完成。

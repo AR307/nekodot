@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-10-31T08:12:54.602Z",
+  "database": "isolated clone of production",
+  "existingPasswordPreserved": true,
+  "existingAccountRequiresEmailVerification": true,
+  "signupRequiresCode": true,
+  "passwordLogin": true,
+  "authenticatedWebsocket": true,
+  "logoutClosesWebsocket": true,
+  "revokedSessionRejected": true,
+  "productionAccountsModified": false
+}

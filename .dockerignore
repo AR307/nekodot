@@ -6,6 +6,7 @@
 !dist/distribution/
 !dist/distribution/install.sh
 !dist/distribution/nekodot-node.cjs
+!dist/distribution/nekodot-node.json
 !deploy/
 !deploy/docker/
 !deploy/docker/Dockerfile

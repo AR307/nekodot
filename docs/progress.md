@@ -638,3 +638,10 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 截图：`ui_tour_test` 在 Windows 上对 `.runtime/ui-stage.ts` 实拍，导出到 `apps/site/assets/shots/`。手机截图是 Windows 上按手机尺寸渲染的毛玻璃界面，不是 Android 设备实拍。演示节点补了版本号、中文欢迎语和更长的对话，这些改动只在 `.runtime`。
 - 验收：Edge 1440 / 768 / 390、浅深色、中英文、减少动态效果均无横向溢出和控制台错误；实际点击语言与主题切换、头像选择、三个回放场景、功能窗口滚动、导航和 Android 下载顺序通过。`eslint apps/site` 和 Prettier 通过。下载链接只核对了地址，本地静态服务没有安装包。
 - 未做：未部署、未 push。线上 `/downloads` 仍是 0.1.1，部署新官网前要先上传 0.2.0 安装包，否则页面和下载内容不一致。`desk-report-*.webp` 已不再使用，按约定保留，未删除。
+
+## 2026-10-31 / 0.2.0 发布构建与候选验收
+
+- 本轮统一根版本与部署镜像为 0.2.0，Flutter 为 0.2.0+5；Windows release/NSIS 和 Android arm64 signed release 通过，实际 versionCode 2005，Android 签名证书与旧包一致。Node 生产发布号 20261031080359，生产私钥未入库或上传。
+- 本地 Docker 构建的镜像脱离源码运行，发布清单及 argon2 可用；补齐 `.dockerignore` 的清单声明。服务器候选使用生产 SQLite 的独立副本，不修改正式账号；SMTP TLS/认证、旧密码进入补验、新登录/WS 和退出撤销通过。
+- 工作区 frozen install、lint、typecheck、23 文件 / 36 测试、build、Flutter analyze 和 11 项测试通过。Edge 390/768/1440、中英、浅深色/reduced-motion 的 12 组官网图片、布局及交互通过。
+- README、官网与发布说明明确为开发者预览版。生产切换、公网旅程和 GitHub 发布继续进行；Android 真机、后台通知及干净 Windows 用户等未验项目仍保留，详见 `release-0.2.0-acceptance.md`。
