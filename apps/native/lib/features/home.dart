@@ -13,6 +13,7 @@ import 'bot_editor.dart';
 import 'extensions.dart';
 import 'settings.dart';
 import 'pairing.dart';
+import 'node_update.dart';
 
 class HomePage extends StatefulWidget {
   final NekodotClient client;
@@ -436,6 +437,11 @@ class _HomePageState extends State<HomePage> {
         final tone = context.tone;
         final narrow = constraints.maxWidth < 840;
         final roomy = constraints.maxWidth >= 1000;
+        final updateCommand =
+            objects(c.me?['nodes'])
+                    .where((n) => n['nodeId'] == c.selectedNodeId)
+                    .firstOrNull?['updateCommand']
+                as String?;
         final active = c.node.conversations.where(
           (x) => x['kind'] == 'dm'
               ? c.node.bots.any(
@@ -477,6 +483,12 @@ class _HomePageState extends State<HomePage> {
         final list = Column(
           children: [
             tone.glass ? glassTop() : top(),
+            if (c.online && updateCommand != null)
+              NodeUpdateNotice(
+                key: ValueKey('${c.selectedNodeId}:$updateCommand'),
+                client: c,
+                command: updateCommand,
+              ),
             if (searching)
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),

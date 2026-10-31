@@ -9,7 +9,7 @@ import {
   type PersistedEvent,
   type LiveEvent,
 } from '@nekodot/protocol';
-import { cancelRpcRequests, newEnvelope, resolveRpc, rpc } from './api';
+import { cancelRpcRequests, fetchMe, newEnvelope, resolveRpc, rpc } from './api';
 import { useAppStore } from './store';
 import { relaySocketUrl } from './relay-url';
 import { showTaskNotification } from './features/notifications';
@@ -108,6 +108,14 @@ export function RelayConnection() {
     type Update = { type: 'event'; payload: PersistedEvent } | { type: 'live'; payload: LiveEvent };
     const queue: Update[] = [];
 
+    const refreshMe = () => {
+      void fetchMe()
+        .then((me) => {
+          if (!stopped && useAppStore.getState().token === token) useAppStore.getState().setMe(me);
+        })
+        .catch(() => console.warn('Could not refresh computer information from Relay'));
+    };
+
     const handleUpdate = (message: Update) => {
       if (syncing) {
         queue.push(message);
@@ -182,6 +190,7 @@ export function RelayConnection() {
           reconnectDelay = 1000;
           setClientReady(currentSocket);
           useAppStore.getState().setSocketReady(true);
+          refreshMe();
           void synchronize(currentSocket);
         } else if (message.type === 'notify' && message.nodeId) {
           void showTaskNotification({
@@ -190,10 +199,13 @@ export function RelayConnection() {
           });
         } else if (message.type === 'rpc.res') {
           if (message.replyTo) resolveRpc(message.replyTo, message.payload);
-        } else if (message.type === 'node.status' && message.nodeId === selectedNodeId) {
+        } else if (message.type === 'node.status' && message.nodeId) {
           const online = (message.payload as { online: boolean }).online;
-          useAppStore.getState().setNodeOnline(selectedNodeId, online);
-          if (online) void synchronize(currentSocket);
+          useAppStore.getState().setNodeOnline(message.nodeId, online);
+          if (online) {
+            refreshMe();
+            if (message.nodeId === selectedNodeId) void synchronize(currentSocket);
+          }
         } else if (
           (message.type === 'event' || message.type === 'live') &&
           message.nodeId === selectedNodeId

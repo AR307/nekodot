@@ -158,6 +158,20 @@ class NekodotClient extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> refreshMe() async {
+    final session = token;
+    if (session == null) return;
+    try {
+      final value = await request('/me');
+      if (_closed || token != session) return;
+      me = value;
+    } catch (e) {
+      if (_closed || token != session) return;
+      error = '$e';
+    }
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     await request('/auth/logout', method: 'POST', body: {});
     await clearSession();
@@ -343,6 +357,7 @@ class NekodotClient extends ChangeNotifier {
         ready = true;
         _retry = 1;
         error = '';
+        unawaited(refreshMe());
         if (selectedNodeId != null && node.online) {
           unawaited(synchronize(selectedNodeId!));
         }
@@ -364,6 +379,7 @@ class NekodotClient extends ChangeNotifier {
         for (final n in (me?['nodes'] as List? ?? [])) {
           if (n['nodeId'] == id) n['online'] = p['online'];
         }
+        if (p['online'] == true) unawaited(refreshMe());
         if (id == selectedNodeId && p['online'] == true) {
           unawaited(synchronize(id));
         }

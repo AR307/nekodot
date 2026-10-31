@@ -17,6 +17,7 @@ import { avatarColors, fill, listTime, type Texts } from '../shared';
 import { NodePicker } from './node-picker';
 import { readableMessageText } from './files';
 import { plainText } from './markdown';
+import { writeClipboard } from '../native';
 
 export type AppView = 'chats' | 'skills' | 'plugins';
 export const modKey = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl';
@@ -47,8 +48,11 @@ export function TeamSidebar({
   const me = useAppStore((state) => state.me);
   const node = useAppStore(selectNodeData);
   const socketReady = useAppStore((state) => state.socketReady);
+  const selectedNodeId = useAppStore((state) => state.selectedNodeId);
+  const updateCommand = me?.nodes.find((item) => item.nodeId === selectedNodeId)?.updateCommand;
   const setScreen = useAppStore((state) => state.setScreen);
   const [scrolled, setScrolled] = useState(false);
+  const [copied, setCopied] = useState(false);
   const activeBots = node.bots.filter((bot) => !bot.archived);
   const canGroup = activeBots.length >= 2 && node.online;
   const views: { value: AppView; label: string; icon: IconName }[] = [
@@ -86,6 +90,19 @@ export function TeamSidebar({
       </header>
       <div className={`sidebar-top${scrolled ? ' is-scrolled' : ''}`}>
         <NodePicker t={t} state={!node.online ? 'offline' : socketReady ? 'ok' : 'connecting'} />
+        {node.online && socketReady && updateCommand && (
+          <section className="command-box node-update-notice" role="status">
+            <span>{t.nodeNeedsUpdate}</span>
+            <code>{updateCommand}</code>
+            <button
+              className="copy-button"
+              onClick={() => void writeClipboard(updateCommand).then(() => setCopied(true))}
+            >
+              <Icon name={copied ? 'check' : 'copy'} />
+              {copied ? t.copied : t.copyCommand}
+            </button>
+          </section>
+        )}
         <button className="search-trigger" onClick={onPalette}>
           <Icon name="search" />
           <span>{t.searchJump}</span>

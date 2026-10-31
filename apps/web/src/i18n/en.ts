@@ -3,6 +3,7 @@ import { clientEn } from './client';
 import { providersEn } from './providers';
 import { userMemoryEn } from './user-memory';
 const en = {
+  nodeNeedsUpdate: 'This computer needs one update',
   ...userMemoryEn,
   ...providersEn,
   emailCode: 'Email code',

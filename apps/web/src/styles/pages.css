@@ -165,6 +165,11 @@
   font-weight: 500;
   white-space: nowrap;
 }
+.node-update-notice {
+  margin-block: 8px;
+  gap: 8px;
+  font-size: 13px;
+}
 .copy-button {
   align-self: flex-start;
   min-height: 40px;

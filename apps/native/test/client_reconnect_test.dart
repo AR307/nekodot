@@ -12,7 +12,13 @@ class Relay {
   final hello = <WebSocket>[];
   final requests = <Map<String, dynamic>>[];
   Relay(this.server) {
-    server.transform(WebSocketTransformer()).listen((socket) {
+    server.listen((request) async {
+      if (!WebSocketTransformer.isUpgradeRequest(request)) {
+        request.response.write(jsonEncode({'nodes': []}));
+        await request.response.close();
+        return;
+      }
+      final socket = await WebSocketTransformer.upgrade(request);
       sockets.add(socket);
       socket.listen((raw) {
         final frame = jsonDecode(raw as String) as Map<String, dynamic>;

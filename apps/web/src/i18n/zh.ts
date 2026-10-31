@@ -3,6 +3,7 @@ import { clientZh } from './client';
 import { providersZh } from './providers';
 import { userMemoryZh } from './user-memory';
 const zh = {
+  nodeNeedsUpdate: '这台电脑需要更新一次',
   ...userMemoryZh,
   ...providersZh,
   emailCode: '邮箱验证码',
