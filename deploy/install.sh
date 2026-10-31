@@ -88,7 +88,8 @@ if [ -s "$api_port_file" ]; then
 else
   api_port=18642
   while [ "$api_port" -le 18742 ]; do
-    if (exec 3<>"/dev/tcp/127.0.0.1/$api_port") 2>/dev/null; then
+    if (exec 3<>"/dev/tcp/127.0.0.1/$api_port") 2>/dev/null ||
+       (exec 3<>"/dev/tcp/127.0.0.1/$((api_port + 1))") 2>/dev/null; then
       api_port=$((api_port + 1))
     else
       break
