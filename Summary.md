@@ -460,3 +460,7 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 ## 2026-10-31 / Flutter 客户端密度调整
 
 - 按 impeccable 的 Operate 与 Android 规则收紧两端：控件高度电脑 32、手机 40（触控区 48），小圆角按内容宽度排布；输入框标签移到框外；统一线性图标；降低字重；去掉阴影加边框的组合和设置行的装饰图标。详见 docs/progress.md。
+
+## 2026-10-31 / 全量回归与提示条
+
+- 提示条改为居中、宽度贴合文字的短条。Windows 与 Android 模拟器 5 条原生旅程全部通过，Edge E2E 6 通过 / 1 跳过；`live_journey` 指向生产环境，未运行。详见 docs/progress.md。

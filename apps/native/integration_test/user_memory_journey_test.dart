@@ -13,8 +13,11 @@ void main() {
     'native shared memory confirmation, second computer, draft and return navigation',
     (tester) async {
       runApp(
-        const MaterialApp(
-          home: Scaffold(body: Center(child: CircularProgressIndicator())),
+        MaterialApp(
+          theme: appTheme(Brightness.light),
+          home: const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          ),
         ),
       );
       await tester.pump();
@@ -43,6 +46,7 @@ void main() {
 
       var converted = false;
       Future<void> screenshot(String name) async {
+        if (defaultTargetPlatform != TargetPlatform.android) return;
         if (defaultTargetPlatform == TargetPlatform.android && !converted) {
           await binding.convertFlutterSurfaceToImage();
           converted = true;
@@ -86,9 +90,16 @@ void main() {
       await until(() => find.text('记忆已保存').evaluate().isNotEmpty);
       await tester.pageBack();
       await until(() => find.byType(SharedUserMemoryPage).evaluate().isEmpty);
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      await tester.pageBack();
+      // Wide windows show details as a side panel beside the chat.
+      final closePanel = find.byTooltip('关闭');
+      if (closePanel.evaluate().isNotEmpty) {
+        await tester.tap(closePanel);
+        await tester.pump(const Duration(milliseconds: 300));
+      } else {
+        await tester.pageBack();
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pageBack();
+      }
       await until(() => find.byType(HomePage).evaluate().isNotEmpty);
       final second = objects(client.me?['nodes'])
           .firstWhere((n) => n['name'] == 'Computer B');

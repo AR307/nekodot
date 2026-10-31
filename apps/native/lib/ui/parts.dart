@@ -166,6 +166,35 @@ class AppPage extends StatelessWidget {
   );
 }
 
+/// A brief notice: centered, as wide as its text, above the dock and composer.
+void showNotice(BuildContext context, String text) {
+  const padding = 14.0;
+  final tone = context.tone;
+  final screen = MediaQuery.sizeOf(context).width;
+  final measured = TextPainter(
+    text: TextSpan(
+      text: text,
+      style: Theme.of(context).snackBarTheme.contentTextStyle,
+    ),
+    textDirection: TextDirection.ltr,
+    textScaler: MediaQuery.textScalerOf(context),
+  )..layout();
+  final width = math.min(
+    math.min(screen - 32, 420.0),
+    measured.width + padding * 2 + 2,
+  );
+  measured.dispose();
+  final side = (screen - width) / 2;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(text, textAlign: TextAlign.center),
+      padding: const EdgeInsets.symmetric(horizontal: padding, vertical: 7),
+      margin: EdgeInsets.fromLTRB(side, 0, side, tone.glass ? 76 : 60),
+      duration: Duration(seconds: text.length > 24 ? 4 : 2),
+    ),
+  );
+}
+
 /// A field with its label above it, always visible and never inside the box.
 class LabeledField extends StatelessWidget {
   final String label;

@@ -62,6 +62,37 @@ class JourneyClient extends NekodotClient {
 }
 
 void main() {
+  testWidgets('A notice is centered and only as wide as its text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 720);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: appTheme(Brightness.light, glass: false),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showNotice(context, '10 models'),
+              child: const Text('go'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('go'));
+    await tester.pumpAndSettle();
+    final bar = tester.getRect(find.byType(Material).last);
+    expect(bar.center.dx, closeTo(640, 1));
+    expect(bar.width, lessThan(200));
+    expect(bar.height, lessThan(44));
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(find.text('10 models'), findsNothing);
+  });
+
   testWidgets('A working Bot moves; idle and reduced-motion ones stay still', (
     tester,
   ) async {

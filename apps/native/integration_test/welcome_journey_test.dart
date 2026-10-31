@@ -80,7 +80,10 @@ void main() {
       client.node.messages[id]!.single['messageId'],
       messages.single['messageId'],
     );
-    await tester.pageBack();
+    // A wide window keeps the chat beside the list, with no page to leave.
+    if (find.byType(BackButton).evaluate().isNotEmpty) {
+      await tester.pageBack();
+    }
     await tester.pump(const Duration(milliseconds: 500));
     final failedId = await create('Maple Retry', 'retry-intro');
     await until(

@@ -37,14 +37,11 @@ class SettingsPage extends StatelessWidget {
                   final opened = await FlutterLocalNotificationsPlugin()
                       .openAppNotificationSettings();
                   if (opened != true && context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          client.tr(
-                            '请在系统设置中开启通知',
-                            'Allow notifications in system settings',
-                          ),
-                        ),
+                    showNotice(
+                      context,
+                      client.tr(
+                        '请在系统设置中开启通知',
+                        'Allow notifications in system settings',
                       ),
                     );
                   }
@@ -105,8 +102,7 @@ class SettingsPage extends StatelessWidget {
                       }
                     } catch (e) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(SnackBar(content: Text('$e')));
+                        showNotice(context, '$e');
                       }
                     }
                   },
@@ -300,14 +296,11 @@ class _CustomSourcePageState extends State<CustomSourcePage> {
                         {'sourceId': saved['sourceId'], 'refresh': true},
                       );
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              widget.client.tr(
-                                '${(catalog['models'] as List).length} 个模型',
-                                '${(catalog['models'] as List).length} models',
-                              ),
-                            ),
+                        showNotice(
+                          context,
+                          widget.client.tr(
+                            '${(catalog['models'] as List).length} 个模型',
+                            '${(catalog['models'] as List).length} models',
                           ),
                         );
                       }

@@ -517,8 +517,6 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      // Above the phone's dock and composer, so it never covers an action.
-      insetPadding: EdgeInsets.fromLTRB(16, 0, 16, frosted ? 76 : 60),
       backgroundColor: tone.ink,
       contentTextStyle: text.bodyMedium?.copyWith(color: tone.base),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

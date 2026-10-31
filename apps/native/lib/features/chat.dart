@@ -412,9 +412,12 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
                   disabledBorder: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: tone.glass ? 13 : 4,
+                  // CJK glyphs sit low on the Latin baseline; lift them onto the button's line.
+                  contentPadding: EdgeInsets.fromLTRB(
+                    8,
+                    tone.glass ? 11 : 2,
+                    8,
+                    tone.glass ? 15 : 6,
                   ),
                   hintText: c.tr('发消息', 'Message'),
                 ),
@@ -847,8 +850,7 @@ class MessageTile extends StatelessWidget {
                         });
                       } catch (e) {
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(SnackBar(content: Text('$e')));
+                          showNotice(context, '$e');
                         }
                       }
                     },

@@ -336,8 +336,7 @@ class _HomePageState extends State<HomePage> {
       await c.logout();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+        showNotice(context, '$e');
       }
     }
   }

@@ -584,3 +584,12 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 验证（真实 Node / Relay，Hermes 为回放）：最终代码上 Windows `product_journey`、Android `providers_journey` 通过；Android `product_journey` 在最后两处小改（转场时长、提示条位置）之前通过。Flutter analyze 与 8 项 widget 测试通过，Android 模拟器实拍已核对。
 - 未覆盖：用户要求尽快收尾，电脑版输入框高度的修复没有重新截图，只跑了功能流程；`extensions`、`welcome`、`user_memory`、`live` 旅程未跑；`providers_journey` 的截图步骤不支持 Windows；真机未测。未打包、未部署、未 push。
 - 证据：`docs/evidence/native-ui-density-android-light.png`、`native-ui-density-android-dark.png`。
+
+## 2026-10-31 / 全量回归与提示条
+
+- 提示条改为 `showNotice`：水平居中，宽度跟随文字（最宽 420），高度约 34，不再通栏；短提示 2 秒消失，长提示和错误 4 秒。位置在手机底部栏和输入框上方。电脑版输入框提示字按中文字形做了光学对齐。
+- 全部旅程在最终代码上重跑。Windows 与 API 35 x64 Android 模拟器：`product`、`providers`、`extensions`、`welcome`、`user_memory` 全部通过（真实 Node / Relay，Hermes 回放）。Flutter analyze 与 9 项 widget 测试通过。
+- Edge E2E：6 通过，1 跳过（`screens-live` 需真实 Linux 屏幕）。之前提到的 `private-chat.spec.ts` 按位置点色块未受影响。运行前快照了 `docs/evidence`，结束后按字节恢复，他人未提交的截图保持原样。该项运行后只改了 Flutter，Web 代码未变。
+- 测试修正：多处假设“手机推页面”的返回逻辑改为兼容电脑版侧边面板；启动占位页带上主题；截图步骤只在 Android 执行；等待转场、提示条和懒加载列表，避免慢速模拟器上的时序失败。修过程中发现并修复一个真实问题：提示条曾盖住手机底部的“+”。
+- 未覆盖：`live_journey`（配置指向生产环境 nekodot.com，会调用真实模型并接管屏幕，未经确认不跑）、`screens-live`、真机通知与性能。未打包、未部署、未 push。
+- 证据：`docs/evidence/native-ui-notice-*.png`、`native-ui-density-desk-*.png`。

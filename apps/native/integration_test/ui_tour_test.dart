@@ -133,6 +133,9 @@ void main() {
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pumpWidget(app(HomePage(client: client)));
         await shot('$tag-home');
+        showNotice(navigator.currentContext!, '10 个模型');
+        await shot('$tag-notice');
+        await run(const Duration(milliseconds: 2500));
         await tester.tap(find.byTooltip('新建'));
         await shot('$tag-menu');
         navigator.currentState!.pop();

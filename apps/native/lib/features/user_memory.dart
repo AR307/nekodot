@@ -89,9 +89,7 @@ class _SharedUserMemoryPageState extends State<SharedUserMemoryPage> {
         edited = false;
         text.text = '${state?['content'] ?? ''}';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(widget.client.tr('记忆已保存', 'Memory saved'))),
-      );
+      showNotice(context, widget.client.tr('记忆已保存', 'Memory saved'));
     } catch (e) {
       if (mounted) setState(() => error = '$e');
     } finally {

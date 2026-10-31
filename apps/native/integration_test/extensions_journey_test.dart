@@ -67,6 +67,8 @@ void main() {
       await tester.tap(find.byType(BackButton));
       await tester.pump(const Duration(milliseconds: 500));
       await until(() => find.text('完整内容').evaluate().isNotEmpty);
+      // The full page has to finish leaving before its Back button is gone.
+      await until(() => find.byType(BackButton).evaluate().length == 1);
       await tester.pageBack();
       await tester.pump(const Duration(milliseconds: 500));
       expect(

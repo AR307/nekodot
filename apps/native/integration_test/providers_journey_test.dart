@@ -33,7 +33,11 @@ void main() {
       }
 
       Future<void> tap(Finder finder) async {
-        await tester.ensureVisible(finder);
+        await until(() => finder.evaluate().isNotEmpty);
+        // Centered, so a bar or suggestion list cannot cover the target.
+        await Scrollable.maybeOf(tester.element(finder))?.position
+            .ensureVisible(tester.renderObject(finder), alignment: .5);
+        await tester.pump(const Duration(milliseconds: 200));
         await tester.tap(finder);
         await tester.pump(const Duration(milliseconds: 500));
       }
@@ -43,6 +47,13 @@ void main() {
           of: find.widgetWithText(LabeledField, label),
           matching: find.byType(TextField),
         );
+        if (field.evaluate().isEmpty) {
+          await tester.scrollUntilVisible(
+            field,
+            200,
+            scrollable: find.byType(Scrollable).first,
+          );
+        }
         await tester.ensureVisible(field);
         await tester.enterText(field, text);
         await tester.pump(const Duration(milliseconds: 200));
@@ -50,6 +61,7 @@ void main() {
 
       var surfaceConverted = false;
       Future<void> screenshot(String name) async {
+        if (defaultTargetPlatform != TargetPlatform.android) return;
         await tester.pump(const Duration(milliseconds: 300));
         if (defaultTargetPlatform == TargetPlatform.android &&
             !surfaceConverted) {
@@ -123,6 +135,7 @@ void main() {
       await tap(find.byTooltip('新建'));
       await tap(find.text('新建 Bot'));
       await until(() => find.byType(BotEditor).evaluate().isNotEmpty);
+      await until(() => find.byType(SnackBar).evaluate().isEmpty);
       await fill('名称', 'Maple');
       await fill('@handle', 'maple-sources');
       await fill('角色设定', 'Helpful source specialist');
@@ -132,7 +145,15 @@ void main() {
       );
       await tap(sourceField);
       await tap(find.text('Writing API').last);
+      // The picked source rebuilds the model field once its menu has closed.
+      await until(
+        () => find.byType(DropdownMenuItem<String>).evaluate().length <= 3,
+      );
+      await tester.pump(const Duration(milliseconds: 500));
       await fill('模型', 'recorded-model');
+      // Leaving the field closes its suggestions, which cover what is below.
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump(const Duration(milliseconds: 300));
       await tap(find.text('高级'));
       await fill('上下文覆盖', '64000');
       debugPrint('QA: native source bot form ready');
