@@ -117,6 +117,7 @@ export async function userMemoryEnvironment(port = 0) {
     );
     const connect = () => {
       const connection = connectRelay({
+        version: 'development',
         credentials,
         handleRpc: (request) => app.handle(request),
         userMemory: app.userMemory,

@@ -128,6 +128,7 @@ test('Bot details, native memory editing, library download, extension catalog an
       content: { text: 'Delivered report', files: [fileId] },
     });
     connection = connectRelay({
+      version: 'development',
       credentials,
       handleRpc: (req) => app.handle(req),
       userMemory: app.userMemory,

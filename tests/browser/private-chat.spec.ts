@@ -151,6 +151,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   services.app = new NodeApplication(services.nodeHome, runtime);
   const connectNode = () => {
     services.connection = connectRelay({
+      version: 'development',
       credentials: services.credentials!,
       handleRpc: (request) => services.app!.handle(request),
       onReady: () => services.app?.activities(),
@@ -477,6 +478,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   const secondCredentials = await pairNode(secondHome, relayUrl, secondCode!, 'Second computer');
   services.secondApp = new NodeApplication(secondHome, runtime);
   services.secondConnection = connectRelay({
+    version: 'development',
     credentials: secondCredentials,
     handleRpc: (request) => services.secondApp!.handle(request),
     onReady: () => services.secondApp!.activities(),

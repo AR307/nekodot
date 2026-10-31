@@ -59,6 +59,7 @@ async function until(condition: () => boolean | Promise<boolean>, label: string)
 }
 const attach = (app: NodeApplication, credentials: Awaited<ReturnType<typeof pairNode>>) => {
   const connection = connectRelay({
+    version: 'development',
     credentials,
     handleRpc: (request) => app.handle(request),
     userMemory: app.userMemory,

@@ -10,6 +10,8 @@ import { pairNode } from './pair';
 import { ManagedHermes } from './hermes/runtime';
 import { connectRelay } from './connection';
 import { NodeApplication } from './app';
+import { NodeUpdater } from './updater';
+import { nodeVersion, releaseKey, isRelease } from './release';
 
 async function main() {
   const { values, positionals } = parseArgs({
@@ -54,13 +56,31 @@ async function main() {
     await runtime.start();
     const app = new NodeApplication(home, runtime);
     appRef.current = app;
+    const updater = new NodeUpdater({
+      home,
+      relayUrl: credentials.relayUrl,
+      version: nodeVersion,
+      releaseKey,
+      file: typeof __filename === 'string' ? __filename : '',
+      idle: () => app.idle,
+      restart: async () => {
+        await shutdown();
+        process.exit(75);
+      },
+      log: (message) => log.info({ service: 'nekodot-node' }, message),
+    });
     const connection = connectRelay({
       credentials,
+      version: nodeVersion,
+      onUpdate: () => {
+        if (isRelease) void updater.offer();
+      },
       handleRpc: (request) => app.handle(request),
       userMemory: app.userMemory,
       handleTransfer: (request) => app.files.transfer(request),
       onTunnel: (request) => app.screens.openTunnel(credentials, request),
-      onReady: () => {
+      onReady: async () => {
+        await updater.confirmReady();
         if (process.env.NOTIFY_SOCKET)
           execFile(
             'systemd-notify',
@@ -88,6 +108,7 @@ async function main() {
     async function shutdown() {
       if (closing) return;
       closing = true;
+      updater.close();
       connection.close();
       await runtime.close();
       await app.close();

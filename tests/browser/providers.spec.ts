@@ -69,6 +69,7 @@ test('Edge manages coexisting sources, selects a source in the Bot form, and sho
   };
   const app = new NodeApplication(join(home, 'node'), runtime);
   const connection = connectRelay({
+    version: 'development',
     credentials,
     handleRpc: (request) => app.handle(request),
     onReady: () => app.activities(),

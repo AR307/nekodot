@@ -175,6 +175,7 @@ if (!welcome && !sources) {
   }
 }
 const connection = connectRelay({
+  version: 'development',
   credentials,
   handleRpc: async (request) => {
     const result = await app.handle(request);

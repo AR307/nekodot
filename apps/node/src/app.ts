@@ -53,6 +53,16 @@ export class NodeApplication {
   private readonly streamingTexts = new Map<string, string>();
   private readonly appliedSeq = new Map<string, number>();
 
+  get idle() {
+    return (
+      this.activeRuns.size === 0 &&
+      this.consumers.size === 0 &&
+      this.database.runs().length === 0 &&
+      this.database.chains().length === 0 &&
+      !this.operations.list().some((operation) => operation.status === 'running')
+    );
+  }
+
   constructor(
     home: string,
     readonly hermes: HermesRuntime,
@@ -603,7 +613,7 @@ export class NodeApplication {
         error instanceof NodeFault
           ? error.message
           : 'Could not start this run. Check the provider and try again.';
-      const idle = this.idle(run);
+      const idle = this.idleRun(run);
       if (run.groupId) await this.finishGroupRun(run, 'failed', failed.content.text);
       else {
         this.database.putMessage(failed, { runId: run.runId }, idle);
@@ -1054,7 +1064,7 @@ export class NodeApplication {
     }
   }
 
-  private idle(run: RunRecord): RunRecord {
+  private idleRun(run: RunRecord): RunRecord {
     return { ...run, state: 'idle' };
   }
 
@@ -1275,14 +1285,14 @@ export class NodeApplication {
     if (!message.content.text) message.content = { ...message.content, text };
     message.content.failureReason = text;
     message.status = 'failed';
-    this.database.putMessage(message, { runId: run.runId }, this.idle(run));
+    this.database.putMessage(message, { runId: run.runId }, this.idleRun(run));
     run.state = 'idle';
     if (run.groupId) {
       await this.finishGroupRun(run, 'failed', text);
       return;
     }
     this.activeRuns.delete(run.conversationId);
-    this.publishActivity(this.idle(run));
+    this.publishActivity(this.idleRun(run));
     await this.userMemory.sync();
     this.notifications.send({
       notificationId: `run:${run.runId}`,

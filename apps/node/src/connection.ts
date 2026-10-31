@@ -26,9 +26,11 @@ export interface NodeCredentials {
 }
 export interface NodeConnectionOptions {
   credentials: NodeCredentials;
+  version: string;
+  onUpdate?: () => void;
   handleRpc: (request: ReturnType<typeof rpcRequestSchema.parse>) => Promise<unknown>;
   handleTransfer?: (request: TransferRequest) => Promise<TransferResponse>;
-  onReady?: () => void;
+  onReady?: () => void | Promise<void>;
   onStatus?: (online: boolean) => void;
   onError?: (message: string) => void;
   onTunnel?: (request: TunnelOpen) => void;
@@ -80,7 +82,7 @@ export function connectRelay(options: NodeConnectionOptions) {
       options.credentials.relayUrl.replace(/^http/, 'ws').replace(/\/$/, '') + '/ws/node',
     );
     socket.on('open', () =>
-      send(frame('hello', { nodeToken: options.credentials.nodeToken, version: '1.0.0' })),
+      send(frame('hello', { nodeToken: options.credentials.nodeToken, version: options.version })),
     );
     socket.on('message', (raw) => {
       void receive().catch(() => socket.close(1008, 'Invalid relay message'));
@@ -95,7 +97,12 @@ export function connectRelay(options: NodeConnectionOptions) {
           ready = true;
           options.userMemory?.online(true);
           options.onStatus?.(true);
-          options.onReady?.();
+          await options.onReady?.();
+          return;
+        }
+        if (envelope.type === 'node.update') {
+          payloadSchemas['node.update'].parse(envelope.payload);
+          options.onUpdate?.();
           return;
         }
         if (envelope.type === 'memory.user.res') {

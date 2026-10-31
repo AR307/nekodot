@@ -58,6 +58,7 @@ it('pairs through HTTP, saves private credentials and serves persisted state ove
     ready = resolve;
   });
   const connection = connectRelay({
+    version: 'development',
     credentials,
     onReady: ready,
     handleRpc: async () => ({

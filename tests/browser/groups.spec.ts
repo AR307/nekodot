@@ -83,6 +83,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     };
     const connect = () => {
       connection = connectRelay({
+        version: 'development',
         credentials,
         handleRpc: (request) => app!.handle(request),
         onReady: () => app!.activities(),
