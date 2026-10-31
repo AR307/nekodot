@@ -181,15 +181,38 @@ if [ "$with_computer" = true ]; then
     fi
   fi
 fi
-curl -fSL --retry 3 --retry-delay 1 "$relay/downloads/nekodot-node.cjs" -o "$home/bin/nekodot-node.cjs"
+curl -fSL --retry 3 --retry-delay 1 "$relay/downloads/nekodot-node.cjs" -o "$home/bin/nekodot-node.cjs.install-$$"
+mv -f "$home/bin/nekodot-node.cjs.install-$$" "$home/bin/nekodot-node.cjs"
+mkdir -p "$home/bin/recycle"
+for marker in update-pending update-tried update-rejected; do
+  if [ -f "$home/bin/$marker" ]; then
+    mv "$home/bin/$marker" "$home/bin/recycle/$marker-$(date +%s%N)"
+  fi
+done
 cat > "$home/bin/nekodot-node" <<EOF
 #!/usr/bin/env bash
+set -e
 export NEKODOT_HOME='$home'
 export NEKODOT_HERMES_SOURCE='$source_dir'
 export NEKODOT_HERMES_RUNTIME='$HERMES_RUNTIME_DIR'
 export NEKODOT_HERMES_API_PORT='$api_port'
 export UV_INDEX_URL='https://pypi.org/simple'
 export PATH='$node_root/bin':\$PATH
+bin='$home/bin'
+if [ "\${1:-}" = run ] && [ -f "\$bin/update-pending" ]; then
+  if [ -f "\$bin/update-tried" ]; then
+    mv -f "\$bin/nekodot-node.cjs.previous" "\$bin/nekodot-node.cjs"
+    mkdir -p "\$bin/recycle"
+    if [ -f "\$bin/update-rejected" ]; then
+      mv "\$bin/update-rejected" "\$bin/recycle/update-rejected-\$(date +%s%N)"
+    fi
+    mv "\$bin/update-pending" "\$bin/update-rejected"
+    mv "\$bin/update-tried" "\$bin/recycle/update-tried-\$(date +%s%N)"
+    printf '%s\n' 'Node update did not become ready; restored the previous release.' >&2
+  else
+    : > "\$bin/update-tried"
+  fi
+fi
 exec '$node_root/bin/node' '$home/bin/nekodot-node.cjs' "\$@"
 EOF
 chmod 700 "$home/bin/nekodot-node"
