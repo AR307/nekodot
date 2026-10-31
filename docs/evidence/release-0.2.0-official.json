@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-10-31T09:01:04.435Z",
+  "name": "nekodot 0.2.0",
+  "url": "https://github.com/AR307/nekodot/releases/tag/v0.2.0",
+  "tag": "v0.2.0",
+  "prerelease": false,
+  "draft": false,
+  "latest": true,
+  "assetsPreserved": true,
+  "assets": [
+    {
+      "name": "nekodot-android-arm64.apk",
+      "bytes": 34054104
+    },
+    {
+      "name": "nekodot-windows-x64.exe",
+      "bytes": 15684634
+    }
+  ]
+}

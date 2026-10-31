@@ -1,6 +1,6 @@
 # 0.2.0 发布验收
 
-版本为 **0.2.0 开发者预览版**，Flutter `0.2.0+5`，Android arm64 versionCode `2005`。原生界面、官网和 README 采用本轮重新设计的黑白视觉。保留旧包、参考资料、profiles、历史和其他人的未提交截图。
+版本为 **0.2.0 正式版**，Flutter `0.2.0+5`，Android arm64 versionCode `2005`。原生界面、官网和 README 采用本轮重新设计的黑白视觉。保留旧包、参考资料、profiles、历史和其他人的未提交截图。
 
 ## 构建与独立候选
 
@@ -23,7 +23,7 @@
 - 公网 HTTPS/WSS 经升级后的 Relay 与 Node，调用原 Hermes profile 获得真实流式回复 `NEKODOT_020_RELEASE_OK`；同一 clientMsgId 重复提交返回同一消息，只新增一次用户输入。该检查使用原有 QA 账号的 15 分钟内部验收会话，完成后已撤销，不作为新的邮箱登录验收。
 - Windows / Android 官网包实际完整下载通过，分别为 15,684,634 / 34,054,104 字节；Node 发布号为 `20261031080359`。本轮没有重跑所有原生安装、系统通知或屏幕输入旅程。
 - 为 www 入口补充规范域名重定向并 reload Caddy，四种 HTTP/HTTPS 与裸域名/www 入口最终均到 HTTPS 官网；没有重启其他产品。
-- GitHub 交付入口为 [v0.2.0](https://github.com/AR307/nekodot/releases/tag/v0.2.0)，按开发者预览版发布，保留 v0.1.0。两个资产已上传，名称和大小与官网下载包一致；源码使用正常 fast-forward 推送，不强制覆盖已有分支。
+- GitHub 交付入口为 [v0.2.0](https://github.com/AR307/nekodot/releases/tag/v0.2.0)，按正式版发布并设为 Latest，保留 v0.1.0。两个资产已上传，名称和大小与官网下载包一致；源码使用正常 fast-forward 推送，不强制覆盖已有分支。
 - 发布后以未登录请求完整下载 GitHub 两个资产，均为 HTTP 200，文件大小及 EXE / APK 类型正确。[标签 CI](https://github.com/AR307/nekodot/actions/runs/41186188808) 全部通过。另一轮同提交的群聊测试在配对页显示“准备命令”时提前提取验证码，造成空匹配；后续 main 仅将该断言改为等待真实配对码，再跑隔离 Edge 完整群聊旅程通过。已发布标签及安装包保留不变。
 
 ## 官网缓存修复
@@ -39,3 +39,7 @@
 ## 保留的验收边界
 
 此前真实 Hermes、自定义 API、Codex 原生授权、共享记忆、原生屏幕及 Windows / Android 模拟器旅程沿用模块报告，不重复冒称本次全部重跑。Android 真机、后台 / 锁屏通知、干净 Windows 用户安装、完整系统选择器和全原生视觉矩阵仍未完成。Phase 3 的长期通路与手机真机恢复项目继续保留。
+
+## 正式版标识核对
+
+用户确认后，现有 v0.2.0 已转为正式版并设为 GitHub Latest；官网中英文、README 和 Release 正文同步。两个原安装包与既有标签保留，服务无需重启。GitHub API、Edge 普通刷新与语言切换已核对，记录为 `evidence/release-0.2.0-official.json`、`evidence/release-0.2.0-official-site.json`；本次标识调整不改变上面的实际验收范围。

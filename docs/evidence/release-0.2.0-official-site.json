@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-10-31T09:01:17.795Z",
+  "browser": "Existing Edge tab, ordinary reload",
+  "chinese": "0.2.0 正式版。Windows 10 / 11 x64，安装器未做发布者签名。Android 10+ arm64，APK 已签名。Android 真机与后台通知仍待完整验收。",
+  "english": "0.2.0 release. Windows 10 / 11 x64; the installer is not publisher-signed. Android 10+ arm64; the APK is signed. Physical Android devices and background notifications still need full acceptance.",
+  "downloadButtons": 2,
+  "downloadNote": "0.2.0 正式版。Windows 10 / 11 x64，安装器未做发布者签名。Android 10+ arm64，APK\n              已签名。Android 真机与后台通知仍待完整验收。",
+  "language": "zh-CN",
+  "script": "main.js?v=0.2.0-release"
+}
