@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-10-31T08:43:28.841Z",
+  "browser": "Existing Edge tab, ordinary reload",
+  "background": "rgb(255, 255, 255)",
+  "crewSvgCount": 8,
+  "firstImage": {
+    "loaded": true,
+    "src": "assets/shots/desk-group-light.webp?v=0.2.0"
+  },
+  "script": "main.js?v=0.2.0",
+  "styles": ["styles.css?v=0.2.0"],
+  "theme": "light"
+}

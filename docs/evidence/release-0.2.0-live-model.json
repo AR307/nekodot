@@ -1,0 +1,17 @@
+{
+  "checkedAt": "2026-10-31T08:28:48.363Z",
+  "version": "0.2.0",
+  "environment": "public HTTPS/WSS product services",
+  "authentication": "15-minute internal session for pre-existing QA account; not mailbox/login acceptance",
+  "realModel": true,
+  "nativeAuthorizationCatalog": true,
+  "screenStateReadable": true,
+  "result": "NEKODOT_020_RELEASE_OK",
+  "finalMessageId": "b7bc7b5f-7cd7-4f73-aea3-16763d515fdd",
+  "streaming": true,
+  "idempotentSend": true,
+  "oneNewUserMessage": true,
+  "textPreserved": true,
+  "toolsStarted": 0,
+  "qaSessionRevoked": true
+}

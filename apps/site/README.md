@@ -13,6 +13,7 @@
 - 字体为 Nunito 与 JetBrains Mono（SIL OFL 1.1，见 `assets/fonts/OFL.txt`）。
 - 截图由 `apps/native/integration_test/ui_tour_test.dart` 对真实 Flutter 客户端拍摄，使用演示数据，导出到 `assets/shots/`。
 - 下载按钮指向 `/downloads/` 的固定文件名，页面不写版本号；部署新界面时要同时替换安装包。
+- 样式、脚本和产品截图使用发布版本查询参数。改版发布时同步递增这些地址，避免 CDN 或已打开的浏览器把新页面与旧资源混用。
 
 本地预览需要通过 HTTP 打开（直接双击文件时浏览器会拦截字体预加载）：
 

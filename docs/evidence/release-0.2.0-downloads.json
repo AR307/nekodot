@@ -1,0 +1,24 @@
+{
+  "checkedAt": "2026-10-31T08:27:03.144Z",
+  "version": "0.2.0",
+  "https": true,
+  "downloads": [
+    {
+      "file": "nekodot-windows-x64.exe",
+      "httpStatus": 200,
+      "bytes": 15684634,
+      "contentType": "application/vnd.microsoft.portable-executable",
+      "binaryType": true
+    },
+    {
+      "file": "nekodot-android-arm64.apk",
+      "httpStatus": 200,
+      "bytes": 34054104,
+      "contentType": "application/vnd.android.package-archive",
+      "binaryType": true
+    }
+  ],
+  "installerPublicOrigin": true,
+  "nodeVersion": "20261031080359",
+  "liveScreenshots": true
+}

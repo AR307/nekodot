@@ -645,3 +645,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 本地 Docker 构建的镜像脱离源码运行，发布清单及 argon2 可用；补齐 `.dockerignore` 的清单声明。服务器候选使用生产 SQLite 的独立副本，不修改正式账号；SMTP TLS/认证、旧密码进入补验、新登录/WS 和退出撤销通过。
 - 工作区 frozen install、lint、typecheck、23 文件 / 36 测试、build、Flutter analyze 和 11 项测试通过。Edge 390/768/1440、中英、浅深色/reduced-motion 的 12 组官网图片、布局及交互通过。
 - README、官网与发布说明明确为开发者预览版。生产切换、公网旅程和 GitHub 发布继续进行；Android 真机、后台通知及干净 Windows 用户等未验项目仍保留，详见 `release-0.2.0-acceptance.md`。
+
+## 2026-10-31 / 0.2.0 线上部署与官网缓存修复
+
+- 本地构建的 Relay 镜像、生产签名 Node、Flutter Windows / Android 包与官网已部署，原账号、节点、profiles、历史及浏览器资料保留。首次安装被项目 PM 输入目录旧属主阻断，保存现场后仅修正输入子树属主，重跑官方流程上线；其他三个产品容器身份、启动时间和重启次数不变。
+- 独立源码 frozen install、lint、typecheck、test、build 通过，Edge 7 通过 / 1 真实屏幕专项跳过。公网 HTTPS/WSS 真实回复 `NEKODOT_020_RELEASE_OK`、流式文本与重复消息去重通过；只使用短期内部 QA 会话且已撤销，未冒称重新完成邮箱登录。官网下载两包及 Node 发布号已核对。
+- 用户截图与实际 Edge 标签确认 CDN/浏览器旧缓存导致新 HTML 使用旧 CSS、JS、截图。统一为资源增加 `?v=0.2.0`，包含主题切换的动态截图；只发布三个站点文件，保留旧文件，不重建或重启服务。用户原标签普通刷新后白底、猫 logo、8 个头像及新 Flutter 主图均正确。
+- `www` 曾出现 TLS 错误，已追加规范域名重定向并 reload Caddy，四种入口最终均到 HTTPS 官网。没有重启共享服务器或其他应用。
+- 新增脱敏公网模型、下载与实际缓存修复截图证据；GitHub 发布后补最终版本信息。Android 真机/后台 FCM、Windows 干净用户与完整原生视觉矩阵继续待验。

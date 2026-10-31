@@ -17,7 +17,23 @@
 
 ## 部署与发布
 
-准备阶段已保存账号数据库副本和服务基线；线上服务切换、实际公网旅程与 GitHub 发布结果在完成后追加。原有服务仍保持可用，未把候选测试写成线上通过。
+- 独立源码导出执行 frozen install、lint、typecheck、test、build 全部通过；Edge E2E 为 7 通过 / 1 真实 Linux 屏幕专项跳过。未共享工作区依赖，回归截图写在独立目录。
+- 生产 Relay、项目 Node、官网及双端下载已切换至本次版本。切换前保存数据库、程序及站点备份，账号、节点、Bot 与消息数量没有减少；既有 profiles、浏览器资料保留。共享服务器的其他三个容器身份、启动时间和重启次数保持不变。
+- Node 安装首次被之前验收留下的 PM 输入目录属主阻断；先保留该目录，再仅修正项目输入子树的属主。重跑官方安装流程后服务上线、Relay 握手通过，未绕过 Hermes 检查或修改全局环境。
+- 公网 HTTPS/WSS 经升级后的 Relay 与 Node，调用原 Hermes profile 获得真实流式回复 `NEKODOT_020_RELEASE_OK`；同一 clientMsgId 重复提交返回同一消息，只新增一次用户输入。该检查使用原有 QA 账号的 15 分钟内部验收会话，完成后已撤销，不作为新的邮箱登录验收。
+- Windows / Android 官网包实际完整下载通过，分别为 15,684,634 / 34,054,104 字节；Node 发布号为 `20261031080359`。本轮没有重跑所有原生安装、系统通知或屏幕输入旅程。
+- 为 www 入口补充规范域名重定向并 reload Caddy，四种 HTTP/HTTPS 与裸域名/www 入口最终均到 HTTPS 官网；没有重启其他产品。
+- GitHub 发布链接及资产结果在发布完成后追加。
+
+## 官网缓存修复
+
+用户已打开的 Edge 标签实际复现：新 HTML 加载旧 `styles.css`、`main.js` 和截图，表现为米色背景、缺少八个头像及旧 React 界面。干净浏览器检查未覆盖这条路径，不能证明现有用户已经更新。
+
+样式、脚本、图标和截图地址统一增加 `?v=0.2.0`，主题切换产生的截图地址也保留版本参数。只上传站点文件，原文件另存保留，没有重建 Node、客户端包或重启服务。用户原 Edge 标签正常刷新后，背景为白色、8 个头像已渲染，新 Flutter 主图加载成功；无需用户清缓存。
+
+修复后公网 Edge 再次完成 390 / 768 / 1440px、中英文、浅深色与 reduced-motion 的 12 组检查：所有截图加载、无横向溢出，语言、主题、头像与演示切换及 Android 下载优先级通过。记录为 `evidence/release-0.2.0-cache-fixed-site.json`。
+
+机器与视觉证据：`evidence/release-0.2.0-live-model.json`、`evidence/release-0.2.0-downloads.json`、`evidence/release-0.2.0-edge-cache-fixed.json`、`evidence/release-0.2.0-edge-cache-fixed.png`。
 
 ## 保留的验收边界
 

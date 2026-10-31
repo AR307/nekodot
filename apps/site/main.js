@@ -295,7 +295,7 @@ const currentTheme = () => root.dataset.theme ?? (systemDark.matches ? 'dark' : 
 function applyTheme() {
   const theme = currentTheme();
   document.querySelectorAll('img[data-shot]').forEach((image) => {
-    const next = `assets/shots/${image.dataset.shot}-${theme}.webp`;
+    const next = `assets/shots/${image.dataset.shot}-${theme}.webp?v=0.2.0`;
     if (!image.src.endsWith(next)) image.src = next;
   });
   document.querySelector('meta[name="theme-color"]').content =

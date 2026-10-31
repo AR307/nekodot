@@ -511,3 +511,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 统一为 0.2.0 开发者预览版；Flutter 0.2.0+5，Android arm64 versionCode 2005。Windows 安装包与 Android 原签名包构建通过，保留 MIT 及 Windows 未签名说明。
 - 使用用户在仓库外生成的生产密钥盖章 Node，Relay 镜像在本地构建并实际启动；明确打包发布清单。候选服务使用生产数据库副本，SMTP TLS/认证、旧账号补验、登录/退出与 WS 撤销通过。
 - Node 24 frozen install、lint/typecheck、23 文件 / 36 项测试、build，Flutter analyze 与 11 项测试通过；新官网 12 组 Edge 视觉/交互检查通过。线上切换和发布结果另行追加，不把真机通知等遗留项标记完成。
+
+## 2026-10-31 / 0.2.0 线上部署与官网缓存修复
+
+- 生产 Relay、项目 Node、官网及双端下载已更新，账号、profiles、历史与浏览器资料保留；其他产品容器没有重启。首次 Node 安装遇到项目 PM 输入目录属主问题，保留原目录后局部修正并完成安装，不改 Hermes 核心。
+- 公网 HTTPS/WSS 真实流式回复及重复 clientMsgId 去重通过，临时内部验收会话已撤销；不作为新的真实邮箱登录验证。官网两个包实际完整下载成功。独立源码全部基础检查和 Edge 7 通过 / 1 实屏专项跳过。
+- 在用户原有 Edge 标签复现新版 HTML 混用 CDN/浏览器旧资源；给 CSS、JS、截图及主题切换地址加发布版本。上线后普通刷新已显示白底、猫 logo、8 头像和新版 Flutter 截图，无需清缓存。原站点文件保留，无服务重启。
+- 记录见 `docs/release-0.2.0-acceptance.md`。GitHub 发布继续执行，真机通知、干净用户安装等未验项目保持待验。
