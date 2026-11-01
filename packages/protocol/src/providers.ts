@@ -39,4 +39,22 @@ export const modelInfoSchema = z.strictObject({
     note: z.string(),
   }),
 });
+export const hermesSettingFieldSchema = z.strictObject({
+  key: z.string(),
+  type: z.string(),
+  description: z.string(),
+  category: z.string(),
+  options: z.array(z.json()).optional(),
+  clearable: z.boolean().optional(),
+  value: z.json(),
+  sensitive: z.boolean(),
+  editable: z.boolean(),
+  configured: z.boolean(),
+});
+export const hermesSettingsSchema = z.strictObject({
+  botId: z.string(),
+  scope: z.literal('Hermes profile'),
+  categories: z.array(z.string()),
+  fields: z.array(hermesSettingFieldSchema),
+});
 export type ProviderSource = z.infer<typeof providerOutputSchema>;

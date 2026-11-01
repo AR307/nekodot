@@ -343,6 +343,10 @@ export class NodeApplication {
         return this.providers.models(request.params);
       case 'models.info':
         return this.providers.info(request.params.botId);
+      case 'hermes.settings.get':
+        return this.providers.settings(request.params.botId);
+      case 'hermes.settings.set':
+        return this.providers.setSetting(request.params);
       case 'bots.create': {
         const created = await this.bots.create(request.params);
         this.startWelcome(created.bot.botId, created.conversation.conversationId);

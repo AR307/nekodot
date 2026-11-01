@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { z } from 'zod';
 import {
   hermesModelOptionsSchema,
   type Bot,
@@ -9,6 +10,9 @@ import {
 import type { NodeDatabase } from './database';
 import type { HermesRuntime } from './hermes/runtime';
 import { NodeFault } from './fault';
+
+const sensitiveSettingName =
+  /(?:^|[._-])(?:.*(?:api[_-]?key|secret|password|credential|private[_-]?key)|(?:access|refresh|auth)?[_-]?token)$/i;
 
 interface NativeEndpoint {
   id: string;
@@ -26,6 +30,18 @@ interface NativeConfig {
   providers?: Record<string, Record<string, unknown>>;
   model?: { context_length?: number | null };
   compression?: { enabled?: boolean; threshold?: number; threshold_tokens?: number | null };
+  [key: string]: unknown;
+}
+interface NativeSetting {
+  type: string;
+  description?: string;
+  category?: string;
+  options?: unknown[];
+  clearable?: boolean;
+}
+interface NativeSettingsSchema {
+  fields: Record<string, NativeSetting>;
+  category_order: string[];
 }
 
 /** Owns source selection only. Credentials, grants, discovery and execution belong to Hermes. */
@@ -85,6 +101,85 @@ export class Providers {
       method: 'PUT',
       body: JSON.stringify({ config }),
     });
+  }
+  async settings(botId: string): Promise<RpcResult<'hermes.settings.get'>> {
+    const bot = this.database.bot(botId);
+    if (!bot || bot.archived) throw new NodeFault('not_found', 'Bot not found');
+    const [schema, config] = await Promise.all([
+      this.hermes.management.request<NativeSettingsSchema>('/api/config/schema', botId),
+      this.hermes.management.request<NativeConfig>('/api/config?include_defaults=true', botId),
+    ]);
+    const fields = Object.entries(schema.fields).map(([key, field]) => {
+      const path = key === 'model_context_length' ? [key] : key.split('.');
+      const current = path.reduce<unknown>(
+        (value, part) =>
+          value && typeof value === 'object' && !Array.isArray(value)
+            ? (value as Record<string, unknown>)[part]
+            : undefined,
+        config,
+      );
+      const sensitive = sensitiveSettingName.test(key);
+      const editable = !sensitive && key !== 'model' && key !== 'model_context_length';
+      return {
+        key,
+        type: field.type,
+        description: field.description ?? key,
+        category: field.category ?? 'general',
+        ...(field.options
+          ? { options: field.options.map((option) => z.json().parse(option)) }
+          : {}),
+        ...(field.clearable !== undefined ? { clearable: field.clearable } : {}),
+        value: z.json().parse(sensitive ? null : (current ?? null)),
+        sensitive,
+        editable,
+        configured: current !== undefined && current !== null && current !== '',
+      };
+    });
+    return {
+      botId,
+      scope: 'Hermes profile',
+      categories: schema.category_order,
+      fields,
+    };
+  }
+
+  async setSetting(input: RpcParams<'hermes.settings.set'>) {
+    const bot = this.database.bot(input.botId);
+    if (!bot || bot.archived) throw new NodeFault('not_found', 'Bot not found');
+    const schema = await this.hermes.management.request<NativeSettingsSchema>(
+      '/api/config/schema',
+      input.botId,
+    );
+    const field = schema.fields[input.key];
+    if (!field) throw new NodeFault('not_found', 'Hermes setting is not available');
+    if (sensitiveSettingName.test(input.key))
+      throw new NodeFault('invalid_params', 'Manage credentials in Hermes provider settings');
+    if (input.key === 'model' || input.key === 'model_context_length')
+      throw new NodeFault('invalid_params', 'Manage model settings in the Bot editor');
+    const valid =
+      (field.type === 'boolean' && typeof input.value === 'boolean') ||
+      (field.type === 'number' &&
+        typeof input.value === 'number' &&
+        Number.isFinite(input.value)) ||
+      (field.type === 'string' && typeof input.value === 'string') ||
+      (field.type === 'select' &&
+        ((field.options ?? []).some((option) => option === input.value) ||
+          (field.clearable === true && input.value === null))) ||
+      (field.type === 'list' && Array.isArray(input.value)) ||
+      (field.type === 'object' &&
+        typeof input.value === 'object' &&
+        input.value !== null &&
+        !Array.isArray(input.value));
+    if (!valid) throw new NodeFault('invalid_params', 'Value does not match the Hermes setting');
+    const config = input.key
+      .split('.')
+      .toReversed()
+      .reduce<unknown>((value, part) => ({ [part]: value }), input.value) as Record<
+      string,
+      unknown
+    >;
+    await this.saveConfig(input.botId, config);
+    return { key: input.key, saved: true as const };
   }
   private saveSecret(profile: string, key: string, value: string) {
     return this.hermes.management.request('/api/env', profile, {

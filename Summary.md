@@ -624,3 +624,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 移除产品 runtime 对 Hermes Runs API 客户端的依赖，启动健康检查只请求本机原生 health endpoint；Hermes 自身 API server 仍保留为文件/工具等原生能力使用，不承载产品聊天执行。
 - 验证：Node 24 全量 typecheck；30 个 Vitest 文件、45 个场景；针对性 ESLint、Prettier 与 Node 24 build 通过。隔离 Ubuntu 24.04 实际 Hermes/模型旅程验证真实欢迎回合、Gateway `/profile`、恢复与同步不重复，详见私有 `.runtime/side-phase-5/canonical-session-welcome.json`。
 - 未完成：真实候选 Windows/Android 客户端、远程 Node/Relay 的匹配版本验收，以及 Hermes 全能力和设置目录仍待后续模块；本地真实 WSL 旅程不替代这些验收。
+
+### 2026-11-02 / Side Phase 5：Hermes profile 设置
+
+- Bot 详情新增 Hermes 设置页，分类、字段描述、类型、选项与当前值从官方 `/api/config/schema` 和 profile 配置读取；开关、选择、数字与 JSON 字段经官方 config PUT 保存，不另存一份产品配置。
+- 设置范围固定到当前 Bot profile；密码、密钥及 token 字段只显示是否已配置，不回传明文，也不允许从通用设置编辑。`model` 与虚拟 `model_context_length` 在此只读展示，编辑仍走 Bot 模型设置。
+- 验证：Node 24 typecheck、31 个 Vitest 文件 / 46 项通过、Node bundle build、目标 ESLint、Flutter analyze、Flutter tests 及 Windows debug 构建通过。新增 390px 原生设置页场景覆盖搜索、敏感项遮蔽和布尔保存。
+- 真实 Hermes profile 的隔离写入/读回及候选客户端在线旅程仍未完成；现有 WSL 安装的隔离运行环境缺少 `ruamel.yaml`，不把 fake Hermes/widget 测试算作真实验收。全仓 lint 另被 `opus-video` 目录里 16 项 ESLint 错误阻挡。

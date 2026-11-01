@@ -775,3 +775,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 产品 runtime 不再暴露 Runs API 客户端入口。Hermes 原生 API server 仍用于官方 profile 管理、文件/工具能力；健康检查改为直接探测 loopback health，不再构造旧聊天客户端。
 - 验证：Node 24 全仓 typecheck 通过；Vitest 30 文件 / 45 场景通过；本模块 ESLint、Prettier 和 Node 构建通过。独立 WSL Ubuntu 24.04 使用实际 Hermes 与真实模型，通过欢迎消息和 `/profile` Gateway 命令；真实 session 恢复及 snapshot/since 后消息数稳定，模型 run 仅 1 次，结果摘要保存在忽略目录 `.runtime/side-phase-5/canonical-session-welcome.json`。
 - 曾有一次真实旅程脚本因把新增系统命令消息排除在恢复前基线外而误报重复；修正基线后完整复测通过。Windows/Android 候选客户端和远程 Node/Relay 的匹配版本真实验收尚未完成；回放与本地 WSL 结果不代表完整 Phase 5 通过。
+
+### 2026-11-02 / Side Phase 5：Hermes profile 设置
+
+- Bot 详情新增设置页，按 Hermes schema 动态展示分类、说明、当前值和选项；支持布尔、数字、文本、select、JSON list/object 编辑。保存只调用官方 profile 配置 API，不另建设置数据库；模型与上下文长度只读展示，继续由 Bot 模型设置管理。
+- Node 对 Bot/profile 做存在检查，按 schema 校验字段和类型；敏感键只返回 configured 状态，通用设置不回显或覆盖凭据。设置 RPC 不增加 Relay/客户端专用传输通道。
+- 自动化验证：Node 24 typecheck；31 个 Vitest 文件 / 46 项通过；Node bundle build；目标 ESLint/Prettier；Flutter analyze、全部 Flutter tests 和新增 390px 设置场景通过；Windows Flutter debug build 成功。真实 WSL Hermes 版本为 v0.22.5。
+- 真实接口边界：Hermes schema/API 来源已核对，但隔离服务启动被 PM 环境缺少 `ruamel.yaml` 阻断，无法完成真实 profile 写入/读回；未通过 fixture 冒充真实服务验收。匹配版本的真实 Windows/Android 客户端、Node/Relay 与真实模型旅程待后续继续。
+- 全仓 `pnpm lint` 的 ESLint 阶段被 `opus-video/nekodot-hello` 的 16 个已有浏览器全局/变量错误阻断；本模块目标 ESLint 通过。未部署、未发布、未 push。

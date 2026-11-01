@@ -8,6 +8,7 @@ import '../ui/design.dart';
 import '../screen/viewer.dart';
 import 'bot_editor.dart';
 import 'files.dart';
+import 'hermes_settings.dart';
 import 'model_info.dart';
 import 'routines.dart';
 import 'user_memory.dart';
@@ -160,11 +161,12 @@ class BotDetails extends StatelessWidget {
             ),
           ),
           LibraryPage(client: c, bot: bot, embedded: true),
+          HermesSettings(client: c, botId: bot['botId'] as String),
         ],
       );
       if (context.tone.glass && !panel) {
         return DefaultTabController(
-          length: 3,
+          length: 4,
           child: AppPage(
             title: '${bot['displayName']}',
             bottom: PreferredSize(
@@ -176,10 +178,12 @@ class BotDetails extends StatelessWidget {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 320),
                     child: TabBar(
+                      isScrollable: true,
                       tabs: [
                         Tab(height: 34, text: c.tr('详情', 'Details')),
                         Tab(height: 34, text: c.tr('记忆', 'Memory')),
                         Tab(height: 34, text: c.tr('资料库', 'Files')),
+                        Tab(height: 34, text: c.tr('设置', 'Settings')),
                       ],
                     ),
                   ),
@@ -205,7 +209,7 @@ class BotDetails extends StatelessWidget {
         );
       }
       return DefaultTabController(
-        length: 3,
+        length: 4,
         child: Scaffold(
           appBar: AppBar(
             automaticallyImplyLeading: !panel,
@@ -254,6 +258,7 @@ class BotDetails extends StatelessWidget {
                   Tab(height: 28, text: c.tr('详情', 'Details')),
                   Tab(height: 28, text: c.tr('记忆', 'Memory')),
                   Tab(height: 28, text: c.tr('资料库', 'Files')),
+                  Tab(height: 28, text: c.tr('设置', 'Settings')),
                 ],
               ),
               const SizedBox(height: 4),

@@ -21,7 +21,12 @@ import {
 import { eventSchema } from './events';
 import { rpcErrorSchema } from './errors';
 import { screenStatusSchema } from './screen';
-import { providerInputSchema, providerOutputSchema, modelInfoSchema } from './providers';
+import {
+  providerInputSchema,
+  providerOutputSchema,
+  modelInfoSchema,
+  hermesSettingsSchema,
+} from './providers';
 import { userMemorySaveSchema, userMemoryViewSchema } from './user-memory';
 import {
   memoryDocumentSchema,
@@ -310,6 +315,11 @@ export const rpcContracts = {
     result: z.strictObject({ models: z.array(z.string()), warning: z.string().optional() }),
   },
   'models.info': { params: z.strictObject(botTarget), result: modelInfoSchema },
+  'hermes.settings.get': { params: z.strictObject(botTarget), result: hermesSettingsSchema },
+  'hermes.settings.set': {
+    params: z.strictObject({ ...botTarget, key: z.string().min(1), value: z.json() }),
+    result: z.strictObject({ key: z.string(), saved: z.literal(true) }),
+  },
   'screen.status': {
     params: z.strictObject(botTarget),
     result: screenStatusSchema,
