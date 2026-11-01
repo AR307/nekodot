@@ -133,6 +133,11 @@ void main() {
       ),
     );
     await until(() => find.text('确认接入并保密交付').evaluate().isNotEmpty);
+    expect(
+      tester.getRect(find.byType(Scrollable).first).top,
+      greaterThanOrEqualTo(tester.getRect(find.byType(AppBar)).bottom),
+      reason: 'Routine records must scroll below, not through, the title bar.',
+    );
     await inspect('details');
     await tap(find.widgetWithText(OutlinedButton, '复制 URL'));
     final url = (await tester.runAsync(

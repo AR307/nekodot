@@ -269,6 +269,7 @@ class _RoutinePageState extends State<RoutinePage> {
       final allowed = c.online && !busy;
       return AppPage(
         title: '${routine?['name'] ?? c.tr('例行任务', 'Routine')}',
+        extendBodyBehindAppBar: false,
         actions: [
           IconAction(
             tooltip: c.tr('刷新', 'Refresh'),
@@ -664,6 +665,7 @@ class _RoutineEditorState extends State<RoutineEditor> {
         .toList();
     return AppPage(
       title: c.tr('Webhook 设置', 'Webhook settings'),
+      extendBodyBehindAppBar: false,
       body: PageList(
         children: [
           TextField(
