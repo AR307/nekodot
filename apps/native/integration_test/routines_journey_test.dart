@@ -140,17 +140,28 @@ void main() {
     );
     await inspect('details');
     await tap(find.widgetWithText(OutlinedButton, '复制 URL'));
+    await until(() => find.text('已复制 URL').evaluate().isNotEmpty);
     final url = (await tester.runAsync(
       () => Clipboard.getData(Clipboard.kTextPlain),
     ))!.text!;
     expect(Uri.parse(url).scheme, 'https');
+    expect(url.endsWith('/hooks/$routineId'), isTrue);
     await tap(find.widgetWithText(FilledButton, '确认接入并保密交付'));
     await until(() => find.text('暂停 Webhook').evaluate().isNotEmpty);
     await tap(find.widgetWithText(OutlinedButton, '复制密钥'));
+    await until(() => find.text('已复制密钥，请勿粘贴到聊天中').evaluate().isNotEmpty);
     final oldSecret = (await tester.runAsync(
       () => Clipboard.getData(Clipboard.kTextPlain),
     ))!.text!;
-    expect(oldSecret.length > 30, isTrue);
+    final credentials = (await tester.runAsync(
+      () => client.rpc('routines.credentials', target),
+    ))!;
+    expect(
+      oldSecret == credentials['secret'],
+      isTrue,
+      reason:
+          'Clipboard must contain this routine secret after copy completes.',
+    );
     expect(
       jsonEncode(client.node.messages[conversationId]).contains(oldSecret),
       isFalse,
