@@ -8,7 +8,6 @@ import { createRelay } from '../../apps/relay/src/server';
 import { NodeApplication } from '../../apps/node/src/app';
 import { pairNode } from '../../apps/node/src/pair';
 import { connectRelay } from '../../apps/node/src/connection';
-import { HermesApi } from '../../apps/node/src/hermes/api';
 import type { HermesRuntime } from '../../apps/node/src/hermes/runtime';
 import type { ApprovalMode, Bot } from '@nekodot/protocol';
 import { seedVerifiedAccount } from './account';
@@ -76,18 +75,28 @@ const credentials = await pairNode(
   'Native replay computer',
 );
 const failedIntroductions = new Set<string>();
+const baseRuntime = recordedManagementRuntime(fake.url, key, home, fake.pluginCatalog);
+const wrappedGateways = new WeakSet<object>();
 const runtime: HermesRuntime = {
-  ...recordedManagementRuntime(fake.url, key, home, fake.pluginCatalog),
+  ...baseRuntime,
   start: async () => {},
   close: async () => {},
   approvalMode: async (profile) => modes.get(profile) ?? 'manual',
-  api: async (profile) => {
-    const api = new HermesApi(fake.url + '/p/' + profile, key);
-    if (failedIntroductions.delete(profile))
-      api.createRun = async () => {
+  gateway: (profile) => {
+    const gateway = baseRuntime.gateway(profile);
+    if (wrappedGateways.has(gateway)) return gateway;
+    const originalRpc = gateway.rpc.bind(gateway);
+    gateway.rpc = async <T>(
+      method: string,
+      params: Record<string, unknown>,
+      timeoutMs?: number,
+    ): Promise<T> => {
+      if (method === 'prompt.submit' && failedIntroductions.delete(profile))
         throw new Error('The test gateway is unavailable');
-      };
-    return api;
+      return originalRpc<T>(method, params, timeoutMs);
+    };
+    wrappedGateways.add(gateway);
+    return gateway;
   },
   configureBot: async (bot, create, approvalMode) => {
     if (approvalMode) modes.set(bot.botId, approvalMode);

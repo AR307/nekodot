@@ -9,7 +9,6 @@ import { seedVerifiedAccount } from '../support/account';
 import { NodeApplication } from '../../apps/node/src/app';
 import { pairNode } from '../../apps/node/src/pair';
 import { connectRelay } from '../../apps/node/src/connection';
-import { HermesApi } from '../../apps/node/src/hermes/api';
 import type { HermesRuntime } from '../../apps/node/src/hermes/runtime';
 
 test('Bot details, native memory editing, library download, extension catalog and per-bot toggles in Edge', async ({
@@ -43,7 +42,6 @@ test('Bot details, native memory editing, library download, extension catalog an
         body: JSON.stringify({ profile: bot.botId }),
       });
     },
-    api: async (profile) => new HermesApi(fake.url + '/p/' + profile, key),
   };
   const app = new NodeApplication(join(home, 'node'), runtime);
   let connection: ReturnType<typeof connectRelay> | undefined;

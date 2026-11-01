@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { HermesRuntime } from './hermes/runtime';
 import type { NodeDatabase } from './database';
+import { openNativeSession } from './hermes/session';
 import { NodeFault } from './fault';
 
 const catalogSchema = z.object({
@@ -18,8 +19,8 @@ const directiveSchema = z.object({
   notice: z.string().optional(),
   display: z.string().optional(),
 });
-// These need a client-owned native session switch/rewind. A CLI slash worker
-// would change its own session, not the Runs API conversation shown here.
+// These need a client-owned native session switch/rewind; a slash worker
+// cannot change which Hermes session the chat displays.
 const sessionUiCommands = new Set([
   '/new',
   '/reset',
@@ -40,7 +41,7 @@ export class BotCommands {
 
   async catalog(botId: string) {
     const catalog = catalogSchema.parse(
-      await this.hermes.management.rpc('commands.catalog', { profile: botId }),
+      await this.hermes.gateway(botId).rpc('commands.catalog', { profile: botId }),
     );
     return {
       commands: catalog.pairs
@@ -76,22 +77,17 @@ export class BotCommands {
         'invalid_params',
         'Each Bot uses its own Hermes profile. Select a different Bot to switch profiles.',
       );
-    const session = await this.hermes.management.rpc<{ session_id: string }>('session.resume', {
-      profile: botId,
-      session_id: 'nk_dm_' + dm.conversationId,
-      omit_messages: true,
-      ...(['/refine', '/review'].includes(name) ? { eager_build: true } : {}),
-    });
-    const result = await this.hermes.management.rpc(
+    const gateway = this.hermes.gateway(botId);
+    const session = await openNativeSession(this.database, this.hermes, botId, dm.conversationId);
+    const result = await gateway.rpc(
       entry?.skill ? 'command.dispatch' : 'slash.exec',
       entry?.skill
         ? {
-            profile: botId,
             session_id: session.session_id,
             name: name.slice(1),
             arg: command.slice(name.length).trim(),
           }
-        : { profile: botId, session_id: session.session_id, command },
+        : { session_id: session.session_id, command },
       15 * 60_000,
     );
     return directiveSchema.parse(result);

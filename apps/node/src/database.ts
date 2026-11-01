@@ -16,12 +16,25 @@ export interface RunRecord {
   botId: string;
   groupId?: string;
   requestId?: string;
+  sessionId?: string;
+  storedSessionId?: string;
+  submissionId?: string;
+  executionGeneration?: number;
+  replayEpoch?: string;
   stopRequested?: boolean;
   lastSeq: number;
   state: 'thinking' | 'tool' | 'waiting_approval' | 'waiting_question' | 'unknown' | 'idle';
   textMessageId?: string;
   inputMessageId: string;
   welcome?: true;
+}
+
+export interface HermesSessionRecord {
+  conversationId: string;
+  botId: string;
+  storedSessionId: string;
+  replayEpoch: string;
+  lastSequence: number;
 }
 
 export interface GroupChainRecord {
@@ -80,6 +93,18 @@ export class NodeDatabase {
         CREATE TABLE group_chains(conversation_id TEXT PRIMARY KEY,data TEXT NOT NULL);
         PRAGMA user_version=2;
         COMMIT;`);
+    }
+    if (version < 3) {
+      this.db.exec(`BEGIN;
+        CREATE TABLE hermes_sessions(conversation_id TEXT PRIMARY KEY,bot_id TEXT NOT NULL,stored_session_id TEXT UNIQUE NOT NULL,replay_epoch TEXT NOT NULL,last_sequence INTEGER NOT NULL);
+        PRAGMA user_version=3;
+        COMMIT;`);
+    }
+    if (version < 4) {
+      const columns = this.db.prepare('PRAGMA table_info(hermes_sessions)').all();
+      if (columns.some((column) => column.name === 'session_id'))
+        this.db.exec('ALTER TABLE hermes_sessions RENAME COLUMN session_id TO stored_session_id');
+      this.db.exec('PRAGMA user_version=4');
     }
     this.db.exec(`CREATE TABLE IF NOT EXISTS attachments(
       file_id TEXT PRIMARY KEY,bot_id TEXT NOT NULL,message_id TEXT NOT NULL,
@@ -363,6 +388,33 @@ export class NodeDatabase {
         'INSERT INTO runs VALUES(?,?) ON CONFLICT(conversation_id) DO UPDATE SET data=excluded.data',
       )
       .run(run.conversationId, JSON.stringify(run));
+  }
+  hermesSession(conversationId: string) {
+    const row = this.db
+      .prepare('SELECT * FROM hermes_sessions WHERE conversation_id=?')
+      .get(conversationId);
+    return row
+      ? ({
+          conversationId: String(row.conversation_id),
+          botId: String(row.bot_id),
+          storedSessionId: String(row.stored_session_id),
+          replayEpoch: String(row.replay_epoch),
+          lastSequence: Number(row.last_sequence),
+        } satisfies HermesSessionRecord)
+      : undefined;
+  }
+  saveHermesSession(session: HermesSessionRecord) {
+    this.db
+      .prepare(
+        'INSERT INTO hermes_sessions VALUES(?,?,?,?,?) ON CONFLICT(conversation_id) DO UPDATE SET bot_id=excluded.bot_id,stored_session_id=excluded.stored_session_id,replay_epoch=excluded.replay_epoch,last_sequence=excluded.last_sequence',
+      )
+      .run(
+        session.conversationId,
+        session.botId,
+        session.storedSessionId,
+        session.replayEpoch,
+        session.lastSequence,
+      );
   }
   runs() {
     return this.all<RunRecord>('SELECT data FROM runs').filter((r) => r.state !== 'idle');

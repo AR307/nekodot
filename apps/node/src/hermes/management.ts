@@ -8,7 +8,7 @@ export interface ManagementEvent {
   payload?: Record<string, unknown>;
 }
 
-/** Official headless Hermes management surface; chat stays on the Runs API. */
+/** Official Hermes management surface for profile, memory, model and extension administration. */
 export class HermesManagement {
   private socket?: WebSocket;
   private connecting?: Promise<WebSocket>;

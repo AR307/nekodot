@@ -6,7 +6,6 @@ import { setTimeout as delay } from 'node:timers/promises';
 import type { ChildProcess } from 'node:child_process';
 import { parseDocument } from 'yaml';
 import { approvalModeSchema, type ApprovalMode, type Bot } from '@nekodot/protocol';
-import { HermesApi } from './api';
 import { HermesManagement } from './management';
 import { HermesGateway, type GatewayEndpoint } from './gateway';
 import { runHermesCli, spawnHermesCli, type HermesLaunch } from './cli';
@@ -22,7 +21,7 @@ export interface HermesRuntime {
     previousRole?: string,
   ): Promise<void>;
   approvalMode(profile: string): Promise<ApprovalMode>;
-  api(profile: string): Promise<HermesApi>;
+  gateway(profile: string): HermesGateway;
   environment(profile: string): Promise<NodeJS.Dict<string>>;
   management: HermesManagement;
   profileHome(profile: string): string;
@@ -85,12 +84,6 @@ export class ManagedHermes implements HermesRuntime {
     for (const [key, value] of Object.entries(env))
       if (value && /KEY|TOKEN|PASSWORD|SECRET|^NEKODOT_SOURCE_/.test(key)) this.secrets.add(value);
     return env;
-  }
-  async api(profile: string) {
-    const env = await this.environment(profile);
-    if (!env.API_SERVER_KEY) throw new Error('Hermes profile has no API key');
-    this.secrets.add(env.API_SERVER_KEY);
-    return new HermesApi('http://127.0.0.1:' + this.apiPort + '/p/' + profile, env.API_SERVER_KEY);
   }
   gateway(profile: string) {
     let gateway = this.gateways.get(profile);
@@ -231,15 +224,24 @@ export class ManagedHermes implements HermesRuntime {
     await writeFile(path, document.toString(), { mode: 0o600 });
   }
   private async waitHealthy(profile: string) {
-    const api = await this.api(profile);
+    const env = await this.environment(profile);
+    const apiKey = env.API_SERVER_KEY;
+    if (!apiKey) throw new Error('Hermes profile has no API key');
     for (let attempt = 0; attempt < 90; attempt++) {
       if (this.closing) throw new Error('Hermes runtime closed');
-      try {
-        await api.health();
-        return;
-      } catch {
-        await delay(500);
-      }
+      const healthy = await fetch(
+        'http://127.0.0.1:' + this.apiPort + '/p/' + profile + '/health',
+        { headers: { Authorization: 'Bearer ' + apiKey }, signal: AbortSignal.timeout(3000) },
+      ).then(
+        async (response) => {
+          if (!response.ok) return false;
+          await response.body?.cancel();
+          return true;
+        },
+        () => false,
+      );
+      if (healthy) return;
+      await delay(500);
     }
     throw new Error('Hermes profile did not become healthy: ' + profile);
   }

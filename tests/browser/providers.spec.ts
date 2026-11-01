@@ -8,7 +8,6 @@ import { createRelay } from '../../apps/relay/src/server';
 import { seedVerifiedAccount } from '../support/account';
 import { pairNode } from '../../apps/node/src/pair';
 import { NodeApplication } from '../../apps/node/src/app';
-import { HermesApi } from '../../apps/node/src/hermes/api';
 import { connectRelay } from '../../apps/node/src/connection';
 import type { HermesRuntime } from '../../apps/node/src/hermes/runtime';
 
@@ -57,7 +56,6 @@ test('Edge manages coexisting sources, selects a source in the Bot form, and sho
     start: async () => {},
     close: async () => {},
     approvalMode: async () => 'manual',
-    api: async (profile) => new HermesApi(fake.url + '/p/' + profile, key),
     configureBot: async (bot, create) => {
       if (create)
         await fetch(fake.url + '/test/profiles', {

@@ -8,7 +8,7 @@ import { createRelay } from '../../apps/relay/src/server';
 import { startMailbox } from '../support/mailbox';
 import { pairNode } from '../../apps/node/src/pair';
 import { NodeApplication } from '../../apps/node/src/app';
-import { HermesApi } from '../../apps/node/src/hermes/api';
+import { HermesGatewayError } from '../../apps/node/src/hermes/gateway';
 import { connectRelay } from '../../apps/node/src/connection';
 import type { HermesRuntime } from '../../apps/node/src/hermes/runtime';
 
@@ -62,8 +62,10 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     )![0];
     const home = await mkdtemp(join(tmpdir(), 'nekodot-group-browser-'));
     const credentials = await pairNode(home, relayUrl, code, 'Group test computer');
+    const baseRuntime = recordedManagementRuntime(fake.url, key, home, fake.pluginCatalog);
+    const wrappedGateways = new WeakSet<object>();
     const runtime: HermesRuntime = {
-      ...recordedManagementRuntime(fake.url, key, home, fake.pluginCatalog),
+      ...baseRuntime,
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',
@@ -75,10 +77,23 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
             body: JSON.stringify({ profile: bot.botId }),
           });
       },
-      api: async (profile) => {
-        const apiKey = rejectNextControl ? 'rejected-control-key' : key;
-        rejectNextControl = false;
-        return new HermesApi(fake.url + '/p/' + profile, apiKey);
+      gateway: (profile) => {
+        const gateway = baseRuntime.gateway(profile);
+        if (wrappedGateways.has(gateway)) return gateway;
+        const originalRpc = gateway.rpc.bind(gateway);
+        gateway.rpc = async <T>(
+          method: string,
+          params: Record<string, unknown>,
+          timeoutMs?: number,
+        ): Promise<T> => {
+          if (method === 'session.steer' && rejectNextControl) {
+            rejectNextControl = false;
+            throw new HermesGatewayError('Hermes gateway refused steer', 401);
+          }
+          return originalRpc<T>(method, params, timeoutMs);
+        };
+        wrappedGateways.add(gateway);
+        return gateway;
       },
     };
     const connect = () => {
@@ -135,7 +150,18 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
         (conversation) => conversation.kind === 'dm' && conversation.botId === researcher.botId,
       )!;
     const privateSessionId = fake.inspectRuns()[0]!.sessionId;
-    expect(privateSessionId).toBe(`nk_dm_${researcherConversation.conversationId}`);
+    const storedSessionId = app.database.hermesSession(
+      researcherConversation.conversationId,
+    )!.storedSessionId;
+    const nativeSession = await runtime.gateway(researcher.botId).rpc<{
+      session_id: string;
+      stored_session_id: string;
+    }>('session.resume', { session_id: storedSessionId });
+    expect(privateSessionId).toMatch(/^runtime-/);
+    expect(nativeSession.stored_session_id).toBe(storedSessionId);
+    expect(app.database.hermesSession(researcherConversation.conversationId)?.storedSessionId).toBe(
+      storedSessionId,
+    );
     await page.getByRole('button', { name: '新建群组', exact: true }).last().click();
     await page.getByLabel('群组名称').fill('Research studio');
     await page.locator('.member-option').filter({ hasText: 'Researcher' }).locator('input').check();
@@ -204,7 +230,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     await expect(page.locator('.chat-status')).toContainText('正在运行工具');
     rejectNextControl = true;
     await send('Keep this run and use the added instruction.');
-    await expect(page.locator('.inline-error')).toContainText('Hermes HTTP 401');
+    await expect(page.locator('.inline-error')).toContainText('Node request failed');
     await expect(page.locator('.composer textarea')).toHaveValue(
       'Keep this run and use the added instruction.',
     );

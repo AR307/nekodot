@@ -9,7 +9,6 @@ import { createRelay } from '../../apps/relay/src/server';
 import { startMailbox } from '../support/mailbox';
 import { pairNode } from '../../apps/node/src/pair';
 import { NodeApplication } from '../../apps/node/src/app';
-import { HermesApi } from '../../apps/node/src/hermes/api';
 import { connectRelay } from '../../apps/node/src/connection';
 import type { HermesRuntime } from '../../apps/node/src/hermes/runtime';
 import type { Bot } from '../../packages/protocol/src/entities';
@@ -146,7 +145,6 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
         profiles.add(bot.botId);
       }
     },
-    api: async (profile) => new HermesApi(`${services.fake!.url}/p/${profile}`, hermesKey),
   };
   services.app = new NodeApplication(services.nodeHome, runtime);
   const connectNode = () => {

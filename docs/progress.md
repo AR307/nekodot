@@ -767,3 +767,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 连接器接收最早的 `gateway.ready` 首帧，支持 JSON-RPC 调用、gateway event、服务端反向请求应答与断线清理。自动化本地 WebSocket 旅程检查三种帧，覆盖真实可见的传输契约。
 - 验证：Node TypeScript 全量 typecheck、目标 ESLint、gateway/runtime 3 项测试通过。测试为协议辅助验证，不等同真实 Hermes 服务验收。
 - 未完成：现有 Node 聊天仍使用 Runs API；会话身份/历史、工具事件、原生审批与提问、steer/stop 尚未迁移，旧聊天控制接口尚未移除；未在真实候选客户端、远程 Node/Relay 和真实模型上验收。本条只记录基础层，不代表 Phase 5 完成。
+
+## 2026-11-01 / Side Phase 5：canonical 会话与命令路径
+
+- Node 私聊与群聊执行迁移到 Hermes `hermes-gateway-v1`：profile-scoped canonical session、持久 stored session ID、prompt admission、事件恢复、原生历史/提示、审批/提问、steer、停止与 unknown admission 查询均走 Gateway。群聊仍按 nekodot 路由，但各 Bot 的回合与私聊共用其 Hermes profile session。
+- `commands.catalog` 显式指定 profile；`slash.exec`、`command.dispatch`、`/refine` 和记忆审核改为对应 profile 的 Gateway session，self-improvement 监听 `review.summary`。Session 创建/恢复及 SQLite 映射收敛到 `apps/node/src/hermes/session.ts`。
+- 产品 runtime 不再暴露 Runs API 客户端入口。Hermes 原生 API server 仍用于官方 profile 管理、文件/工具能力；健康检查改为直接探测 loopback health，不再构造旧聊天客户端。
+- 验证：Node 24 全仓 typecheck 通过；Vitest 30 文件 / 45 场景通过；本模块 ESLint、Prettier 和 Node 构建通过。独立 WSL Ubuntu 24.04 使用实际 Hermes 与真实模型，通过欢迎消息和 `/profile` Gateway 命令；真实 session 恢复及 snapshot/since 后消息数稳定，模型 run 仅 1 次，结果摘要保存在忽略目录 `.runtime/side-phase-5/canonical-session-welcome.json`。
+- 曾有一次真实旅程脚本因把新增系统命令消息排除在恢复前基线外而误报重复；修正基线后完整复测通过。Windows/Android 候选客户端和远程 Node/Relay 的匹配版本真实验收尚未完成；回放与本地 WSL 结果不代表完整 Phase 5 通过。

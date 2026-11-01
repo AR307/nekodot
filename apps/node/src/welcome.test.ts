@@ -6,7 +6,6 @@ import { expect, it } from 'vitest';
 import { startFakeHermes, recordedManagementRuntime } from '@nekodot/fake-hermes';
 import type { RpcResult } from '@nekodot/protocol';
 import { NodeApplication } from './app';
-import { HermesApi } from './hermes/api';
 import type { HermesRuntime } from './hermes/runtime';
 
 it('A new profile introduces itself once, survives restart, and only explicitly retries a failed introduction', async () => {
@@ -18,6 +17,12 @@ it('A new profile introduces itself once, survives restart, and only explicitly 
     apiKey: key,
     allowProfileCreate: true,
     eventDelayMs: 10,
+    additionalFixtures: ['group-failed'],
+    scenarioFor: () => {
+      if (!failNext) return undefined;
+      failNext = false;
+      return 'group-failed';
+    },
   });
   let failNext = false;
   const runtime: HermesRuntime = {
@@ -31,16 +36,6 @@ it('A new profile introduces itself once, survives restart, and only explicitly 
         headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
         body: JSON.stringify({ profile: bot.botId }),
       });
-    },
-    api: async (profile) => {
-      const api = new HermesApi(fake.url + '/p/' + profile, key);
-      if (failNext) {
-        failNext = false;
-        api.createRun = async () => {
-          throw new Error('Installation journey: gateway temporarily unavailable');
-        };
-      }
-      return api;
     },
   };
   let app = new NodeApplication(home, runtime);
@@ -106,7 +101,7 @@ it('A new profile introduces itself once, survives restart, and only explicitly 
       status: 'failed',
       content: { welcome: true, failureReason: expect.any(String) },
     });
-    expect(fake.inspectRuns()).toHaveLength(1);
+    expect(fake.inspectRuns()).toHaveLength(2);
     await app.handle({ method: 'bots.welcome.retry', params: { messageId: failed.messageId } });
     await expect(
       app.handle({ method: 'bots.welcome.retry', params: { messageId: failed.messageId } }),
@@ -117,7 +112,7 @@ it('A new profile introduces itself once, survives restart, and only explicitly 
     expect(retried[0]).toMatchObject({ messageId: failed.messageId, status: 'failed' });
     expect(retried[1]).toMatchObject({ status: 'done', content: { welcome: true } });
     expect(retried.some((m) => m.author.type === 'user')).toBe(false);
-    expect(fake.inspectRuns()).toHaveLength(2);
+    expect(fake.inspectRuns()).toHaveLength(3);
   } finally {
     runtime.management.close();
     await app.close();

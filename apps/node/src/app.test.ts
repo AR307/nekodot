@@ -12,7 +12,6 @@ import {
   type TaskNotification,
 } from '@nekodot/protocol';
 import { NodeApplication } from './app';
-import { HermesApi } from './hermes/api';
 import type { HermesRuntime } from './hermes/runtime';
 
 const testKey = 'test-only-hermes-key';
@@ -48,7 +47,6 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
           profiles.add(bot.botId);
         }
       },
-      api: async (profile) => new HermesApi(relay.url + '/p/' + profile, testKey),
     };
     const app = new NodeApplication(home, runtime);
     const notifications: TaskNotification[] = [];
@@ -355,7 +353,6 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
         expect(response.status).toBe(201);
         profiles.add(bot.botId);
       },
-      api: async (profile) => new HermesApi(relay.url + '/p/' + profile, testKey),
     };
     let app = new NodeApplication(home, runtime);
     const request = (method: string, params: unknown) => rpcRequestSchema.parse({ method, params });
@@ -412,7 +409,10 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
             .some((run) => run.conversationId === privateConversation.conversationId),
       );
       const privateSessionId = relay.inspectRuns().at(-1)?.sessionId;
-      expect(privateSessionId).toBe(`nk_dm_${privateConversation.conversationId}`);
+      expect(privateSessionId).toBeTruthy();
+      expect(
+        app.database.hermesSession(privateConversation.conversationId)?.storedSessionId,
+      ).toMatch(/^stored-/);
 
       const created = (await app.handle(
         request('groups.create', {
@@ -473,15 +473,22 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
         writer.bot.botId,
         lead.bot.botId,
       ]);
+      const writerConversation = app.database
+        .conversations()
+        .find((item) => item.kind === 'dm' && item.botId === writer.bot.botId);
+      if (!writerConversation || writerConversation.kind !== 'dm')
+        throw new Error('Writer private conversation missing.');
+      const writerSessionId = groupRuns[1]?.sessionId;
       expect(groupRuns.map((run) => run.sessionId)).toEqual([
-        `nk_dm_${privateConversation.conversationId}`,
-        `nk_dm_${
-          app.database
-            .conversations()
-            .find((item) => item.kind === 'dm' && item.botId === writer.bot.botId)!.conversationId
-        }`,
-        `nk_dm_${privateConversation.conversationId}`,
+        privateSessionId,
+        writerSessionId,
+        privateSessionId,
       ]);
+      expect(writerSessionId).toBeTruthy();
+      expect(writerSessionId).not.toBe(privateSessionId);
+      expect(
+        app.database.hermesSession(writerConversation.conversationId)?.storedSessionId,
+      ).toMatch(/^stored-/);
       expect(
         app.database
           .messages(conversation.conversationId)
@@ -489,7 +496,9 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       ).toBeGreaterThan(4);
 
       expect(groupRuns[1]?.input).toContain('New messages since your last turn:');
-      expect(groupRuns[1]?.instructions).toContain('Researcher (@researcher) — Group specialist');
+      expect(groupRuns[1]?.input).toContain(
+        'Group members: Researcher (@researcher) — Group specialist',
+      );
       expect(groupRuns[2]?.input).not.toContain('User: runs-basic');
       expect(groupRuns[2]?.input).toContain('Writer (@writer): PHASE2_TARGET_OK');
       await expect(

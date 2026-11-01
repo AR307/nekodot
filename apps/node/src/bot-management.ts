@@ -4,6 +4,8 @@ import type { MemoryDocument, Operation, RpcParams, RpcResult } from '@nekodot/p
 import type { BotService } from './bots';
 import type { NodeDatabase } from './database';
 import type { HermesRuntime } from './hermes/runtime';
+import type { GatewayFrame } from './hermes/gateway';
+import { openNativeSession } from './hermes/session';
 import type { Operations } from './operations';
 import { NodeFault } from './fault';
 import type { SharedUserMemory } from './user-memory';
@@ -52,11 +54,11 @@ export class BotManagement {
       .find((c) => c.kind === 'dm' && c.botId === botId);
     if (conversation && this.database.messages(conversation.conversationId, undefined, 1).length) {
       const session = await this.session(botId);
+      const gateway = this.hermes.gateway(botId);
       const outputs = await Promise.all(
         ['memory', 'skills'].map(async (kind) => {
-          const v = await this.hermes.management.rpc<{ output?: string }>('slash.exec', {
-            profile: botId,
-            session_id: session,
+          const v = await gateway.rpc<{ output?: string }>('slash.exec', {
+            session_id: session.session_id,
             command: '/' + kind + ' pending',
           });
           return v.output ?? '';
@@ -105,13 +107,7 @@ export class BotManagement {
       .find((c) => c.kind === 'dm' && c.botId === botId);
     if (!conversation)
       throw new NodeFault('not_found', 'Chat with this bot before refining memory');
-    const result = await this.hermes.management.rpc<{ session_id: string }>('session.resume', {
-      profile: botId,
-      session_id: 'nk_dm_' + conversation.conversationId,
-      eager_build: true,
-      omit_messages: true,
-    });
-    return result.session_id;
+    return openNativeSession(this.database, this.hermes, botId, conversation.conversationId);
   }
   refine(botId: string, focus: string) {
     this.bots.get(botId);
@@ -121,36 +117,27 @@ export class BotManagement {
         'Wait for this bot to finish its current task before refining',
       );
     return this.operations.start('memory.refine', [botId], async (operation) => {
-      const sessionId = await this.session(botId);
+      const session = await this.session(botId);
+      const gateway = this.hermes.gateway(botId);
       // Hermes emits review.summary only when it writes something. Its own completion log
       // also covers a successful no-change review and provider failures.
       const logPath =
         '/api/logs?file=agent&search=' +
-        encodeURIComponent(
-          '[' +
-            'nk_dm_' +
-            this.database.conversations().find((c) => c.kind === 'dm' && c.botId === botId)!
-              .conversationId +
-            ']',
-        ) +
+        encodeURIComponent('[' + session.session_id + ']') +
         '&lines=100';
-      const before = await this.hermes.management.request<{ lines: string[] }>(logPath, 'default');
+      const before = await this.hermes.management.request<{ lines: string[] }>(logPath, botId);
       const baseline = before.lines.at(-1);
       await new Promise<void>((resolve, reject) => {
         const api = this.hermes.management;
         const finish = (error?: Error) => {
           clearTimeout(timer);
           clearInterval(poll);
-          api.listeners.delete(listener);
+          gateway.listeners.delete(listener);
           if (error) reject(error);
           else resolve();
         };
-        const listener = (event: {
-          type: string;
-          session_id?: string;
-          payload?: Record<string, unknown>;
-        }) => {
-          if (event.type === 'review.summary' && event.session_id === sessionId) {
+        const listener = (event: GatewayFrame) => {
+          if (event.type === 'review.summary' && event.session_id === session.session_id) {
             operation.detail = String(event.payload?.text ?? 'Hermes review completed');
             operation.results.push({ botId, ok: true, detail: operation.detail });
             finish();
@@ -168,7 +155,7 @@ export class BotManagement {
         );
         const poll = setInterval(() => {
           void api
-            .request<{ lines: string[] }>(logPath, 'default')
+            .request<{ lines: string[] }>(logPath, botId)
             .then((value) => {
               const index = baseline ? value.lines.indexOf(baseline) : -1;
               const lines = value.lines.slice(index + 1);
@@ -195,13 +182,12 @@ export class BotManagement {
             })
             .catch((error: Error) => finish(error));
         }, 2000);
-        api.listeners.add(listener);
-        void api
+        gateway.listeners.add(listener);
+        void gateway
           .rpc<{ output?: string }>(
             'slash.exec',
             {
-              profile: botId,
-              session_id: sessionId,
+              session_id: session.session_id,
               command: '/refine' + (focus.trim() ? ' ' + focus.trim() : ''),
             },
             120_000,
@@ -220,9 +206,8 @@ export class BotManagement {
   async review(input: RpcParams<'memory.review'>) {
     this.bots.get(input.botId);
     const session = await this.session(input.botId);
-    const result = await this.hermes.management.rpc<{ output?: string }>('slash.exec', {
-      profile: input.botId,
-      session_id: session,
+    const result = await this.hermes.gateway(input.botId).rpc<{ output?: string }>('slash.exec', {
+      session_id: session.session_id,
       command: `/${input.kind} ${input.action} ${input.reviewId}`,
     });
     if (input.action === 'approve') await this.userMemory.sync();

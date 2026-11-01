@@ -18,6 +18,19 @@ export interface GatewayFrame {
   payload?: Record<string, unknown>;
   seq?: number;
   replay_epoch?: string;
+  admission_id?: string;
+  execution_generation?: number;
+}
+
+export class HermesGatewayError extends Error {
+  constructor(
+    message: string,
+    readonly code?: number,
+    readonly data?: unknown,
+  ) {
+    super(message);
+    this.name = 'HermesGatewayError';
+  }
 }
 
 type Pending = {
@@ -111,6 +124,7 @@ export class HermesGateway {
   private socket?: WebSocket;
   private connecting?: Promise<WebSocket>;
   private sequence = 0;
+  private openedGeneration = 0;
   private pending = new Map<number, Pending>();
   readonly listeners = new Set<(frame: GatewayFrame) => void>();
   onRequest?: (method: string, params: Record<string, unknown>) => Promise<unknown>;
@@ -119,6 +133,10 @@ export class HermesGateway {
     private readonly endpoint: () => Promise<GatewayEndpoint>,
     private readonly ticket = mintTicket,
   ) {}
+
+  get generation() {
+    return this.openedGeneration;
+  }
 
   private async connect() {
     if (this.socket?.readyState === WebSocket.OPEN) return this.socket;
@@ -173,6 +191,7 @@ export class HermesGateway {
         socket.close();
         throw new Error('Hermes gateway protocol mismatch');
       }
+      this.openedGeneration++;
       return socket;
     })();
     try {
@@ -194,7 +213,9 @@ export class HermesGateway {
       const waiter = this.pending.get(frame.id)!;
       this.pending.delete(frame.id);
       if (frame.error)
-        waiter.reject(new Error(frame.error.message ?? 'Hermes gateway request failed'));
+        waiter.reject(
+          new HermesGatewayError(frame.error.message ?? 'Hermes gateway request failed', frame.error.code),
+        );
       else waiter.resolve(frame.result);
       return;
     }

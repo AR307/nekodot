@@ -5,9 +5,8 @@ import { tmpdir } from 'node:os';
 import { setTimeout as delay } from 'node:timers/promises';
 import { expect, it } from 'vitest';
 import { startFakeHermes, recordedManagementRuntime } from '@nekodot/fake-hermes';
-import { rpcRequestSchema, type Operation } from '@nekodot/protocol';
+import { rpcRequestSchema, type Message, type Operation } from '@nekodot/protocol';
 import { NodeApplication } from './app';
-import { HermesApi } from './hermes/api';
 
 it('uploads a user file, sends images natively, and executes a selected group member’s native command', async () => {
   const home = await mkdtemp(join(tmpdir(), 'nekodot-composer-'));
@@ -25,7 +24,6 @@ it('uploads a user file, sends images natively, and executes a selected group me
     start: async () => {},
     close: async () => {},
     approvalMode: async () => 'manual' as const,
-    api: async (profile: string) => new HermesApi(fake.url + '/p/' + profile, key),
     configureBot: async (bot: { botId: string }) => {
       await fetch(fake.url + '/test/profiles', {
         method: 'POST',
@@ -33,6 +31,21 @@ it('uploads a user file, sends images natively, and executes a selected group me
         body: JSON.stringify({ profile: bot.botId }),
       });
     },
+  };
+  const gatewayCalls: { profile: string; method: string; params: Record<string, unknown> }[] = [];
+  const getGateway = runtime.gateway.bind(runtime);
+  const wrappedGateways = new WeakSet<object>();
+  runtime.gateway = (profile) => {
+    const gateway = getGateway(profile);
+    if (!wrappedGateways.has(gateway)) {
+      const original = gateway.rpc.bind(gateway);
+      gateway.rpc = ((method: string, params: Record<string, unknown>, timeoutMs?: number) => {
+        gatewayCalls.push({ profile, method, params });
+        return original(method, params, timeoutMs);
+      }) as typeof gateway.rpc;
+      wrappedGateways.add(gateway);
+    }
+    return gateway;
   };
   const app = new NodeApplication(home, runtime);
   const rpc = (method: string, params: unknown) =>
@@ -106,11 +119,50 @@ it('uploads a user file, sends images natively, and executes a selected group me
         'utf8',
       ),
     ).toBe('Attached test content.');
+    const downloads: string[] = [];
+    const managementResponse = runtime.management.response.bind(runtime.management);
+    runtime.management.response = async (path) => {
+      downloads.push(path);
+      return new Response('Delivered by Hermes', {
+        headers: { 'Content-Type': 'text/plain' },
+      });
+    };
+    const delivered: Message = {
+      messageId: randomUUID(),
+      conversationId: lead.conversation.conversationId,
+      seq: app.database.head(),
+      author: { type: 'bot', id: lead.bot.botId },
+      kind: 'text',
+      status: 'done',
+      createdAt: new Date().toISOString(),
+      content: { text: 'MEDIA: /tmp/nekodot-canonical-report.txt' },
+    };
+    await app.files.capture(delivered as Extract<Message, { kind: 'text' }>);
+    runtime.management.response = managementResponse;
+    expect(new URLSearchParams(downloads[0]!.split('?')[1]).get('session_id')).toBe(
+      app.database.hermesSession(lead.conversation.conversationId)?.storedSessionId,
+    );
+    expect(app.files.list({ botId: lead.bot.botId })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'nekodot-canonical-report.txt', available: true }),
+      ]),
+    );
     const group = app.groups.create({
       name: 'Composer test',
       botIds: [lead.bot.botId, writer.bot.botId],
       leadBotId: lead.bot.botId,
     });
+    const commandCatalog = (await rpc('commands.list', { botId: writer.bot.botId })) as {
+      commands: { name: string }[];
+    };
+    expect(commandCatalog.commands.some((command) => command.name === '/new')).toBe(true);
+    expect(gatewayCalls).toContainEqual(
+      expect.objectContaining({
+        profile: writer.bot.botId,
+        method: 'commands.catalog',
+        params: { profile: writer.bot.botId },
+      }),
+    );
     const conversation = app.database
       .conversations()
       .find((c) => c.kind === 'group' && c.groupId === group.group.groupId)!;
@@ -144,6 +196,33 @@ it('uploads a user file, sends images natively, and executes a selected group me
     await until(() => !app.database.runs().length);
     expect(app.operations.get(plan.operationId).status).toBe('done');
     expect(fake.inspectRuns().at(-1)?.profile).toBe(writer.bot.botId);
+    expect(
+      gatewayCalls.some(
+        (call) =>
+          call.profile === writer.bot.botId &&
+          call.method === 'session.create' &&
+          call.params.request_id ===
+            'nekodot:' + writer.bot.botId + ':' + writer.conversation.conversationId,
+      ),
+    ).toBe(true);
+    expect(
+      gatewayCalls.some(
+        (call) =>
+          call.profile === writer.bot.botId &&
+          call.method === 'session.resume' &&
+          call.params.session_id ===
+            app.database.hermesSession(writer.conversation.conversationId)?.storedSessionId,
+      ),
+    ).toBe(true);
+    expect(
+      gatewayCalls.some(
+        (call) =>
+          call.profile === writer.bot.botId &&
+          call.method === 'slash.exec' &&
+          call.params.command === '/plan Summarize the attached test file.' &&
+          String(call.params.session_id).startsWith('runtime-'),
+      ),
+    ).toBe(true);
     const displayed = app.database
       .messages(conversation.conversationId)
       .find((message) => message.author.type === 'user');

@@ -129,6 +129,43 @@ export class FileLibrary {
       ? [{ role: 'user', content: [{ type: 'text', text: content }, ...parts] }]
       : content;
   }
+  async gatewayInput(botId: string, text: string, ids: string[] = []) {
+    const references: string[] = [];
+    const attachments: { path: string; mime: string }[] = [];
+    for (const id of ids) {
+      const file = this.get(id);
+      const row = this.database.db
+        .prepare('SELECT storage_path FROM attachments WHERE file_id=?')
+        .get(id)!;
+      const profileHome = this.hermes.profileHome(botId);
+      const path = join(profileHome, 'uploads', id, file.name);
+      await mkdir(join(path, '..'), { recursive: true, mode: 0o700 });
+      await copyFile(String(row.storage_path), path);
+      references.push(`[Attached file: ${JSON.stringify(path)} (${file.mime})]`);
+      const extension =
+        file.mime === 'image/png'
+          ? '.png'
+          : file.mime === 'image/jpeg'
+            ? '.jpg'
+            : file.mime === 'image/webp'
+              ? '.webp'
+              : file.mime === 'image/gif'
+                ? '.gif'
+                : undefined;
+      if (extension) {
+        const imagePath = join(profileHome, 'cache', 'images', id + extension);
+        await mkdir(join(imagePath, '..'), { recursive: true, mode: 0o700 });
+        await copyFile(String(row.storage_path), imagePath);
+        attachments.push({ path: imagePath, mime: file.mime });
+      }
+    }
+    return {
+      text:
+        (text || 'Please inspect the attached files.') +
+        (references.length ? '\n\n' + references.join('\n') : ''),
+      attachments,
+    };
+  }
   list(params: RpcParams<'files.list'>): Attachment[] {
     return this.database.db
       .prepare('SELECT data FROM attachments WHERE bot_id=? ORDER BY rowid DESC')
@@ -151,7 +188,8 @@ export class FileLibrary {
       .conversations()
       .find((item) => item.kind === 'dm' && item.botId === botId);
     if (!conversation) return;
-    const sessionId = 'nk_dm_' + conversation.conversationId;
+    const sessionId = this.database.hermesSession(conversation.conversationId)?.storedSessionId;
+    if (!sessionId) return;
     const ids: string[] = [];
     for (const reference of deliveryReferences(message.content.text)) {
       const existing = this.database.db

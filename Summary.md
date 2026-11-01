@@ -616,3 +616,11 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 处理 Hermes 首帧 `gateway.ready`、JSON-RPC 请求/响应、服务端请求回包、事件帧、断线及错误帧；服务启动关闭时统一释放连接。
 - 协议旅程测试验证事件、RPC 与反向请求；Node typecheck、目标 ESLint、gateway/runtime 测试通过。
 - 这只是 canonical transport 基础：聊天仍使用旧 Runs API，session/history/approval/clarify/steer/stop 尚未切换，未对真实 Hermes 服务或模型做端到端验收，Phase 5 未完成。
+
+### 2026-11-01 / Side Phase 5：canonical 会话与命令路径
+
+- Node 私聊与群聊回合统一经 Hermes `hermes-gateway-v1` 创建/恢复 profile session、提交 prompt、读取事件、恢复历史、审批/提问、steer、停止和读取 admission 结果；群聊成员仍由 Node 选择，但同一 Bot 的群聊与私聊复用已持久化的 Hermes stored session。
+- 命令目录、slash 与 quick/skill command dispatch、`/refine` 以及记忆审核改用对应 profile 的 Gateway 会话；self-improvement 通过原生 `review.summary` 事件关联。新增轻量 `openNativeSession` 统一 session 创建/恢复和数据库映射。
+- 移除产品 runtime 对 Hermes Runs API 客户端的依赖，启动健康检查只请求本机原生 health endpoint；Hermes 自身 API server 仍保留为文件/工具等原生能力使用，不承载产品聊天执行。
+- 验证：Node 24 全量 typecheck；30 个 Vitest 文件、45 个场景；针对性 ESLint、Prettier 与 Node 24 build 通过。隔离 Ubuntu 24.04 实际 Hermes/模型旅程验证真实欢迎回合、Gateway `/profile`、恢复与同步不重复，详见私有 `.runtime/side-phase-5/canonical-session-welcome.json`。
+- 未完成：真实候选 Windows/Android 客户端、远程 Node/Relay 的匹配版本验收，以及 Hermes 全能力和设置目录仍待后续模块；本地真实 WSL 旅程不替代这些验收。

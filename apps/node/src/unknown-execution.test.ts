@@ -1,4 +1,3 @@
-import { createServer } from 'node:http';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,7 +7,7 @@ import { expect, it } from 'vitest';
 import { recordedManagementRuntime, startFakeHermes } from '@nekodot/fake-hermes';
 import { rpcRequestSchema, type Bot, type Conversation } from '@nekodot/protocol';
 import { NodeApplication } from './app';
-import { HermesApi } from './hermes/api';
+import { NodeFault } from './fault';
 import type { HermesRuntime } from './hermes/runtime';
 
 it.each(['dm', 'group'] as const)(
@@ -23,58 +22,46 @@ it.each(['dm', 'group'] as const)(
       apiKey: key,
       eventDelayMs: 1,
     });
+    const baseRuntime = recordedManagementRuntime(recorded.url, key, home, recorded.pluginCatalog);
     let recovered = false;
     let refuseResolution = true;
     const resolutions: unknown[] = [];
-    const unexpected: string[] = [];
-    const server = createServer(async (request, response) => {
-      response.setHeader('Content-Type', 'application/json');
-      if (request.headers.authorization !== 'Bearer ' + key) {
-        response.writeHead(401).end('{}');
-        return;
-      }
-      if (request.method === 'GET' && request.url === '/v1/runs/lost-run') {
-        response.end(
-          JSON.stringify({
-            run_id: 'lost-run',
-            status: 'unknown',
-            admission_id: 'lost-admission',
-            execution_generation: 4,
-            output: '',
-            pending_controls: [],
-          }),
-        );
-        return;
-      }
-      if (request.method === 'POST' && request.url === '/v1/runs/lost-run/resolve-unknown') {
-        let body = '';
-        for await (const part of request) body += String(part);
-        resolutions.push(JSON.parse(body));
-        if (refuseResolution) {
-          response.writeHead(503).end(JSON.stringify({ error: { code: 'storage_unavailable' } }));
-        } else {
-          recovered = true;
-          response.end(
-            JSON.stringify({ run_id: 'lost-run', status: 'terminal', outcome: 'interrupted' }),
-          );
-        }
-        return;
-      }
-      unexpected.push(request.method + ' ' + request.url);
-      response.writeHead(409).end(JSON.stringify({ error: { code: 'unknown_execution' } }));
-    });
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-    const address = server.address();
-    if (!address || typeof address === 'string') throw new Error('Missing test address');
-    const recoveryUrl = 'http://127.0.0.1:' + address.port;
+    let storedSessionId = '';
+    let runtimeSessionId: string;
     const runtime: HermesRuntime = {
-      ...recordedManagementRuntime(recorded.url, key, home, recorded.pluginCatalog),
+      ...baseRuntime,
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',
       configureBot: async () => {},
-      api: async (profile) =>
-        new HermesApi(recovered ? recorded.url + '/p/' + profile : recoveryUrl, key),
+      gateway: (profile) => {
+        const gateway = baseRuntime.gateway(profile);
+        const originalRpc = gateway.rpc.bind(gateway);
+        gateway.rpc = async <T>(method: string, params: Record<string, unknown>): Promise<T> => {
+          if (method === 'prompt.receipt' && params.admission_id === 'lost-admission')
+            return {
+              admission_id: 'lost-admission',
+              status: recovered ? 'terminal' : 'unknown',
+              outcome: recovered ? 'interrupted' : null,
+              execution_generation: 4,
+            } as T;
+          if (method === 'prompt.resolve_unknown' && params.admission_id === 'lost-admission') {
+            resolutions.push({
+              admission_id: params.admission_id,
+              execution_generation: params.execution_generation,
+            });
+            if (refuseResolution) throw new NodeFault('unavailable', 'Recovery store unavailable');
+            recovered = true;
+            return { status: 'resolved' } as T;
+          }
+          if (method === 'session.resume' && params.session_id === storedSessionId && !recovered) {
+            const snapshot = await originalRpc<Record<string, unknown>>(method, params);
+            return { ...snapshot, running: true, execution_generation: 4 } as T;
+          }
+          return originalRpc<T>(method, params);
+        };
+        return gateway;
+      },
     };
     let app = new NodeApplication(home, runtime);
     const request = (method: string, params: unknown) => rpcRequestSchema.parse({ method, params });
@@ -106,6 +93,28 @@ it.each(['dm', 'group'] as const)(
         createdAt,
       };
       app.database.putConversation(dm);
+      const nativeSession = await baseRuntime.gateway(bot.botId).rpc<{
+        session_id: string;
+        stored_session_id: string;
+        replay_epoch: string;
+        last_sequence: number;
+      }>('session.create', {
+        profile: bot.botId,
+        source: 'gui',
+        title: 'Recovery test',
+        hidden: true,
+        follow_profile_config: true,
+        request_id: 'recovery-session:' + bot.botId,
+      });
+      storedSessionId = nativeSession.stored_session_id;
+      runtimeSessionId = nativeSession.session_id;
+      app.database.saveHermesSession({
+        conversationId: dm.conversationId,
+        botId: bot.botId,
+        storedSessionId,
+        replayEpoch: nativeSession.replay_epoch,
+        lastSequence: nativeSession.last_sequence,
+      });
       let conversation: Conversation = dm;
       if (kind === 'group') {
         const group = {
@@ -146,12 +155,16 @@ it.each(['dm', 'group'] as const)(
           createdAt,
           content: { text: 'Already completed work stays here.' },
         },
-        { runId: 'lost-run' },
+        { runId: 'lost-admission' },
         {
           conversationId: conversation.conversationId,
           botId: bot.botId,
-          runId: 'lost-run',
+          runId: 'lost-admission',
           ...(kind === 'group' ? { groupId: 'recovery-group' } : {}),
+          sessionId: runtimeSessionId,
+          storedSessionId,
+          replayEpoch: nativeSession.replay_epoch,
+          executionGeneration: 4,
           lastSeq: 3,
           state: 'tool',
           inputMessageId: 'original-task',
@@ -189,7 +202,6 @@ it.each(['dm', 'group'] as const)(
         { admission_id: 'lost-admission', execution_generation: 4 },
         { admission_id: 'lost-admission', execution_generation: 4 },
       ]);
-      expect(unexpected).toEqual([]);
       expect(app.database.runs()).toHaveLength(0);
       expect(app.database.chain(conversation.conversationId)).toBeUndefined();
       expect(app.database.message('partial-reply')).toMatchObject({
@@ -209,7 +221,7 @@ it.each(['dm', 'group'] as const)(
       expect(recorded.inspectRuns()).toHaveLength(1);
       expect(recorded.inspectRuns()[0]).toMatchObject({
         profile: bot.botId,
-        sessionId: 'nk_dm_private-chat',
+        sessionId: runtimeSessionId,
       });
       expect(app.database.messages(conversation.conversationId)).toEqual(
         expect.arrayContaining([
@@ -222,8 +234,6 @@ it.each(['dm', 'group'] as const)(
       );
     } finally {
       await app.close();
-      server.closeAllConnections();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
       await recorded.close();
       await delay(0);
     }

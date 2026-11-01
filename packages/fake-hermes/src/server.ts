@@ -211,10 +211,10 @@ export async function startFakeHermes(options: FakeHermesOptions) {
       const normalized = { ...input, input: text };
       const inputText = text.toLowerCase();
       const scenario =
+        options.scenarioFor?.(normalized, profile) ??
         (text.startsWith('You have just been created as a nekodot Bot.')
           ? 'runs-welcome'
           : undefined) ??
-        options.scenarioFor?.(normalized, profile) ??
         scenarios.find((name) => name === text) ??
         [...scenarios].sort((a, b) => b.length - a.length).find((name) => text.includes(name)) ??
         (inputText.includes('long task')

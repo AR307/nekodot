@@ -9,7 +9,6 @@ import { createRelay } from '../../apps/relay/src/server';
 import { NodeApplication } from '../../apps/node/src/app';
 import { pairNode } from '../../apps/node/src/pair';
 import { connectRelay } from '../../apps/node/src/connection';
-import { HermesApi } from '../../apps/node/src/hermes/api';
 import type { HermesRuntime } from '../../apps/node/src/hermes/runtime';
 import { seedVerifiedAccount } from './account';
 
@@ -63,7 +62,6 @@ export async function userMemoryEnvironment(port = 0) {
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',
-      api: async (profile) => new HermesApi(fake.url + '/p/' + profile, key),
       configureBot: async (bot, create) => {
         if (create)
           await fetch(fake.url + '/test/profiles', {

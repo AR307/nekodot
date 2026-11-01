@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { startFakeHermes, recordedManagementRuntime } from '@nekodot/fake-hermes';
 import { NodeApplication } from './app';
-import { HermesApi } from './hermes/api';
 import type { HermesRuntime } from './hermes/runtime';
 
 it('two custom APIs survive app restart; each profile keeps its selected route and only its credential', async () => {
@@ -25,7 +24,6 @@ it('two custom APIs survive app restart; each profile keeps its selected route a
     close: async () => {},
     approvalMode: async () => 'manual',
     configureBot: async () => {},
-    api: async (profile) => new HermesApi(fake.url + '/p/' + profile, key),
   };
   let app = new NodeApplication(home, runtime);
   try {

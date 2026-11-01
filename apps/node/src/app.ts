@@ -8,12 +8,11 @@ import type {
   RpcRequest,
   RpcResult,
   ApprovalChoice,
-  HermesRunState,
   HermesEvent,
 } from '@nekodot/protocol';
 import { NodeDatabase, type GroupChainRecord, type RunRecord } from './database';
 import type { HermesRuntime } from './hermes/runtime';
-import type { HermesApi } from './hermes/api';
+import { HermesGatewayError, type GatewayFrame } from './hermes/gateway';
 import { NodeFault } from './fault';
 import { BotService } from './bots';
 import { Providers } from './providers';
@@ -28,12 +27,128 @@ import { Notifications } from './notifications';
 import { SharedUserMemory } from './user-memory';
 import { BotCommands } from './commands';
 import { Routines } from './routines';
+import { openNativeSession, type NativeSessionSnapshot } from './hermes/session';
 
 type TextMessage = Extract<Message, { kind: 'text' }>;
 
 const now = () => new Date().toISOString();
-const isActiveStatus = (status: string) =>
-  ['queued', 'running', 'waiting_for_approval', 'stopping', 'pending'].includes(status);
+
+interface NativePrompt {
+  kind: 'approval' | 'clarify';
+  prompt_id: string;
+  execution_generation: number;
+  choices?: string[];
+  command?: string;
+  description?: string;
+  question?: string;
+  multi_select?: boolean;
+}
+
+interface NativeAdmission {
+  admission_id: string;
+  status: 'queued' | 'started' | 'unknown' | 'terminal';
+  outcome?: string | null;
+  execution_generation?: number | null;
+  result?: { final_response?: string; failed?: boolean; interrupted?: boolean };
+}
+
+interface NativeReplay {
+  events: GatewayFrame[];
+  replay_epoch: string;
+  latest_seq: number;
+  snapshot_required: boolean;
+  truncated: boolean;
+}
+
+function projectGatewayEvent(run: RunRecord, frame: GatewayFrame): HermesEvent | undefined {
+  const payload = frame.payload ?? {};
+  const base = {
+    run_id: run.runId ?? '',
+    timestamp: Date.now() / 1000,
+    seq: frame.seq ?? 0,
+  };
+  const text = typeof payload.text === 'string' ? payload.text : undefined;
+  switch (frame.type) {
+    case 'message.delta':
+      return { ...base, event: 'message.delta', ...(text !== undefined ? { delta: text } : {}) };
+    case 'message.interim':
+      return {
+        ...base,
+        event: 'message.interim',
+        ...(text !== undefined ? { text } : {}),
+        already_streamed: payload.already_streamed !== false,
+      };
+    case 'tool.start':
+      return {
+        ...base,
+        event: 'tool.started',
+        tool_call_id: String(payload.tool_id ?? ''),
+        tool: String(payload.name ?? 'tool'),
+        preview: String(payload.preview ?? payload.args_text ?? ''),
+      };
+    case 'tool.complete':
+      return {
+        ...base,
+        event: 'tool.completed',
+        tool_call_id: String(payload.tool_id ?? ''),
+        preview: String(payload.summary ?? payload.result_text ?? ''),
+        duration: typeof payload.duration_s === 'number' ? payload.duration_s : 0,
+        error: payload.error === true,
+      };
+    case 'tool.generating':
+      return {
+        ...base,
+        event: 'tool.generating',
+        tool: String(payload.name ?? 'tool'),
+      };
+    case 'approval.request':
+    case 'clarify.request':
+      return {
+        ...base,
+        event: frame.type,
+        prompt_id: String(payload.prompt_id ?? ''),
+        execution_generation:
+          frame.execution_generation ?? Number(payload.execution_generation ?? 0),
+        ...(typeof payload.command === 'string' ? { command: payload.command } : {}),
+        ...(typeof payload.description === 'string' ? { description: payload.description } : {}),
+        ...(Array.isArray(payload.choices)
+          ? {
+              choices: payload.choices.filter(
+                (choice): choice is string => typeof choice === 'string',
+              ),
+            }
+          : {}),
+        ...(typeof payload.question === 'string' ? { question: payload.question } : {}),
+        ...(typeof payload.multi_select === 'boolean'
+          ? { multi_select: payload.multi_select }
+          : {}),
+      };
+    case 'approval.settled':
+    case 'clarify.settled':
+      return { ...base, event: frame.type, prompt_id: String(payload.prompt_id ?? '') };
+    case 'message.complete': {
+      const status = payload.status;
+      const event =
+        status === 'error'
+          ? 'run.failed'
+          : status === 'interrupted'
+            ? 'run.interrupted'
+            : 'run.completed';
+      const output = typeof payload.text === 'string' ? payload.text : undefined;
+      return {
+        ...base,
+        event: run.stopRequested && status === 'interrupted' ? 'run.cancelled' : event,
+        ...(output !== undefined ? { output } : {}),
+        ...(typeof payload.error === 'string' ? { error: payload.error } : {}),
+        ...(typeof payload.failure_reason === 'string'
+          ? { turn_exit_reason: payload.failure_reason }
+          : {}),
+      };
+    }
+    default:
+      return undefined;
+  }
+}
 
 export class NodeApplication {
   readonly database: NodeDatabase;
@@ -305,63 +420,101 @@ export class NodeApplication {
 
   async resume() {
     for (const run of this.database.runs()) {
-      if (!run.runId) {
-        await this.finishInterrupted(run, 'Run was interrupted before Hermes returned its run ID.');
+      const conversationId = run.groupId
+        ? (this.database
+            .conversations()
+            .find((item) => item.kind === 'dm' && item.botId === run.botId)?.conversationId ??
+          run.conversationId)
+        : run.conversationId;
+      const session = this.database.hermesSession(conversationId);
+      if (!session && !run.storedSessionId) {
+        await this.finishInterrupted(
+          run,
+          'This execution predates the Hermes gateway session and was not restarted.',
+        );
         continue;
       }
+      const gateway = this.hermes.gateway(run.botId);
       try {
-        const api = await this.hermes.api(run.botId);
-        const state = await api.state(run.runId);
-        if (state.status === 'unknown') {
-          this.pauseUnknown(run);
-        } else if (isActiveStatus(state.status)) {
+        const priorEpoch = run.replayEpoch ?? session?.replayEpoch;
+        let snapshot = await gateway.rpc<NativeSessionSnapshot>('session.resume', {
+          session_id: session?.storedSessionId ?? run.storedSessionId,
+          defer_history: true,
+          omit_messages: true,
+        });
+        const replayChanged = priorEpoch !== undefined && priorEpoch !== snapshot.replay_epoch;
+        if (replayChanged)
+          snapshot = await gateway.rpc<NativeSessionSnapshot>('session.resume', {
+            session_id: snapshot.stored_session_id,
+          });
+        run.replayEpoch = snapshot.replay_epoch;
+        run.executionGeneration = snapshot.execution_generation;
+        run.sessionId = snapshot.session_id;
+        run.storedSessionId = snapshot.stored_session_id;
+        if (replayChanged) {
+          this.reconcileNativeText(run, snapshot);
+          run.lastSeq = snapshot.last_sequence;
+        }
+        this.database.saveRun(run);
+        this.database.saveHermesSession({
+          conversationId,
+          botId: run.botId,
+          storedSessionId: snapshot.stored_session_id,
+          replayEpoch: snapshot.replay_epoch,
+          lastSequence: replayChanged
+            ? snapshot.last_sequence
+            : (session?.lastSequence ?? snapshot.last_sequence),
+        });
+        if (!run.runId) {
+          const input = this.database.message(run.inputMessageId);
+          const chain = run.groupId ? this.database.chain(run.conversationId) : undefined;
           this.activeRuns.set(run.conversationId, run);
-          this.restoreQuestion(run, state);
-          if (state.status === 'waiting_for_approval') {
-            const pending = state.pending_controls?.find((control) => control.kind === 'approval');
-            if (pending && !this.database.approval(run.runId, pending.prompt_id)) {
-              const prompt = pending as typeof pending & { command?: string; description?: string };
-              const message: Message = {
-                messageId: randomUUID(),
-                conversationId: run.conversationId,
-                seq: this.database.head(),
-                author: { type: 'bot', id: run.botId },
-                kind: 'approval',
-                status: 'streaming',
-                createdAt: now(),
-                content: {
-                  runId: run.runId,
-                  botId: run.botId,
-                  requestId: prompt.prompt_id,
-                  executionGeneration:
-                    prompt.execution_generation ?? state.execution_generation ?? 0,
-                  prompt: prompt.description ?? prompt.command ?? 'Approval required',
-                  ...(prompt.command ? { command: prompt.command } : {}),
-                  ...(prompt.choices ? { choices: prompt.choices as ApprovalChoice[] } : {}),
-                },
-              };
-              run.state = 'waiting_approval';
-              this.database.putMessage(message, { runId: run.runId }, run);
-            }
-          }
+          void this.startRun(
+            run,
+            chain?.currentInput ?? (input?.kind === 'text' ? input.content.text : ''),
+            chain?.currentInstructions,
+          );
+          continue;
+        }
+        const receipt = await gateway.rpc<NativeAdmission>('prompt.receipt', {
+          session_id: run.sessionId,
+          admission_id: run.runId,
+          include_result: true,
+        });
+        if (receipt.status === 'unknown') {
+          this.pauseUnknown(run);
+        } else if (receipt.status === 'queued' || receipt.status === 'started') {
+          this.activeRuns.set(run.conversationId, run);
+          this.restoreNativePrompts(run, snapshot.prompts ?? []);
           this.publishActivity(run);
-          this.consume(run, api);
+          this.consume(run, gateway);
         } else {
           await this.finishFromState(
             run,
-            state.status,
-            state.output,
-            state.pending_steer,
-            state.error ?? state.turn_exit_reason,
+            receipt.outcome === 'cancelled'
+              ? 'cancelled'
+              : receipt.outcome === 'completed'
+                ? 'completed'
+                : receipt.outcome === 'failed'
+                  ? 'failed'
+                  : 'interrupted',
+            undefined,
+            undefined,
+            typeof receipt.outcome === 'string' ? receipt.outcome : undefined,
           );
         }
-      } catch {
+      } catch (error) {
         if (run.state === 'unknown') this.pauseUnknown(run);
-        else
+        else if (error instanceof HermesGatewayError && error.message === 'not_found')
           await this.finishInterrupted(
             run,
-            'Hermes could not resume this run. It was not restarted.',
+            'Hermes no longer has this execution. It was not restarted.',
           );
+        else {
+          this.activeRuns.set(run.conversationId, run);
+          this.publishActivity(run);
+          this.consume(run, gateway);
+        }
       }
     }
     const activeConversations = new Set(this.database.runs().map((run) => run.conversationId));
@@ -376,7 +529,11 @@ export class NodeApplication {
     await this.userMemory.close();
     this.screens.close();
     for (const run of this.activeRuns.values())
-      this.persistText(run, this.currentText(run), run.lastSeq);
+      this.persistText(
+        run,
+        this.currentText(run),
+        run.runId ? (this.appliedSeq.get(run.runId) ?? run.lastSeq) : run.lastSeq,
+      );
     for (const consumer of this.consumers.values()) consumer.abort();
     this.consumers.clear();
     this.database.db.close();
@@ -546,14 +703,22 @@ export class NodeApplication {
           'conflict',
           'Resolve the pending approval or stop this run before sending.',
         );
-      if (!active.runId)
+      if (!active.runId || !active.sessionId || active.executionGeneration === undefined)
         throw new NodeFault('conflict', 'The current run is starting. Try again shortly.');
-      const accepted = await (await this.hermes.api(bot.botId)).steer(active.runId, params.text);
-      if (!accepted.accepted)
+      const accepted = await this.hermes.gateway(bot.botId).rpc<{
+        status: 'queued' | 'redirected' | 'rejected';
+        execution_generation: number;
+      }>('session.steer', {
+        session_id: active.sessionId,
+        execution_generation: active.executionGeneration,
+        text: params.text,
+      });
+      if (accepted.status === 'rejected')
         throw new NodeFault(
           'conflict',
           'Hermes did not accept this instruction. You can send it again.',
         );
+      active.executionGeneration = accepted.execution_generation;
       const previousReply = this.currentText(active);
       if (previousReply) {
         previousReply.status = 'done';
@@ -622,14 +787,22 @@ export class NodeApplication {
           'conflict',
           'Resolve the pending approval or stop this run before sending.',
         );
-      if (!active.runId)
+      if (!active.runId || !active.sessionId || active.executionGeneration === undefined)
         throw new NodeFault('conflict', 'The current run is starting. Try again shortly.');
-      const accepted = await (await this.hermes.api(active.botId)).steer(active.runId, params.text);
-      if (!accepted.accepted)
+      const accepted = await this.hermes.gateway(active.botId).rpc<{
+        status: 'queued' | 'redirected' | 'rejected';
+        execution_generation: number;
+      }>('session.steer', {
+        session_id: active.sessionId,
+        execution_generation: active.executionGeneration,
+        text: params.text,
+      });
+      if (accepted.status === 'rejected')
         throw new NodeFault(
           'conflict',
           'Hermes did not accept this instruction. You can send it again.',
         );
+      active.executionGeneration = accepted.execution_generation;
       const previousReply = this.currentText(active);
       if (previousReply) {
         previousReply.status = 'done';
@@ -757,7 +930,6 @@ export class NodeApplication {
     try {
       await this.userMemory.sync();
       await this.providers.configureBot(this.bots.get(run.botId));
-      const api = await this.hermes.api(run.botId);
       const conversationId = run.groupId
         ? this.database
             .conversations()
@@ -776,19 +948,61 @@ export class NodeApplication {
       const routineContext = run.welcome
         ? { text: '', until: undefined }
         : this.routines.context(run.botId);
-      const created = await api.createRun(
-        await this.files.input(run.botId, input + routineContext.text, attachments),
-        'nk_dm_' + conversationId,
-        run.requestId ?? run.inputMessageId,
-        instructions,
+      const gateway = this.hermes.gateway(run.botId);
+      const snapshot = await openNativeSession(
+        this.database,
+        this.hermes,
+        run.botId,
+        conversationId,
       );
-      run.runId = created.run_id;
+      run.sessionId = snapshot.session_id;
+      run.storedSessionId = snapshot.stored_session_id;
+      run.replayEpoch = snapshot.replay_epoch;
+      run.lastSeq = snapshot.last_sequence;
+      run.submissionId ??= run.requestId ?? run.inputMessageId;
+      this.database.saveRun(run);
+      const nativeInput = await this.files.gatewayInput(
+        run.botId,
+        [instructions, input + routineContext.text].filter(Boolean).join('\n\n'),
+        attachments,
+      );
+      const admission = await gateway.rpc<NativeAdmission>('prompt.submit', {
+        session_id: run.sessionId,
+        text: nativeInput.text,
+        submission_id: run.submissionId,
+        input_id: run.inputMessageId,
+        ...(nativeInput.attachments.length ? { attachments: nativeInput.attachments } : {}),
+      });
+      run.runId = admission.admission_id;
+      run.executionGeneration = admission.execution_generation ?? snapshot.execution_generation;
+      run.state = 'thinking';
       if (routineContext.until)
         this.database.setSetting('routine-context:' + run.botId, routineContext.until);
       if (this.database.message(run.inputMessageId))
-        this.database.setMessageRun(run.inputMessageId, created.run_id);
+        this.database.setMessageRun(run.inputMessageId, admission.admission_id);
       this.database.saveRun(run);
-      this.consume(run, api);
+      if (admission.status === 'unknown') {
+        this.pauseUnknown(run);
+      } else if (admission.status === 'terminal') {
+        const receipt = await gateway.rpc<NativeAdmission>('prompt.receipt', {
+          session_id: run.sessionId,
+          admission_id: admission.admission_id,
+          include_result: true,
+        });
+        await this.finishFromState(
+          run,
+          receipt.outcome === 'cancelled'
+            ? 'cancelled'
+            : receipt.outcome === 'completed'
+              ? 'completed'
+              : receipt.outcome === 'failed'
+                ? 'failed'
+                : 'interrupted',
+          receipt.result?.final_response,
+          undefined,
+          receipt.outcome ?? undefined,
+        );
+      } else this.consume(run, gateway);
     } catch (error) {
       const failed = this.currentText(run) ?? this.newText(run, '', 'failed');
       failed.status = 'failed';
@@ -810,58 +1024,153 @@ export class NodeApplication {
     }
   }
 
-  private consume(run: RunRecord, api: HermesApi) {
+  private consume(run: RunRecord, gateway: ReturnType<HermesRuntime['gateway']>) {
     if (!run.runId || this.consumers.has(run.runId)) return;
     const controller = new AbortController();
     this.consumers.set(run.runId, controller);
-    void this.readRun(run, api, controller.signal).finally(() => {
+    void this.readRun(run, gateway, controller.signal).finally(() => {
       if (run.runId) this.consumers.delete(run.runId);
     });
   }
 
-  private async readRun(run: RunRecord, api: HermesApi, signal: AbortSignal) {
-    let reconnectDelay = 1000;
+  private async readRun(
+    run: RunRecord,
+    gateway: ReturnType<HermesRuntime['gateway']>,
+    signal: AbortSignal,
+  ) {
+    let reconnectDelay = 500;
     let disconnected = false;
+    let attachedGeneration = -1;
     while (!signal.aborted && run.runId) {
       try {
-        for await (const frame of api.events(run.runId, run.lastSeq, signal)) {
-          if (disconnected) {
-            disconnected = false;
-            this.publishActivity(run);
+        if (attachedGeneration !== gateway.generation) {
+          const snapshot = await gateway.rpc<NativeSessionSnapshot>('session.resume', {
+            session_id: run.storedSessionId!,
+          });
+          const replayChanged = run.replayEpoch !== snapshot.replay_epoch;
+          run.replayEpoch = snapshot.replay_epoch;
+          run.sessionId = snapshot.session_id;
+          run.storedSessionId = snapshot.stored_session_id;
+          run.executionGeneration = snapshot.execution_generation;
+          if (replayChanged) {
+            this.reconcileNativeText(run, snapshot);
+            run.lastSeq = snapshot.last_sequence;
           }
-          const event = frame.data;
-          if (event.seq <= Math.max(run.lastSeq, this.appliedSeq.get(run.runId) ?? -1)) continue;
-          await this.acceptEvent(run, api, event);
-          if (run.state === 'idle' || run.state === 'unknown') return;
-          this.appliedSeq.set(run.runId, event.seq);
-        }
-        if (signal.aborted) return;
-        const state = await api.state(run.runId);
-        if (state.status === 'unknown') {
-          this.pauseUnknown(run);
-          return;
-        }
-        if (!isActiveStatus(state.status)) {
-          await this.finishFromState(
-            run,
-            state.status,
-            state.output,
-            state.pending_steer,
-            state.error ?? state.turn_exit_reason,
+          this.restoreNativePrompts(run, snapshot.prompts ?? []);
+          const session = this.database.hermesSession(
+            run.groupId
+              ? (this.database
+                  .conversations()
+                  .find((item) => item.kind === 'dm' && item.botId === run.botId)?.conversationId ??
+                  run.conversationId)
+              : run.conversationId,
           );
-          return;
+          if (session)
+            this.database.saveHermesSession({
+              ...session,
+              storedSessionId: snapshot.stored_session_id,
+              replayEpoch: snapshot.replay_epoch,
+              ...(replayChanged ? { lastSequence: snapshot.last_sequence } : {}),
+            });
+          this.database.saveRun(run);
+          attachedGeneration = gateway.generation;
         }
-        this.restoreQuestion(run, state);
-        reconnectDelay = 1000;
+        const replay = await gateway.rpc<NativeReplay>('session.events.since', {
+          session_id: run.sessionId!,
+          last_sequence: Math.max(run.lastSeq, this.appliedSeq.get(run.runId) ?? 0),
+          replay_epoch: run.replayEpoch,
+        });
+        if (disconnected) {
+          disconnected = false;
+          this.publishActivity(run);
+        }
+        if (replay.snapshot_required || replay.truncated) {
+          const snapshot = await gateway.rpc<NativeSessionSnapshot>('session.resume', {
+            session_id: run.storedSessionId!,
+          });
+          run.replayEpoch = snapshot.replay_epoch;
+          run.sessionId = snapshot.session_id;
+          run.storedSessionId = snapshot.stored_session_id;
+          run.lastSeq = snapshot.last_sequence;
+          run.executionGeneration = snapshot.execution_generation;
+          this.reconcileNativeText(run, snapshot);
+          this.restoreNativePrompts(run, snapshot.prompts ?? []);
+          const session = this.database.hermesSession(
+            run.groupId
+              ? (this.database
+                  .conversations()
+                  .find((item) => item.kind === 'dm' && item.botId === run.botId)?.conversationId ??
+                  run.conversationId)
+              : run.conversationId,
+          );
+          if (session)
+            this.database.saveHermesSession({
+              ...session,
+              storedSessionId: snapshot.stored_session_id,
+              replayEpoch: snapshot.replay_epoch,
+              lastSequence: snapshot.last_sequence,
+            });
+          this.database.saveRun(run);
+        } else {
+          for (const frame of replay.events) {
+            if (signal.aborted) return;
+            const sequence = frame.seq ?? -1;
+            if (sequence <= Math.max(run.lastSeq, this.appliedSeq.get(run.runId) ?? -1)) continue;
+            const event = projectGatewayEvent(run, frame);
+            if (event) await this.acceptEvent(run, event);
+            this.appliedSeq.set(run.runId, sequence);
+            if (run.lastSeq >= sequence) {
+              const session = this.database.hermesSession(
+                run.groupId
+                  ? (this.database
+                      .conversations()
+                      .find((item) => item.kind === 'dm' && item.botId === run.botId)
+                      ?.conversationId ?? run.conversationId)
+                  : run.conversationId,
+              );
+              if (session)
+                this.database.saveHermesSession({
+                  ...session,
+                  replayEpoch: replay.replay_epoch,
+                  lastSequence: Math.max(session.lastSequence, sequence),
+                });
+            }
+            if (run.state === 'idle' || run.state === 'unknown') return;
+          }
+          run.replayEpoch = replay.replay_epoch;
+          const receipt = await gateway.rpc<NativeAdmission>('prompt.receipt', {
+            session_id: run.sessionId!,
+            admission_id: run.runId,
+          });
+          if (receipt.status === 'unknown') {
+            this.pauseUnknown(run);
+            return;
+          }
+          if (receipt.status === 'terminal') {
+            const completed = await gateway.rpc<NativeAdmission>('prompt.receipt', {
+              session_id: run.sessionId!,
+              admission_id: run.runId,
+              include_result: true,
+            });
+            await this.finishFromState(
+              run,
+              completed.outcome === 'cancelled'
+                ? 'cancelled'
+                : completed.outcome === 'completed'
+                  ? 'completed'
+                  : completed.outcome === 'failed'
+                    ? 'failed'
+                    : 'interrupted',
+              completed.result?.final_response,
+              undefined,
+              completed.outcome ?? undefined,
+            );
+            return;
+          }
+        }
+        reconnectDelay = 500;
       } catch (error) {
         if (signal.aborted) return;
-        if (error instanceof Error && error.name === 'ZodError') {
-          await this.finishInterrupted(
-            run,
-            'Hermes returned an unsupported event. The task was not restarted.',
-          );
-          return;
-        }
         if (!disconnected) {
           disconnected = true;
           this.persistText(run, this.currentText(run), run.lastSeq);
@@ -874,44 +1183,36 @@ export class NodeApplication {
             detail: error instanceof Error ? error.message : 'Hermes stream disconnected',
           });
         }
-        try {
-          const state = await api.state(run.runId);
-          if (state.status === 'unknown') {
-            this.pauseUnknown(run);
-            return;
-          }
-          if (!isActiveStatus(state.status)) {
-            await this.finishFromState(
-              run,
-              state.status,
-              state.output,
-              state.pending_steer,
-              state.error ?? state.turn_exit_reason,
-            );
-            return;
-          }
-          this.restoreQuestion(run, state);
-        } catch (stateError) {
-          if (stateError instanceof NodeFault && stateError.code === 'not_found') {
-            await this.finishInterrupted(
-              run,
-              'Hermes no longer has this run. It was not restarted.',
-            );
-            return;
-          }
-        }
       }
       if (signal.aborted) return;
       await new Promise((resolve) => setTimeout(resolve, reconnectDelay));
-      reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+      reconnectDelay = Math.min(reconnectDelay * 2, 10000);
     }
   }
 
-  private async acceptEvent(run: RunRecord, api: HermesApi, event: HermesEvent) {
+  private reconcileNativeText(run: RunRecord, snapshot: NativeSessionSnapshot) {
+    const active = this.currentText(run);
+    if (!active) return;
+    const text = [...(snapshot.messages ?? [])]
+      .reverse()
+      .find((message) => message.role === 'assistant' && typeof message.text === 'string')?.text;
+    if (typeof text !== 'string' || !text.startsWith(active.content.text)) return;
+    active.content = { ...active.content, text };
+    this.persistText(run, active, snapshot.last_sequence);
+  }
+
+  private async acceptEvent(run: RunRecord, event: HermesEvent) {
     const runId = run.runId!;
     if (event.event === 'clarify.request') {
       this.persistText(run, this.currentText(run), event.seq);
-      this.restoreQuestion(run, await api.state(runId));
+      this.restoreQuestion(run, {
+        kind: 'clarify',
+        prompt_id: event.prompt_id ?? '',
+        execution_generation: event.execution_generation ?? run.executionGeneration ?? 0,
+        choices: event.choices,
+        question: event.question,
+        multi_select: event.multi_select,
+      });
       run.lastSeq = event.seq;
       this.database.saveRun(run);
       return;
@@ -1019,16 +1320,6 @@ export class NodeApplication {
     }
     if (event.event === 'approval.request') {
       this.persistText(run, this.currentText(run), event.seq);
-      const state = await api.state(runId);
-      const pending = state.pending_controls?.find(
-        (control) => control.prompt_id === event.prompt_id,
-      );
-      if (!pending) {
-        run.lastSeq = event.seq;
-        this.database.saveRun(run);
-        return;
-      }
-      const details = pending as typeof pending & { command?: string; description?: string };
       const approval: Message = {
         messageId: randomUUID(),
         conversationId: run.conversationId,
@@ -1040,27 +1331,18 @@ export class NodeApplication {
         content: {
           runId,
           botId: run.botId,
-          requestId: pending.prompt_id,
-          executionGeneration: pending.execution_generation ?? event.execution_generation ?? 0,
-          ...((pending.choices ?? event.choices)
-            ? { choices: (pending.choices ?? event.choices) as ApprovalChoice[] }
-            : {}),
-          prompt:
-            details.description ??
-            details.command ??
-            event.description ??
-            event.command ??
-            'Approval required',
-          ...((details.command ?? event.command)
-            ? { command: details.command ?? event.command }
-            : {}),
+          requestId: event.prompt_id ?? '',
+          executionGeneration: event.execution_generation ?? run.executionGeneration ?? 0,
+          ...(event.choices ? { choices: event.choices as ApprovalChoice[] } : {}),
+          prompt: event.description ?? event.command ?? 'Approval required',
+          ...(event.command ? { command: event.command } : {}),
         },
       };
       run.state = 'waiting_approval';
       run.lastSeq = event.seq;
       this.database.putMessage(approval, { runId }, run);
       this.notifications.send({
-        notificationId: `approval:${runId}:${pending.prompt_id}`,
+        notificationId: `approval:${runId}:${event.prompt_id}`,
         conversationId: run.conversationId,
         kind: 'approval',
       });
@@ -1082,13 +1364,11 @@ export class NodeApplication {
       return;
     }
     if (event.event === 'run.completed') {
-      const state = await api.state(runId);
       const reply = this.ensureText(run);
       reply.content = { ...reply.content, text: event.output ?? reply.content.text };
       reply.status = 'done';
       await this.files.capture(reply);
       this.persistText(run, reply, event.seq);
-      this.pendingInstruction(run, state.pending_steer);
       if (run.groupId) await this.finishGroupRun(run, 'completed', reply.content.text);
       else {
         this.notifications.send({
@@ -1105,17 +1385,6 @@ export class NodeApplication {
       event.event === 'run.interrupted' ||
       event.event === 'run.failed'
     ) {
-      const state = await api.state(runId);
-      if (state.status === 'unknown') {
-        run.lastSeq = event.seq;
-        this.pauseUnknown(run);
-        return;
-      }
-      if (state.status === 'queued') {
-        run.lastSeq = event.seq;
-        this.database.saveRun(run);
-        return;
-      }
       this.settleControls(run, event.event === 'run.cancelled' ? 'cancelled' : 'failed');
       const reply =
         this.currentText(run) ??
@@ -1136,7 +1405,6 @@ export class NodeApplication {
               'Hermes interrupted this turn. Send a message to continue; the task was not restarted.');
       reply.status = event.event === 'run.cancelled' ? 'cancelled' : 'failed';
       this.persistText(run, reply, event.seq);
-      this.pendingInstruction(run, state.pending_steer);
       if (run.groupId)
         await this.finishGroupRun(
           run,
@@ -1293,24 +1561,48 @@ export class NodeApplication {
     const run =
       this.activeRuns.get(conversationId) ??
       this.database.runs().find((item) => item.conversationId === conversationId);
-    if (!run?.runId) throw new NodeFault('not_found', 'No active run');
+    if (!run?.runId || !run.sessionId || run.executionGeneration === undefined)
+      throw new NodeFault('not_found', 'No active run');
     run.stopRequested = true;
     this.database.saveRun(run);
     try {
-      const api = await this.hermes.api(run.botId);
-      const state = await api.state(run.runId);
-      if (state.status === 'unknown') {
-        if (!state.admission_id || state.execution_generation == null)
-          throw new NodeFault(
-            'unavailable',
-            'Hermes did not return the interrupted execution identity.',
-          );
-        await api.resolveUnknown(run.runId, state.admission_id, state.execution_generation);
+      const gateway = this.hermes.gateway(run.botId);
+      const receipt = await gateway.rpc<NativeAdmission>('prompt.receipt', {
+        session_id: run.sessionId,
+        admission_id: run.runId,
+      });
+      if (receipt.status === 'unknown') {
+        await gateway.rpc('prompt.resolve_unknown', {
+          session_id: run.sessionId,
+          admission_id: run.runId,
+          execution_generation: run.executionGeneration,
+        });
         this.consumers.get(run.runId)?.abort();
         if (run.groupId) this.database.clearChain(conversationId);
         await this.finishFromState(run, 'cancelled');
+      } else if (receipt.status === 'queued') {
+        await gateway.rpc('prompt.cancel', {
+          session_id: run.sessionId,
+          admission_id: run.runId,
+        });
+        this.consumers.get(run.runId)?.abort();
+        if (run.groupId) this.database.clearChain(conversationId);
+        await this.finishFromState(run, 'cancelled');
+      } else if (receipt.status === 'terminal') {
+        await this.finishFromState(
+          run,
+          receipt.outcome === 'completed'
+            ? 'completed'
+            : receipt.outcome === 'failed'
+              ? 'failed'
+              : 'cancelled',
+        );
       } else {
-        await api.stop(run.runId);
+        run.executionGeneration = receipt.execution_generation ?? run.executionGeneration;
+        await gateway.rpc('session.interrupt', {
+          session_id: run.sessionId,
+          execution_generation: run.executionGeneration,
+        });
       }
     } catch (error) {
       run.stopRequested = false;
@@ -1343,9 +1635,13 @@ export class NodeApplication {
       this.activeRuns.get(message.conversationId) ??
       this.database.runs().find((item) => item.runId === runId);
     if (!run) throw new NodeFault('not_found', 'Run is no longer active');
-    await (
-      await this.hermes.api(run.botId)
-    ).approve(runId, message.content.requestId, message.content.executionGeneration, params.choice);
+    if (!run.sessionId) throw new NodeFault('not_found', 'Hermes session is no longer active');
+    await this.hermes.gateway(run.botId).rpc('approval.respond', {
+      session_id: run.sessionId,
+      execution_generation: message.content.executionGeneration,
+      prompt_id: message.content.requestId,
+      choice: params.choice,
+    });
     message.content = { ...message.content, choice: params.choice };
     message.status = 'done';
     run.state = 'thinking';
@@ -1354,9 +1650,41 @@ export class NodeApplication {
     return {};
   }
 
-  private restoreQuestion(run: RunRecord, state: HermesRunState) {
-    const pending = state.pending_controls?.find((control) => control.kind === 'clarify');
-    if (!pending || !run.runId) return;
+  private restoreNativePrompts(run: RunRecord, prompts: NativePrompt[]) {
+    for (const pending of prompts) {
+      if (pending.kind === 'clarify') {
+        this.restoreQuestion(run, pending);
+        continue;
+      }
+      if (!run.runId || this.database.approval(run.runId, pending.prompt_id)) continue;
+      run.state = 'waiting_approval';
+      this.database.putMessage(
+        {
+          messageId: randomUUID(),
+          conversationId: run.conversationId,
+          seq: this.database.head(),
+          author: { type: 'bot', id: run.botId },
+          kind: 'approval',
+          status: 'streaming',
+          createdAt: now(),
+          content: {
+            runId: run.runId,
+            botId: run.botId,
+            requestId: pending.prompt_id,
+            executionGeneration: pending.execution_generation,
+            prompt: pending.description ?? pending.command ?? 'Approval required',
+            ...(pending.command ? { command: pending.command } : {}),
+            ...(pending.choices ? { choices: pending.choices as ApprovalChoice[] } : {}),
+          },
+        },
+        { runId: run.runId },
+        run,
+      );
+    }
+  }
+
+  private restoreQuestion(run: RunRecord, pending: NativePrompt) {
+    if (pending.kind !== 'clarify' || !run.runId) return;
     const existing = this.database
       .messagesForRun(run.runId)
       .find(
@@ -1377,7 +1705,7 @@ export class NodeApplication {
             runId: run.runId,
             botId: run.botId,
             requestId: pending.prompt_id,
-            executionGeneration: pending.execution_generation ?? state.execution_generation ?? 0,
+            executionGeneration: pending.execution_generation ?? run.executionGeneration ?? 0,
             question: pending.question ?? 'Hermes needs your answer',
             choices: pending.choices ?? [],
             multiSelect: pending.multi_select ?? false,
@@ -1404,14 +1732,15 @@ export class NodeApplication {
       this.activeRuns.get(message.conversationId) ??
       this.database.runs().find((item) => item.runId === message.content.runId);
     if (!run?.runId) throw new NodeFault('conflict', 'Run is no longer active');
-    const response = await (
-      await this.hermes.api(run.botId)
-    ).clarify(
-      run.runId,
-      message.content.requestId,
-      message.content.executionGeneration,
-      params.answer,
-    );
+    if (!run.sessionId) throw new NodeFault('not_found', 'Hermes session is no longer active');
+    const response = await this.hermes
+      .gateway(run.botId)
+      .rpc<{ status: string }>('clarify.respond', {
+        session_id: run.sessionId,
+        execution_generation: message.content.executionGeneration,
+        prompt_id: message.content.requestId,
+        answer: params.answer,
+      });
     if (response.status === 'already_resolved') {
       message.status = 'done';
       this.database.putMessage(message, { runId: run.runId });
