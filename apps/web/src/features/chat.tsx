@@ -67,11 +67,20 @@ export function ChatView({
   const waiting =
     activity === 'waiting_approval' || activity === 'waiting_question' || activity === 'unknown';
   const members = group ? bots.filter((member) => group.botIds.includes(member.botId)) : [];
-  const handles = group ? members.map((member) => member.handle) : undefined;
+  const handles = group ? ['everyone', ...members.map((member) => member.handle)] : undefined;
   const lead = group ? bots.find((member) => member.botId === group.leadBotId) : undefined;
   const mentionMatch = group ? /(?:^|\s)@([a-z0-9-]*)$/.exec(draft.slice(0, caret)) : null;
   const mentionOptions = mentionMatch
-    ? members.filter((member) => member.handle.startsWith(mentionMatch[1]!))
+    ? [
+        {
+          botId: 'everyone',
+          handle: 'everyone',
+          displayName: t.everyone,
+          role: '',
+          avatar: { color: '#8C8376', shape: 'dot' as const },
+        },
+        ...members,
+      ].filter((member) => member.handle.startsWith(mentionMatch[1]!))
     : [];
   const activeMention = mentionOptions[Math.min(mentionIndex, mentionOptions.length - 1)];
 
@@ -92,7 +101,7 @@ export function ChatView({
     element.style.height = Math.min(element.scrollHeight, 168) + 'px';
   }, [draft]);
 
-  function insertMention(member: Bot) {
+  function insertMention(member: { handle: string }) {
     const start = draft.lastIndexOf('@', caret - 1);
     const text = draft.slice(0, start) + '@' + member.handle + ' ' + draft.slice(caret);
     const nextCaret = start + member.handle.length + 2;
@@ -316,7 +325,12 @@ export function ChatView({
                       <div className="message from-user">
                         <div className="user-bubble">
                           {message.kind === 'text' && (
-                            <MentionText text={message.content.text} mentions={handles} />
+                            <>
+                              <MentionText text={message.content.text} mentions={handles} />
+                              {!!message.content.files?.length && (
+                                <MessageFiles ids={message.content.files} t={t} />
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
@@ -871,8 +885,8 @@ function BotMessage({
           </p>
         )}
       </div>
-      {message.kind === 'text' && Boolean(message.content.files?.length) && (
-        <MessageFiles botId={bot.botId} messageId={message.messageId} t={t} />
+      {message.kind === 'text' && !!message.content.files?.length && (
+        <MessageFiles ids={message.content.files} t={t} />
       )}
       {handoffs.map((member) => (
         <motion.span

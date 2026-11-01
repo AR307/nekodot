@@ -26,6 +26,7 @@ import { Extensions } from './extensions';
 import { BotScreens } from './screens';
 import { Notifications } from './notifications';
 import { SharedUserMemory } from './user-memory';
+import { BotCommands } from './commands';
 
 type TextMessage = Extract<Message, { kind: 'text' }>;
 
@@ -45,6 +46,7 @@ export class NodeApplication {
   readonly screens: BotScreens;
   readonly notifications: Notifications;
   readonly userMemory: SharedUserMemory;
+  readonly commands: BotCommands;
   onEvent: (event: PersistedEvent) => void = () => {};
   onLive: (event: LiveEvent) => void = () => {};
   private readonly consumers = new Map<string, AbortController>();
@@ -73,6 +75,7 @@ export class NodeApplication {
     this.bots = new BotService(this.database, hermes, this.providers);
     this.groups = new GroupService(this.database);
     this.operations = new Operations(this.database);
+    this.commands = new BotCommands(this.database, hermes);
     this.userMemory = new SharedUserMemory(this.database, hermes);
     this.management = new BotManagement(
       this.database,
@@ -90,6 +93,11 @@ export class NodeApplication {
 
   async handle(request: RpcRequest): Promise<unknown> {
     switch (request.method) {
+      case 'commands.list':
+        this.bots.get(request.params.botId);
+        return this.commands.catalog(request.params.botId);
+      case 'commands.execute':
+        return this.executeCommand(request.params);
       case 'screen.status':
         return this.screens.status(request.params.botId);
       case 'screen.start':
@@ -123,6 +131,10 @@ export class NodeApplication {
         return this.management.restart();
       case 'files.list':
         return { files: this.files.list(request.params) };
+      case 'files.get':
+        return this.files.get(request.params.fileId);
+      case 'files.receive':
+        return this.files.receive(request.params);
       case 'files.backfill':
         this.bots.get(request.params.botId);
         return this.files.backfill(request.params.botId);
@@ -365,12 +377,118 @@ export class NodeApplication {
     return message.messageId;
   }
 
-  private async sendMessage(params: RpcParams<'messages.send'>) {
+  private executeCommand(params: RpcParams<'commands.execute'>) {
+    this.bots.get(params.botId);
+    const conversation = this.database.conversation(params.conversationId);
+    const group =
+      conversation?.kind === 'group' ? this.database.group(conversation.groupId) : undefined;
+    if (
+      !conversation ||
+      (conversation.kind === 'dm'
+        ? conversation.botId !== params.botId
+        : !group?.botIds.includes(params.botId))
+    )
+      throw new NodeFault('forbidden', 'Choose a bot in this conversation.');
+    const existing = this.operations
+      .list()
+      .find((op) => op.kind === 'command:' + params.clientMsgId);
+    if (existing) return existing;
+    if (
+      this.operations
+        .list()
+        .some(
+          (op) =>
+            op.kind.startsWith('command:') &&
+            op.status === 'running' &&
+            op.botIds.includes(params.botId),
+        )
+    )
+      throw new NodeFault('conflict', 'A Hermes command is already running for this bot.');
+    if (this.database.runs().some((run) => run.botId === params.botId))
+      throw new NodeFault(
+        'conflict',
+        'Wait for this bot to finish, or use the existing message and Stop controls.',
+      );
+    return this.operations.start(
+      'command:' + params.clientMsgId,
+      [params.botId],
+      async (operation) => {
+        let result = await this.commands.execute(params.botId, params.command);
+        if (result.type === 'alias' && result.target)
+          result = await this.commands.execute(params.botId, result.target);
+        if ((result.type === 'send' || result.type === 'skill') && result.message) {
+          await this.sendMessage(
+            {
+              conversationId: params.conversationId,
+              text: result.display || params.command,
+              clientMsgId: params.clientMsgId,
+            },
+            { botId: params.botId, input: result.message },
+          );
+        }
+        const output = [result.output, result.warning, result.notice].filter(Boolean).join('\n');
+        if (output)
+          this.database.putMessage({
+            messageId: randomUUID(),
+            conversationId: params.conversationId,
+            seq: this.database.head(),
+            author: { type: 'system' },
+            kind: 'system',
+            status: 'done',
+            createdAt: now(),
+            content: { text: params.command + '\n\n' + output },
+          });
+        operation.detail = output || 'Hermes command completed.';
+        operation.results.push({
+          botId: params.botId,
+          ok: true,
+          detail: operation.detail,
+          ...(result.type === 'prefill' && result.message
+            ? { native: { prefill: result.message } }
+            : {}),
+        });
+      },
+    );
+  }
+
+  private async sendMessage(
+    params: RpcParams<'messages.send'>,
+    command?: { botId: string; input: string },
+  ) {
     const duplicate = this.database.byClient(params.clientMsgId);
     if (duplicate) return { messageId: duplicate.messageId };
     const conversation = this.database.conversation(params.conversationId);
     if (!conversation) throw new NodeFault('not_found', 'Conversation not found');
-    if (conversation.kind === 'group') return this.sendGroupMessage(params, conversation);
+    const targets =
+      conversation.kind === 'dm'
+        ? [conversation.botId]
+        : (this.database.group(conversation.groupId)?.botIds ?? []);
+    if (
+      !command &&
+      this.operations
+        .list()
+        .some(
+          (op) =>
+            op.kind.startsWith('command:') &&
+            op.status === 'running' &&
+            op.botIds.some((id) => targets.includes(id)),
+        )
+    )
+      throw new NodeFault(
+        'conflict',
+        'Wait for the Hermes command to finish before sending. Your draft is kept.',
+      );
+    if (!params.text.trim() && !params.files?.length)
+      throw new NodeFault('invalid_params', 'Write a message or attach a file.');
+    if (
+      params.files?.length &&
+      this.database.runs().some((run) => run.conversationId === params.conversationId)
+    )
+      throw new NodeFault(
+        'conflict',
+        'Hermes steer accepts text only. Wait for this run to finish or stop it before sending attachments.',
+      );
+    if (conversation.kind === 'group') return this.sendGroupMessage(params, conversation, command);
     const bot = this.bots.get(conversation.botId);
     const active =
       this.activeRuns.get(conversation.conversationId) ??
@@ -433,17 +551,19 @@ export class NodeApplication {
       state: 'thinking',
       inputMessageId: userMessage.messageId,
     };
+    if (params.files?.length) this.files.attach(userMessage, params.files);
     this.activeRuns.set(run.conversationId, run);
     userMessage.seq = this.database.head();
     this.database.putMessage(userMessage, { clientMsgId: params.clientMsgId }, run);
     this.publishActivity(run);
-    void this.startRun(run, params.text);
+    void this.startRun(run, command?.input ?? params.text);
     return { messageId: userMessage.messageId };
   }
 
   private async sendGroupMessage(
     params: RpcParams<'messages.send'>,
     conversation: Extract<NonNullable<ReturnType<NodeDatabase['conversation']>>, { kind: 'group' }>,
+    command?: { botId: string; input: string },
   ) {
     const group = this.database.group(conversation.groupId);
     if (!group || group.archived) throw new NodeFault('not_found', 'Group not found');
@@ -509,13 +629,15 @@ export class NodeApplication {
       conversationId: conversation.conversationId,
       group,
       roster,
-      queue: mentioned.length ? mentioned : [group.leadBotId],
+      queue: command ? [command.botId] : mentioned.length ? mentioned : [group.leadBotId],
+      commandInput: command?.input,
       count: 0,
       cursorByBot: this.database.groupHistory(conversation.conversationId)?.cursorByBot ?? {},
       requestId: userMessage.messageId,
       active: true,
     };
     userMessage.seq = this.database.head();
+    if (params.files?.length) this.files.attach(userMessage, params.files);
     this.database.putMessage(userMessage, { clientMsgId: params.clientMsgId }, undefined, chain);
     await this.startNextGroupRun(chain);
     return { messageId: userMessage.messageId };
@@ -547,6 +669,10 @@ export class NodeApplication {
       botId,
       this.database.messagesAfter(chain.conversationId, chain.cursorByBot[botId] ?? 0),
     );
+    if (chain.commandInput) {
+      prompt.input += '\n\n' + chain.commandInput;
+      chain.commandInput = undefined;
+    }
     chain.currentInput = prompt.input;
     chain.currentInstructions = prompt.instructions;
     this.database.saveChain(chain);
@@ -609,8 +735,16 @@ export class NodeApplication {
             ?.conversationId
         : run.conversationId;
       if (!conversationId) throw new Error('Bot private conversation is missing');
+      const attachments = run.groupId
+        ? this.database
+            .messagesAfter(
+              run.conversationId,
+              this.database.chain(run.conversationId)?.cursorByBot[run.botId] ?? 0,
+            )
+            .flatMap((message) => (message.kind === 'text' ? (message.content.files ?? []) : []))
+        : (this.database.message(run.inputMessageId) as TextMessage | undefined)?.content.files;
       const created = await api.createRun(
-        input,
+        await this.files.input(run.botId, input, attachments),
         'nk_dm_' + conversationId,
         run.requestId ?? run.inputMessageId,
         instructions,

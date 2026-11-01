@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-01",
+  "kind": "real-model",
+  "environment": "Existing Linux node, isolated native session using the selected Bot profile",
+  "input": {
+    "files": 2,
+    "textFile": "Harmless random marker in a Chinese-named UTF-8 document",
+    "image": "Generated picture with a red square on the left and blue circle on the right",
+    "transport": "FileLibrary native input with profile-local file paths and image_url content"
+  },
+  "result": {
+    "status": "completed",
+    "exactFileMarker": true,
+    "redLeft": true,
+    "blueRight": true,
+    "square": true,
+    "circle": true,
+    "files": 2,
+    "imagePart": true
+  },
+  "boundaries": [
+    "This validates actual file reading and image recognition, not only fixture transport.",
+    "The candidate client and Node bundle were not deployed to production.",
+    "No existing task was resumed or replayed; no memory configuration or unrelated service was changed.",
+    "Raw model output and runtime files remain in the private acceptance environment."
+  ]
+}

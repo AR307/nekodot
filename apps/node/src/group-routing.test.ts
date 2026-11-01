@@ -1,0 +1,16 @@
+import { expect, it } from 'vitest';
+import { mentionedBots } from './group-routing';
+
+it('expands @everyone in place, once per member, without matching unrelated handles', () => {
+  const roster = [
+    { botId: 'a', handle: 'researcher' },
+    { botId: 'b', handle: 'writer' },
+    { botId: 'c', handle: 'reviewer' },
+  ];
+  expect(mentionedBots('@writer @everyone @writer @everyone @outsider', roster)).toEqual([
+    'b',
+    'a',
+    'c',
+  ]);
+  expect(mentionedBots('mail@everyone.test @everyone-else', roster)).toEqual([]);
+});

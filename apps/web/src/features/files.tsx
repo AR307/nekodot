@@ -155,22 +155,14 @@ export function FileCard({ file, t, onSource }: { file: Attachment; t: Texts; on
     </>
   );
 }
-export function MessageFiles({
-  botId,
-  messageId,
-  t,
-}: {
-  botId: string;
-  messageId: string;
-  t: Texts;
-}) {
+export function MessageFiles({ ids, t }: { ids: string[]; t: Texts }) {
   const [files, setFiles] = useState<Attachment[]>([]);
   const [error, setError] = useState('');
   useEffect(() => {
-    void callNode('files.list', { botId, messageId })
-      .then((v) => setFiles(v.files))
+    void Promise.all(ids.map((fileId) => callNode('files.get', { fileId })))
+      .then(setFiles)
       .catch((e: Error) => setError(e.message));
-  }, [botId, messageId]);
+  }, [ids]);
   return (
     <div className="message-files">
       {files.map((file) => (

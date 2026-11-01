@@ -179,6 +179,7 @@ const zh = {
   stopAll: '全部停止',
   handoffTo: '交给',
   mentionMember: '@ 群成员',
+  everyone: '所有成员',
   botDetails: '详情',
   botMemory: '记忆',
   botLibrary: '资料库',

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, open, stat } from 'node:fs/promises';
+import { mkdir, open, stat, copyFile, readFile } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
@@ -17,6 +17,7 @@ import type { NodeDatabase } from './database';
 import type { HermesRuntime } from './hermes/runtime';
 import { NodeFault } from './fault';
 import type { Operations } from './operations';
+import type { HermesInput } from './hermes/api';
 
 export function deliveryReferences(text: string): string[] {
   const found: string[] = [];
@@ -38,6 +39,96 @@ export class FileLibrary {
     readonly hermes: HermesRuntime,
     readonly operations: Operations,
   ) {}
+  get(fileId: string): Attachment {
+    const row = this.database.db
+      .prepare('SELECT data FROM attachments WHERE file_id=?')
+      .get(fileId);
+    if (!row) throw new NodeFault('not_found', 'Attachment not found');
+    return JSON.parse(String(row.data)) as Attachment;
+  }
+  async receive(input: RpcParams<'files.receive'>): Promise<Attachment> {
+    if (!this.database.conversation(input.conversationId))
+      throw new NodeFault('not_found', 'Conversation not found');
+    const root = resolve(this.database.directory, 'imports', input.importId);
+    const source = resolve(root, input.path);
+    if (!source.startsWith(root + sep))
+      throw new NodeFault('invalid_params', 'Invalid upload path');
+    const info = await stat(source);
+    if (!info.isFile()) throw new NodeFault('invalid_params', 'Upload must be a file');
+    const previous = this.database.db
+      .prepare('SELECT data FROM attachments WHERE reference=? AND bot_id=?')
+      .get('upload:' + input.importId + '/' + input.path, '');
+    if (previous) return JSON.parse(String(previous.data)) as Attachment;
+    const fileId = randomUUID();
+    const storage = join(this.database.directory, 'library', fileId);
+    await mkdir(join(storage, '..'), { recursive: true, mode: 0o700 });
+    await copyFile(source, storage);
+    const file: Attachment = {
+      fileId,
+      conversationId: input.conversationId,
+      messageId: fileId,
+      name: basename(input.path),
+      mime: lookup(input.path) || 'application/octet-stream',
+      size: info.size,
+      sentAt: new Date().toISOString(),
+      available: true,
+    };
+    this.database.db
+      .prepare(
+        'INSERT INTO attachments(file_id,bot_id,message_id,reference,storage_path,data) VALUES(?,?,?,?,?,?)',
+      )
+      .run(
+        fileId,
+        '',
+        file.messageId,
+        'upload:' + input.importId + '/' + input.path,
+        storage,
+        JSON.stringify(file),
+      );
+    return file;
+  }
+  attach(message: Extract<Message, { kind: 'text' }>, ids: string[]) {
+    for (const id of ids) {
+      const file = this.get(id);
+      if (
+        file.botId ||
+        file.conversationId !== message.conversationId ||
+        (file.messageId !== file.fileId && file.messageId !== message.messageId)
+      )
+        throw new NodeFault(
+          'invalid_params',
+          'Attachment is not an unsent file in this conversation',
+        );
+    }
+    message.content.files = [...new Set(ids)];
+  }
+  async input(botId: string, text: string, ids: string[] = []): Promise<HermesInput> {
+    if (!ids.length) return text;
+    const parts: Exclude<HermesInput, string>[number]['content'] = [];
+    const paths: string[] = [];
+    for (const id of ids) {
+      const file = this.get(id);
+      const row = this.database.db
+        .prepare('SELECT storage_path FROM attachments WHERE file_id=?')
+        .get(id)!;
+      const path = join(this.hermes.profileHome(botId), 'uploads', id, file.name);
+      await mkdir(join(path, '..'), { recursive: true, mode: 0o700 });
+      await copyFile(String(row.storage_path), path);
+      paths.push(`[Attached file: ${JSON.stringify(path)} (${file.mime})]`);
+      if (/^image\/(png|jpeg|webp|gif)$/.test(file.mime)) {
+        parts.push({
+          type: 'image_url',
+          image_url: {
+            url: `data:${file.mime};base64,${(await readFile(path)).toString('base64')}`,
+          },
+        });
+      }
+    }
+    const content = (text || 'Please inspect the attached files.') + '\n\n' + paths.join('\n');
+    return parts.length
+      ? [{ role: 'user', content: [{ type: 'text', text: content }, ...parts] }]
+      : content;
+  }
   list(params: RpcParams<'files.list'>): Attachment[] {
     return this.database.db
       .prepare('SELECT data FROM attachments WHERE bot_id=? ORDER BY rowid DESC')

@@ -183,6 +183,7 @@ const en = {
   stopAll: 'Stop all',
   handoffTo: 'Hand to',
   mentionMember: '@ group member',
+  everyone: 'Everyone',
   botDetails: 'Details',
   botMemory: 'Memory',
   botLibrary: 'Library',

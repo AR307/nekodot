@@ -68,6 +68,7 @@ class NekodotClient extends ChangeNotifier {
   Timer? _reconnect, _heartbeat;
   DateTime _lastFrame = DateTime.now();
   final nodes = <String, NodeData>{};
+  final Map<String, List<Json>> attachmentDrafts = {};
   final drafts = <String, String>{};
   final _pending = <String, Completer<Json>>{};
   final notifications = StreamController<Json>.broadcast();
@@ -187,6 +188,7 @@ class NekodotClient extends ChangeNotifier {
     me = null;
     nodes.clear();
     drafts.clear();
+    attachmentDrafts.clear();
     selectedNodeId = null;
     ready = false;
     notifyListeners();

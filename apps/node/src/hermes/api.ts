@@ -7,9 +7,11 @@ import {
   type HermesRunState,
   type RpcError,
   type ApprovalChoice,
+  type HermesInput,
 } from '@nekodot/protocol';
 import { readSse } from './sse';
 import { NodeFault } from '../fault';
+export type { HermesInput } from '@nekodot/protocol';
 export class HermesApi {
   constructor(
     readonly baseUrl: string,
@@ -40,7 +42,7 @@ export class HermesApi {
     }
     return response;
   }
-  async createRun(input: string, sessionId: string, messageId: string, instructions?: string) {
+  async createRun(input: HermesInput, sessionId: string, messageId: string, instructions?: string) {
     const body = {
       input,
       session_id: sessionId,

@@ -273,4 +273,38 @@ void main() {
       client.dispose();
     },
   );
+
+  testWidgets('An accepted upload is cleared after leaving the conversation', (
+    tester,
+  ) async {
+    final client = JourneyClient();
+    final key = '${client.selectedNodeId}:dm';
+    client.attachmentDrafts[key] = [
+      {
+        'fileId': 'test-file',
+        'name': '中文资料.txt',
+        'mime': 'text/plain',
+        'size': 12,
+      },
+    ];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: appTheme(Brightness.light),
+        home: ChatPage(client: client, conversationId: 'dm'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('chat-input')),
+      'Read this file',
+    );
+    await tester.pump();
+    await tester.tap(find.byTooltip('发送'));
+    await tester.pumpWidget(const SizedBox.shrink());
+    client.accepted.complete({});
+    await tester.pumpAndSettle();
+    expect(client.attachmentDrafts[key], isEmpty);
+    expect(client.drafts[key], isEmpty);
+    client.dispose();
+  });
 }

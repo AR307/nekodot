@@ -41,7 +41,9 @@ const fake = await startFakeHermes({
               : 'group-writer'
             : input.input === 'group-failed'
               ? 'group-failed'
-              : undefined,
+              : input.input.includes('[Attached file:')
+                ? 'runs-basic'
+                : undefined,
       }
     : {}),
 });

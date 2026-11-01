@@ -12,6 +12,7 @@ import '../screen/viewer.dart';
 import 'bot_details.dart';
 import 'bot_editor.dart';
 import 'files.dart';
+import 'commands.dart';
 
 class ChatPage extends StatefulWidget {
   final NekodotClient client;
@@ -38,6 +39,15 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   String error = '';
   double composerHeight = 76;
   String? pendingId, pendingText;
+  String? commandBotId;
+  List<Json> commands = [];
+  bool loadingCommands = false;
+  Json? commandOperation;
+  String? submittedCommand;
+  String? commandNodeId;
+  bool uploading = false;
+  String uploadProgress = '';
+  List<Json> get attached => c.attachmentDrafts[draftKey] ?? [];
   NekodotClient get c => widget.client;
   String get id => widget.conversationId;
   String get draftKey => '${c.selectedNodeId}:$id';
@@ -61,9 +71,26 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   void initState() {
     super.initState();
     input.text = c.drafts[draftKey] ?? '';
-    input.addListener(() {
+    void changed() {
       c.drafts[draftKey] = input.text;
-    });
+      if (input.text.startsWith('/') && commandBotId == null) {
+        final conversation = c.node.conversations
+            .where((x) => x['conversationId'] == id)
+            .firstOrNull;
+        final group = c.node.groups
+            .where((x) => x['groupId'] == conversation?['groupId'])
+            .firstOrNull;
+        final botId = conversation?['botId'] ?? group?['leadBotId'];
+        if (botId != null) unawaited(loadCommands('$botId'));
+      }
+    }
+
+    input.addListener(changed);
+    if (input.text.startsWith('/')) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) changed();
+      });
+    }
     c.visibleConversation = id;
     unawaited(
       c.loadMessages(id).catchError((Object e) {
@@ -83,26 +110,57 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
 
   Future<void> send() async {
     final text = input.text.trim();
-    if (text.isEmpty || sending) return;
+    if ((text.isEmpty && attached.isEmpty) ||
+        sending ||
+        uploading ||
+        commandOperation?['status'] == 'running') {
+      return;
+    }
+    if (text.startsWith('/') && (commandBotId == null || attached.isNotEmpty)) {
+      return;
+    }
+    final key = draftKey, nodeId = c.selectedNodeId;
+    final files = attached.map((file) => '${file['fileId']}').toList();
     setState(() {
       sending = true;
       error = '';
     });
-    if (pendingText != text) {
-      pendingText = text;
+    final fingerprint = '$text|${files.join(',')}';
+    if (pendingText != fingerprint) {
+      pendingText = fingerprint;
       pendingId = uid();
     }
     try {
-      await c.rpc('messages.send', {
-        'conversationId': id,
-        'text': text,
-        'clientMsgId': pendingId,
-      });
+      final command = text.startsWith('/');
+      final result = await c.rpc(
+        command ? 'commands.execute' : 'messages.send',
+        {
+          'conversationId': id,
+          if (command) 'botId': commandBotId,
+          command ? 'command' : 'text': text,
+          'clientMsgId': pendingId,
+          if (!command && files.isNotEmpty) 'files': files,
+        },
+        nodeId,
+      );
+      c.attachmentDrafts[key]?.removeWhere(
+        (file) => files.contains(file['fileId']),
+      );
+      if (!command && c.drafts[key]?.trim() == text) c.drafts[key] = '';
       if (!mounted) return;
       // A user can already be drafting the next instruction while RPC returns.
-      if (input.text.trim() == text) input.clear();
-      pendingId = null;
-      pendingText = null;
+      if (!command && input.text.trim() == text) input.clear();
+      if (command) {
+        setState(() {
+          commandOperation = result;
+          submittedCommand = text;
+          commandNodeId = nodeId;
+        });
+        unawaited(followCommand(result));
+      } else {
+        pendingId = null;
+        pendingText = null;
+      }
       await c.loadMessages(id);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (scroll.hasClients) scroll.jumpTo(0);
@@ -111,6 +169,78 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       if (mounted) setState(() => error = '$e');
     } finally {
       if (mounted) setState(() => sending = false);
+    }
+  }
+
+  Future<void> attachFile() async {
+    final key = draftKey;
+    setState(() {
+      uploading = true;
+      uploadProgress = '';
+      error = '';
+    });
+    try {
+      final file = await pickChatFile(c, id, (value) {
+        if (mounted) setState(() => uploadProgress = value);
+      });
+      if (file != null) {
+        c.attachmentDrafts.putIfAbsent(key, () => []).add(file);
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          uploading = false;
+          uploadProgress = '';
+        });
+      }
+    }
+  }
+
+  Future<void> loadCommands(String botId) async {
+    setState(() {
+      commandBotId = botId;
+      loadingCommands = true;
+      commands = [];
+    });
+    try {
+      final result = await c.rpc('commands.list', {'botId': botId});
+      if (mounted && commandBotId == botId) {
+        setState(() => commands = objects(result['commands']));
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    } finally {
+      if (mounted) setState(() => loadingCommands = false);
+    }
+  }
+
+  Future<void> followCommand(Json operation) async {
+    try {
+      while (operation['status'] == 'running' && mounted) {
+        await Future<void>.delayed(const Duration(seconds: 1));
+        if (!mounted) return;
+        operation = await c.rpc('operations.get', {
+          'operationId': operation['operationId'],
+        }, commandNodeId);
+        if (mounted) setState(() => commandOperation = operation);
+      }
+      if (!mounted) return;
+      if (operation['status'] != 'done') {
+        setState(() => error = '${operation['detail']}');
+      } else if (input.text.trim() == submittedCommand) {
+        input.clear();
+      }
+      pendingId = null;
+      pendingText = null;
+      for (final result in objects(operation['results'])) {
+        final prefill = result['native']?['prefill'];
+        if (prefill is String && input.text.isEmpty) input.text = prefill;
+      }
+      await c.loadMessages(id);
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
     }
   }
 
@@ -192,7 +322,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
               _ => null,
             };
       final chain = activity['chain'] as Map?;
-      final hasText = input.text.trim().isNotEmpty;
+      final hasText = input.text.trim().isNotEmpty || attached.isNotEmpty;
       final glassHeader = AppBar(
         flexibleSpace: const Frost(),
         automaticallyImplyLeading: !widget.embedded,
@@ -394,6 +524,11 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       final composerRow = Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          IconButton(
+            tooltip: c.tr('发送文件或图片', 'Attach file or image'),
+            onPressed: !c.online || uploading || sending ? null : attachFile,
+            icon: const Icon(Icons.add_circle_outline),
+          ),
           Expanded(
             child: CallbackShortcuts(
               bindings: {
@@ -470,7 +605,14 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 disabledBackgroundColor: tone.raised,
                 disabledForegroundColor: tone.ink3,
               ),
-              onPressed: !c.online || waiting || sending || !hasText
+              onPressed:
+                  !c.online ||
+                      waiting ||
+                      sending ||
+                      uploading ||
+                      commandOperation?['status'] == 'running' ||
+                      !hasText ||
+                      (input.text.startsWith('/') && attached.isNotEmpty)
                   ? null
                   : send,
               icon: const Icon(Icons.arrow_upward),
@@ -489,6 +631,78 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (error.isNotEmpty) ErrorNotice(error),
+                  if (uploading) ...[
+                    const LinearProgressIndicator(minHeight: 2),
+                    Text(
+                      uploadProgress,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  if (attached.isNotEmpty)
+                    Wrap(
+                      spacing: 6,
+                      children: [
+                        for (final file in attached)
+                          InputChip(
+                            avatar: Icon(
+                              '${file['mime']}'.startsWith('image/')
+                                  ? Icons.image_outlined
+                                  : Icons.description_outlined,
+                              size: 16,
+                            ),
+                            label: Text(
+                              '${file['name']} · ${fileSize(file['size'] as num)}',
+                            ),
+                            onDeleted: sending
+                                ? null
+                                : () => setState(
+                                    () => c.attachmentDrafts[draftKey]?.remove(
+                                      file,
+                                    ),
+                                  ),
+                          ),
+                      ],
+                    ),
+                  if (commandOperation?['status'] == 'running')
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Row(
+                        children: [
+                          const Breathing(),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              c.tr('Hermes 指令执行中…', 'Running Hermes command…'),
+                            ),
+                          ),
+                          if (error.isNotEmpty)
+                            TextButton(
+                              onPressed: () => followCommand(commandOperation!),
+                              child: Text(c.tr('查看结果', 'Check result')),
+                            ),
+                        ],
+                      ),
+                    ),
+                  if (input.text.startsWith('/') &&
+                      commandBotId != null &&
+                      !input.text.contains(RegExp(r'\s')))
+                    CommandPalette(
+                      client: c,
+                      entries: commands,
+                      members: members,
+                      query: input.text,
+                      botId: commandBotId!,
+                      loading: loadingCommands,
+                      onBot: loadCommands,
+                      onSelect: (name) {
+                        input.text = '$name ';
+                        input.selection = TextSelection.collapsed(
+                          offset: input.text.length,
+                        );
+                        setState(() {});
+                      },
+                    ),
                   if (state == 'unknown')
                     ErrorNotice(
                       c.tr(
@@ -501,20 +715,30 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                       height: tone.control + 4,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
-                        children: members
-                            .map(
-                              (b) => TextButton.icon(
-                                onPressed: () {
-                                  final start = input.text.lastIndexOf('@');
-                                  input.text =
-                                      '${input.text.substring(0, start)}@${b['handle']} ';
-                                  setState(() {});
-                                },
-                                icon: CatAvatar.of(b, size: 18),
-                                label: Text('${b['displayName']}'),
-                              ),
-                            )
-                            .toList(),
+                        children: [
+                          TextButton.icon(
+                            onPressed: () {
+                              final start = input.text.lastIndexOf('@');
+                              input.text =
+                                  '${input.text.substring(0, start)}@everyone ';
+                              setState(() {});
+                            },
+                            icon: const Icon(Icons.groups_outlined, size: 18),
+                            label: Text(c.tr('所有成员', 'Everyone')),
+                          ),
+                          ...members.map(
+                            (b) => TextButton.icon(
+                              onPressed: () {
+                                final start = input.text.lastIndexOf('@');
+                                input.text =
+                                    '${input.text.substring(0, start)}@${b['handle']} ';
+                                setState(() {});
+                              },
+                              icon: CatAvatar.of(b, size: 18),
+                              label: Text('${b['displayName']}'),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   if (tone.glass)
@@ -837,6 +1061,7 @@ class MessageTile extends StatelessWidget {
                 fileId: '$fileId',
                 botId: bot?['botId'] as String?,
                 messageId: m['messageId'] as String,
+                foreground: user ? tone.base : null,
               ),
           if (m['status'] == 'failed' || m['status'] == 'cancelled')
             Padding(

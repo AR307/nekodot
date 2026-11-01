@@ -459,7 +459,7 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       await app.handle(
         request('messages.send', {
           conversationId: conversation.conversationId,
-          text: 'hello @writer @researcher @writer @outsider',
+          text: 'hello @writer @everyone @writer @outsider',
           clientMsgId: randomUUID(),
         }),
       );

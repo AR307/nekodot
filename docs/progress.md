@@ -692,3 +692,14 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 原因：隐藏系统标题栏后，AuthPage 没有提供 WindowDrag，表单滚动层占满窗口。现将顶部 44px 原生拖动区放在其上，保留语言与窗口控制按钮的命中区域。
 - auth_window_test 实际分发 Flutter 手势，确认调用 window_manager 的 startDragging，邮箱仍可输入，语言按钮不与窗口控件重叠；专项测试通过。
 - 隔离 Windows 窗口已验证双击最大化与还原；Computer Use 的拖动未取得坐标变化证据，真实位移仍需人工复核。不把代码测试替代为完整实窗移动验收。未发布或 push，不动用户现有进程、其他 UI 改动及截图。
+
+## 2026-11-01 / 原生聊天输入能力
+
+- 增加 commands.list/execute，目录及分发来自 profile 绑定的 Hermes 管理接口；群聊可选择成员。实际节点核对目录及 `/profile`、`/plan` 响应，测试使用脱敏录制。终端和原生会话切换类命令明确不可用，不另造会话或打断机制。
+- `@everyone` 原位展开当前群成员并去重，保持原六回合上限；Flutter 与 Web 均补选择项。
+- 复用 imports 分块转发实现 Flutter 文件/图片发送，附件可单独发送并在历史预览，中文文件名正确。Node 保存副本并向目标 profile 提供原生文件路径/图片输入；用户附件不进入 Bot 发件资料库。运行中附件明确提示原生 steer 仅支持文字，失败不清草稿。
+- 已复现并修正发送附件后提前离开会话造成已发送附件留在草稿的问题；专项用例先失败，修复后通过。新的编辑内容不被旧发送确认清除。
+- 实际 Windows Flutter 旅程完成 `/profile`、经真实 Relay/Node 上传并发送 txt/PNG、打开预览、建群、选择所有成员并收到两名成员回复；Hermes 回复使用实际录制，不冒称真实模型。系统文件选择器另以 Computer Use 选中中文文件。新截图使用 composer-native 前缀，没有覆盖既有用户截图。
+- 真实模型另在实际节点隔离原生 session 中完成中文 UTF-8 文档精确标记读取，以及红色方块/蓝色圆形的颜色、形状和左右识别；使用候选 FileLibrary 原生输入，无旧任务重放。结果见 `docs/evidence/composer-real-files.json`，原始资料留在私有现场。
+- lint/typecheck、服务端 27 文件/41 测试、Flutter analyze/14 测试、Node/Relay/Web 构建、Windows release 和 Android arm64 signed release 通过。Android APK v2 签名有效。Edge 七个非屏幕旅程中首批 6 通过、提供方超时，其独立复测 14.7 秒通过；未隐藏首批失败，未为该偶发超时改产品逻辑。
+- Android 真机的新入口、实际 Windows 鼠标位移及真实 Linux 屏幕本轮未完成；构建和回放不能替代这些结论。候选未部署、未发布、不 push，完整范围见 `docs/composer-update-acceptance.md`。

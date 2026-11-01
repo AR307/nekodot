@@ -43,8 +43,30 @@ export const hermesSteerResponseSchema = z.looseObject({
   run_id: z.string(),
   accepted: z.boolean(),
 });
+export const hermesInputSchema = z.union([
+  z.string().min(1),
+  z
+    .array(
+      z.strictObject({
+        role: z.literal('user'),
+        content: z
+          .array(
+            z.union([
+              z.strictObject({ type: z.literal('text'), text: z.string() }),
+              z.strictObject({
+                type: z.literal('image_url'),
+                image_url: z.strictObject({ url: z.string() }),
+              }),
+            ]),
+          )
+          .min(1),
+      }),
+    )
+    .min(1),
+]);
+export type HermesInput = z.infer<typeof hermesInputSchema>;
 export const hermesCreateRunSchema = z.strictObject({
-  input: z.string().min(1),
+  input: hermesInputSchema,
   session_id: z.string().optional(),
   instructions: z.string().optional(),
 });

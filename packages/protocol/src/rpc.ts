@@ -29,6 +29,29 @@ const groupCreate = z
   .strictObject(groupFields)
   .refine((g) => g.botIds.includes(g.leadBotId), 'Lead must be a member');
 export const rpcContracts = {
+  'commands.list': {
+    params: z.strictObject(botTarget),
+    result: z.strictObject({
+      commands: z.array(
+        z.strictObject({
+          name: z.string(),
+          description: z.string(),
+          availability: z.string(),
+          skill: z.boolean(),
+        }),
+      ),
+      warning: z.string(),
+    }),
+  },
+  'commands.execute': {
+    params: z.strictObject({
+      ...botTarget,
+      conversationId: idSchema,
+      command: z.string().regex(/^\/[^\s]+(?:\s[\s\S]*)?$/),
+      clientMsgId: z.uuid(),
+    }),
+    result: operationSchema,
+  },
   'bots.jobs': {
     params: z.strictObject(botTarget),
     result: z.strictObject({ jobs: z.array(nativeRecordSchema) }),
@@ -130,6 +153,18 @@ export const rpcContracts = {
     }),
     result: z.strictObject({ files: z.array(attachmentSchema) }),
   },
+  'files.get': {
+    params: z.strictObject({ fileId: z.uuid() }),
+    result: attachmentSchema,
+  },
+  'files.receive': {
+    params: z.strictObject({
+      conversationId: idSchema,
+      importId: z.uuid(),
+      path: z.string().min(1),
+    }),
+    result: attachmentSchema,
+  },
   'files.backfill': { params: z.strictObject(botTarget), result: operationSchema },
   'imports.create': { params: empty, result: z.strictObject({ importId: z.uuid() }) },
   'sync.snapshot': {
@@ -162,7 +197,8 @@ export const rpcContracts = {
   'messages.send': {
     params: z.strictObject({
       conversationId: idSchema,
-      text: z.string().min(1),
+      text: z.string(),
+      files: z.array(z.uuid()).optional(),
       clientMsgId: z.uuidv4(),
     }),
     result: z.strictObject({ messageId: idSchema }),

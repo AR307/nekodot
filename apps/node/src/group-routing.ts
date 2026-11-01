@@ -7,8 +7,11 @@ export function mentionedBots(text: string, roster: Pick<Bot, 'botId' | 'handle'
   const byHandle = new Map(roster.map((bot) => [bot.handle, bot.botId]));
   const result: string[] = [];
   for (const match of text.matchAll(/(?:^|[^\w@-])@([a-z0-9-]+)(?![a-z0-9-])/g)) {
-    const botId = byHandle.get(match[1]!);
-    if (botId && !result.includes(botId)) result.push(botId);
+    const targets =
+      match[1] === 'everyone' ? roster.map((bot) => bot.botId) : [byHandle.get(match[1]!)];
+    for (const botId of targets) {
+      if (botId && !result.includes(botId)) result.push(botId);
+    }
   }
   return result;
 }

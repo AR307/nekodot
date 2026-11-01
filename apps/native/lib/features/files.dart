@@ -29,41 +29,130 @@ String fileSize(num bytes) => bytes < 1024
     ? '${(bytes / 1024).toStringAsFixed(1)} KB'
     : '${(bytes / 1048576).toStringAsFixed(1)} MB';
 
-class FileCard extends StatelessWidget {
+Future<Json?> pickChatFile(
+  NekodotClient client,
+  String conversationId,
+  ValueChanged<String> onProgress,
+) async {
+  final nodeId = client.selectedNodeId!;
+  final file = await FilePicker.pickFile();
+  if (file == null) return null;
+  final created = await client.rpc('imports.create', {}, nodeId);
+  final importId = '${created['importId']}';
+  final bytes = file.readAsByteStream();
+  var offset = 0;
+  await for (final chunk in bytes) {
+    for (var start = 0; start < chunk.length; start += 196608) {
+      final end = (start + 196608).clamp(0, chunk.length);
+      final response = await client.transport
+          .put(
+            client
+                .url('/api/nodes/$nodeId/imports/$importId')
+                .replace(
+                  queryParameters: {'path': file.name, 'offset': '$offset'},
+                ),
+            headers: {
+              'Authorization': 'Bearer ${client.token}',
+              'Content-Type': 'application/octet-stream',
+            },
+            body: chunk.sublist(start, end),
+          )
+          .timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) {
+        throw RelayError('Upload HTTP ${response.statusCode}');
+      }
+      offset += end - start;
+      onProgress('${file.name} · ${fileSize(offset)}');
+    }
+  }
+  if (offset == 0) {
+    final response = await client.transport.put(
+      client
+          .url('/api/nodes/$nodeId/imports/$importId')
+          .replace(queryParameters: {'path': file.name, 'offset': '0'}),
+      headers: {
+        'Authorization': 'Bearer ${client.token}',
+        'Content-Type': 'application/octet-stream',
+      },
+      body: <int>[],
+    );
+    if (response.statusCode != 200) {
+      throw RelayError('Upload HTTP ${response.statusCode}');
+    }
+  }
+  if (client.selectedNodeId != nodeId) {
+    throw RelayError(
+      client.tr(
+        '电脑已切换，请在原会话重试',
+        'Computer changed. Retry in the original conversation.',
+      ),
+    );
+  }
+  return client.rpc('files.receive', {
+    'conversationId': conversationId,
+    'importId': importId,
+    'path': file.name,
+  }, nodeId);
+}
+
+class FileCard extends StatefulWidget {
   final NekodotClient client;
   final String fileId, messageId;
   final String? botId;
+  final Color? foreground;
   const FileCard({
     super.key,
     required this.client,
     required this.fileId,
     required this.messageId,
     this.botId,
+    this.foreground,
   });
+  @override
+  State<FileCard> createState() => _FileCardState();
+}
+
+class _FileCardState extends State<FileCard> {
+  late final file = widget.client.rpc('files.get', {'fileId': widget.fileId});
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: 8),
-    child: OutlinedButton.icon(
-      onPressed: () async {
-        try {
-          final files = objects(
-            (await client.rpc('files.list', {
-              'botId': botId,
-              'messageId': messageId,
-            }))['files'],
-          );
-          final file = files.firstWhere((x) => x['fileId'] == fileId);
-          if (context.mounted) {
-            pushPage(context, FilePage(client: client, file: file));
+    child: FutureBuilder<Json>(
+      future: file,
+      builder: (context, snapshot) => OutlinedButton.icon(
+        style: widget.foreground == null
+            ? null
+            : OutlinedButton.styleFrom(
+                foregroundColor: widget.foreground,
+                side: BorderSide(
+                  color: widget.foreground!.withValues(alpha: .4),
+                ),
+              ),
+        onPressed: () async {
+          try {
+            final value = await file;
+            if (context.mounted) {
+              pushPage(context, FilePage(client: widget.client, file: value));
+            }
+          } catch (e) {
+            if (context.mounted) {
+              showNotice(context, '$e');
+            }
           }
-        } catch (e) {
-          if (context.mounted) {
-            showNotice(context, '$e');
-          }
-        }
-      },
-      icon: const Icon(Icons.attach_file, size: 18),
-      label: Text(client.tr('附件', 'Attachment')),
+        },
+        icon: Icon(
+          '${snapshot.data?['mime']}'.startsWith('image/')
+              ? Icons.image_outlined
+              : Icons.attach_file,
+          size: 18,
+        ),
+        label: Text(
+          snapshot.data?['name'] as String? ??
+              widget.client.tr('附件', 'Attachment'),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
     ),
   );
 }

@@ -13,6 +13,13 @@ export async function managementReplay(
   modelOptions?: unknown,
 ) {
   const sources = await providerReplay(fixturesDirectory, modelOptions);
+  const commands = JSON.parse(
+    await readFile(join(fixturesDirectory, 'commands-native.json'), 'utf8'),
+  ) as {
+    catalog: unknown;
+    profile: unknown;
+    plan: unknown;
+  };
   const fixture = JSON.parse(
     await readFile(join(fixturesDirectory, 'management-native.json'), 'utf8'),
   ) as {
@@ -206,7 +213,12 @@ export async function managementReplay(
           }
         }
         if (req.method === 'session.resume') result = { session_id: 'recorded-session' };
+        if (req.method === 'commands.catalog') result = commands.catalog;
         if (req.method === 'slash.exec') result = { output: fixture.pending };
+        if (req.method === 'slash.exec' && req.params.command === '/profile')
+          result = commands.profile;
+        if (req.method === 'slash.exec' && String(req.params.command).startsWith('/plan '))
+          result = commands.plan;
         if (req.method === 'plugins.manage') {
           const state = data(String(req.params.profile));
           if (req.params.action === 'list') result = { plugins: state.plugins };

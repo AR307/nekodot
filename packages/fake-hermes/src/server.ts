@@ -11,6 +11,7 @@ import {
   hermesRunStateSchema,
   hermesSseEventSchema,
   type HermesRunState,
+  type HermesInput,
 } from '@nekodot/protocol';
 
 const scenarios = [
@@ -32,6 +33,7 @@ interface ReplayRun {
   profile: string;
   scenario: string;
   input: string;
+  nativeInput: HermesInput;
   instructions?: string;
   fixture: Fixture;
   state: HermesRunState;
@@ -197,16 +199,24 @@ export async function startFakeHermes(options: FakeHermesOptions) {
     if (path[3] !== 'v1' || path[4] !== 'runs') return json(response, 404, {});
     if (request.method === 'POST' && path.length === 5) {
       const input = hermesCreateRunSchema.parse(await body(request));
-      const inputText = input.input.toLowerCase();
+      const nativeInput = input.input;
+      const text =
+        typeof nativeInput === 'string'
+          ? nativeInput
+          : nativeInput
+              .flatMap((message) =>
+                message.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])),
+              )
+              .join('\n');
+      const normalized = { ...input, input: text };
+      const inputText = text.toLowerCase();
       const scenario =
-        (input.input.startsWith('You have just been created as a nekodot Bot.')
+        (text.startsWith('You have just been created as a nekodot Bot.')
           ? 'runs-welcome'
           : undefined) ??
-        options.scenarioFor?.(input, profile) ??
-        scenarios.find((name) => name === input.input) ??
-        [...scenarios]
-          .sort((a, b) => b.length - a.length)
-          .find((name) => input.input.includes(name)) ??
+        options.scenarioFor?.(normalized, profile) ??
+        scenarios.find((name) => name === text) ??
+        [...scenarios].sort((a, b) => b.length - a.length).find((name) => text.includes(name)) ??
         (inputText.includes('long task')
           ? 'runs-stop'
           : inputText.includes('steer') || inputText.includes('same run')
@@ -227,7 +237,8 @@ export async function startFakeHermes(options: FakeHermesOptions) {
       runs.set(runId, {
         profile,
         scenario,
-        input: input.input,
+        input: text,
+        nativeInput,
         instructions: input.instructions,
         fixture,
         stopped: false,
@@ -372,6 +383,7 @@ export async function startFakeHermes(options: FakeHermesOptions) {
         scenario: run.scenario,
         sessionId: run.state.session_id,
         input: run.input,
+        nativeInput: run.nativeInput,
         instructions: run.instructions,
         steers: [...run.steers],
         toolStarts: run.toolStarts,

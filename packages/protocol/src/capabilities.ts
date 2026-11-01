@@ -44,7 +44,7 @@ export const extensionSchema = z.strictObject({
 });
 export const attachmentSchema = z.strictObject({
   fileId: z.uuid(),
-  botId: botSchema.shape.botId,
+  botId: botSchema.shape.botId.optional(),
   conversationId: idSchema,
   messageId: idSchema,
   name: z.string(),

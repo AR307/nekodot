@@ -36,6 +36,7 @@ export interface GroupChainRecord {
   currentBotId?: string;
   currentInput?: string;
   currentInstructions?: string;
+  commandInput?: string;
   requestId?: string;
   active: boolean;
 }
@@ -312,6 +313,14 @@ export class NodeDatabase {
           .prepare('SELECT created_seq FROM messages WHERE message_id=?')
           .get(message.messageId);
         message.seq = existing ? Number(existing.created_seq) : seq;
+        if (message.kind === 'text' && message.author.type === 'user') {
+          for (const id of message.content.files ?? [])
+            this.db
+              .prepare(
+                "UPDATE attachments SET message_id=?,data=json_set(data,'$.messageId',?) WHERE file_id=?",
+              )
+              .run(message.messageId, message.messageId, id);
+        }
         this.db
           .prepare(
             'INSERT INTO messages VALUES(?,?,?,?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET data=excluded.data',
