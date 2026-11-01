@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
+import { routineDeliverySchema } from '@nekodot/protocol';
+import type { Routines } from './routines';
 import { NodeFault } from './fault';
 import type { SharedUserMemory } from './user-memory';
 import {
@@ -36,6 +38,7 @@ export interface NodeConnectionOptions {
   onTunnel?: (request: TunnelOpen) => void;
   onNotifyAck?: (id: string) => void;
   userMemory?: SharedUserMemory;
+  routines?: Routines;
 }
 export function connectRelay(options: NodeConnectionOptions) {
   let socket: WebSocket;
@@ -43,6 +46,10 @@ export function connectRelay(options: NodeConnectionOptions) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let delay = 1000;
   let ready = false;
+  const routeRequests = new Map<
+    string,
+    { resolve(): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout> }
+  >();
   const memoryRequests = new Map<
     string,
     { resolve(value: UserMemoryState): void; reject(error: Error): void }
@@ -53,6 +60,19 @@ export function connectRelay(options: NodeConnectionOptions) {
   function frame(type: Envelope['type'], payload: unknown): Envelope {
     return { v: 1, id: randomUUID(), type, nodeId: options.credentials.nodeId, payload };
   }
+  if (options.routines)
+    options.routines.onRoutes = (routes) => {
+      if (!ready) return Promise.reject(new NodeFault('unavailable', 'Relay is disconnected'));
+      const request = frame('routine.routes', routes);
+      return new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          routeRequests.delete(request.id);
+          reject(new NodeFault('timeout', 'Webhook route registration timed out'));
+        }, 30_000);
+        routeRequests.set(request.id, { resolve, reject, timer });
+        send(request);
+      });
+    };
   options.userMemory?.bind(options.credentials.nodeId, (request) => {
     if (!ready || socket?.readyState !== WebSocket.OPEN)
       return Promise.reject(
@@ -93,11 +113,32 @@ export function connectRelay(options: NodeConnectionOptions) {
           return;
         }
         if (envelope.type === 'hello.ok') {
+          const hello = payloadSchemas['hello.ok'].parse(envelope.payload);
+          options.routines?.setPublicUrl(hello.publicUrl);
           delay = 1000;
           ready = true;
           options.userMemory?.online(true);
           options.onStatus?.(true);
+          await options.routines?.syncRoutes();
           await options.onReady?.();
+          return;
+        }
+        if (envelope.type === 'routine.routes.ack') {
+          const waiter = routeRequests.get(envelope.replyTo!);
+          if (waiter) {
+            clearTimeout(waiter.timer);
+            routeRequests.delete(envelope.replyTo!);
+            waiter.resolve();
+          }
+          return;
+        }
+        if (envelope.type === 'routine.deliver' && options.routines) {
+          const input = routineDeliverySchema.parse(envelope.payload);
+          const result = await options.routines.deliver(input).catch((error) => ({
+            status: error instanceof NodeFault && error.code === 'not_found' ? 404 : 503,
+            body: { error: 'Native webhook is unavailable' },
+          }));
+          send({ ...frame('routine.receipt', result), replyTo: envelope.id });
           return;
         }
         if (envelope.type === 'node.update') {
@@ -165,6 +206,11 @@ export function connectRelay(options: NodeConnectionOptions) {
     });
     socket.on('close', (code, reason) => {
       ready = false;
+      for (const waiter of routeRequests.values()) {
+        clearTimeout(waiter.timer);
+        waiter.reject(new NodeFault('unavailable', 'Relay disconnected'));
+      }
+      routeRequests.clear();
       options.userMemory?.online(false);
       for (const waiter of memoryRequests.values())
         waiter.reject(

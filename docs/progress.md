@@ -718,3 +718,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 直接启动本地完整 Windows release 目录中的原生客户端；Computer Use 观察到窗口、已登录的真实账号及其 VPS/Bot 列表。构建默认 Relay 为产品 HTTPS，未使用 fake-hermes、回放账号或演示进程。
 - 用户明确要求此后以真实客户端/Hermes/模型验收为准，必要的真实模型调用无需考虑费用。已写入项目开发约定；单元测试与回放仍用于辅助定位，不能替代真实产品验收。
 - 没有自动发送用户任务、改写安全存储或生产部署。客户端展示成功不等于新 RPC 已在远端上线；完整新功能闭环仍须匹配服务端版本后逐项记录实际结果。
+
+## 2026-11-01 / Side Phase 4：原生任务、Relay 与凭据
+
+- 实现动态 webhook/既有 cron 关联、CLI+skill 插件、私有 socket、加密凭据、保密卡及结果 outbox。账号检查沿用 Relay 节点归属；公网只转发到已登记任务。
+- Node 从 Relay 握手取得公网地址，同机 loopback 连接不会生成不可访问 URL；原生接收回执与完成结果分开展示/保存。
+- 实际跨 profile admission 的上游错误已先复现，获用户授权后以最小 listener-home 修复单独提交，未修改产品 Hermes。隔离 canonical 13 测试和官方13检查通过，公网同请求从503恢复为202及真实模型完成。
+- 真实 Windows 候选闭环、外部401、暂停403、旧钥401、跨账号forbidden、原生ignored/duplicate通过；真实 Agent 创建一个 cron 并成功由关联 webhook 执行。实际定时、helper、恢复、Android及构建仍在验收，不以辅助测试替代。
+- 服务端 lint/typecheck、29文件44测试及构建通过；现场和临时QA路由有明确保留/撤回边界。详见 `docs/side-phase4-routines-acceptance.md`，未发布、未 push。

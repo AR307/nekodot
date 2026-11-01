@@ -16,23 +16,6 @@ export class BotManagement {
     readonly operations: Operations,
     readonly userMemory: SharedUserMemory,
   ) {}
-  async jobs(botId: string): Promise<RpcResult<'bots.jobs'>> {
-    this.bots.get(botId);
-    const jobs = await this.hermes.management.request<Record<string, unknown>[]>(
-      '/api/cron/jobs',
-      botId,
-    );
-    return { jobs };
-  }
-  async jobRuns(botId: string, jobId: string): Promise<RpcResult<'bots.jobs.runs'>> {
-    const { jobs } = await this.jobs(botId);
-    const job = jobs.find((row) => row.id === jobId || row.job_id === jobId);
-    if (!job) throw new NodeFault('not_found', 'Job not found in this profile');
-    const data = await this.hermes.management.request<
-      { runs: Record<string, unknown>[] } | Record<string, unknown>[]
-    >('/api/cron/jobs/' + encodeURIComponent(jobId) + '/runs?limit=20', botId);
-    return { job, runs: Array.isArray(data) ? data : data.runs };
-  }
   private documentPath(botId: string, name: MemoryDocument) {
     return join(
       this.hermes.profileHome(botId),

@@ -55,12 +55,19 @@ export async function createRelay(options: RelayOptions) {
     auth.authenticate,
     options.firebaseCredentials,
   );
-  const routing = registerRouting(app.server, database, auth.authenticateToken, notify, () =>
-    options.distributionDirectory
-      ? latestNodeRelease(options.distributionDirectory, app.log)
-      : Promise.resolve(undefined),
+  const routing = registerRouting(
+    app.server,
+    database,
+    auth.authenticateToken,
+    notify,
+    () =>
+      options.distributionDirectory
+        ? latestNodeRelease(options.distributionDirectory, app.log)
+        : Promise.resolve(undefined),
+    options.publicUrl,
   );
   const tunnels = registerTunnels(app, database, auth.authenticate, routing);
+  routing.routines.register(app, routing.deliverRoutine);
   registerFileTransfer(app, auth.authenticate, routing.transfer, (userId, nodeId) =>
     database.owns(userId, nodeId),
   );

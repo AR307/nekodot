@@ -569,3 +569,11 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 已启动本次候选 Windows Flutter release 客户端，使用产品 HTTPS 地址并恢复现有账号，实际窗口显示当前 VPS 节点与 Bot；不是回放演示页，未替换已安装版本。
 - 按用户最新要求，将真实候选客户端、对应服务端、官方 Hermes 与真实模型作为默认验收；已获准必要模型调用，不按费用缩减测试。回放与代码测试只作辅助，不冒称真实验收完成。
 - 本次启动本身不等于新增能力的远程闭环通过。新增指令与附件 RPC 尚需对应服务器版本，未在本次启动操作中擅自更新生产服务。
+
+## 2026-11-01 / Side Phase 4：原生例行任务与公网接入
+
+- 增加 routines 模块、薄 Hermes CLI/skill 插件和私有 socket；纯 webhook 使用原生动态订阅，组合任务关联既有 cron，不增加调度或 agent 引擎。旧定时任务查询统一进入 `routines.*`。
+- Relay 新增 `/hooks/:routineId`，经现有节点出站连接转发到原生 loopback webhook；只存入口摘要/归属，不存请求正文。Node 分离并加密外部/内部凭据，保密卡和模型仅使用任务引用。
+- 原生结束 hook 决定实际执行结果，保留 outbox 并回投对应私聊；不会占用或打断正在运行的私聊。Relay 握手提供公网 URL，避免同机 Node 展示 loopback 地址。
+- 已真实复现上游跨 profile admission 503。获用户授权后，最小原生修复单独提交 `67e4f384`，13 项 canonical 测试和官方 checker 通过，仅应用隔离 checkout。
+- 隔离真实公网及模型、Windows 候选完整旅程、错误/旧钥、跨账号和原生 ignored/duplicate 已验证；组合 cron 的 webhook 执行通过。当前 lint/typecheck、29 文件44测试和服务构建通过。其余验收及产品部署边界见 `docs/side-phase4-routines-acceptance.md`；未发布或 push。

@@ -1,5 +1,12 @@
 import { z } from 'zod';
 import {
+  routineInputSchema,
+  routineSchema,
+  routineExecutionSchema,
+  routineReceiptSchema,
+  routineDeliveryRecordSchema,
+} from './routines';
+import {
   botFields,
   approvalChoiceSchema,
   approvalModeSchema,
@@ -52,13 +59,47 @@ export const rpcContracts = {
     }),
     result: operationSchema,
   },
-  'bots.jobs': {
+  'routines.list': {
     params: z.strictObject(botTarget),
-    result: z.strictObject({ jobs: z.array(nativeRecordSchema) }),
+    result: z.strictObject({ routines: z.array(routineSchema) }),
   },
-  'bots.jobs.runs': {
-    params: z.strictObject({ ...botTarget, jobId: idSchema }),
-    result: z.strictObject({ job: nativeRecordSchema, runs: z.array(nativeRecordSchema) }),
+  'routines.get': {
+    params: z.strictObject({ ...botTarget, routineId: idSchema }),
+    result: z.strictObject({
+      routine: routineSchema,
+      executions: z.array(routineExecutionSchema),
+      receipts: z.array(routineDeliveryRecordSchema),
+    }),
+  },
+  'routines.create': { params: routineInputSchema, result: routineSchema },
+  'routines.update': {
+    params: routineInputSchema.extend({ routineId: z.uuid() }),
+    result: routineSchema,
+  },
+  'routines.enable': {
+    params: z.strictObject({ ...botTarget, routineId: z.uuid(), enabled: z.boolean() }),
+    result: routineSchema,
+  },
+  'routines.grant': {
+    params: z.strictObject({ ...botTarget, routineId: z.uuid() }),
+    result: routineSchema,
+  },
+  'routines.credentials': {
+    params: z.strictObject({ ...botTarget, routineId: z.uuid() }),
+    result: z.strictObject({ url: z.string(), secret: z.string() }),
+  },
+  'routines.rotate': {
+    params: z.strictObject({ ...botTarget, routineId: z.uuid() }),
+    result: routineSchema,
+  },
+  'routines.test': {
+    params: z.strictObject({
+      ...botTarget,
+      routineId: z.uuid(),
+      payload: z.record(z.string(), z.unknown()),
+      requestId: z.string().min(1).max(240),
+    }),
+    result: routineReceiptSchema,
   },
   'memory.get': {
     params: z.strictObject(botTarget),

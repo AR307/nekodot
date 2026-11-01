@@ -110,7 +110,8 @@ export async function managementReplay(
       const doc = docs.find((row) => row.name === 'SOUL.md')!;
       if (request.method === 'PUT') doc.content = String(body.content);
       json(response, { content: doc.content, exists: true });
-    } else if (url.pathname === '/api/cron/jobs') json(response, fixture.jobs);
+    } else if (url.pathname === '/api/webhooks') json(response, { subscriptions: [] });
+    else if (url.pathname === '/api/cron/jobs') json(response, fixture.jobs);
     else if (url.pathname === '/api/skills') json(response, data(profile).skills);
     else if (url.pathname === '/api/skills/hub/official') json(response, fixture.official);
     else if (url.pathname === '/api/skills/toggle') {

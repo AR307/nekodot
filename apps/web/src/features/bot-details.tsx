@@ -92,20 +92,20 @@ function BotInfo({ bot, t, onEdit }: { bot: Bot; t: Texts; onEdit(): void }) {
   const online = useAppStore(selectNodeData).online;
   useEffect(() => {
     if (online)
-      void callNode('bots.jobs', { botId: bot.botId })
+      void callNode('routines.list', { botId: bot.botId })
         .then((value) => {
-          setJobs(value.jobs);
+          setJobs(value.routines.map((r) => ({ ...r.native, ...r, id: r.routineId })));
           setError('');
         })
         .catch((e: Error) => setError(e.message));
   }, [bot.botId, online]);
   async function history(job: Record<string, unknown>) {
     try {
-      const value = await callNode('bots.jobs.runs', {
+      const value = await callNode('routines.get', {
         botId: bot.botId,
-        jobId: String(job.id ?? job.job_id),
+        routineId: String(job.id),
       });
-      setRuns(value.runs);
+      setRuns((value.routine.native?.runs as Record<string, unknown>[]) ?? value.executions);
     } catch (e) {
       setError(e instanceof Error ? e.message : t.failed);
     }

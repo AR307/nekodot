@@ -71,8 +71,22 @@ const textContent = z.strictObject({
   files: z.array(z.uuid()).optional(),
   failureReason: z.string().optional(),
   welcome: z.literal(true).optional(),
+  routine: z
+    .strictObject({ routineId: z.string(), executionId: z.string(), sessionId: z.string() })
+    .optional(),
 });
 export const messageSchema = z.discriminatedUnion('kind', [
+  z.strictObject({
+    ...messageBase,
+    kind: z.literal('routine'),
+    content: z.strictObject({
+      routineId: z.string(),
+      botId: z.string(),
+      name: z.string(),
+      granted: z.boolean(),
+      card: z.enum(['task', 'credentials']),
+    }),
+  }),
   z.strictObject({
     ...messageBase,
     kind: z.literal('question'),

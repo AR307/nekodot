@@ -29,6 +29,10 @@ export const envelopeSchema = z
       'memory.user.req',
       'memory.user.res',
       'memory.user.changed',
+      'routine.routes',
+      'routine.routes.ack',
+      'routine.deliver',
+      'routine.receipt',
     ]),
     nodeId: idSchema.optional(),
     replyTo: z.uuidv4().optional(),
@@ -54,7 +58,7 @@ export const helloSchema = z.union([
 ]);
 export const payloadSchemas = {
   hello: helloSchema,
-  'hello.ok': z.strictObject({}),
+  'hello.ok': z.strictObject({ publicUrl: z.url() }),
   'rpc.req': rpcRequestSchema,
   'rpc.res': z.discriminatedUnion('ok', [
     z.strictObject({ ok: z.literal(true), result: z.unknown() }),

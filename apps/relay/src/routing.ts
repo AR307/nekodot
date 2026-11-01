@@ -14,7 +14,13 @@ import {
   userMemoryRequestSchema,
   nodeVersionSchema,
   type NodeRelease,
+  routineRouteSchema,
+  routineReceiptSchema,
+  type RoutineDelivery,
+  type RoutineReceipt,
 } from '@nekodot/protocol';
+import { z } from 'zod';
+import { RoutineIngress } from './routines';
 import type { RelayDatabase, NodeRow } from './database';
 import { HttpFault } from './auth';
 import { AccountUserMemory } from './user-memory';
@@ -40,12 +46,23 @@ export function registerRouting(
   authenticate: (token: string) => Promise<{ user_id: string; session_id?: string }>,
   notify: (userId: string, nodeId: string, signal: TaskNotification) => Promise<boolean>,
   latestRelease: () => Promise<NodeRelease | undefined>,
+  publicUrl: string,
 ) {
   const wss = new WebSocketServer({ noServer: true });
   const userMemory = new AccountUserMemory(database);
   const clients = new Set<Client>();
   const nodes = new Map<string, WebSocket>();
   const versions = new Map<string, string>();
+  const routines = new RoutineIngress(database);
+  const routinePending = new Map<
+    string,
+    {
+      nodeId: string;
+      resolve(value: RoutineReceipt): void;
+      reject(error: Error): void;
+      timer: ReturnType<typeof setTimeout>;
+    }
+  >();
   async function offerUpdate(nodeId: string) {
     const version = versions.get(nodeId);
     if (!nodeVersionSchema.safeParse(version).success) return;
@@ -67,6 +84,12 @@ export function registerRouting(
     for (const client of clients) if (client.userId === userId) send(client.socket, value);
   }
   function clearPending(nodeId: string) {
+    for (const [id, p] of routinePending)
+      if (p.nodeId === nodeId) {
+        clearTimeout(p.timer);
+        routinePending.delete(id);
+        p.reject(new HttpFault('unavailable', 'Node is offline', 503));
+      }
     for (const listener of offlineListeners) listener(nodeId);
     for (const [id, p] of transfers)
       if (p.nodeId === nodeId) {
@@ -138,7 +161,7 @@ export function registerRouting(
             clients.add(client);
           }
           clearTimeout(helloTimer);
-          send(socket, frame('hello.ok', {}));
+          send(socket, frame('hello.ok', { publicUrl }));
           if (node) broadcast(node.user_id, frame('node.status', { online: true }, node.node_id));
           if (node) void offerUpdate(node.node_id);
           if (client)
@@ -178,6 +201,17 @@ export function registerRouting(
           }, protocolTimings.rpcTimeoutMs);
           pending.set(envelope.id, { socket, nodeId, timer });
           send(nodes.get(nodeId)!, envelope);
+        } else if (node && envelope.type === 'routine.routes') {
+          routines.publish(node, z.array(routineRouteSchema).parse(envelope.payload));
+          send(socket, { ...frame('routine.routes.ack', {}, node.node_id), replyTo: envelope.id });
+        } else if (node && envelope.type === 'routine.receipt') {
+          const waiter = routinePending.get(envelope.replyTo!);
+          if (waiter?.nodeId === node.node_id) {
+            const receipt = routineReceiptSchema.parse(envelope.payload);
+            clearTimeout(waiter.timer);
+            routinePending.delete(envelope.replyTo!);
+            waiter.resolve(receipt);
+          }
         } else if (node && envelope.type === 'memory.user.req') {
           if (!database.owns(node.user_id, node.node_id)) throw new Error('Node unpaired');
           const input = userMemoryRequestSchema.parse(envelope.payload);
@@ -252,6 +286,21 @@ export function registerRouting(
     socket.on('error', () => socket.terminate());
   });
   return {
+    routines,
+    deliverRoutine: (nodeId: string, payload: RoutineDelivery) => {
+      const socket = nodes.get(nodeId);
+      if (!socket || socket.readyState !== WebSocket.OPEN)
+        return Promise.reject(new HttpFault('unavailable', 'Node is offline', 503));
+      const request = frame('routine.deliver', payload, nodeId);
+      return new Promise<RoutineReceipt>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          routinePending.delete(request.id);
+          reject(new HttpFault('timeout', 'Native receipt was not confirmed', 504));
+        }, 30_000);
+        routinePending.set(request.id, { nodeId, resolve, reject, timer });
+        send(socket, request);
+      });
+    },
     offlineListeners,
     notifyNode: (nodeId: string, type: Envelope['type'], payload: unknown) => {
       const socket = nodes.get(nodeId);
@@ -291,6 +340,11 @@ export function registerRouting(
           client.socket.close(4401, 'Session revoked');
     },
     close: () => {
+      for (const p of routinePending.values()) {
+        clearTimeout(p.timer);
+        p.reject(new HttpFault('unavailable', 'Relay stopped', 503));
+      }
+      routinePending.clear();
       for (const p of transfers.values()) p.reject(new Error('Relay stopped'));
       transfers.clear();
       for (const p of pending.values()) clearTimeout(p.timer);

@@ -56,6 +56,8 @@ async function main() {
     await runtime.start();
     const app = new NodeApplication(home, runtime);
     appRef.current = app;
+    app.routines.onError = (message) => log.error({ service: 'nekodot-node', message });
+    await app.routines.start();
     const updater = new NodeUpdater({
       home,
       relayUrl: credentials.relayUrl,
@@ -77,6 +79,7 @@ async function main() {
       },
       handleRpc: (request) => app.handle(request),
       userMemory: app.userMemory,
+      routines: app.routines,
       handleTransfer: (request) => app.files.transfer(request),
       onTunnel: (request) => app.screens.openTunnel(credentials, request),
       onReady: async () => {

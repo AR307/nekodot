@@ -27,6 +27,7 @@ import { BotScreens } from './screens';
 import { Notifications } from './notifications';
 import { SharedUserMemory } from './user-memory';
 import { BotCommands } from './commands';
+import { Routines } from './routines';
 
 type TextMessage = Extract<Message, { kind: 'text' }>;
 
@@ -47,6 +48,7 @@ export class NodeApplication {
   readonly notifications: Notifications;
   readonly userMemory: SharedUserMemory;
   readonly commands: BotCommands;
+  readonly routines: Routines;
   onEvent: (event: PersistedEvent) => void = () => {};
   onLive: (event: LiveEvent) => void = () => {};
   private readonly consumers = new Map<string, AbortController>();
@@ -71,6 +73,7 @@ export class NodeApplication {
   ) {
     this.database = new NodeDatabase(home);
     this.notifications = new Notifications(this.database);
+    this.routines = new Routines(this.database, hermes, this.notifications);
     this.providers = new Providers(hermes, this.database);
     this.bots = new BotService(this.database, hermes, this.providers);
     this.groups = new GroupService(this.database);
@@ -106,10 +109,33 @@ export class NodeApplication {
         return this.screens.stop(request.params.botId, request.params.force);
       case 'screen.control':
         return this.screens.control(request.params);
-      case 'bots.jobs':
-        return this.management.jobs(request.params.botId);
-      case 'bots.jobs.runs':
-        return this.management.jobRuns(request.params.botId, request.params.jobId);
+      case 'routines.list':
+        return this.routines.list(request.params.botId);
+      case 'routines.get':
+        return this.routines.get(request.params.botId, request.params.routineId);
+      case 'routines.create':
+        return this.routines.create(request.params);
+      case 'routines.update':
+        return this.routines.update(request.params);
+      case 'routines.credentials':
+        return this.routines.credentials(request.params.botId, request.params.routineId);
+      case 'routines.enable':
+        return this.routines.enable(
+          request.params.botId,
+          request.params.routineId,
+          request.params.enabled,
+        );
+      case 'routines.grant':
+        return this.routines.enable(request.params.botId, request.params.routineId, true, true);
+      case 'routines.rotate':
+        return this.routines.rotate(request.params.botId, request.params.routineId);
+      case 'routines.test':
+        return this.routines.send(
+          request.params.botId,
+          request.params.routineId,
+          request.params.payload,
+          request.params.requestId,
+        );
       case 'memory.get':
         await this.userMemory.sync();
         return this.management.memory(request.params.botId);
@@ -227,7 +253,10 @@ export class NodeApplication {
       case 'bots.update':
         return this.bots.update(request.params);
       case 'bots.archive':
-        return this.bots.archive(request.params.botId);
+        this.bots.archive(request.params.botId);
+        if (this.routines.routes().some((route) => route.botId === request.params.botId))
+          await this.routines.syncRoutes();
+        return {};
       case 'bots.permissions.get':
         return { mode: await this.hermes.approvalMode(this.bots.get(request.params.botId).botId) };
       case 'groups.create':
@@ -343,6 +372,7 @@ export class NodeApplication {
   }
 
   async close() {
+    await this.routines.close();
     await this.userMemory.close();
     this.screens.close();
     for (const run of this.activeRuns.values())
@@ -743,13 +773,18 @@ export class NodeApplication {
             )
             .flatMap((message) => (message.kind === 'text' ? (message.content.files ?? []) : []))
         : (this.database.message(run.inputMessageId) as TextMessage | undefined)?.content.files;
+      const routineContext = run.welcome
+        ? { text: '', until: undefined }
+        : this.routines.context(run.botId);
       const created = await api.createRun(
-        await this.files.input(run.botId, input, attachments),
+        await this.files.input(run.botId, input + routineContext.text, attachments),
         'nk_dm_' + conversationId,
         run.requestId ?? run.inputMessageId,
         instructions,
       );
       run.runId = created.run_id;
+      if (routineContext.until)
+        this.database.setSetting('routine-context:' + run.botId, routineContext.until);
       if (this.database.message(run.inputMessageId))
         this.database.setMessageRun(run.inputMessageId, created.run_id);
       this.database.saveRun(run);

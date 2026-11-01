@@ -228,6 +228,7 @@ function previewText(message: Message) {
     return plainText(readableMessageText(message.content.text)).replace(/\s+/g, ' ').slice(0, 80);
   if (message.kind === 'tool') return message.content.tool;
   if (message.kind === 'question') return message.content.question;
+  if (message.kind === 'routine') return message.content.name;
   return message.content.command ?? message.content.prompt;
 }
 
