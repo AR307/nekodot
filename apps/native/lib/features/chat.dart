@@ -13,6 +13,7 @@ import 'bot_details.dart';
 import 'bot_editor.dart';
 import 'files.dart';
 import 'commands.dart';
+import 'routines.dart';
 
 class ChatPage extends StatefulWidget {
   final NekodotClient client;
@@ -1028,7 +1029,9 @@ class MessageTile extends StatelessWidget {
       );
     }
     Widget content;
-    if (kind == 'tool') {
+    if (kind == 'routine') {
+      content = RoutineCard(client: c, content: body);
+    } else if (kind == 'tool') {
       content = ToolRow(message: m);
     } else if (kind == 'question' || kind == 'approval') {
       content = ControlCard(
@@ -1040,6 +1043,20 @@ class MessageTile extends StatelessWidget {
       content = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (body['routine'] != null)
+            TextButton.icon(
+              onPressed: () => pushPage(
+                context,
+                RoutinePage(
+                  client: c,
+                  botId: '${m['author']['id']}',
+                  routineId: '${body['routine']['routineId']}',
+                  executionId: '${body['routine']['executionId']}',
+                ),
+              ),
+              icon: const Icon(Icons.webhook, size: 16),
+              label: Text(c.tr('例行任务 · 查看执行', 'Routine · view execution')),
+            ),
           MarkdownBody(
             data:
                 '${body['text'] ?? ''}${m['status'] == 'streaming' ? ' •' : ''}',

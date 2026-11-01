@@ -9,6 +9,7 @@ import '../screen/viewer.dart';
 import 'bot_editor.dart';
 import 'files.dart';
 import 'model_info.dart';
+import 'routines.dart';
 import 'user_memory.dart';
 
 class BotDetails extends StatelessWidget {
@@ -44,9 +45,9 @@ class BotDetails extends StatelessWidget {
       final pages = TabBarView(
         children: [
           AsyncPane(
-            load: () => c.rpc('bots.jobs', {'botId': bot['botId']}),
+            load: () => c.rpc('routines.list', {'botId': bot['botId']}),
             builder: (context, data, reload) {
-              final jobs = objects(data['jobs']);
+              final routines = objects(data['routines']);
               return PageList(
                 children: [
                   if (context.tone.glass) ...[
@@ -80,37 +81,7 @@ class BotDetails extends StatelessWidget {
                     client: c,
                     botId: bot['botId'] as String,
                   ),
-                  if (jobs.isNotEmpty) ...[
-                    SectionLabel(c.tr('定时任务', 'Scheduled tasks')),
-                    PanelGroup(
-                      children: [
-                        for (final job in jobs)
-                          ExpansionTile(
-                            title: Text(
-                              '${job['name'] ?? job['prompt'] ?? job['id']}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            subtitle: Text(
-                              '${job['schedule'] ?? ''} · ${job['timezone'] ?? ''}',
-                              style: text.bodySmall,
-                            ),
-                            childrenPadding: const EdgeInsets.fromLTRB(
-                              16,
-                              0,
-                              16,
-                              16,
-                            ),
-                            children: [
-                              SelectableText(
-                                job.toString(),
-                                style: text.bodySmall,
-                              ),
-                            ],
-                          ),
-                      ],
-                    ),
-                  ],
+                  RoutineList(client: c, routines: routines, reload: reload),
                 ],
               );
             },
