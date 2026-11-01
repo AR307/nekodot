@@ -686,3 +686,9 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 真实验收：同 Bot、同原生 session 在恢复后及服务重启后均完成真实模型请求，回复匹配 `NEKODOT_RECOVERY_OK`，没有执行工具。使用修复后的 HermesApi 读取实际终态 SSE，8 个事件正常解析，末事件为 run.completed；此前排队的取消状态及 null generation 也正常解析。
 - 最终服务 active、Relay 已连接、原生待执行数 0；Bot、会话和聊天记录数量与恢复前一致。仍保留旧失败气泡，不自动重发之前的消息。Android 真机没有在本次操作中直接控制；本次证据为实际节点服务、真实模型和真实 API/SSE，不冒充手机端手动验收。
 - 脱敏结果：`docs/evidence/hermes-execution-recovery.json`。原始备份、凭据、SSH 目标与私有日志均不入 Git；代码仅本地提交，不 push。
+
+## 2026-11-01 / Bug 修复：登录窗口
+
+- 原因：隐藏系统标题栏后，AuthPage 没有提供 WindowDrag，表单滚动层占满窗口。现将顶部 44px 原生拖动区放在其上，保留语言与窗口控制按钮的命中区域。
+- auth_window_test 实际分发 Flutter 手势，确认调用 window_manager 的 startDragging，邮箱仍可输入，语言按钮不与窗口控件重叠；专项测试通过。
+- 隔离 Windows 窗口已验证双击最大化与还原；Computer Use 的拖动未取得坐标变化证据，真实位移仍需人工复核。不把代码测试替代为完整实窗移动验收。未发布或 push，不动用户现有进程、其他 UI 改动及截图。

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
+import '../platform/desktop.dart';
 import '../ui/design.dart';
 
 class AuthPage extends StatefulWidget {
@@ -231,8 +232,15 @@ class _AuthPageState extends State<AuthPage> {
               ),
             ),
           ),
+          const Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 44,
+            child: WindowDrag(key: ValueKey('auth-window-drag')),
+          ),
           Positioned(
-            right: 12,
+            right: 12 + WindowChrome.reserved(context),
             top: 8,
             child: TextButton(
               onPressed: () => c.preferences(locale: c.zh ? 'en' : 'zh'),
