@@ -601,3 +601,11 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 
 - 真实复测暴露验收脚本在异步凭据复制完成前读取剪贴板，导致后续请求拿到旧内容；改为等待原生页面复制完成提示，并核对复制 URL 所属任务及密钥一致性，失败信息不打印明文密钥。
 - 双端旅程串行运行，避免 Android 模拟器和 Windows 共享系统剪贴板干扰；产品凭据接口和权限逻辑没有放宽。
+
+## 2026-11-01 / Side Phase 4：最终隔离验收与候选交付
+
+- 最终代码基线 `866ee2de56` 在独立检出完成 Windows 和 Android 模拟器原生旅程，均使用真实 Node/Hermes、真实模型和公网 HTTPS，覆盖建任务、保密交付、复制、执行结果、暂停及轮换；不是回放通过。
+- 真实补验包括同一 cron 的定时/事件触发、helper 引用调用、前台工具执行时的独立后台任务、追问不重跑、原生权限拒绝、失败及离线/服务重启恢复。原生 execute_code 拒绝已核对实际 tool 记录。
+- frozen install、lint、typecheck、29文件44服务端测试、服务构建及 Flutter analyze/14测试通过；Edge 7通过1屏幕配置缺失跳过。双端 release 构建完成，APK原有签名有效，EXE未做发布签名；版本仍为0.2.0+5。
+- 临时公网QA路由已撤回，官网/产品health为200、原QA hook为404；只reload Caddy，其他服务启动时间不变。保留隔离数据、profiles、日志与失败现场。原生最小修复仅在QA，产品未部署、未发布、未push。
+- Android真机、真实通知/FCM和新页面完整视觉矩阵仍待验收。详细结果、实际截图、脱敏证据及候选包位置见 `docs/side-phase4-routines-acceptance.md`。

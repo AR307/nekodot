@@ -1,0 +1,190 @@
+{
+  "scope": "Isolated QA with real native Hermes, real models, public HTTPS and candidate Flutter clients. Not a product deployment or release.",
+  "baseline": "866ee2de56ebf11d41e075bba37500ceccf04707",
+  "nativePatch": "67e4f384b8929926438c9bb014f371d0238a532a",
+  "nativePatchDeployment": "isolated QA only",
+  "results": {
+    "publicIngress": {
+      "wrongKeyStatus": 401,
+      "ignoredStatus": 200,
+      "ignoredNativeResult": "ignored",
+      "duplicateStatus": 200,
+      "duplicateNativeResult": "duplicate",
+      "crossAccountDeniedMethods": [
+        "routines.get",
+        "routines.credentials",
+        "routines.grant",
+        "routines.test"
+      ]
+    },
+    "combinedRoutine": {
+      "matchingNativeCronCount": 1,
+      "nativeExecutions": [
+        {
+          "source": "builtin",
+          "state": "completed"
+        },
+        {
+          "source": "builtin",
+          "state": "completed"
+        },
+        {
+          "source": "direct",
+          "state": "completed"
+        }
+      ]
+    },
+    "agentCredentialReferenceHelper": {
+      "state": "completed",
+      "realOutputMarker": true
+    },
+    "foregroundAndBackground": {
+      "foregroundStateBefore": "tool",
+      "foregroundStateDuring": "tool",
+      "foregroundRunUnchanged": true,
+      "backgroundState": "completed",
+      "foregroundCompleted": true
+    },
+    "followup": {
+      "sameExecutionCount": true,
+      "readsExistingResult": true
+    },
+    "nativeApprovalDenial": {
+      "acceptedStatus": 202,
+      "nativeState": "completed",
+      "nativeToolMessages": 1,
+      "nativeBlockedExecuteCode": true,
+      "toolNames": ["execute_code"],
+      "resultInDm": true,
+      "cronPaused": true,
+      "explanation": "Native execute_code was blocked; the model then reported the denial normally, so native state is completed, not failed."
+    },
+    "modelFailure": {
+      "states": ["failed"],
+      "archivedBotIngressStatus": 403
+    },
+    "nativeWebhookToolAvailability": {
+      "acceptedStatus": 202,
+      "nativeState": "completed",
+      "terminalUnavailable": true
+    },
+    "pauseDoesNotCancelAcceptedExecution": {
+      "acceptedStatus": 202,
+      "subsequentStatus": 403,
+      "originalExecutionState": "completed"
+    },
+    "recovery": {
+      "offlineStatus": 503,
+      "isolatedRelayRestart": true,
+      "isolatedNodeRestart": true,
+      "sameSessions": true,
+      "noDuplicateMessages": true,
+      "duplicateStatus": 200,
+      "unchangedExecutionCount": true
+    },
+    "credentialScan": {
+      "checked": 7,
+      "plaintextHits": [],
+      "checkedCredentials": 21
+    }
+  },
+  "cleanCheckoutChecks": [
+    {
+      "label": "frozen install",
+      "exitCode": 0
+    },
+    {
+      "label": "lint",
+      "exitCode": 0
+    },
+    {
+      "label": "typecheck",
+      "exitCode": 0
+    },
+    {
+      "label": "test",
+      "exitCode": 0
+    },
+    {
+      "label": "build",
+      "exitCode": 0
+    },
+    {
+      "label": "Flutter frozen pub get",
+      "exitCode": 0
+    },
+    {
+      "label": "Flutter analyze",
+      "exitCode": 0
+    },
+    {
+      "label": "Flutter test",
+      "exitCode": 0
+    }
+  ],
+  "serverTests": {
+    "files": 29,
+    "passed": 44
+  },
+  "flutterTests": {
+    "passed": 14
+  },
+  "edge": {
+    "passed": 7,
+    "skipped": 1,
+    "failed": 0,
+    "flaky": 0,
+    "durationMs": 51924.165,
+    "skippedReason": "Existing real-screen journey needs separate isolated screen configuration. Web regression is auxiliary, not webhook real-model acceptance."
+  },
+  "nativeJourneys": {
+    "windows": {
+      "exitCode": 0,
+      "realModel": true,
+      "publicHttps": true,
+      "elapsedSeconds": 93
+    },
+    "androidEmulator": {
+      "exitCode": 0,
+      "realModel": true,
+      "publicHttps": true,
+      "elapsedSeconds": 214
+    },
+    "physicalAndroid": "not verified"
+  },
+  "builds": {
+    "windows": {
+      "exitCode": 0,
+      "file": "nekodot_0.2.0_x64-setup.exe",
+      "bytes": 15730535,
+      "authenticodeSigned": false
+    },
+    "android": {
+      "exitCode": 0,
+      "file": "nekodot_0.2.0+5_android-arm64.apk",
+      "bytes": 34251804,
+      "applicationId": "app.nekodot.client",
+      "apksignerVerified": true,
+      "signatureV2": true,
+      "signers": 1
+    }
+  },
+  "qaRouteWithdrawal": {
+    "qaIngressRemoved": true,
+    "caddyValidated": true,
+    "caddyReloadedNotRestarted": true,
+    "unrelatedContainersUnchanged": true,
+    "homepageStatus": 200,
+    "productHealthStatus": 200,
+    "removedQaHookStatus": 404,
+    "qaDataRetained": true
+  },
+  "pending": [
+    "Physical Android acceptance",
+    "Real system notification/FCM acceptance",
+    "Complete new-page language/theme/rotation visual matrix",
+    "Separately authorized product deployment"
+  ],
+  "published": false,
+  "pushed": false
+}
