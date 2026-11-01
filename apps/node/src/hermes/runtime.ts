@@ -8,6 +8,7 @@ import { parseDocument } from 'yaml';
 import { approvalModeSchema, type ApprovalMode, type Bot } from '@nekodot/protocol';
 import { HermesApi } from './api';
 import { HermesManagement } from './management';
+import { HermesGateway, type GatewayEndpoint } from './gateway';
 import { runHermesCli, spawnHermesCli, type HermesLaunch } from './cli';
 import { installRoutinePlugin } from './routines-plugin';
 
@@ -51,6 +52,7 @@ export class ManagedHermes implements HermesRuntime {
   private apiPort: number;
   readonly webhookUrl: string;
   private secrets = new Set<string>();
+  private gateways = new Map<string, HermesGateway>();
   constructor(readonly options: RuntimeOptions) {
     this.apiPort = options.apiPort ?? 18642;
     this.webhookUrl = 'http://127.0.0.1:' + (this.apiPort + 2);
@@ -89,6 +91,23 @@ export class ManagedHermes implements HermesRuntime {
     if (!env.API_SERVER_KEY) throw new Error('Hermes profile has no API key');
     this.secrets.add(env.API_SERVER_KEY);
     return new HermesApi('http://127.0.0.1:' + this.apiPort + '/p/' + profile, env.API_SERVER_KEY);
+  }
+  gateway(profile: string) {
+    let gateway = this.gateways.get(profile);
+    if (!gateway) {
+      gateway = new HermesGateway(async () => {
+        const result = JSON.parse(await this.cli(profile, ['gateway', 'ensure', '--json'])) as {
+          state?: string;
+          reason_code?: string;
+          endpoint?: GatewayEndpoint;
+        };
+        if (result.state !== 'ready' || !result.endpoint)
+          throw new Error('Hermes gateway is not ready for profile ' + profile);
+        return result.endpoint;
+      });
+      this.gateways.set(profile, gateway);
+    }
+    return gateway;
   }
   private async writeEnv(profile: string) {
     const directory = this.profileHome(profile);
@@ -321,6 +340,8 @@ export class ManagedHermes implements HermesRuntime {
   }
   async close() {
     this.closing = true;
+    for (const gateway of this.gateways.values()) gateway.close();
+    this.gateways.clear();
     this.management.close();
     for (const child of [this.child, this.managementChild]) {
       if (child && child.exitCode === null) {

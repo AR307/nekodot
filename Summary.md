@@ -609,3 +609,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - frozen install、lint、typecheck、29文件44服务端测试、服务构建及 Flutter analyze/14测试通过；Edge 7通过1屏幕配置缺失跳过。双端 release 构建完成，APK原有签名有效，EXE未做发布签名；版本仍为0.2.0+5。
 - 临时公网QA路由已撤回，官网/产品health为200、原QA hook为404；只reload Caddy，其他服务启动时间不变。保留隔离数据、profiles、日志与失败现场。原生最小修复仅在QA，产品未部署、未发布、未push。
 - Android真机、真实通知/FCM和新页面完整视觉矩阵仍待验收。详细结果、实际截图、脱敏证据及候选包位置见 `docs/side-phase4-routines-acceptance.md`。
+
+## 2026-11-01 / Side Phase 5：Hermes canonical gateway transport 基础
+
+- Node 增加按 Hermes profile 复用的 `hermes-gateway-v1` WebSocket 客户端；通过 `gateway ensure --json` 获取本机 endpoint，再由同用户私有控制 socket 申请单次 session ticket，ticket 不下发给 App。
+- 处理 Hermes 首帧 `gateway.ready`、JSON-RPC 请求/响应、服务端请求回包、事件帧、断线及错误帧；服务启动关闭时统一释放连接。
+- 协议旅程测试验证事件、RPC 与反向请求；Node typecheck、目标 ESLint、gateway/runtime 测试通过。
+- 这只是 canonical transport 基础：聊天仍使用旧 Runs API，session/history/approval/clarify/steer/stop 尚未切换，未对真实 Hermes 服务或模型做端到端验收，Phase 5 未完成。

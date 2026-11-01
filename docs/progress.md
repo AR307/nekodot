@@ -760,3 +760,10 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - Windows EXE与Android arm64 APK构建通过；APK官方签名校验通过，EXE未做Authenticode签名；沿用0.2.0+5，仅本地候选，不发布或push。
 - 公网QA路由已撤回，Caddy校验并reload，官网/产品health200、原QA hook404，其他容器启动时间不变。仅隔离Hermes使用最小修复，产品服务和原数据未替换，隔离现场全部保留。
 - Android真机、真实通知/FCM及新页面完整视觉矩阵仍待完成；后续部署须单独安排。报告见 `docs/side-phase4-routines-acceptance.md`，证据见 `docs/evidence/side-phase4-routines-real.json`。
+
+## 2026-11-01 / Side Phase 5：canonical gateway transport 基础
+
+- Node 新增按 profile 缓存的 Hermes gateway-v1 连接。使用官方 `gateway ensure --json` 发现本机 loopback endpoint，通过 Hermes 私有控制 socket 申请短期单次票据，未暴露给 App。
+- 连接器接收最早的 `gateway.ready` 首帧，支持 JSON-RPC 调用、gateway event、服务端反向请求应答与断线清理。自动化本地 WebSocket 旅程检查三种帧，覆盖真实可见的传输契约。
+- 验证：Node TypeScript 全量 typecheck、目标 ESLint、gateway/runtime 3 项测试通过。测试为协议辅助验证，不等同真实 Hermes 服务验收。
+- 未完成：现有 Node 聊天仍使用 Runs API；会话身份/历史、工具事件、原生审批与提问、steer/stop 尚未迁移，旧聊天控制接口尚未移除；未在真实候选客户端、远程 Node/Relay 和真实模型上验收。本条只记录基础层，不代表 Phase 5 完成。
