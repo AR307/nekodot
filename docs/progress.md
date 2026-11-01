@@ -703,3 +703,12 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 真实模型另在实际节点隔离原生 session 中完成中文 UTF-8 文档精确标记读取，以及红色方块/蓝色圆形的颜色、形状和左右识别；使用候选 FileLibrary 原生输入，无旧任务重放。结果见 `docs/evidence/composer-real-files.json`，原始资料留在私有现场。
 - lint/typecheck、服务端 27 文件/41 测试、Flutter analyze/14 测试、Node/Relay/Web 构建、Windows release 和 Android arm64 signed release 通过。Android APK v2 签名有效。Edge 七个非屏幕旅程中首批 6 通过、提供方超时，其独立复测 14.7 秒通过；未隐藏首批失败，未为该偶发超时改产品逻辑。
 - Android 真机的新入口、实际 Windows 鼠标位移及真实 Linux 屏幕本轮未完成；构建和回放不能替代这些结论。候选未部署、未发布、不 push，完整范围见 `docs/composer-update-acceptance.md`。
+
+## 2026-11-01 / 屏幕内存占用：实际节点只读调查
+
+- 实际机器 1967MiB RAM，可用约 380–452MiB；1987MiB swap 已使用约 1501MiB。原生依赖齐全、屏幕未运行，display.status blocker 指向 bot_desktop.min_free_memory_mb 的 1536MiB 要求，不是 Relay 路由或 UI 超时。
+- systemd 项目 cgroup 当前约 500MiB、记录峰值约 792MiB；smaps_rollup PSS 分别约为 Node 9MiB、gateway 253MiB、serve 228MiB。节点还有其他服务和独立 Hermes 安装，未擅自停止或修改。
+- 核对官方源码：gateway 已有管理 HTTP/WS，但通过原生私有控制连接签发单次票据，不是现有 API_SERVER_KEY 的替代 URL。没有为省一个后端增加 Python 桥、复制管理接口或修改 Hermes 核心；此路线尚未完成整套管理/屏幕回归，不作为已上线优化。
+- 即便完整省下当前 serve 的 228MiB PSS，仍不足以解决本机可用内存缺口。降低分辨率只影响较小帧缓冲，swap 也不等于物理可用内存；没有任意降低原生门槛或关闭浏览器沙箱。
+- 建议屏幕放到更空闲的节点或独占约 4GB 以上实例，并核对启动前约 1.5GB 可用。这是本机容量建议，不是对所有共享 VPS 的保证。本轮只完成定位和精简路径研究，未完成小内存节点屏幕成功启动。
+- 报告见 `docs/screen-memory-investigation.md`。私有日志保留，不提交 SSH 目标、凭据和个人路径；不重启整机、其他产品或当前项目服务，不部署、不 push。

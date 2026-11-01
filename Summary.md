@@ -557,3 +557,9 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - Flutter 系统文件选择、分块上传、文件单独发送、中文文件卡和预览已接通；Node 向原 profile 提供文件路径及原生图片输入。上传副本、消息去重与草稿保留沿用既有机制，运行中的原生 steer 不接收附件时明确提示。
 - 服务端 27 文件/41 测试、Flutter analyze/14 测试、Node/Relay/Web 与双端 release 构建通过。Windows 原生回放旅程通过，真实模型另验中文文件读取和图片识别；Edge 初次 6 项通过/1 超时，超时的提供方旅程独立复测通过。未冒称 Android 真机通过。
 - 验收和新增截图见 `docs/composer-update-acceptance.md`。仅本地更新，未部署、未发布、未 push；其他未提交截图和运行现场保留。
+
+## 2026-11-01 / 小内存 VPS 屏幕调查
+
+- 实际故障节点约 2GB RAM，可用约 380–452MiB，原生 display.status 明确被 1536MiB 可用内存门槛阻止；依赖已安装，不是客户端等待太短。没有内核 OOM 证据，不将旧 SIGKILL 等同 OOM。
+- 量化本项目瞬时 PSS：Node 约 9MiB、gateway 253MiB、管理 serve 228MiB。官方 gateway 管理通路值得后续收敛，但使用专属单次票据，不能直接换 URL 或去掉管理后端；即使省下 serve，当前机器也不够原生门槛。
+- 本轮未改内存配置、强行启动屏幕或停止其他服务。调查与容量建议见 `docs/screen-memory-investigation.md`；不把研究结果写成小 VPS 屏幕已修复。
