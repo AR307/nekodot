@@ -631,3 +631,8 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 设置范围固定到当前 Bot profile；密码、密钥及 token 字段只显示是否已配置，不回传明文，也不允许从通用设置编辑。`model` 与虚拟 `model_context_length` 在此只读展示，编辑仍走 Bot 模型设置。
 - 验证：Node 24 typecheck、31 个 Vitest 文件 / 46 项通过、Node bundle build、目标 ESLint、Flutter analyze、Flutter tests 及 Windows debug 构建通过。新增 390px 原生设置页场景覆盖搜索、敏感项遮蔽和布尔保存。
 - 真实 Hermes profile 的隔离写入/读回及候选客户端在线旅程仍未完成；现有 WSL 安装的隔离运行环境缺少 `ruamel.yaml`，不把 fake Hermes/widget 测试算作真实验收。全仓 lint 另被 `opus-video` 目录里 16 项 ESLint 错误阻挡。
+
+### 2026-11-02 / 官网：极早期开发版本提醒
+
+- 官网下载说明的中英文由「0.2.0 正式版」改为极早期开发版本、可能会有很多 Bug，与首发视频片尾提醒一致；官网脚本增加新资源版本，普通刷新即可看到新文案。
+- ESLint 与 Prettier 忽略 `opus-video`，全仓 ESLint 恢复通过。README 和 GitHub Release 仍写正式版。

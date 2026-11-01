@@ -783,3 +783,9 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 自动化验证：Node 24 typecheck；31 个 Vitest 文件 / 46 项通过；Node bundle build；目标 ESLint/Prettier；Flutter analyze、全部 Flutter tests 和新增 390px 设置场景通过；Windows Flutter debug build 成功。真实 WSL Hermes 版本为 v0.22.5。
 - 真实接口边界：Hermes schema/API 来源已核对，但隔离服务启动被 PM 环境缺少 `ruamel.yaml` 阻断，无法完成真实 profile 写入/读回；未通过 fixture 冒充真实服务验收。匹配版本的真实 Windows/Android 客户端、Node/Relay 与真实模型旅程待后续继续。
 - 全仓 `pnpm lint` 的 ESLint 阶段被 `opus-video/nekodot-hello` 的 16 个已有浏览器全局/变量错误阻断；本模块目标 ESLint 通过。未部署、未发布、未 push。
+
+### 2026-11-02 / 官网：极早期开发版本提醒
+
+- `apps/site` 下载说明中英文改为极早期开发版本、可能会有很多 Bug；`main.js` 资源版本改为 `0.2.0-early`。
+- ESLint 与 Prettier 忽略社媒视频工程 `opus-video`，解除它对全仓 lint 的阻断。
+- 验证：本地 HTTP 服务配合 Edge 在 1440 与 390 宽度核对中英文文案，无页面错误、无横向滚动；全仓 ESLint 和目标 Prettier 通过。未部署线上官网，未 push。README 和 GitHub Release 仍写正式版。

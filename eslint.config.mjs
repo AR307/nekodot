@@ -8,6 +8,7 @@ export default tseslint.config(
       '**/dist/**',
       '**/node_modules/**',
       '.runtime/**',
+      'opus-video/**',
       'docs/references/**',
       'design/**',
       'docs/fixtures/**',
