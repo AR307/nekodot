@@ -1,6 +1,6 @@
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { createServer, type Server } from 'node:net';
-import { chmod, mkdir, readdir, readFile, rename, stat } from 'node:fs/promises';
+import { chmod, mkdir, rename, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { z } from 'zod';
 import {
@@ -26,7 +26,7 @@ interface StoredRoutine extends Routine {
   route: string;
 }
 const nativeEvent = z.object({
-  phase: z.enum(['started', 'response', 'ended']),
+  phase: z.enum(['started', 'ended']),
   botId: z.string(),
   sessionId: z.string(),
   route: z.string().nullable(),
@@ -180,6 +180,13 @@ export class Routines {
     }
     const routine = (await this.list(botId)).routines.find((r) => r.routineId === id);
     if (!routine) throw new NodeFault('not_found', 'Routine not found in this Bot');
+    if (routine.cronJobId) {
+      const native = await this.hermes.management.request<{ runs: Record<string, unknown>[] }>(
+        '/api/cron/jobs/' + encodeURIComponent(routine.cronJobId) + '/runs?limit=20',
+        botId,
+      );
+      routine.native = { ...routine.native, runs: native.runs };
+    }
     await this.drain();
     const executions = this.database.db
       .prepare(
@@ -420,7 +427,7 @@ export class Routines {
     this.timer = setInterval(() => {
       void this.drain().catch(() =>
         this.onError(
-          'Could not collect native routine results. They remain in the profile outbox.',
+          'Could not read native routine results. They remain in the Hermes profile history.',
         ),
       );
     }, 5000);
@@ -428,7 +435,7 @@ export class Routines {
   private async local(value: unknown) {
     const base = z
       .object({
-        action: z.enum(['create', 'update', 'get', 'list', 'send', 'drain']),
+        action: z.enum(['create', 'update', 'get', 'list', 'send']),
         botId: z.string(),
       })
       .parse(value);
@@ -450,9 +457,6 @@ export class Routines {
         const p = rpcContracts['routines.test'].params.parse(params);
         return this.send(p.botId, p.routineId, p.payload, p.requestId);
       }
-      case 'drain':
-        await this.drain();
-        return {};
     }
   }
   drain() {
@@ -461,26 +465,30 @@ export class Routines {
     }));
   }
   private async collect() {
-    for (const bot of this.database.allBots()) {
-      const directory = join(
-        this.hermes.profileHome(bot.botId),
-        'plugin-data',
-        'nekodot-routines',
-        'outbox',
-      );
-      const files = await readdir(directory).catch(() => []);
-      for (const file of files.filter((f) => f.endsWith('.json')).sort()) {
-        const event = nativeEvent.parse(JSON.parse(await readFile(join(directory, file), 'utf8')));
-        if (event.botId !== bot.botId) throw new Error('Routine event has the wrong profile');
-        const routine = this.all().find(
+    const routines = this.all();
+    for (const botId of new Set(routines.map((r) => r.botId))) {
+      const settled = this.database.db
+        .prepare(
+          `SELECT e.data FROM routine_executions e
+          JOIN routines r ON r.routine_id=e.routine_id WHERE r.bot_id=?
+          AND json_extract(e.data,'$.state')!='running'`,
+        )
+        .all(botId)
+        .map((r) => (JSON.parse(String(r.data)) as RoutineExecution).sessionId);
+      const result = await this.hermes.management.rpc<{ output: string }>('command.dispatch', {
+        profile: botId,
+        name: 'nekodot-routine-status',
+        arg: JSON.stringify({ profile: botId, settled }),
+      });
+      const events = z.array(nativeEvent).parse(JSON.parse(result.output));
+      for (const event of events) {
+        if (event.botId !== botId) throw new Error('Routine event has the wrong profile');
+        const routine = routines.find(
           (r) =>
-            r.botId === bot.botId &&
+            r.botId === botId &&
             (event.route ? r.route === event.route : r.cronJobId === event.jobId),
         );
         if (routine) this.record(routine, event);
-        const retained = join(this.database.directory, 'routine-deliveries', bot.botId);
-        await mkdir(retained, { recursive: true, mode: 0o700 });
-        await rename(join(directory, file), join(retained, file));
       }
     }
   }
@@ -492,7 +500,7 @@ export class Routines {
     const previous = old ? (JSON.parse(String(old.data)) as RoutineExecution) : undefined;
     if (previous && previous.state !== 'running' && this.database.message('routine-result:' + id))
       return;
-    // post_llm_call provides text, not a success verdict. Only Hermes' end hook settles the turn.
+    // Native admission verdicts include failures that occur before agent/session hooks run.
     const state =
       previous && previous.state !== 'running'
         ? previous.state

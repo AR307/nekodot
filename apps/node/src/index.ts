@@ -113,8 +113,8 @@ async function main() {
       closing = true;
       updater.close();
       connection.close();
-      await runtime.close();
       await app.close();
+      await runtime.close();
     }
   } else console.log('nekodot-node pair --relay <url> --code <code> | nekodot-node run');
 }

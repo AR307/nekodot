@@ -5,8 +5,6 @@ const plugin = String.raw`"""nekodot UI/transport adapter. All tasks execute in 
 import base64
 import json
 import socket
-import time
-import uuid
 
 
 def _home():
@@ -74,55 +72,68 @@ def _command(args):
     print(json.dumps(_call(action, **params), ensure_ascii=False))
 
 
-def _event(phase, session_id=None, platform=None, assistant_response="", **kwargs):
-    if not session_id:
-        return
-    from gateway.session_context import get_session_env
-    chat = get_session_env("HERMES_SESSION_CHAT_ID") or ""
-    route = None
-    request_id = None
-    job_id = None
-    if chat.startswith("webhook:v2:"):
-        token = chat[len("webhook:v2:"):]
-        _, route, request_id = json.loads(base64.urlsafe_b64decode(token + "=" * (-len(token) % 4)))
-    else:
-        from hermes_state import SessionDB
-        db = SessionDB()
-        try:
-            identity = db.cron_run_identity(session_id)
-        finally:
-            db.close()
-        if identity:
-            job_id = identity["cron_job_id"]
-    if not route and not job_id:
-        return
-    event = dict(phase=phase, botId=_home().name, sessionId=session_id,
-                 route=route, requestId=request_id, jobId=job_id,
-                 text=assistant_response or "", time=time.time())
-    if phase == "ended":
-        event["interrupted"] = bool(kwargs.get("interrupted"))
-        event["completed"] = bool(kwargs.get("completed"))
-        event["failed"] = bool(kwargs.get("failed"))
-        event["reason"] = str(kwargs.get("turn_exit_reason") or "")
-    directory = _home() / "plugin-data" / "nekodot-routines" / "outbox"
-    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-    path = directory / (str(time.time_ns()) + "-" + str(uuid.uuid4()) + ".pending")
-    # Retained outbox lets Node collect a completion even across its own restart.
-    with path.open("x", encoding="utf-8") as stream:
-        json.dump(event, stream, ensure_ascii=False)
-    path.chmod(0o600)
-    path.rename(path.with_suffix(".json"))
+def _status(raw_args):
+    """Read native admission verdicts, including failures before an agent was constructed."""
+    from hermes_state import SessionDB
+    from hermes_state_runtime import list_session_admissions
+    from gateway.session_results import admission_result
+    from hermes_cli.profiles import get_profile_dir
+    params = json.loads(raw_args)
+    profile = params["profile"]
+    known = set(params["settled"])
+    events = []
+    # command.dispatch has no live session here: bind the native store explicitly.
+    db = SessionDB(db_path=get_profile_dir(profile) / "state.db", read_only=True)
     try:
-        _call("drain")
-    except (OSError, RuntimeError):
-        pass  # The retained outbox is collected when the node is available again.
+        offset = 0
+        while True:
+            rows = db.list_sessions_rich(sources=["webhook", "cron", "local"],
+                limit=100, offset=offset, include_hidden=True, include_archived=True)
+            for row in rows:
+                sid = row["id"]
+                if sid in known:
+                    continue
+                route = request_id = job_id = None
+                chat = row.get("chat_id") or ""
+                if chat.startswith("webhook:v2:"):
+                    token = chat[len("webhook:v2:"):]
+                    _, route, request_id = json.loads(base64.urlsafe_b64decode(token + "=" * (-len(token) % 4)))
+                else:
+                    identity = db.cron_run_identity(sid)
+                    if identity:
+                        job_id = identity["cron_job_id"]
+                if not route and not job_id:
+                    continue
+                admissions = list_session_admissions(db, session_id=sid, pending_only=False)
+                if not admissions:
+                    continue
+                admission = admissions[-1]
+                terminal = admission["status"] == "terminal"
+                outcome = admission["outcome"]
+                text = ""
+                reason = str(outcome or admission["status"])
+                if terminal:
+                    saved = admission_result(db, admission["admission_id"])
+                    result = (saved or {}).get("result", {})
+                    text = result.get("final_response") or ""
+                    reason = str(result.get("error") or reason)
+                events.append(dict(phase="ended" if terminal else "started", botId=profile,
+                    sessionId=sid, route=route, jobId=job_id, requestId=request_id, text=text,
+                    time=row.get("ended_at") or row.get("last_active") or row["started_at"],
+                    completed=outcome == "completed", failed=outcome in ("failed", "rejected"),
+                    interrupted=outcome in ("interrupted", "cancelled"),
+                    reason=reason))
+            if len(rows) < 100:
+                break
+            offset += len(rows)
+    finally:
+        db.close()
+    return json.dumps(events, ensure_ascii=False)
 
 
 def register(ctx):
     ctx.register_cli_command("routine", "Manage nekodot routines and send approved webhook events", _setup, _command)
-    ctx.register_hook("on_session_start", lambda **kw: _event("started", **kw))
-    ctx.register_hook("post_llm_call", lambda **kw: _event("response", **kw))
-    ctx.register_hook("on_session_end", lambda **kw: _event("ended", **kw))
+    ctx.register_command("nekodot-routine-status", _status, "Read native routine execution records")
 `;
 
 const skill = `---
@@ -146,7 +157,7 @@ export async function installRoutinePlugin(home: string) {
   await mkdir(directory, { recursive: true, mode: 0o700 });
   await writeFile(
     join(directory, 'plugin.yaml'),
-    'name: nekodot-routines\nversion: 0.1.0\ndescription: nekodot native routine UI and transport bridge\nprovides_hooks:\n  - on_session_start\n  - post_llm_call\n  - on_session_end\n',
+    'name: nekodot-routines\nversion: 0.1.0\ndescription: nekodot native routine UI and transport bridge\n',
   );
   await writeFile(join(directory, '__init__.py'), plugin);
   const skills = join(home, 'skills', 'nekodot-routines');

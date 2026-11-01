@@ -577,3 +577,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 原生结束 hook 决定实际执行结果，保留 outbox 并回投对应私聊；不会占用或打断正在运行的私聊。Relay 握手提供公网 URL，避免同机 Node 展示 loopback 地址。
 - 已真实复现上游跨 profile admission 503。获用户授权后，最小原生修复单独提交 `67e4f384`，13 项 canonical 测试和官方 checker 通过，仅应用隔离 checkout。
 - 隔离真实公网及模型、Windows 候选完整旅程、错误/旧钥、跨账号和原生 ignored/duplicate 已验证；组合 cron 的 webhook 执行通过。当前 lint/typecheck、29 文件44测试和服务构建通过。其余验收及产品部署边界见 `docs/side-phase4-routines-acceptance.md`；未发布或 push。
+
+## 2026-11-01 / Side Phase 4：原生终态采集修正
+
+- 真实非法模型在初始化时失败，Hermes 没有发 session hooks，早期 outbox 方案漏报。改由薄插件只读原生 admission 与持久结果；不修改 Hermes 执行逻辑，不依赖回复文本判断成功，不增加后台执行或重试循环。旧验收 outbox 保留。
+- 通过明确 profile 定位原生数据，已完成 session 不重复回投；Node 关闭先收集结果再关闭管理后端。已有 profile 在启动时更新项目插件。
+- 实际已失败任务经重启补回 failed 私聊记录，没有重跑；归档后公网403。同一 cron 的实际定时与 webhook 都完成真实模型回复。Agent 创建并执行保密 helper 脚本，公网202且实际任务完成；模型上下文不含密钥。
+- 当前 typecheck、lint、29文件44服务端测试、Flutter analyze及15测试通过。最终候选双端与恢复验收继续，未发布、未 push。

@@ -726,3 +726,10 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 实际跨 profile admission 的上游错误已先复现，获用户授权后以最小 listener-home 修复单独提交，未修改产品 Hermes。隔离 canonical 13 测试和官方13检查通过，公网同请求从503恢复为202及真实模型完成。
 - 真实 Windows 候选闭环、外部401、暂停403、旧钥401、跨账号forbidden、原生ignored/duplicate通过；真实 Agent 创建一个 cron 并成功由关联 webhook 执行。实际定时、helper、恢复、Android及构建仍在验收，不以辅助测试替代。
 - 服务端 lint/typecheck、29文件44测试及构建通过；现场和临时QA路由有明确保留/撤回边界。详见 `docs/side-phase4-routines-acceptance.md`，未发布、未 push。
+
+## 2026-11-01 / Side Phase 4：原生 admission 结果采集
+
+- 实际无效模型的 webhook 已接收202，但初始化失败不会触发旧 session hook。以此真实问题替换旧采集路径：插件只读目标 profile 的原生 admission/结果，Node 按 session 收录。没有增加调度、执行、重试或核心修改；旧现场文件原地保留。
+- 原失败 session 在 Node 重启后补回 failed，并产生对应私聊消息；未重跑原事件。Bot 归档后入口403。实际组合任务的 direct/builtin 两种触发均完成，验收后仅暂停QA定时部分。
+- 真实 Agent 经文件工具创建脚本、终端执行 `hermes routine send`，通过凭据引用调用公网并完成模型回复，没有向模型或脚本交付明文密钥。
+- 关闭顺序调整为先收集后关闭 Hermes 管理后端；启动会更新已有项目 profiles 的插件。当前 lint/typecheck、29文件44测试、Flutter analyze/15测试通过；最终双端与恢复继续验收。

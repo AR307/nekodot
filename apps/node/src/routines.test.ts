@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -31,6 +31,7 @@ it('keeps credentials out of chat, requires a user grant and rotates the same sc
     cli: async () => 'Secret: native-internal-credential',
     profileHome: (profile: string) => join(home, 'hermes', 'profiles', profile),
     management: {
+      rpc: async () => ({ output: '[]' }),
       request: async (path: string, _profile: string, init?: RequestInit) => {
         if (init) enabled = (JSON.parse(String(init.body)) as { enabled: boolean }).enabled;
         if (path === '/api/cron/jobs') return [];
@@ -79,7 +80,7 @@ it('keeps credentials out of chat, requires a user grant and rotates the same sc
   db.db.close();
 });
 
-it('delivers retained native hook output after restart, waits for the end verdict and does not repeat the result', async () => {
+it('recovers a native admission failure after restart without rerunning it or duplicating the result', async () => {
   const home = await mkdtemp(join(tmpdir(), 'nekodot-routine-result-'));
   const db = new NodeDatabase(home);
   const botId = 'nk-abcdef';
@@ -95,11 +96,25 @@ it('delivers retained native hook output after restart, waits for the end verdic
   });
   const conversationId = randomUUID();
   db.putConversation({ conversationId, botId, kind: 'dm', createdAt: new Date().toISOString() });
+  let native: Record<string, unknown>[] = [];
   const hermes = {
     webhookUrl: 'http://127.0.0.1:1',
     cli: async () => 'Secret: internal',
     profileHome: (profile: string) => join(home, profile),
-    management: { request: async () => ({}) },
+    management: {
+      request: async () => ({}),
+      rpc: async (_method: string, params: { profile: string; arg: string }) => {
+        expect(params.profile).toBe(botId);
+        const { profile, settled } = JSON.parse(params.arg) as {
+          profile: string;
+          settled: string[];
+        };
+        expect(profile).toBe(botId);
+        return {
+          output: JSON.stringify(native.filter((e) => !settled.includes(String(e.sessionId)))),
+        };
+      },
+    },
   } as unknown as HermesRuntime;
   const signals: TaskNotification[] = [];
   const notifications = new Notifications(db);
@@ -114,8 +129,6 @@ it('delivers retained native hook output after restart, waits for the end verdic
     events: [],
     skills: [],
   });
-  const outbox = join(home, botId, 'plugin-data', 'nekodot-routines', 'outbox');
-  await mkdir(outbox, { recursive: true });
   const base = {
     botId,
     sessionId: 'native-session',
@@ -125,40 +138,31 @@ it('delivers retained native hook output after restart, waits for the end verdic
     text: '',
     time: Date.now() / 1000,
   };
-  await writeFile(join(outbox, '1.json'), JSON.stringify({ ...base, phase: 'started' }));
-  await writeFile(
-    join(outbox, '2.json'),
-    JSON.stringify({ ...base, phase: 'response', text: 'Partial output from native Hermes' }),
-  );
+  native = [{ ...base, phase: 'started' }];
   await routines.drain();
   expect(db.messages(conversationId).filter((m) => m.kind === 'text')).toHaveLength(0);
   await routines.close();
   routines = new Routines(db, hermes, notifications);
-  await writeFile(
-    join(outbox, '3.json'),
-    JSON.stringify({
+  native = [
+    {
       ...base,
       phase: 'ended',
       completed: false,
       failed: true,
       reason: 'model_error',
-    }),
-  );
+    },
+  ];
   await routines.drain();
   const messages = db.messages(conversationId).filter((m) => m.kind === 'text');
   expect(messages).toHaveLength(1);
   expect(messages[0]).toMatchObject({
     status: 'failed',
     content: {
-      text: 'Partial output from native Hermes',
+      text: '',
       failureReason: 'model_error',
       routine: { sessionId: 'native-session' },
     },
   });
-  await writeFile(
-    join(outbox, '4.json'),
-    JSON.stringify({ ...base, phase: 'ended', completed: false, failed: true }),
-  );
   await routines.drain();
   expect(db.messages(conversationId).filter((m) => m.kind === 'text')).toHaveLength(1);
   expect(signals.map((s) => s.kind)).toEqual(['failed']);

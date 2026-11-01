@@ -117,7 +117,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const)
   process.once(signal, () => {
     void (async () => {
       connection.close();
-      await runtime.close();
       await app.close();
+      await runtime.close();
     })();
   });
