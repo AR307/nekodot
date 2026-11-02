@@ -1,0 +1,29 @@
+{
+  "checkedAt": "2026-11-02T17:00:32.610Z",
+  "version": "0.3.0",
+  "environment": "public HTTPS/WSS product services",
+  "authentication": "15-minute internal session for pre-existing QA account; not mailbox/login acceptance",
+  "realModel": true,
+  "nativeAuthorizationCatalog": true,
+  "screenStateReadable": true,
+  "model": "gpt-6.1-sol",
+  "canonicalSessionReadable": true,
+  "nativeCommandCount": 152,
+  "result": "NEKODOT_030_RELEASE_OK",
+  "finalMessageId": "fa5510fd-a9d3-4f6b-b8aa-9f081d5c3b6d",
+  "streaming": true,
+  "idempotentSend": true,
+  "oneNewUserMessage": true,
+  "textPreserved": true,
+  "toolsStarted": 0,
+  "webhook": {
+    "publicHttps": true,
+    "wrongKey": 401,
+    "accepted": 202,
+    "realModelCompleted": true,
+    "duplicate": "duplicate",
+    "results": 1
+  },
+  "webhookPausedAfterAcceptance": true,
+  "qaSessionRevoked": true
+}

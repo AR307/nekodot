@@ -21,4 +21,13 @@
 
 ### 正式部署
 
-进行中；线上真实模型、服务状态与公开版本回查完成后追加，不以候选检查冒充正式上线完成。
+- 正式 Relay 已切换 `nekodot-relay:product-0.3.0`，Node 已切换盖章版本 `20261102164326`，systemd active、NRestarts 0。
+- 正式 Hermes 仍基于 v0.22.5，仅应用已授权最小 listener 修复，独立提交 `92c63e4012`；没有升级或替换 Agent 引擎。
+- 切换时账号 3、节点 4、Bot 2、消息 53 全部保留，Node 凭据逐字节未变；后续验收仅在专用 QA 账号增加记录。备份包含数据库、原源码、Node state/bin/service、官网与下载。
+- 对照发布前后，QA Relay、Caddy、getplus 和其他受保护容器的 ID、启动时间与重启计数未变；不重启其他产品或整机。Caddy 既有整站反向代理已覆盖新路由，无须修改。
+- 公网 HTTPS/WSS 的真实 `gpt-6.1-sol` 流式聊天完成，重复发送同一 clientMsgId 仅产生一条用户消息；原生 Session 可读、152 条命令目录可读。见 [正式服真实模型记录](evidence/release-0.3.0-live-model.json)。
+- 正式公网 Webhook 错误密钥返回 401，正确事件返回 202；真实原生模型执行完成并回投私聊；重复 delivery 返回 duplicate，执行只有一次。验收任务已暂停，临时 QA 会话已退出失效。
+- 官网与 Windows / Android 安装包公网 HTTP 200、版本和文件类型正确；Node 安装脚本生成产品 HTTPS 地址。见 [下载记录](evidence/release-0.3.0-downloads.json)。正式官网 12 组 Edge 检查通过，见 [线上官网记录](evidence/release-0.3.0-live-site.json)。
+- 用户随后要求不再追加检查、立即上传。停止追加验收，不等待额外 Windows Session GUI 重跑；不将尚未完成的本轮结果记为通过。既有 Side Phase 5 / Session 真实验收保持原记录，Android 按用户本轮确认记载。
+
+GitHub 按用户追加授权同步源码、标签及正式非 prerelease 安装包，MIT 许可证不变。

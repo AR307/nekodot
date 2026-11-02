@@ -727,3 +727,11 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 候选 Relay、SMTP、分发与官网 12 组 Edge 检查通过；Windows release 原生页面已实际打开观察。
 - 附上已有授权的最小 Hermes Webhook 补丁及自部署说明；不让安装器静默修改第三方节点的 Hermes 核心。
 - 用户进一步明确授权同步发布 GitHub，已准备非 prerelease 的 0.3.0 Release 草稿与双端安装包，尚未公开。
+
+## 2026-11-03 · 0.3.0 正式服上线
+
+- 正式 Relay/Node 与官网、Windows EXE、同签名 Android APK 已切换；保留账号、Node 身份、profiles、历史、浏览器资料及完整回滚资料。
+- 正式公网 gpt-6.1-sol 流式聊天与 Webhook 独立执行/回投通过，错误密钥 401、正确事件 202、重复 delivery 不重复执行；QA 入口已暂停、临时会话已退出。
+- 其他产品与 Caddy 未重启；只更新 nekodot 产品服务。正式官网 12 组 Edge 和安装包公网下载通过。
+- 用户要求不再追加检查、快速发布；不等待额外 Windows Session GUI 重跑，不据此宣称新一轮原生 GUI 验收完成。Android 验收记录为用户确认完成。
+- 根据追加授权同步 GitHub 正式 v0.3.0，保留 MIT 及未做 Windows Authenticode 签名的说明。
