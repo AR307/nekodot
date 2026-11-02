@@ -214,7 +214,10 @@ export class HermesGateway {
       this.pending.delete(frame.id);
       if (frame.error)
         waiter.reject(
-          new HermesGatewayError(frame.error.message ?? 'Hermes gateway request failed', frame.error.code),
+          new HermesGatewayError(
+            frame.error.message ?? 'Hermes gateway request failed',
+            frame.error.code,
+          ),
         );
       else waiter.resolve(frame.result);
       return;

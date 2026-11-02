@@ -796,3 +796,12 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 实测 D 盘可用空间约由 15GB 增至 36GB；C 盘约 31GB。空间数字仅为本次整理时读数。
 - 新增 `native:emulator` 入口及开发约定，固定复用 `NekodotNativePhase3`；实际返回 `emulator-5554`、boot completed=1。`PiMobileQA` 属其他项目，保持不动；没有新建或清空 AVD。
 - 使用已有项目 Flutter SDK 和官方 Hermes PM 入口；隔离 Ubuntu 24.04 的 v0.22.5 已启动，真实 Node/Relay 已上线。设置及聊天的双端真实旅程另行记录，不把环境准备算作功能验收通过。
+
+### 2026-11-02 / Side Phase 5：设置模块双端真实验收
+
+- 本次 Flutter Windows 与固定 `NekodotNativePhase3` Android 模拟器均连接真实持久化 Node/Relay、干净官方 Hermes v0.22.5 和实际 gpt-6.1-sol，完成详情进入、908 字段读取、搜索、模型只读提示、压缩开关、select 保存/取消/显式清空、第二 profile 不变及真实流式聊天；最终旅程分别约22秒、26秒。
+- 设置取消 bug 有真实红/绿结果：修复前选清空再取消使 Hermes 读回 null；修复后取消保留 node24，仅明确保存才清空。Android 第四个设置标签被默认留白挤出的实拍问题也已修复并通过原生点击验证。
+- 原生连接重建、snapshot/历史读取后消息标识不重复；真实重启隔离 Hermes 后设置和历史不变，canonical `/profile` 完成；隔离 Node/Relay 进程停止再启动后设置及12条消息标识保留，未再次配对或新建 Bot。
+- Node 24 typecheck、31文件46测试、全仓ESLint/Prettier及Node bundle通过；首次在Android冷构建期间并行测试有1项超时，后续单worker全量通过，没有放宽超时。canonical gateway两个文件只作格式修正。Flutter analyze与16项Flutter tests通过，后者为辅助检查，不替代实际模型旅程。
+- 预置已验证QA账号不算SMTP或注册UI验收；候选包含保留的其他UI工作区改动，不冒称全新检出的release包。真机、推送、完整视觉矩阵、生产VPS匹配版本及其余Side Phase 5能力仍待验收。
+- 报告及真实截图：`docs/side-phase5-settings-acceptance.md`；脱敏结果：`docs/evidence/side-phase5-settings-real.json`。未改Hermes核心、未部署生产、未发布或push。

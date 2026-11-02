@@ -187,7 +187,7 @@ class _HermesSettingsState extends State<HermesSettings> {
         ?.key;
     String? selectedKey = initialSelection;
     String? error;
-    final value = await showDialog<Object?>(
+    final result = await showDialog<({Object? value})>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, updateDialog) => AlertDialog(
@@ -264,7 +264,7 @@ class _HermesSettingsState extends State<HermesSettings> {
                   if (type == 'object' && (edited is! Map || edited is List)) {
                     throw const FormatException('Expected a JSON object');
                   }
-                  Navigator.pop(dialogContext, edited);
+                  Navigator.pop(dialogContext, (value: edited));
                 } on FormatException catch (exception) {
                   updateDialog(() => error = exception.message);
                 }
@@ -276,10 +276,7 @@ class _HermesSettingsState extends State<HermesSettings> {
       ),
     );
     controller.dispose();
-    if (value != null || (type == 'select' && selectedKey == 'clear')) {
-      final edited = type == 'select' ? selected[selectedKey] : value;
-      await _save(field, edited, reload);
-    }
+    if (result != null) await _save(field, result.value, reload);
   }
 }
 

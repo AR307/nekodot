@@ -643,3 +643,11 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 当前候选、源码、profiles、历史、凭据、证据及其他项目 AVD 均保留；整理后实测 D 盘空闲约 36GB。
 - 新增 `pnpm native:emulator`，固定启动或复用 `NekodotNativePhase3` 并等待启动，不新建、不 wipe-data。实际复用 `emulator-5554`，Android API 35 x64。
 - 真实 Hermes v0.22.5 的隔离 PM 环境已通过官方入口同步，原 `ruamel.yaml` 阻塞已解除；本次真实客户端验收继续使用匹配源码的隔离 Node/Relay，不改生产服务。
+
+### 2026-11-02 / Side Phase 5：profile 设置双端真实验收
+
+- Windows 与固定 Android API 35 x64 模拟器的原生候选，连接真实隔离 Node/Relay、官方 Hermes v0.22.5 和 gpt-6.1-sol，完成 908 字段读取、搜索、布尔与 select 保存、profile 隔离、真实流式回复及连接恢复；不是 fake Hermes 或 widget 回放通过。
+- 真实复现并修复“选择清空后取消仍写入配置”：dialog 用明确保存结果区分取消与 null。Android 实拍发现第四个标签被起始留白挤出，仅调整该详情栏对齐方式，双端复测通过。
+- 实际重启隔离 Hermes 后设置/历史不变，canonical `/profile` 可用；再实际重启隔离 Node/Relay，复用原数据，12 条消息标识及设置保持一致，没有重建 Bot 或重新配对。
+- Node typecheck、31 文件 / 46 场景、全仓 ESLint/Prettier、Node bundle、Flutter analyze 与16项 Flutter tests通过；最终候选 Windows 约22秒、Android模拟器约26秒完成本模块真实旅程。详细证据与限制见 `docs/side-phase5-settings-acceptance.md`。
+- 本轮仍为 0.2.0+5 Debug 候选；Android真机、完整视觉矩阵、生产VPS匹配版本、其他全能力模块及最终release验收继续保留，不部署、不发布、不push。

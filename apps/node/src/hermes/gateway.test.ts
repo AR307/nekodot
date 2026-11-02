@@ -14,9 +14,7 @@ it('speaks Hermes gateway-v1 RPC, delivers events, and answers server requests',
   await once(server, 'listening');
   const address = server.address() as AddressInfo;
   let resolveServerRequest!: (value: unknown) => void;
-  const serverRequestReply = new Promise<unknown>(
-    (resolve) => (resolveServerRequest = resolve),
-  );
+  const serverRequestReply = new Promise<unknown>((resolve) => (resolveServerRequest = resolve));
   server.on('connection', (socket) => {
     socket.send(
       JSON.stringify({

@@ -118,6 +118,12 @@ void main() {
       expect(client.saves, [
         {'botId': 'nk-settings', 'key': 'compression.enabled', 'value': false},
       ]);
+      await tester.enterText(find.byType(TextField), 'model_context_length');
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('Change this in Bot model settings'),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       client.dispose();

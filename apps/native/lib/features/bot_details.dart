@@ -179,6 +179,7 @@ class BotDetails extends StatelessWidget {
                     constraints: const BoxConstraints(maxWidth: 320),
                     child: TabBar(
                       isScrollable: true,
+                      tabAlignment: TabAlignment.start,
                       tabs: [
                         Tab(height: 34, text: c.tr('详情', 'Details')),
                         Tab(height: 34, text: c.tr('记忆', 'Memory')),
