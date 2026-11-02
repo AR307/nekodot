@@ -80,6 +80,7 @@ const adaptedCommands = new Set([
   '/cron',
   '/help',
   '/heartbeat',
+  '/moa',
 ]);
 const unavailableReasons: Record<string, string> = {
   '/handoff': 'Hermes v0.22.5 does not expose handoff on canonical gateway sessions.',
@@ -119,6 +120,8 @@ const appDescriptions: Record<string, string> = {
   '/heartbeat':
     'Read, pause or stop the native heartbeat (usage: /heartbeat [status|pause|stop]). Hermes v0.22.5 does not trigger it for local gateway sessions.',
   '/login': 'Open model authorization and custom API sources (usage: /login).',
+  '/moa':
+    'Run one prompt with the profile’s native MoA preset; the next turn keeps its normal model (usage: /moa <prompt>). Configure the preset in Bot settings.',
 };
 
 /** Discovery and execution remain in Hermes, against the Bot's existing session. */
@@ -363,6 +366,20 @@ export class BotCommands {
                 section.tools.map((tool) => `${tool.name}: ${tool.description}`).join('\n'),
             )
             .join('\n\n'),
+      };
+    }
+    if (name === '/moa' && arg) {
+      const config = await this.hermes.management.request<{ moa: { default_preset: string } }>(
+        '/api/config?include_defaults=true',
+        botId,
+      );
+      // Canonical /moa commits its route on this admission, like the official CLI.
+      // slash.exec alone only prepares the messaging adapter's transient override.
+      return {
+        type: 'send',
+        message: arg,
+        display: command,
+        modelOverride: { model: config.moa.default_preset, provider: 'moa' },
       };
     }
     if (name === '/reload-skills' || name === '/reload') {

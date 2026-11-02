@@ -10,6 +10,11 @@ import type {
   RpcResult,
 } from '@nekodot/protocol';
 
+export interface NativeModelOverride {
+  model: string;
+  provider: string;
+}
+
 export interface RunRecord {
   runId?: string;
   conversationId: string;
@@ -30,6 +35,7 @@ export interface RunRecord {
   queue?: 'queued' | 'started';
   replacesAdmissionId?: string;
   native?: boolean;
+  modelOverride?: NativeModelOverride;
 }
 
 export interface HermesSessionRecord {
@@ -53,6 +59,7 @@ export interface GroupChainRecord {
   currentInput?: string;
   currentInstructions?: string;
   commandInput?: string;
+  commandModelOverride?: NativeModelOverride;
   requestId?: string;
   active: boolean;
 }

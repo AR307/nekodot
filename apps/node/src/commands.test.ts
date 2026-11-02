@@ -41,7 +41,12 @@ async function commandJourney() {
     hermesSession: () => undefined,
     saveHermesSession,
   } as unknown as NodeDatabase;
-  const runtime = { gateway: () => ({ rpc }) } as unknown as HermesRuntime;
+  const runtime = {
+    gateway: () => ({ rpc }),
+    management: {
+      request: async () => ({ moa: { default_preset: 'personal' } }),
+    },
+  } as unknown as HermesRuntime;
   return { commands: new BotCommands(database, runtime), rpc, saveHermesSession };
 }
 
@@ -81,6 +86,20 @@ it('shows native child and process identifiers that users need for tail, steer a
   const result = await commands.execute('test-bot', '/agents');
   expect(result.output).toContain('Agent child-qa [running]: Inspect a harmless fixture');
   expect(result.output).toContain('Process proc-qa [running]: sleep 60');
+});
+
+it('runs MoA as one native admission without changing the persistent session model', async () => {
+  const { commands, rpc } = await commandJourney();
+  const result = await commands.execute('test-bot', '/moa Compare the two harmless options.');
+  expect(result).toEqual({
+    type: 'send',
+    message: 'Compare the two harmless options.',
+    display: '/moa Compare the two harmless options.',
+    modelOverride: { model: 'personal', provider: 'moa' },
+  });
+  expect(rpc.mock.calls.some(([method]) => ['slash.exec', 'session.mutate'].includes(method))).toBe(
+    false,
+  );
 });
 
 it('does not acknowledge a local heartbeat that the pinned Hermes version cannot execute', async () => {

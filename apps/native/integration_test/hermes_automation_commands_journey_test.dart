@@ -14,7 +14,7 @@ void main() {
   testWidgets('native goal and loop results reach the chat', (tester) async {
     if (Platform.isWindows) await DesktopHost.initialize();
     final client = NekodotClient()..language = 'en';
-    final botId = const String.fromEnvironment('QA_BOT');
+    final botId = const String.fromEnvironment('QA_SECOND_BOT');
     final login = await client.request(
       '/auth/login',
       method: 'POST',

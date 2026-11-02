@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { NodeDatabase } from './database';
+import type { NativeModelOverride, NodeDatabase } from './database';
 import type { HermesRuntime } from './hermes/runtime';
 import { openNativeSession, type NativeSessionSnapshot } from './hermes/session';
 import { NodeFault } from './fault';
@@ -37,6 +37,7 @@ export interface CommandResult {
   content?: string;
   filename?: string;
   artifact?: string;
+  modelOverride?: NativeModelOverride;
 }
 
 /** Session identity and transcript edits are owned by Hermes, not the product history. */

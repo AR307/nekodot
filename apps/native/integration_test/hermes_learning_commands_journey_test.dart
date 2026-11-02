@@ -199,19 +199,33 @@ void main() {
         'Review settled',
       );
       debugPrint('QA LEARN: actual native background review returned to chat');
-      await submit(
-        '/refine Review the harmless README-summary workflow. Keep personal identity and USER.md unchanged; do not remove anything. Retain reusable project-summary lessons only if useful.',
+      final beforeRefine = messages().map((r) => r['messageId']).toSet();
+      const refineCommand =
+          '/refine Review the harmless README-summary workflow. Keep personal identity and USER.md unchanged; do not remove anything. Retain reusable project-summary lessons only if useful.';
+      await submit(refineCommand);
+      await until(
+        () => messages().any(
+          (r) =>
+              !beforeRefine.contains(r['messageId']) &&
+              r['kind'] == 'system' &&
+              '${r['content']['text']}'.startsWith('$refineCommand\n\n'),
+        ),
+        'Completed refine result must reach App',
+      );
+      final result = messages().lastWhere(
+        (r) =>
+            !beforeRefine.contains(r['messageId']) &&
+            r['kind'] == 'system' &&
+            '${r['content']['text']}'.startsWith('$refineCommand\n\n'),
       );
       expect(
-        messages().lastWhere((r) => r['kind'] == 'system')['content']['text'],
-        anyOf(
-          contains('review completed'),
-          contains('Review completed'),
-          contains('skill'),
-          contains('memory'),
-        ),
+        '${result['content']['text']}'
+            .substring(refineCommand.length + 2)
+            .toLowerCase(),
+        anyOf(contains('review'), contains('skill'), contains('memory')),
       );
-      await c.rpc('memory.get', {'botId': botId});
+      final memory = await c.rpc('memory.get', {'botId': botId});
+      expect(memory['documents'], isNotEmpty);
       debugPrint(
         'QA LEARN: /refine completed through the native review operation',
       );

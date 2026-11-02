@@ -32,10 +32,11 @@
 8. 真实队列 steer 的 receipt 为 started，但 snapshot.pending.steering 表示输入正在交给原回合，不能当成独立运行回合。按原生实际 pending 标记处理，双端复测不再重复审批或空回复。
 9. 原生 loop 已执行但聊天没有结果：原先只跟随 App 提交的 admission。补只读原生事件观察，复用同一消费与恢复通路。真实 Windows loop 结果现已到达 App。
 10. 插件命令无参数时不能对空字符串 JSON.parse；例行任务状态插件改为使用空对象，双端真实调用通过。
+11. 真实 /moa 看似应答却没有参考模型调用：单纯转发 slash 只改变 messaging adapter 的临时模型。改用官方 CLI 同样的 canonical prompt.submit.model_override，原生只在该 admission 使用 MoA preset；私聊、群聊及恢复记录保留该单回合参数。执行与下一回合恢复仍由 Hermes 处理。
 
 ## 明确边界
 
-- 目录实际 152 条：54 App 适配、95 原生/动态条目、2 纯终端设置、1 canonical 不支持。数字表示接入分类，不表示 149 条的全部参数均已执行。
+- 目录实际 152 条：55 App 适配、94 原生/动态条目、2 纯终端设置、1 canonical 不支持。数字表示接入分类，不表示 149 条的全部参数均已执行。
 - `/handoff`：此版本 canonical 明确不支持；不走 legacy 会话路径伪装成功。
 - `/mouse /indicator`：终端鼠标捕获/提示符设置。Flutter 已使用本机鼠标、触摸与运行指示，不仿造终端设置。
 - `/wake`：设备端 PCM16/16kHz/mono 麦克风、原生 wake feed、WAV 转录与发送前编辑已接入。页面离开或后台停止采音，不自动发送。当前真实 Hermes 环境未配置 STT，并缺 numpy；双端仅通过依赖状态页面，不能宣称语音识别或唤醒成功。

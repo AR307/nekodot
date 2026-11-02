@@ -765,7 +765,7 @@ export class NodeApplication {
             text: result.display || params.command,
             clientMsgId: params.clientMsgId,
           },
-          { botId: params.botId, input: result.message },
+          { botId: params.botId, input: result.message, modelOverride: result.modelOverride },
         );
       }
       const output = [result.output, result.warning, result.notice].filter(Boolean).join('\n');
@@ -848,7 +848,7 @@ export class NodeApplication {
 
   private async sendMessage(
     params: RpcParams<'messages.send'>,
-    command?: { botId: string; input: string },
+    command?: { botId: string; input: string; modelOverride?: RunRecord['modelOverride'] },
   ) {
     const duplicate = this.database.byClient(params.clientMsgId);
     if (duplicate) return { messageId: duplicate.messageId };
@@ -875,6 +875,16 @@ export class NodeApplication {
       );
     if (!params.text.trim() && !params.files?.length)
       throw new NodeFault('invalid_params', 'Write a message or attach a file.');
+    if (
+      command?.modelOverride &&
+      this.database
+        .runs()
+        .some((run) => run.botId === command.botId || run.conversationId === params.conversationId)
+    )
+      throw new NodeFault(
+        'conflict',
+        'Wait for the current task before starting a one-turn model command. No input was sent.',
+      );
     if (
       params.files?.length &&
       this.database.runs().some((run) => run.conversationId === params.conversationId)
@@ -953,6 +963,7 @@ export class NodeApplication {
       lastSeq: -1,
       state: 'thinking',
       inputMessageId: userMessage.messageId,
+      ...(command?.modelOverride ? { modelOverride: command.modelOverride } : {}),
     };
     if (params.files?.length) this.files.attach(userMessage, params.files);
     if (run.queue !== 'queued') this.activeRuns.set(run.conversationId, run);
@@ -966,7 +977,7 @@ export class NodeApplication {
   private async sendGroupMessage(
     params: RpcParams<'messages.send'>,
     conversation: Extract<NonNullable<ReturnType<NodeDatabase['conversation']>>, { kind: 'group' }>,
-    command?: { botId: string; input: string },
+    command?: { botId: string; input: string; modelOverride?: RunRecord['modelOverride'] },
   ) {
     const group = this.database.group(conversation.groupId);
     if (!group || group.archived) throw new NodeFault('not_found', 'Group not found');
@@ -1042,6 +1053,7 @@ export class NodeApplication {
       roster,
       queue: command ? [command.botId] : mentioned.length ? mentioned : [group.leadBotId],
       commandInput: command?.input,
+      commandModelOverride: command?.modelOverride,
       count: 0,
       cursorByBot: this.database.groupHistory(conversation.conversationId)?.cursorByBot ?? {},
       requestId: userMessage.messageId,
@@ -1086,6 +1098,8 @@ export class NodeApplication {
     }
     chain.currentInput = prompt.input;
     chain.currentInstructions = prompt.instructions;
+    const modelOverride = chain.commandModelOverride;
+    chain.commandModelOverride = undefined;
     this.database.saveChain(chain);
     const run: RunRecord = {
       conversationId: chain.conversationId,
@@ -1095,6 +1109,7 @@ export class NodeApplication {
       lastSeq: -1,
       state: 'thinking',
       inputMessageId: chain.requestId ?? randomUUID(),
+      ...(modelOverride ? { modelOverride } : {}),
     };
     this.database.saveRun(run);
     this.activeRuns.set(run.conversationId, run);
@@ -1180,6 +1195,7 @@ export class NodeApplication {
           session_id: run.sessionId,
           text: nativeInput.text,
           submission_id: run.submissionId,
+          ...(run.modelOverride ? { model_override: run.modelOverride } : {}),
           ...(run.replacesAdmissionId
             ? { admission_id: run.replacesAdmissionId }
             : { input_id: run.inputMessageId, ...(run.queue ? { queued: true } : {}) }),

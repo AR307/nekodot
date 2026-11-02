@@ -685,3 +685,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 官方 v0.22.5 local heartbeat 真实保存却不执行，源码确认原生 local adapter 分支提前返回。产品保留查询/暂停/停止，创建/恢复明确提示不可用；未修改核心或增加调度引擎。
 - Windows 实际系统保存 JSON/Markdown/HTML（中文文件名）及双端 /quit 后服务器任务继续完成已核对。新增 /init /learn /review /refine 完整旅程未通过；后续模型返回余额不足403，已请求用户恢复，不以 fake/回放替代。
 - 当前 typecheck、35文件57服务端测试、Flutter analyze通过；最终独立检出检查和构建另记。未删除数据、未改生产、未发布或push。
+
+### 2026-11-02 / Side Phase 5：MoA 原生单回合与扩展命令复测
+
+- 余额恢复后实际完成 Windows 的 /init、/learn、/review、/refine，读回真实技能并核对另一 profile 未安装；Windows 与固定 Android 模拟器的 goal/subgoal/loop 及48条状态命令已通过。Android 学习完整旅程继续验收，不以启动回执计通过。
+- 新增真实 MoA/blueprint/cron 旅程，发现 slash MoA 虽应答却只执行普通模型。改为官方 canonical prompt.submit.model_override，随原生 admission 保存；群聊只作用于所选成员的本回合，不改变后续接力或普通模型。忙碌时明确拒绝此单回合命令，避免被当成 steer。
+- Windows 修复后已核对原生参考输出、实际 token 用量与汇总输出；普通后续回合恢复正常模型。实际蓝图建任务及 cron 创建/修改/启停/立即执行完成，读取原生执行会话确认真实回复；测试任务暂停并保留。
+- 当前 typecheck和35文件59项辅助测试通过。最终独立检出检查、Android MoA及学习复测和脱敏矩阵另行记录；未改 Hermes 核心、生产服务，未删除数据、发布或push。
