@@ -31,3 +31,9 @@
 - 用户随后要求不再追加检查、立即上传。停止追加验收，不等待额外 Windows Session GUI 重跑；不将尚未完成的本轮结果记为通过。既有 Side Phase 5 / Session 真实验收保持原记录，Android 按用户本轮确认记载。
 
 GitHub 按用户追加授权同步源码、标签及正式非 prerelease 安装包，MIT 许可证不变。
+
+## 公开发布结果
+
+- 源码已正常 fast-forward 到 GitHub `main`，版本标签 `v0.3.0` 指向 `e1089a44d3`，没有 force push。
+- GitHub Release `v0.3.0` 已公开，`draft=false`、`prerelease=false`，设为最新正式版本；Windows EXE 与 Android arm64 APK 已上传。官网同名安装包也已生效。
+- 用户要求停止追加检查时，先前启动的额外 Windows GUI 复验已经在专用 QA 账号登录处退出：需要补验邮箱，尚未进入 Session GUI 测试。未绕过验证、未更改该账号邮箱状态、未把此次结果计作通过，也不继续重试。此前完成的独立原生验收与本轮正式公网模型结果分别保留。
