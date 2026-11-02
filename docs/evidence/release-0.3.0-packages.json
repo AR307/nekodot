@@ -1,0 +1,25 @@
+{
+  "checkedAt": "2026-11-02T16:55:42.238Z",
+  "version": "0.3.0",
+  "build": 6,
+  "windows": {
+    "file": "nekodot-windows-x64.exe",
+    "bytes": 15890920,
+    "target": "x64",
+    "authenticodeSigned": false
+  },
+  "android": {
+    "file": "nekodot-android-arm64.apk",
+    "bytes": 34504880,
+    "applicationId": "app.nekodot.client",
+    "versionCode": 2006,
+    "abis": ["arm64-v8a"],
+    "signatureVerified": true,
+    "sameSigningCertificateAsPrevious": true,
+    "minSdk": 29
+  },
+  "node": {
+    "version": "20261102164326",
+    "productionKeyProvidedByPublisher": true
+  }
+}

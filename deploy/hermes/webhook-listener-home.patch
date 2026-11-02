@@ -1,0 +1,24 @@
+diff --git a/gateway/platforms/webhook.py b/gateway/platforms/webhook.py
+index aa1cffb394..76e6f7254a 100644
+--- a/gateway/platforms/webhook.py
++++ b/gateway/platforms/webhook.py
+@@ -213,6 +213,9 @@ class WebhookAdapter(BasePlatformAdapter):
+ 
+     def __init__(self, config: PlatformConfig):
+         super().__init__(config, Platform.WEBHOOK)
++        from hermes_constants import get_hermes_home
++        # Shared-listener admission and delivery run inside the target profile's scope.
++        self._dynamic_routes_path = get_hermes_home() / _DYNAMIC_ROUTES_FILENAME
+         extra = config.extra
+         # Empty string / null host normalises to None ("bind all families").
+         self._host: Optional[str] = extra.get("host", DEFAULT_HOST) or None
+@@ -441,8 +444,7 @@ class WebhookAdapter(BasePlatformAdapter):
+         Runs on every POST before auth, so it never takes the CLI writer lock: writers publish via
+         atomic rename, which also gives the file a new inode, so a restored mtime cannot hide a change.
+         """
+-        from hermes_constants import get_hermes_home
+-        subs_path = get_hermes_home() / _DYNAMIC_ROUTES_FILENAME
++        subs_path = self._dynamic_routes_path
+         try:
+             st = subs_path.stat()
+         except FileNotFoundError:

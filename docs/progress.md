@@ -873,3 +873,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 版本更新为 0.3.0+6，更新官网、README、安装包版本与产品 Relay 镜像标签；保留 Claude 的官网设计及早期产品风险说明。
 - 包含原生 canonical 会话、能力/指令接入、Webhook 例行任务和 Bot 历史 Session GUI。
 - 正式服务上线及构建结果另记 docs/release-0.3.0-acceptance.md；保留账号、节点身份、profiles、历史、现场和既有未提交改动。
+
+## 2026-11-03 · 0.3.0 候选构建与发布前验证
+
+- 独立检出完成服务端 frozen install/lint/typecheck/59 项测试/build，Flutter frozen pub/analyze/18 项测试及双端 release 打包。
+- Android 保留首次 Kotlin 缓存失败记录，使用已验证的单次 Gradle 参数重试成功，未清理文件或重建 AVD。
+- 候选 Relay、SMTP、分发与官网 12 组 Edge 检查通过；Windows release 原生页面已实际打开观察。
+- 附上已有授权的最小 Hermes Webhook 补丁及自部署说明；不让安装器静默修改第三方节点的 Hermes 核心。
+- 用户进一步明确授权同步发布 GitHub，已准备非 prerelease 的 0.3.0 Release 草稿与双端安装包，尚未公开。
