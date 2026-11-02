@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -9,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../data/client.dart';
 import '../ui/design.dart';
+import 'bot_editor.dart';
 
 Future<Uint8List> downloadFile(NekodotClient c, String id) async {
   final response = await http
@@ -32,14 +34,30 @@ String fileSize(num bytes) => bytes < 1024
 Future<Json?> pickChatFile(
   NekodotClient client,
   String conversationId,
-  ValueChanged<String> onProgress,
-) async {
+  ValueChanged<String> onProgress, {
+  String? localPath,
+  Uint8List? imageBytes,
+  bool imageOnly = false,
+}) async {
   final nodeId = client.selectedNodeId!;
-  final file = await FilePicker.pickFile();
-  if (file == null) return null;
+  final file = localPath == null && imageBytes == null
+      ? await FilePicker.pickFile(
+          type: imageOnly ? FileType.image : FileType.any,
+        )
+      : null;
+  if (file == null && localPath == null && imageBytes == null) return null;
+  final name =
+      file?.name ??
+      (localPath == null
+          ? 'clipboard-${DateTime.now().millisecondsSinceEpoch}.png'
+          : File(localPath).uri.pathSegments.last);
   final created = await client.rpc('imports.create', {}, nodeId);
   final importId = '${created['importId']}';
-  final bytes = file.readAsByteStream();
+  final bytes =
+      file?.readAsByteStream() ??
+      (localPath == null
+          ? Stream.value(imageBytes!)
+          : File(localPath).openRead());
   var offset = 0;
   await for (final chunk in bytes) {
     for (var start = 0; start < chunk.length; start += 196608) {
@@ -48,9 +66,7 @@ Future<Json?> pickChatFile(
           .put(
             client
                 .url('/api/nodes/$nodeId/imports/$importId')
-                .replace(
-                  queryParameters: {'path': file.name, 'offset': '$offset'},
-                ),
+                .replace(queryParameters: {'path': name, 'offset': '$offset'}),
             headers: {
               'Authorization': 'Bearer ${client.token}',
               'Content-Type': 'application/octet-stream',
@@ -62,14 +78,14 @@ Future<Json?> pickChatFile(
         throw RelayError('Upload HTTP ${response.statusCode}');
       }
       offset += end - start;
-      onProgress('${file.name} · ${fileSize(offset)}');
+      onProgress('$name · ${fileSize(offset)}');
     }
   }
   if (offset == 0) {
     final response = await client.transport.put(
       client
           .url('/api/nodes/$nodeId/imports/$importId')
-          .replace(queryParameters: {'path': file.name, 'offset': '0'}),
+          .replace(queryParameters: {'path': name, 'offset': '0'}),
       headers: {
         'Authorization': 'Bearer ${client.token}',
         'Content-Type': 'application/octet-stream',
@@ -91,7 +107,7 @@ Future<Json?> pickChatFile(
   return client.rpc('files.receive', {
     'conversationId': conversationId,
     'importId': importId,
-    'path': file.name,
+    'path': name,
   }, nodeId);
 }
 
@@ -307,6 +323,20 @@ class _FilePageState extends State<FilePage> {
     body: SafeArea(
       child: Column(
         children: [
+          if (RegExp(r'\.(tar\.gz|tgz)$').hasMatch('${file['name']}') &&
+              file['available'] == true)
+            TextButton.icon(
+              icon: const Icon(Icons.person_add_alt_1_outlined),
+              label: Text(client.tr('作为新 Bot 导入', 'Import as a new Bot')),
+              onPressed: () => pushPage(
+                context,
+                BotEditor(
+                  client: client,
+                  importProfile: true,
+                  initialArchive: file,
+                ),
+              ),
+            ),
           if (busy) const LinearProgressIndicator(minHeight: 2),
           if (error.isNotEmpty)
             Padding(

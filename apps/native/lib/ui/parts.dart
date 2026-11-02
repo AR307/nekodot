@@ -153,7 +153,7 @@ class AppPage extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) => Scaffold(
-    extendBodyBehindAppBar: extendBodyBehindAppBar ?? context.tone.glass,
+    extendBodyBehindAppBar: extendBodyBehindAppBar ?? false,
     appBar: AppBar(
       flexibleSpace: context.tone.glass ? const Frost() : const WindowDrag(),
       title: title == null ? null : Text(title!),

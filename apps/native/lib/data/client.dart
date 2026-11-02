@@ -62,6 +62,13 @@ class NekodotClient extends ChangeNotifier {
   String? visibleConversation;
   Json? me;
   String language = 'zh', theme = 'system', error = '';
+  final chatDisplay = <String, bool>{
+    'focus': false,
+    'density': false,
+    'timestamps': false,
+    'statusbar': false,
+    'battery': false,
+  };
   bool ready = false, connecting = false, active = true, _closed = false;
   int _retry = 1;
   WebSocket? _socket;
@@ -94,6 +101,9 @@ class NekodotClient extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     language = prefs.getString('language') ?? 'zh';
     theme = prefs.getString('theme') ?? 'system';
+    for (final key in chatDisplay.keys) {
+      chatDisplay[key] = prefs.getBool('chat-$key') ?? false;
+    }
     selectedNodeId = prefs.getString('node');
     token = await vault.read(key: 'nekodot-session');
     if (token != null) await bootstrap();
@@ -204,6 +214,12 @@ class NekodotClient extends ChangeNotifier {
       theme = appearance;
       await prefs.setString('theme', appearance);
     }
+    notifyListeners();
+  }
+
+  Future<void> setChatDisplay(String key, bool enabled) async {
+    chatDisplay[key] = enabled;
+    await (await SharedPreferences.getInstance()).setBool('chat-$key', enabled);
     notifyListeners();
   }
 

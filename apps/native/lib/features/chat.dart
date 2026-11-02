@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
@@ -13,6 +15,7 @@ import 'bot_details.dart';
 import 'bot_editor.dart';
 import 'files.dart';
 import 'commands.dart';
+import 'client_commands.dart';
 import 'routines.dart';
 
 class ChatPage extends StatefulWidget {
@@ -46,6 +49,9 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   Json? commandOperation;
   String? submittedCommand;
   String? commandNodeId;
+  bool get sideCommand =>
+      submittedCommand != null &&
+      RegExp(r'^/(bg|btw)(\s|$)').hasMatch(submittedCommand!);
   bool uploading = false;
   String uploadProgress = '';
   List<Json> get attached => c.attachmentDrafts[draftKey] ?? [];
@@ -114,10 +120,11 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
     if ((text.isEmpty && attached.isEmpty) ||
         sending ||
         uploading ||
-        commandOperation?['status'] == 'running') {
+        (commandOperation?['status'] == 'running' &&
+            !(sideCommand && !text.startsWith('/')))) {
       return;
     }
-    if (text.startsWith('/') && (commandBotId == null || attached.isNotEmpty)) {
+    if (text.startsWith('/') && commandBotId == null) {
       return;
     }
     final key = draftKey, nodeId = c.selectedNodeId;
@@ -144,9 +151,11 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
         },
         nodeId,
       );
-      c.attachmentDrafts[key]?.removeWhere(
-        (file) => files.contains(file['fileId']),
-      );
+      if (!command) {
+        c.attachmentDrafts[key]?.removeWhere(
+          (file) => files.contains(file['fileId']),
+        );
+      }
       if (!command && c.drafts[key]?.trim() == text) c.drafts[key] = '';
       if (!mounted) return;
       // A user can already be drafting the next instruction while RPC returns.
@@ -157,6 +166,9 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
           submittedCommand = text;
           commandNodeId = nodeId;
         });
+        pendingId = null;
+        pendingText = null;
+        if (sideCommand && input.text.trim() == text) input.clear();
         unawaited(followCommand(result));
       } else {
         pendingId = null;
@@ -173,7 +185,11 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
     }
   }
 
-  Future<void> attachFile() async {
+  Future<void> attachFile({
+    String? path,
+    Uint8List? bytes,
+    bool imageOnly = false,
+  }) async {
     final key = draftKey;
     setState(() {
       uploading = true;
@@ -181,9 +197,16 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       error = '';
     });
     try {
-      final file = await pickChatFile(c, id, (value) {
-        if (mounted) setState(() => uploadProgress = value);
-      });
+      final file = await pickChatFile(
+        c,
+        id,
+        (value) {
+          if (mounted) setState(() => uploadProgress = value);
+        },
+        localPath: path,
+        imageBytes: bytes,
+        imageOnly: imageOnly,
+      );
       if (file != null) {
         c.attachmentDrafts.putIfAbsent(key, () => []).add(file);
       }
@@ -234,18 +257,49 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       } else if (input.text.trim() == submittedCommand) {
         input.clear();
       }
-      pendingId = null;
-      pendingText = null;
       for (final result in objects(operation['results'])) {
+        if (!mounted) return;
         final prefill = result['native']?['prefill'];
         if (prefill is String && input.text.isEmpty) input.text = prefill;
+        final action = result['native']?['action'];
+        if (action is String && commandNodeId == c.selectedNodeId) {
+          await clientCommand(
+            context,
+            c,
+            action,
+            '${result['native']?['argument'] ?? ''}',
+            c.node.messages[id] ?? [],
+            attachFile,
+          );
+          if (!mounted) return;
+        }
+        final export = result['native']?['export'];
+        if (export is Map) {
+          final saved = await FilePicker.saveFile(
+            dialogTitle: c.tr('保存原生会话', 'Save native transcript'),
+            fileName: '${export['filename']}',
+            bytes: Uint8List.fromList(utf8.encode('${export['content']}')),
+          );
+          if (saved != null && mounted) {
+            showNotice(
+              context,
+              c.tr('会话已保存到当前设备', 'Transcript saved on this device'),
+            );
+          }
+        }
       }
       await c.loadMessages(id);
       if (!mounted || commandNodeId != c.selectedNodeId) return;
       for (final result in objects(operation['results'])) {
         final page = result['native']?['page'];
         if (page is String) {
-          await openCommandPage(context, c, page, '${result['botId']}');
+          await openCommandPage(
+            context,
+            c,
+            page,
+            '${result['botId']}',
+            '${result['native']?['argument'] ?? ''}',
+          );
           if (!mounted) return;
         }
       }
@@ -291,7 +345,11 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 : (group['botIds'] as List).contains(b['botId']),
           )
           .toList();
-      final messages = c.node.messages[id] ?? [];
+      final messages = (c.node.messages[id] ?? [])
+          .where(
+            (row) => c.chatDisplay['focus'] != true || row['kind'] != 'tool',
+          )
+          .toList();
       final lastBot = messages
           .where((m) => m['author']['type'] == 'bot')
           .lastOrNull?['author']['id'];
@@ -310,7 +368,6 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       final title =
           group?['name'] as String? ?? bot?['displayName'] as String? ?? 'Bot';
       final tone = context.tone;
-      final inset = MediaQuery.paddingOf(context);
       final memberAvatars = [
         for (final member in members) object(member['avatar']),
       ];
@@ -620,9 +677,9 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                       waiting ||
                       sending ||
                       uploading ||
-                      commandOperation?['status'] == 'running' ||
-                      !hasText ||
-                      (input.text.startsWith('/') && attached.isNotEmpty)
+                      (commandOperation?['status'] == 'running' &&
+                          !(sideCommand && !input.text.startsWith('/'))) ||
+                      !hasText
                   ? null
                   : send,
               icon: const Icon(Icons.arrow_upward),
@@ -769,6 +826,29 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                       ),
                       child: composerRow,
                     ),
+                  if (c.chatDisplay['statusbar'] == true ||
+                      c.chatDisplay['battery'] == true)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 5, 8, 0),
+                      child: Row(
+                        key: const ValueKey('chat-statusbar'),
+                        children: [
+                          if (c.chatDisplay['statusbar'] == true)
+                            Expanded(
+                              child: Text(
+                                '${status ?? c.tr('已连接', 'Connected')} · ${c.tr('Bot 配置', 'Bot config')}: ${bot?['model'] ?? ''}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelSmall,
+                              ),
+                            )
+                          else
+                            const Spacer(),
+                          if (c.chatDisplay['battery'] == true)
+                            DeviceBattery(client: c),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -776,7 +856,6 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
         ),
       );
       return Scaffold(
-        extendBodyBehindAppBar: true,
         appBar: header,
         body: Stack(
           children: [
@@ -792,12 +871,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
               ListView.builder(
                 controller: scroll,
                 reverse: true,
-                padding: EdgeInsets.fromLTRB(
-                  14,
-                  inset.top + 6,
-                  14,
-                  composerHeight + 2,
-                ),
+                padding: EdgeInsets.fromLTRB(14, 6, 14, composerHeight + 2),
                 itemCount: messages.length + 1 + lead,
                 findChildIndexCallback: (key) {
                   final index = messages.indexWhere(
@@ -817,7 +891,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                   }
                   final index = position - lead;
                   if (index == messages.length) {
-                    return messages.length < 50
+                    return (c.node.messages[id]?.length ?? 0) < 50
                         ? const SizedBox.shrink()
                         : Center(
                             child: IconButton(
@@ -1029,6 +1103,12 @@ class MessageTile extends StatelessWidget {
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelMedium,
             ),
+            for (final fileId in (body['files'] as List? ?? []))
+              FileCard(
+                client: c,
+                fileId: '$fileId',
+                messageId: '${m['messageId']}',
+              ),
             if (body['retryText'] != null)
               TextButton(
                 onPressed: () => onRetry(body['retryText'] as String),
@@ -1125,9 +1205,26 @@ class MessageTile extends StatelessWidget {
         ],
       );
     }
+    if (c.chatDisplay['timestamps'] == true) {
+      final at = DateTime.parse('${m['createdAt']}').toLocal();
+      content = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}',
+            key: ValueKey('message-time-${m['messageId']}'),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: user ? tone.base.withValues(alpha: .7) : tone.ink3,
+            ),
+          ),
+          content,
+        ],
+      );
+    }
+    final compact = c.chatDisplay['density'] == true;
     if (user) {
       return Padding(
-        padding: EdgeInsets.only(top: continued ? 3 : 12, left: 56),
+        padding: EdgeInsets.only(top: continued || compact ? 3 : 12, left: 56),
         child: Align(
           alignment: Alignment.centerRight,
           child: Container(
@@ -1143,7 +1240,7 @@ class MessageTile extends StatelessWidget {
     }
     if (tone.glass) {
       return Padding(
-        padding: EdgeInsets.only(top: continued ? 4 : 14),
+        padding: EdgeInsets.only(top: continued || compact ? 4 : 14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1204,7 +1301,7 @@ class MessageTile extends StatelessWidget {
       ],
     );
     return Padding(
-      padding: EdgeInsets.only(top: continued ? 3 : 12, right: 40),
+      padding: EdgeInsets.only(top: continued || compact ? 3 : 12, right: 40),
       child: !showName
           ? Align(alignment: Alignment.centerLeft, child: column)
           : Row(

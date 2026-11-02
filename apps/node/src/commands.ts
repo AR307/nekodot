@@ -77,11 +77,44 @@ const adaptedCommands = new Set([
   '/login',
   '/skills',
   '/cron',
+  '/help',
 ]);
 const unavailableReasons: Record<string, string> = {
   '/handoff': 'Hermes v0.22.5 does not expose handoff on canonical gateway sessions.',
   '/mouse': 'Terminal mouse-capture setting. App mouse and touch use native controls.',
   '/indicator': 'Terminal prompt indicator. App uses its own running-state display.',
+};
+// App adapters must not advertise CLI-only arguments that they do not execute.
+const appDescriptions: Record<string, string> = {
+  '/clear': 'Start a fresh Hermes context; keep existing App messages and tool effects.',
+  '/redraw': 'Refresh this App and synchronize messages without replaying tasks.',
+  '/prompt': 'Prefill the App composer without sending (usage: /prompt [text]).',
+  '/branch': 'Branch this Bot’s native session and use the branch here (usage: /branch [name]).',
+  '/rollback':
+    'Read filesystem checkpoints (usage: /rollback [list | diff <checkpoint>]). Restore is not offered.',
+  '/snapshot':
+    'Create a private native backup (usage: /snapshot [create]). Restore/prune are not offered.',
+  '/export': 'Export this Bot’s shareable profile to a file card (usage: /export).',
+  '/import': 'Open the App form to import a profile archive as a new Bot (usage: /import).',
+  '/stop':
+    'Stop this session’s background processes and subagents. Use the chat Stop button for the main turn.',
+  '/agents':
+    'List native child/process IDs; tail, steer or stop a child, kill a process, pause/resume spawning.',
+  '/journey': 'Browse or edit native learning entries (usage: /journey [list | edit <entry-id>]).',
+  '/queue':
+    'Inspect or cancel native queued inputs (usage: /queue [list | rm N]). App enqueue/edit/reorder are not connected.',
+  '/model':
+    'Open Bot model settings, or pick a session model: /model <id> [--provider name] [--reasoning level].',
+  '/skin':
+    'Set this App’s appearance (usage: /skin [light|dark|system]). Terminal skins do not apply.',
+  '/wake':
+    'Read native wake-word requirements (usage: /wake [status]). App microphone capture is not connected.',
+  '/image': 'Attach a device image: /image [Windows path]; without a path opens the system picker.',
+  '/update':
+    'Check native Hermes updates (usage: /update [check]). Installation uses the managed Node release process.',
+  '/quit':
+    'Quit the Windows App or background Android; keep server tasks and history (usage: /quit).',
+  '/login': 'Open model authorization and custom API sources (usage: /login).',
 };
 
 /** Discovery and execution remain in Hermes, against the Bot's existing session. */
@@ -110,7 +143,7 @@ export class BotCommands {
         )
         .map(([name, description]) => ({
           name,
-          description,
+          description: appDescriptions[name] ?? description,
           availability: adaptedCommands.has(name)
             ? 'app'
             : gatewayCommands.has(name) || dynamic.has(name) || Object.hasOwn(catalog.skills, name)
@@ -143,10 +176,24 @@ export class BotCommands {
     if (!entry || entry.availability === 'not-integrated')
       throw new NodeFault(
         'invalid_params',
-        `${name} needs a client adapter that is not connected yet. No conversation or task was changed.`,
+        `${entry?.unavailableReason ?? `${name} needs a client adapter that is not connected yet.`} No conversation or task was changed.`,
       );
     if (entry?.availability === 'terminal')
       throw new NodeFault('invalid_params', 'This Hermes command requires its native terminal.');
+    if (name === '/help') {
+      const query = arg.toLowerCase();
+      const entries = catalog.commands.filter((row) =>
+        query === 'skills'
+          ? row.skill
+          : `${row.name} ${row.description}`.toLowerCase().includes(query),
+      );
+      return {
+        output:
+          entries
+            .map((row) => `${row.name}: ${row.unavailableReason ?? row.description}`)
+            .join('\n\n') || 'No matching Hermes commands.',
+      };
+    }
     if (clientCommands.has(name)) return { type: 'client', target: name, message: arg };
     if (hostCommandNames.has(name))
       return hostCommand(this.database, this.hermes, botId, name, arg);

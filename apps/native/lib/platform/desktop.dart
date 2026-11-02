@@ -52,8 +52,7 @@ class DesktopHost with WindowListener {
     )!;
     quit.addListener((event) async {
       if (event is MenuItemClickedEvent) {
-        tray.dispose();
-        await windowManager.destroy();
+        await DesktopHost.quit();
       }
     });
     menu.addItem(quit);
@@ -65,6 +64,11 @@ class DesktopHost with WindowListener {
         windowManager.focus();
       }
     });
+  }
+
+  static Future<void> quit() async {
+    icon?.dispose();
+    await windowManager.destroy();
   }
 
   @override

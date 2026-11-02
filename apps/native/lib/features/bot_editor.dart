@@ -4,16 +4,21 @@ import 'package:flutter/material.dart';
 
 import '../data/client.dart';
 import '../ui/design.dart';
+import 'files.dart';
 
 class BotEditor extends StatefulWidget {
   final NekodotClient client;
   final bool group;
   final Json? existing;
+  final bool importProfile;
+  final Json? initialArchive;
   const BotEditor({
     super.key,
     required this.client,
     this.group = false,
     this.existing,
+    this.importProfile = false,
+    this.initialArchive,
   });
   @override
   State<BotEditor> createState() => _BotEditorState();
@@ -31,6 +36,7 @@ class _BotEditorState extends State<BotEditor> {
       mode = 'manual',
       error = '';
   String? lead, source;
+  Json? archive;
   final members = <String>{};
   List<Json> sources = [];
   List<String> models = [];
@@ -39,6 +45,7 @@ class _BotEditorState extends State<BotEditor> {
   @override
   void initState() {
     super.initState();
+    archive = widget.initialArchive;
     final b = widget.existing;
     if (b != null) {
       name.text = '${b[widget.group ? 'name' : 'displayName']}';
@@ -125,6 +132,14 @@ class _BotEditorState extends State<BotEditor> {
           'leadBotId': lead,
         });
       } else {
+        if (widget.importProfile && archive == null) {
+          throw RelayError(
+            c.tr(
+              '请先选择 Hermes profile 压缩包',
+              'Choose a Hermes profile archive first',
+            ),
+          );
+        }
         await c.rpc(existing == null ? 'bots.create' : 'bots.update', {
           if (existing != null) 'botId': existing['botId'],
           'displayName': name.text,
@@ -134,6 +149,7 @@ class _BotEditorState extends State<BotEditor> {
           'avatar': {'shape': shape, 'color': color},
           'approvalMode': mode,
           if (source != null) 'sourceId': source,
+          if (widget.importProfile) 'archiveFileId': archive!['fileId'],
           'modelSettings': {
             'contextLength': contextLength.text.trim().isEmpty
                 ? null
@@ -166,11 +182,47 @@ class _BotEditorState extends State<BotEditor> {
     return AppPage(
       title: widget.group
           ? c.tr('群组', 'Group')
+          : widget.importProfile
+          ? c.tr('导入 Hermes profile', 'Import Hermes profile')
           : widget.existing == null
           ? c.tr('新建 Bot', 'New Bot')
           : c.tr('编辑 Bot', 'Edit Bot'),
       body: PageList(
         children: [
+          if (widget.importProfile) ...[
+            Text(
+              c.tr(
+                '从压缩包创建独立 Bot，保留导入的技能和设定。凭据不在可分享的压缩包中，请选择本节点已有模型来源。',
+                'Create an independent Bot with the archive’s skills and settings. Shared archives exclude credentials; choose a model source on this Node.',
+              ),
+            ),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.folder_zip_outlined),
+              label: Text(
+                '${archive?['name'] ?? c.tr('选择 .tar.gz 文件', 'Choose .tar.gz file')}',
+              ),
+              onPressed: busy
+                  ? null
+                  : () async {
+                      try {
+                        final dm = c.node.conversations.firstWhere(
+                          (row) => row['kind'] == 'dm',
+                        );
+                        final file = await pickChatFile(
+                          c,
+                          '${dm['conversationId']}',
+                          (_) {},
+                        );
+                        if (file != null && mounted) {
+                          setState(() => archive = file);
+                        }
+                      } catch (e) {
+                        if (mounted) setState(() => error = '$e');
+                      }
+                    },
+            ),
+            gap,
+          ],
           if (!widget.group) ...[
             Center(
               child: AnimatedSwitcher(

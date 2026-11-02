@@ -7,6 +7,7 @@ import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/features/commands.dart';
 import 'package:nekodot_native/features/hermes_settings.dart';
 import 'package:nekodot_native/features/home.dart';
+import 'package:nekodot_native/features/sessions.dart';
 import 'package:nekodot_native/platform/desktop.dart';
 import 'package:nekodot_native/ui/design.dart';
 
@@ -72,6 +73,19 @@ void main() {
       await tester.enterText(input, text);
       await tester.pump(const Duration(milliseconds: 300));
       expect(tester.widget<TextField>(input).controller!.text, text);
+      if (text.isNotEmpty) {
+        await until(
+          () => find
+              .byWidgetPredicate(
+                (w) =>
+                    w is IconButton &&
+                    w.tooltip == 'Send' &&
+                    w.onPressed != null,
+              )
+              .evaluate()
+              .isNotEmpty,
+        );
+      }
     }
 
     await client.loadMessages(conversationId);
@@ -122,7 +136,11 @@ void main() {
         .where((row) => row['author']['type'] == 'user')
         .length;
 
-    Future<void> command(String text, String expected) async {
+    Future<void> command(
+      String text,
+      String expected, {
+      String? prefill,
+    }) async {
       final old = messages().map((row) => row['messageId']).toSet();
       await typeMessage(text);
       await tester.pump(const Duration(milliseconds: 300));
@@ -137,7 +155,9 @@ void main() {
         ),
       );
       await until(
-        () => tester.widget<TextField>(input).controller!.text.isEmpty,
+        () => prefill == null
+            ? tester.widget<TextField>(input).controller!.text.isEmpty
+            : tester.widget<TextField>(input).controller!.text == prefill,
       );
     }
 
@@ -150,7 +170,13 @@ void main() {
           find.byType(CommandPalette).evaluate().isNotEmpty &&
           find.text('/history').evaluate().isNotEmpty,
     );
-    expect(find.text('App action'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.widgetWithText(ListTile, '/history'),
+        matching: find.text('App action'),
+      ),
+      findsOneWidget,
+    );
     await tapReady(find.widgetWithText(ListTile, '/history'));
     await command('/history', marker);
     expect(
@@ -194,17 +220,19 @@ void main() {
       (await client.rpc('commands.list', {'botId': botId}))['commands'],
     );
     expect(
-      catalog.firstWhere((row) => row['name'] == '/new')['availability'],
+      catalog.firstWhere((row) => row['name'] == '/handoff')['availability'],
       'not-integrated',
     );
-    await typeMessage('/new');
+    await typeMessage('/handoff');
     await until(() => find.byType(ExpansionTile).evaluate().isNotEmpty);
     await tapReady(find.byType(ExpansionTile));
     await until(
-      () => find.widgetWithText(ListTile, '/new').evaluate().isNotEmpty,
+      () => find.widgetWithText(ListTile, '/handoff').evaluate().isNotEmpty,
     );
     expect(
-      tester.widget<ListTile>(find.widgetWithText(ListTile, '/new')).enabled,
+      tester
+          .widget<ListTile>(find.widgetWithText(ListTile, '/handoff'))
+          .enabled,
       isFalse,
     );
     await typeMessage('');
@@ -212,6 +240,87 @@ void main() {
       messages().where((row) => row['author']['type'] == 'bot').length,
       modelReplies,
     );
+
+    final original = (await client.rpc('sessions.list', {
+      'botId': botId,
+    }))['currentSessionId'];
+    final sessionName = 'NativeQA-${DateTime.now().millisecondsSinceEpoch}';
+    await command('/new $sessionName', 'New Hermes session:');
+    final fresh = (await client.rpc('sessions.list', {
+      'botId': botId,
+    }))['currentSessionId'];
+    expect(fresh, isNot(original));
+    final prompt =
+        'Harmless test. Do not use tools. Reply exactly $marker-SESSION.';
+    await typeMessage(prompt);
+    await tapReady(find.byTooltip('Send'));
+    await until(
+      () => messages().any(
+        (row) =>
+            row['author']['type'] == 'bot' &&
+            row['status'] == 'done' &&
+            '${row['content']['text']}'.contains('$marker-SESSION'),
+      ),
+      seconds: 240,
+    );
+    await until(
+      () => client.node.activities[conversationId]?['state'] == 'idle',
+    );
+    await command('/fork $sessionName-branch', 'Branched Hermes session:');
+    final branch = (await client.rpc('sessions.list', {
+      'botId': botId,
+    }))['currentSessionId'];
+    expect(branch, isNot(fresh));
+    await command('/history', '$marker-SESSION');
+    await command('/undo', 'Hermes context rewound.', prefill: prompt);
+    final undone = await client.rpc('sessions.history', {
+      'botId': botId,
+      'sessionId': branch,
+    });
+    expect(
+      objects(undone['messages']).where((row) => row['role'] == 'user'),
+      isEmpty,
+    );
+    await command('/resume $fresh', 'Resumed Hermes session:');
+    final repliesBeforeRetry = messages()
+        .where((row) => row['author']['type'] == 'bot')
+        .length;
+    await command('/retry', 'Hermes context rewound.');
+    await until(
+      () =>
+          messages().where((row) => row['author']['type'] == 'bot').length >
+              repliesBeforeRetry &&
+          client.node.activities[conversationId]?['state'] == 'idle',
+      seconds: 240,
+    );
+    await command('/compact --preview', 'Hermes compression (preview)');
+    await command('/save', 'Usage: /save');
+
+    await typeMessage('/sessions');
+    await tapReady(find.byTooltip('Send'));
+    await until(() => find.byType(BotSessionsPage).evaluate().isNotEmpty);
+    await until(() => find.text(sessionName).evaluate().isNotEmpty);
+    await tapReady(find.text(sessionName));
+    await until(() => find.text('Native transcript').evaluate().isNotEmpty);
+    await until(() => find.text('Resume here').evaluate().isNotEmpty);
+    await tapReady(find.text('Resume here'));
+    await until(
+      () =>
+          find.byType(BotSessionsPage).evaluate().isNotEmpty &&
+          find.text('Native transcript').evaluate().isEmpty,
+    );
+    await tester.pageBack();
+    await until(() => input.evaluate().isNotEmpty);
+    await command('/reset', 'New Hermes session:');
+    final empty = (await client.rpc('sessions.list', {
+      'botId': botId,
+    }))['currentSessionId'];
+    final emptyHistory = await client.rpc('sessions.history', {
+      'botId': botId,
+      'sessionId': empty,
+    });
+    expect(objects(emptyHistory['messages']), isEmpty);
+    await command('/resume $original', 'Resumed Hermes session:');
     final ids = messages().map((row) => row['messageId']).toSet();
     await client.connect();
     await until(() => client.ready);
@@ -229,6 +338,11 @@ void main() {
       'reloadSkills': true,
       'settingsNavigation': true,
       'unavailableClearlySeparated': true,
+      'newSessionAndReset': true,
+      'branchAndUndo': true,
+      'resumeAndRetry': true,
+      'nativeSessionPicker': true,
+      'compressionPreview': true,
       'reconnectWithoutReplay': true,
       'catalog': {
         for (final status in ['available', 'app', 'terminal', 'not-integrated'])

@@ -60,6 +60,12 @@ it('lists usable commands honestly and reads history through the native history 
       expect.objectContaining({ name: '/plan', availability: 'available' }),
     ]),
   );
+  expect(catalog.commands.find((row) => row.name === '/quit')?.description).not.toContain(
+    '--delete',
+  );
+  expect(catalog.commands.find((row) => row.name === '/queue')?.description).toContain(
+    'enqueue/edit/reorder are not connected',
+  );
   const history = await commands.execute('test-bot', '/history');
   expect(history.output).toContain('Bot: I remember the harmless test label.');
   expect(history.output).not.toContain('hidden projection row');
@@ -77,6 +83,14 @@ it('shows native child and process identifiers that users need for tail, steer a
   expect(result.output).toContain('Process proc-qa [running]: sleep 60');
 });
 
+it('App help explains the actual adapter syntax instead of advertising unsupported CLI arguments', async () => {
+  const { commands, rpc } = await commandJourney();
+  const result = await commands.execute('test-bot', '/help quit');
+  expect(result.output).toContain('usage: /quit');
+  expect(result.output).not.toContain('--delete');
+  expect(rpc.mock.calls.every(([method]) => method === 'commands.catalog')).toBe(true);
+});
+
 it('opens App settings and composes locally; unsupported session controls never alter the session', async () => {
   const { commands, rpc, saveHermesSession } = await commandJourney();
   expect(await commands.execute('test-bot', '/config')).toEqual({
@@ -91,7 +105,9 @@ it('opens App settings and composes locally; unsupported session controls never 
     type: 'prefill',
     message: 'My next instruction',
   });
-  await expect(commands.execute('test-bot', '/handoff')).rejects.toThrow('not connected yet');
+  await expect(commands.execute('test-bot', '/handoff')).rejects.toThrow(
+    'does not expose handoff on canonical gateway sessions',
+  );
   await expect(commands.execute('test-bot', '/config agent.max_turns 10')).rejects.toThrow(
     'without arguments',
   );

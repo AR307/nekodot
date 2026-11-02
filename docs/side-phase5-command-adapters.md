@@ -11,8 +11,8 @@
 | 工具/环境   | `/tools /reload-mcp /reload-skills /reload /browser /wake`                                | profile 工具配置、原生 reload/browser/wake 状态                                       |
 | 主机与资料  | `/logs /snapshot /export /import /worktree /update`                                       | 官方日志、备份、profile archive、Git worktree、更新检查                               |
 | 原生资料    | `/journey /pet /hatch /subscription`                                                      | 实际学习条目、宠物目录/生成状态、Nous 订阅状态                                        |
-| 本机        | `/copy /image /paste /focus /density /timestamps /statusbar /battery /skin /redraw /quit` | 当前客户端的剪贴板、附件、外观、实际电量、重同步及原生后台入口                        |
-| 页面/编辑器 | `/config /model /plugins /login /prompt /palette`                                         | 打开已有 Flutter 页面、当前输入框或指令栏                                             |
+| 本机        | `/copy /image /paste /focus /density /timestamps /statusbar /battery /skin /redraw /quit` | 当前客户端的剪贴板、附件、外观、实际电量、重同步及退出/后台入口                       |
+| 页面/编辑器 | `/help /config /model /plugins /login /prompt /palette`                                   | 实际 App 参数说明、已有 Flutter 页面、当前输入框或指令栏                              |
 
 - 会话切换改变下一条输入的 Hermes 上下文，不删除 nekodot 历史；undo 不撤销实际工具副作用。群聊与私聊沿用同 Bot 原有持久 Hermes 会话设计。
 - `/model <id> [--provider name] [--reasoning level]` 使用原生会话 mutation；不带参数打开 Bot 持久配置。状态栏标注 Bot 配置，避免把配置模型误称为实际会话覆盖。
@@ -26,10 +26,12 @@
 3. `wake.status` 是 profile-scoped 方法，真实调用拒绝多余 session_id。参数按实际原生 contract 发送；不启动听不到 App 麦克风的服务器监听器。
 4. 子 Agent 回投与新用户输入共用 canonical session 事件流。原代码把整个事件流投影到当前 run，真实出现下一次回复被后台结果抢先结束。现在按原生 admission ID 匹配帧，保留当前实际 generation；同一真实旅程重新运行通过，不重跑旧任务。
 5. 子 Agent 与进程列表原先只显示说明，用户无法获得 tail/steer/stop 所需 ID。现在显示原生标识与状态。
+6. Android 长时间使用时电量轮询的 `setState` 返回 Future，真实旅程在一分钟后抛错；改为同步更新 Future 字段，并复测完整双端旅程。实拍发现用户气泡中的时间戳黑底黑字，改用对应气泡的反色文字。
+7. 原生目录中的 CLI 参数不一定适用于 App（例如 `/quit --delete`、服务器端导入路径）。指令栏和 `/help` 现在显示实际 App 参数，不再提示不能执行的用法。
 
 ## 明确边界
 
-- 目录实际 152 条：52 App 适配、97 原生/动态条目、2 纯终端设置、1 canonical 不支持。数字表示接入分类，不表示 149 条的全部参数均已执行。
+- 目录实际 152 条：53 App 适配、96 原生/动态条目、2 纯终端设置、1 canonical 不支持。数字表示接入分类，不表示 149 条的全部参数均已执行。
 - `/handoff`：此版本 canonical 明确不支持；不走 legacy 会话路径伪装成功。
 - `/mouse /indicator`：终端鼠标捕获/提示符设置。Flutter 已使用本机鼠标、触摸与运行指示，不仿造终端设置。
 - `/wake`：接依赖状态；App PCM/麦克风采集未连接，不能用它声称真实语音唤醒通过。

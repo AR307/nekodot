@@ -5,13 +5,19 @@ import '../ui/design.dart';
 import 'bot_editor.dart';
 import 'extensions.dart';
 import 'hermes_settings.dart';
+import 'sessions.dart';
+import 'settings.dart';
+import 'learning.dart';
+import 'pets.dart';
+import 'subscription.dart';
 
 Future<void> openCommandPage(
   BuildContext context,
   NekodotClient client,
   String page,
-  String botId,
-) async {
+  String botId, [
+  String argument = '',
+]) async {
   final bot = client.node.bots
       .where((bot) => bot['botId'] == botId)
       .firstOrNull;
@@ -22,7 +28,17 @@ Future<void> openCommandPage(
       body: HermesSettings(client: client, botId: botId),
     ),
     'model' => BotEditor(client: client, existing: bot),
+    'profile-import' => BotEditor(client: client, importProfile: true),
     'plugins' => ExtensionsPage(client: client, kind: 'plugins'),
+    'sessions' => BotSessionsPage(client: client, botId: botId),
+    'sources' => SourcesPage(client: client),
+    'journey' =>
+      argument.isEmpty
+          ? LearningPage(client: client, botId: botId)
+          : LearningEntryPage(client: client, botId: botId, entryId: argument),
+    'pets' => PetsPage(client: client, botId: botId),
+    'hatch' => PetsPage(client: client, botId: botId, hatchPrompt: argument),
+    'subscription' => SubscriptionPage(client: client, botId: botId),
     _ => null,
   };
   if (destination != null) await pushPage(context, destination);
@@ -68,8 +84,8 @@ class CommandPalette extends StatelessWidget {
       dense: true,
       title: Text('${entry['name']}'),
       subtitle: Text(
-        '${entry['description']}',
-        maxLines: 2,
+        '${entry['unavailableReason'] ?? entry['description']}',
+        maxLines: 3,
         overflow: TextOverflow.ellipsis,
       ),
       trailing: switch (entry['availability']) {

@@ -668,3 +668,11 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 真实发现工具配置写错 profile，改用官方 profile-scoped REST；发现 `wake.status` 不接受 session_id，修正原生参数；子 Agent/进程列表补上可用于后续控制的真实标识。
 - 真实复现子 Agent 回投污染下一次私聊输出：canonical 事件按原生 admission ID 归属，排除其他后台回合，并随实际事件更新 execution generation。Windows 同场景复测通过，真实 steer/Stop、子 Agent 控制和模型压缩通过；55 个原生命令调用场景完成，完整双端复测另记录。
 - 本模块仅本地提交；未改 Hermes 核心、未部署生产、未发布、未 push。实现说明：`docs/side-phase5-command-adapters.md`。
+
+### 2026-11-02 / Side Phase 5：原生命令扩展，模块二（Flutter）
+
+- Windows / Android 增加原生会话选择与历史、学习条目编辑、宠物目录及订阅状态页；profile 导出资料卡可导入为新 Bot。剪贴板图片、设备文件、显示密度、时间戳、专注、外观、电量与退出均使用当前设备能力，不读取服务器剪贴板或仿造终端界面。
+- 同一真实候选、官方 Hermes v0.22.5 与真实模型已完成双端会话、设备、主机/导入及运行控制旅程：实际图片识别、后台问答、子 Agent tail/steer/interrupt、进程 kill、私聊 steer/Stop、真实模型压缩和重连无重放。Android 固定复用已有模拟器；不混作真机结果。
+- 实测修正长时间使用的电量刷新 Future/setState 异常、用户气泡时间戳对比度和新页面长内容叠顶栏。`/help` 与指令栏展示实际 App 参数，不再照搬 CLI 的删除、服务器路径或未连接的麦克风/队列参数。
+- 最新原生目录 152 条：53 App 适配、96 原生/动态条目、2 纯终端设置、1 canonical 不支持。缺图像服务的孵化、无账号的 Nous 订阅、App 语音及队列写入不计通过；逐项范围记录在命令验收文档。
+- 不覆盖其它 UI/截图改动，不删除验收数据，不发布或 push；最终工程检查、安装包与手工系统对话框验收另行记录。

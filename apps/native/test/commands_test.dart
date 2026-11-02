@@ -31,13 +31,13 @@ void main() {
                   'availability': 'app',
                 },
                 {
-                  'name': '/new',
-                  'description': 'Start a session',
+                  'name': '/handoff',
+                  'description': 'Not available on canonical sessions',
                   'availability': 'not-integrated',
                 },
                 {
-                  'name': '/redraw',
-                  'description': 'Repaint terminal',
+                  'name': '/mouse',
+                  'description': 'Terminal mouse capture',
                   'availability': 'terminal',
                 },
               ],
@@ -55,7 +55,9 @@ void main() {
       await tester.tap(find.text('Other commands (2)'));
       await tester.pumpAndSettle();
       expect(
-        tester.widget<ListTile>(find.widgetWithText(ListTile, '/new')).enabled,
+        tester
+            .widget<ListTile>(find.widgetWithText(ListTile, '/handoff'))
+            .enabled,
         isFalse,
       );
       expect(find.text('Not connected'), findsOneWidget);
