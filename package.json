@@ -19,6 +19,7 @@
     "client:android": "node scripts/build-client.mjs android",
     "native:windows": "node scripts/build-native.mjs windows",
     "native:android": "node scripts/build-native.mjs android",
+    "native:emulator": "node scripts/android-emulator.mjs",
     "native:analyze": "node scripts/flutter.mjs flutter analyze",
     "native:test": "node scripts/flutter.mjs flutter test",
     "dev:remote": "node scripts/dev-remote.mjs",

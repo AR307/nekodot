@@ -69,6 +69,16 @@ pnpm dev:remote --ssh <your-ssh-alias>
 - 产品运行时始终使用真实的 Hermes CLI 与 API。真实模型的验收与回放验收分开记录，见 [实施进度](progress.md)。
 - `tests/browser/screens-live.spec.ts` 只在提供本地 `NEKODOT_SCREEN_ACCEPTANCE_FILE` 时运行，连接独立的真实 Linux 节点。文件包含 `url`、登录 `token`、`nodeId` 及 `bots[].bot.botId` / `bots[].conversation.conversationId`，不得提交。普通 E2E 明确跳过这一项，不以回放替代屏幕验收。
 
+## Android 固定验收环境
+
+```sh
+pnpm native:emulator
+```
+
+此入口只启动或复用已有的 `NekodotNativePhase3`，等待其完成启动，并打印实际 ADB serial；不创建新 AVD、不清空数据。后续 Flutter 旅程使用该 serial。其他项目的 AVD 不在管理范围内。
+
+Flutter 命令继续通过 `scripts/flutter.mjs` 使用项目内已有 SDK；不额外下载另一份 SDK、不修改全局 PATH。模拟器旅程与 Android 真机验收分别记录。
+
 ## 文档索引
 
 - [实施进度与验收记录](progress.md)

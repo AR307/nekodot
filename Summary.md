@@ -636,3 +636,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 
 - 官网下载说明的中英文由「0.2.0 正式版」改为极早期开发版本、可能会有很多 Bug，与首发视频片尾提醒一致；官网脚本增加新资源版本，普通刷新即可看到新文案。
 - ESLint 与 Prettier 忽略 `opus-video`，全仓 ESLint 恢复通过。README 和 GitHub Release 仍写正式版。
+
+### 2026-11-02 / 验收环境整理与固定 Android AVD
+
+- 按用户确认范围回收旧隔离检出的 Tauri/Flutter 构建、旧依赖、重复 Flutter SDK/ZIP 和旧 `NekodotSideStage2` AVD；仅移动保留，没有永久删除。跨盘 pnpm junction 的剩余依赖保存在项目同盘回收目录，两端均保留，恢复清单位于私有回收目录。
+- 当前候选、源码、profiles、历史、凭据、证据及其他项目 AVD 均保留；整理后实测 D 盘空闲约 36GB。
+- 新增 `pnpm native:emulator`，固定启动或复用 `NekodotNativePhase3` 并等待启动，不新建、不 wipe-data。实际复用 `emulator-5554`，Android API 35 x64。
+- 真实 Hermes v0.22.5 的隔离 PM 环境已通过官方入口同步，原 `ruamel.yaml` 阻塞已解除；本次真实客户端验收继续使用匹配源码的隔离 Node/Relay，不改生产服务。

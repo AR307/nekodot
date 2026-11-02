@@ -789,3 +789,10 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - `apps/site` 下载说明中英文改为极早期开发版本、可能会有很多 Bug；`main.js` 资源版本改为 `0.2.0-early`。
 - ESLint 与 Prettier 忽略社媒视频工程 `opus-video`，解除它对全仓 lint 的阻断。
 - 验证：本地 HTTP 服务配合 Edge 在 1440 与 390 宽度核对中英文文案，无页面错误、无横向滚动；全仓 ESLint 和目标 Prettier 通过。未部署线上官网，未 push。README 和 GitHub Release 仍写正式版。
+
+### 2026-11-02 / 真实验收准备：回收旧产物、固定模拟器
+
+- 用户已明确同意所列回收范围；旧 Tauri target、Flutter build、两份旧 node_modules、重复 SDK/ZIP 和 `NekodotSideStage2` 已移入私有回收目录，未永久删除。pnpm junction 跨盘中断的剩余部分改为同盘保留，并记录恢复位置；未动当前候选、源码、profiles、历史、凭据和证据。
+- 实测 D 盘可用空间约由 15GB 增至 36GB；C 盘约 31GB。空间数字仅为本次整理时读数。
+- 新增 `native:emulator` 入口及开发约定，固定复用 `NekodotNativePhase3`；实际返回 `emulator-5554`、boot completed=1。`PiMobileQA` 属其他项目，保持不动；没有新建或清空 AVD。
+- 使用已有项目 Flutter SDK 和官方 Hermes PM 入口；隔离 Ubuntu 24.04 的 v0.22.5 已启动，真实 Node/Relay 已上线。设置及聊天的双端真实旅程另行记录，不把环境准备算作功能验收通过。
