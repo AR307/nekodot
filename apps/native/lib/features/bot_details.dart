@@ -12,6 +12,7 @@ import 'hermes_settings.dart';
 import 'model_info.dart';
 import 'routines.dart';
 import 'user_memory.dart';
+import 'sessions.dart';
 
 class BotDetails extends StatelessWidget {
   final NekodotClient client;
@@ -77,6 +78,19 @@ class BotDetails extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                   ],
+                  ListTile(
+                    key: const ValueKey('bot-sessions'),
+                    leading: const Icon(Icons.forum_outlined),
+                    title: Text(c.tr('历史会话', 'Sessions')),
+                    subtitle: Text(
+                      c.tr('查看、新建或切换会话', 'Browse, create or switch sessions'),
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => pushPage(
+                      context,
+                      BotSessionsPage(client: c, botId: '${bot['botId']}'),
+                    ),
+                  ),
                   ModelInformation(
                     key: ValueKey('${bot['model']}:${bot['modelSettings']}'),
                     client: c,

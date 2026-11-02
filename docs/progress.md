@@ -859,3 +859,10 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 用户在知悉已通过的核心真实旅程、已列明限制与待验边界后，明确确认本阶段“已验证完成”；Side Phase 5 据此结项。
 - 原生 heartbeat / handoff 限制、语音闭环、Android 真机/推送/完整视觉矩阵与缺配置外部工作流继续保留为后续事项，不改记为通过、不再阻塞本阶段。详细范围见 `side-phase5-command-acceptance.md`。
 - 本次只更新结项文档，不修改产品代码、服务或用户数据；本地提交，不发布或 push。
+
+### 2026-11-02 / Bot 历史会话与 GUI 切换
+
+- 顶栏与详情页直接进入会话列表，支持搜索、预览、新建和切换，不再要求用户手输 /sessions、/new 或 /resume；保留当前 Bot 的原生 profile、记忆、技能及旧历史。
+- 双端真实原生候选 + 真实持久化 Node/Relay + 官方 Hermes v0.22.5 + gpt-6.1-sol 完成新建与切换、原生 session_search 读历史、正确上下文回忆、预览不调用模型/不切换、草稿与重连、另一 Bot 不变及恢复原会话。最终 Windows/Android 旅程约61/75秒；Android 为固定模拟器，不冒充真机。
+- 修正真实发现的预览返回刷新 Future/setState 异常，完整复测通过；Flutter analyze和18项辅助测试通过。主聊天日志仍保留，按会话的原生上下文通过预览查看；没有删除、迁移或重写历史。
+- 实现与边界见 `bot-sessions-gui-acceptance.md`，脱敏结果及实际截图单独保留。未改 Hermes 核心或生产服务，不发布、不 push。

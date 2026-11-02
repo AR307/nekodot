@@ -705,3 +705,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 用户在知悉已通过的核心真实旅程、已列明限制与待验边界后，明确确认本阶段“已验证完成”；Side Phase 5 据此结项。
 - 原生 heartbeat / handoff 限制、语音闭环、Android 真机/推送/完整视觉矩阵与缺配置外部工作流继续保留为后续事项，不改记为通过、不再阻塞本阶段。详细范围见 `docs/side-phase5-command-acceptance.md`。
 - 本次只更新结项文档，不修改产品代码、服务或用户数据；本地提交，不发布或 push。
+
+### 2026-11-02 / Bot 历史会话与 GUI 切换
+
+- 私聊顶栏与 Bot 详情增加历史会话入口，支持名称/ID 搜索、当前标识、历史预览、可选名称新建及直接切换。复用既有 canonical 会话和 Operations，不新增 Agent 引擎或服务端协议。
+- Windows 与固定 Android 模拟器使用官方 Hermes v0.22.5、真实 Node/Relay 和 gpt-6.1-sol 完成 GUI 新建 A/B、原生 session_search 读取旧会话、预览不切换、切回后真实回忆、草稿保留、重连无重放和其他 Bot 会话不变；测试后恢复原会话，所有测试历史保留。
+- 真实旅程发现并修正历史预览返回时 setState 返回 Future 的刷新异常；最终双端完整复测通过。Flutter analyze 与18项辅助测试通过。Android 真机及完整视觉矩阵不计通过，未部署生产或发布/push。
+- 主聊天时间线保留现有交互日志，切换改变原生上下文；具体会话历史在预览中读取，不清空或重写聊天记录。详见 `docs/bot-sessions-gui-acceptance.md`。

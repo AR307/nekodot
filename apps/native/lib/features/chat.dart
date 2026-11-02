@@ -17,6 +17,7 @@ import 'files.dart';
 import 'commands.dart';
 import 'client_commands.dart';
 import 'routines.dart';
+import 'sessions.dart';
 
 class ChatPage extends StatefulWidget {
   final NekodotClient client;
@@ -471,6 +472,19 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
           ),
         ),
         actions: [
+          if (group == null && bot != null)
+            IconButton(
+              key: const ValueKey('chat-sessions'),
+              tooltip: c.tr('历史会话与切换', 'Sessions and switch'),
+              onPressed: () {
+                FocusManager.instance.primaryFocus?.unfocus();
+                pushPage(
+                  context,
+                  BotSessionsPage(client: c, botId: '${bot['botId']}'),
+                );
+              },
+              icon: const Icon(Icons.forum_outlined),
+            ),
           IconButton(
             tooltip: c.tr('屏幕', 'Screen'),
             onPressed: bot == null
@@ -575,6 +589,19 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 ),
               ),
               actions: [
+                if (group == null && bot != null)
+                  IconButton(
+                    key: const ValueKey('chat-sessions'),
+                    tooltip: c.tr('历史会话与切换', 'Sessions and switch'),
+                    onPressed: () {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                      pushPage(
+                        context,
+                        BotSessionsPage(client: c, botId: '${bot['botId']}'),
+                      );
+                    },
+                    icon: const Icon(Icons.forum_outlined),
+                  ),
                 IconAction(
                   tooltip: c.tr('屏幕', 'Screen'),
                   icon: Icons.desktop_windows_outlined,
