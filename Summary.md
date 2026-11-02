@@ -692,3 +692,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 新增真实 MoA/blueprint/cron 旅程，发现 slash MoA 虽应答却只执行普通模型。改为官方 canonical prompt.submit.model_override，随原生 admission 保存；群聊只作用于所选成员的本回合，不改变后续接力或普通模型。忙碌时明确拒绝此单回合命令，避免被当成 steer。
 - Windows 修复后已核对原生参考输出、实际 token 用量与汇总输出；普通后续回合恢复正常模型。实际蓝图建任务及 cron 创建/修改/启停/立即执行完成，读取原生执行会话确认真实回复；测试任务暂停并保留。
 - 当前 typecheck和35文件59项辅助测试通过。最终独立检出检查、Android MoA及学习复测和脱敏矩阵另行记录；未改 Hermes 核心、生产服务，未删除数据、发布或push。
+
+### 2026-11-02 / Side Phase 5：命令逐项真实验收收尾
+
+- 补充余额后，Windows 与固定 Android 模拟器均完成真实 /init、/learn、/review、/refine、goal/subgoal/loop、MoA、blueprint 和 cron 旅程；读回实际学习文件、原生执行记录与模型输出，不再以先前额度不足作为当前阻塞。MoA 原生 trace 确认参考和汇总都实际执行，使用同一已配置模型，不宣称多供应商验收。
+- 双端逐项操作状态/目录命令、本地诊断、权限开关和四级输出切换；恢复开关与输出设置，原生历史未增加模型回合。Windows 54个动态技能均实际加载并由真实模型确认，未据此标记外部完整工作流通过。
+- 当前目录152条：55 App适配、94原生/动态、2纯终端、1 canonical不支持。逐项结果及参数见 `docs/side-phase5-command-matrix.md`，真实证据与限制见 `docs/side-phase5-command-acceptance.md`；原生 heartbeat、缺STT语音、外部账号和Android真机仍明确保留。
+- 产品快照 `4e503403bf` 的独立检出通过 frozen install、lint、typecheck、35文件59项服务端测试、build、Flutter frozen pub/analyze/18项测试和双端release构建；本次追加旅程脚本后 Flutter analyze 再通过。Windows安装器未做Authenticode签名，Android沿用既有签名。未改生产、删除数据、发布或push。

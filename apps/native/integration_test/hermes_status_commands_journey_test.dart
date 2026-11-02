@@ -62,6 +62,44 @@ void main() {
       'sessionId': sessionId,
     });
     final results = <Json>[];
+    Future<String> submit(String command) async {
+      final before = (c.node.messages[conversationId] ?? [])
+          .map((r) => r['messageId'])
+          .toSet();
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump(const Duration(milliseconds: 120));
+      await tester.tap(input);
+      await tester.pump(const Duration(milliseconds: 120));
+      await tester.enterText(input, command);
+      await tester.pump(const Duration(milliseconds: 250));
+      final send = find.byWidgetPredicate(
+        (w) => w is IconButton && w.tooltip == 'Send' && w.onPressed != null,
+      );
+      await until(
+        () => send.hitTestable().evaluate().isNotEmpty,
+        'Send $command',
+      );
+      await tester.tap(send.hitTestable().first);
+      await until(
+        () => tester.widget<TextField>(input).controller!.text.isEmpty,
+        'Command finished: $command',
+      );
+      final response = (c.node.messages[conversationId] ?? []).lastWhere(
+        (r) =>
+            !before.contains(r['messageId']) &&
+            r['kind'] == 'system' &&
+            '${r['content']['text']}'.startsWith('$command\n\n'),
+      );
+      final text = '${response['content']['text']}'.substring(
+        command.length + 2,
+      );
+      expect(text.trim(), isNotEmpty, reason: command);
+      expect(text, isNot(contains('Plugin command error')), reason: command);
+      results.add({'command': command, 'actualResponse': true});
+      debugPrint('QA STATUS: $command actual response displayed');
+      return text;
+    }
+
     for (final command in [
       '/help queue',
       '/status',
@@ -109,44 +147,21 @@ void main() {
       '/rollback list',
       '/browser status',
       '/reload-mcp',
+      '/debug local',
       '/history',
       '/nekodot-routine-status',
     ]) {
-      final before = (c.node.messages[conversationId] ?? [])
-          .map((r) => r['messageId'])
-          .toSet();
-      FocusManager.instance.primaryFocus?.unfocus();
-      await tester.pump(const Duration(milliseconds: 120));
-      await tester.tap(input);
-      await tester.pump(const Duration(milliseconds: 120));
-      await tester.enterText(input, command);
-      await tester.pump(const Duration(milliseconds: 250));
-      final send = find.byWidgetPredicate(
-        (w) => w is IconButton && w.tooltip == 'Send' && w.onPressed != null,
-      );
-      await until(
-        () => send.hitTestable().evaluate().isNotEmpty,
-        'Send $command',
-      );
-      await tester.tap(send.hitTestable().first);
-      await until(
-        () => tester.widget<TextField>(input).controller!.text.isEmpty,
-        'Command finished: $command',
-      );
-      final response = (c.node.messages[conversationId] ?? []).lastWhere(
-        (r) =>
-            !before.contains(r['messageId']) &&
-            r['kind'] == 'system' &&
-            '${r['content']['text']}'.startsWith('$command\n\n'),
-      );
-      final text = '${response['content']['text']}'.substring(
-        command.length + 2,
-      );
-      expect(text.trim(), isNotEmpty, reason: command);
-      expect(text, isNot(contains('Plugin command error')), reason: command);
-      results.add({'command': command, 'actualResponse': true});
-      debugPrint('QA STATUS: $command actual response displayed');
+      await submit(command);
     }
+    // Native toggles are exercised and restored without submitting a model turn.
+    final yolo = await submit('/yolo');
+    final restoredYolo = await submit('/yolo');
+    expect(restoredYolo, isNot(yolo));
+    final levels = <String>{};
+    for (var index = 0; index < 4; index++) {
+      levels.add(await submit('/verbose'));
+    }
+    expect(levels.length, 4);
     final history = await c.rpc('sessions.history', {
       'botId': botId,
       'sessionId': sessionId,
@@ -157,6 +172,9 @@ void main() {
       'nativeClient': true,
       'modelInvoked': false,
       'nativeHistoryUnchanged': true,
+      'localDiagnosticsReturned': true,
+      'yoloToggleRestored': true,
+      'verboseFullCycleRestored': true,
       'results': results,
     };
     await tester.pumpWidget(const SizedBox.shrink());

@@ -1,0 +1,2410 @@
+{
+  "date": "2026-11-02",
+  "candidate": "4e503403bf",
+  "hermes": {
+    "version": "v0.22.5",
+    "commit": "bf0203a794"
+  },
+  "environment": {
+    "windows": "native Flutter Windows x64 candidate",
+    "android": "existing Android API 35 x64 emulator; not a physical device",
+    "services": "isolated persistent Ubuntu 24.04 WSL Node/Relay",
+    "model": "gpt-6.1-sol"
+  },
+  "counts": {
+    "total": 152,
+    "app": 55,
+    "available": 94,
+    "terminal": 2,
+    "not-integrated": 1
+  },
+  "journeys": {
+    "windows": {
+      "commands": {
+        "realHermes": true,
+        "streamedReply": true,
+        "historyWithoutModelTurn": true,
+        "tools": true,
+        "agentsAlias": true,
+        "versionAlias": true,
+        "reloadSkills": true,
+        "settingsNavigation": true,
+        "unavailableClearlySeparated": true,
+        "newSessionAndReset": true,
+        "branchAndUndo": true,
+        "resumeAndRetry": true,
+        "nativeSessionPicker": true,
+        "compressionPreview": true,
+        "reconnectWithoutReplay": true,
+        "catalog": {
+          "available": 97,
+          "app": 52,
+          "terminal": 2,
+          "not-integrated": 1
+        }
+      },
+      "device_commands": {
+        "realHermes": true,
+        "nativeDisplayPreferences": true,
+        "clipboardImageAndVision": true,
+        "localImagePath": true,
+        "copyRealReply": true,
+        "learningEditReadback": true,
+        "nativePetSelectDisable": true,
+        "nativeAccountNavigation": true,
+        "modelAndPluginNavigation": true,
+        "promptAndPaletteLocalPrefill": true,
+        "hatch": "missing image provider",
+        "subscription": "no Nous account"
+      },
+      "host_commands": {
+        "realHermes": true,
+        "backgroundAndBtwRealModel": true,
+        "mainContextUnchanged": true,
+        "nativeToolEnableDisable": true,
+        "isolatedWorktreeCreatedAndSelected": true,
+        "logsAndUpdateCheck": true,
+        "nativeBackupDownloaded": true,
+        "profileExportImportThroughNativeApp": true,
+        "importedMemoryPreserved": true,
+        "importedBotRealWelcome": true
+      },
+      "running_commands": {
+        "realHermes": true,
+        "nativePlanRealModel": true,
+        "nativeProcessKill": true,
+        "nativeChildTailSteerInterrupt": true,
+        "delegationPauseResume": true,
+        "mainTurnSlashSteer": true,
+        "mainTurnStopButton": true,
+        "sessionModelPick": true,
+        "realModelCompression": true,
+        "wake": "status only; App microphone capture not connected"
+      },
+      "queue_commands": {
+        "realHermes": true,
+        "nativeFIFO": true,
+        "enqueueEditCancel": true,
+        "queuedSteer": true,
+        "reconnectWithoutResubmit": true,
+        "separateReplies": true,
+        "pluginStatus": true,
+        "voicePageNativeRequirements": true
+      },
+      "automation_commands": {
+        "realHermes": true,
+        "realModel": true,
+        "goalAndSubgoal": true,
+        "nativeLoopExecuted": true,
+        "nativeHeartbeatReadPauseStop": true,
+        "heartbeatExecution": "blocked by reproduced Hermes v0.22.5 local-session bug",
+        "singleTickThenStopped": true,
+        "blueprintDirectory": true,
+        "moaUsageOnly": true
+      },
+      "learning_commands": {
+        "realHermes": true,
+        "realModel": true,
+        "initInIsolatedWorktree": true,
+        "learnedSkillReadBack": true,
+        "profileIsolation": true,
+        "backgroundReviewReturned": true,
+        "refineCompleted": true
+      },
+      "status_commands": {
+        "realHermes": true,
+        "nativeClient": true,
+        "modelInvoked": false,
+        "nativeHistoryUnchanged": true,
+        "localDiagnosticsReturned": true,
+        "yoloToggleRestored": true,
+        "verboseFullCycleRestored": true,
+        "results": [
+          {
+            "command": "/help queue",
+            "actualResponse": true
+          },
+          {
+            "command": "/status",
+            "actualResponse": true
+          },
+          {
+            "command": "/context",
+            "actualResponse": true
+          },
+          {
+            "command": "/context all",
+            "actualResponse": true
+          },
+          {
+            "command": "/v",
+            "actualResponse": true
+          },
+          {
+            "command": "/whoami",
+            "actualResponse": true
+          },
+          {
+            "command": "/usage",
+            "actualResponse": true
+          },
+          {
+            "command": "/insights 1",
+            "actualResponse": true
+          },
+          {
+            "command": "/profile",
+            "actualResponse": true
+          },
+          {
+            "command": "/diff",
+            "actualResponse": true
+          },
+          {
+            "command": "/diff session",
+            "actualResponse": true
+          },
+          {
+            "command": "/memory pending",
+            "actualResponse": true
+          },
+          {
+            "command": "/kanban list",
+            "actualResponse": true
+          },
+          {
+            "command": "/topup",
+            "actualResponse": true
+          },
+          {
+            "command": "/suggestions",
+            "actualResponse": true
+          },
+          {
+            "command": "/bundles",
+            "actualResponse": true
+          },
+          {
+            "command": "/skills pending",
+            "actualResponse": true
+          },
+          {
+            "command": "/skills diff",
+            "actualResponse": true
+          },
+          {
+            "command": "/title",
+            "actualResponse": true
+          },
+          {
+            "command": "/goal show",
+            "actualResponse": true
+          },
+          {
+            "command": "/goal status",
+            "actualResponse": true
+          },
+          {
+            "command": "/subgoal",
+            "actualResponse": true
+          },
+          {
+            "command": "/loop status",
+            "actualResponse": true
+          },
+          {
+            "command": "/heartbeat status",
+            "actualResponse": true
+          },
+          {
+            "command": "/curator status",
+            "actualResponse": true
+          },
+          {
+            "command": "/autoprune status",
+            "actualResponse": true
+          },
+          {
+            "command": "/egress status",
+            "actualResponse": true
+          },
+          {
+            "command": "/reasoning",
+            "actualResponse": true
+          },
+          {
+            "command": "/voice status",
+            "actualResponse": true
+          },
+          {
+            "command": "/approvals",
+            "actualResponse": true
+          },
+          {
+            "command": "/codex-runtime",
+            "actualResponse": true
+          },
+          {
+            "command": "/footer status",
+            "actualResponse": true
+          },
+          {
+            "command": "/busy status",
+            "actualResponse": true
+          },
+          {
+            "command": "/fast status",
+            "actualResponse": true
+          },
+          {
+            "command": "/personality",
+            "actualResponse": true
+          },
+          {
+            "command": "/toolsets",
+            "actualResponse": true
+          },
+          {
+            "command": "/platforms",
+            "actualResponse": true
+          },
+          {
+            "command": "/cron list",
+            "actualResponse": true
+          },
+          {
+            "command": "/tools",
+            "actualResponse": true
+          },
+          {
+            "command": "/tasks",
+            "actualResponse": true
+          },
+          {
+            "command": "/reload-skills",
+            "actualResponse": true
+          },
+          {
+            "command": "/reload",
+            "actualResponse": true
+          },
+          {
+            "command": "/queue list",
+            "actualResponse": true
+          },
+          {
+            "command": "/rollback list",
+            "actualResponse": true
+          },
+          {
+            "command": "/browser status",
+            "actualResponse": true
+          },
+          {
+            "command": "/reload-mcp",
+            "actualResponse": true
+          },
+          {
+            "command": "/debug local",
+            "actualResponse": true
+          },
+          {
+            "command": "/history",
+            "actualResponse": true
+          },
+          {
+            "command": "/nekodot-routine-status",
+            "actualResponse": true
+          },
+          {
+            "command": "/yolo",
+            "actualResponse": true
+          },
+          {
+            "command": "/yolo",
+            "actualResponse": true
+          },
+          {
+            "command": "/verbose",
+            "actualResponse": true
+          },
+          {
+            "command": "/verbose",
+            "actualResponse": true
+          },
+          {
+            "command": "/verbose",
+            "actualResponse": true
+          },
+          {
+            "command": "/verbose",
+            "actualResponse": true
+          }
+        ]
+      },
+      "advanced_commands": {
+        "realHermes": true,
+        "realModel": true,
+        "moaReply": true,
+        "referenceAndAggregatorUseSameConfiguredModel": true,
+        "normalTurnAfterMoa": true,
+        "blueprintCreatedNativeJob": true,
+        "cronCreateEditResumeRunPause": true,
+        "jobsPausedAndPreserved": true,
+        "profileSettingsRestored": true
+      }
+    },
+    "android": {
+      "commands": {
+        "realHermes": true,
+        "streamedReply": true,
+        "historyWithoutModelTurn": true,
+        "tools": true,
+        "agentsAlias": true,
+        "versionAlias": true,
+        "reloadSkills": true,
+        "settingsNavigation": true,
+        "unavailableClearlySeparated": true,
+        "newSessionAndReset": true,
+        "branchAndUndo": true,
+        "resumeAndRetry": true,
+        "nativeSessionPicker": true,
+        "compressionPreview": true,
+        "reconnectWithoutReplay": true,
+        "catalog": {
+          "available": 97,
+          "app": 52,
+          "terminal": 2,
+          "not-integrated": 1
+        }
+      },
+      "device_commands": {
+        "realHermes": true,
+        "nativeDisplayPreferences": true,
+        "clipboardImageAndVision": true,
+        "localImagePath": false,
+        "copyRealReply": true,
+        "learningEditReadback": true,
+        "nativePetSelectDisable": true,
+        "nativeAccountNavigation": true,
+        "modelAndPluginNavigation": true,
+        "promptAndPaletteLocalPrefill": true,
+        "hatch": "missing image provider",
+        "subscription": "no Nous account"
+      },
+      "host_commands": {
+        "realHermes": true,
+        "backgroundAndBtwRealModel": true,
+        "mainContextUnchanged": true,
+        "nativeToolEnableDisable": true,
+        "isolatedWorktreeCreatedAndSelected": true,
+        "logsAndUpdateCheck": true,
+        "nativeBackupDownloaded": true,
+        "profileExportImportThroughNativeApp": true,
+        "importedMemoryPreserved": true,
+        "importedBotRealWelcome": true
+      },
+      "running_commands": {
+        "realHermes": true,
+        "nativePlanRealModel": true,
+        "nativeProcessKill": true,
+        "nativeChildTailSteerInterrupt": true,
+        "delegationPauseResume": true,
+        "mainTurnSlashSteer": true,
+        "mainTurnStopButton": true,
+        "sessionModelPick": true,
+        "realModelCompression": true,
+        "wake": "status only; App microphone capture not connected"
+      },
+      "queue_commands": {
+        "realHermes": true,
+        "nativeFIFO": true,
+        "enqueueEditCancel": true,
+        "queuedSteer": true,
+        "reconnectWithoutResubmit": true,
+        "separateReplies": true,
+        "pluginStatus": true,
+        "voicePageNativeRequirements": true
+      },
+      "automation_commands": {
+        "realHermes": true,
+        "realModel": true,
+        "goalAndSubgoal": true,
+        "nativeLoopExecuted": true,
+        "nativeHeartbeatReadPauseStop": true,
+        "heartbeatExecution": "blocked by reproduced Hermes v0.22.5 local-session bug",
+        "singleTickThenStopped": true,
+        "blueprintDirectory": true,
+        "moaUsageOnly": true
+      },
+      "learning_commands": {
+        "realHermes": true,
+        "realModel": true,
+        "initInIsolatedWorktree": true,
+        "learnedSkillReadBack": true,
+        "profileIsolation": true,
+        "backgroundReviewReturned": true,
+        "refineCompleted": true
+      },
+      "status_commands": {
+        "realHermes": true,
+        "nativeClient": true,
+        "modelInvoked": false,
+        "nativeHistoryUnchanged": true,
+        "localDiagnosticsReturned": true,
+        "yoloToggleRestored": true,
+        "verboseFullCycleRestored": true,
+        "results": [
+          {
+            "command": "/help queue",
+            "actualResponse": true
+          },
+          {
+            "command": "/status",
+            "actualResponse": true
+          },
+          {
+            "command": "/context",
+            "actualResponse": true
+          },
+          {
+            "command": "/context all",
+            "actualResponse": true
+          },
+          {
+            "command": "/v",
+            "actualResponse": true
+          },
+          {
+            "command": "/whoami",
+            "actualResponse": true
+          },
+          {
+            "command": "/usage",
+            "actualResponse": true
+          },
+          {
+            "command": "/insights 1",
+            "actualResponse": true
+          },
+          {
+            "command": "/profile",
+            "actualResponse": true
+          },
+          {
+            "command": "/diff",
+            "actualResponse": true
+          },
+          {
+            "command": "/diff session",
+            "actualResponse": true
+          },
+          {
+            "command": "/memory pending",
+            "actualResponse": true
+          },
+          {
+            "command": "/kanban list",
+            "actualResponse": true
+          },
+          {
+            "command": "/topup",
+            "actualResponse": true
+          },
+          {
+            "command": "/suggestions",
+            "actualResponse": true
+          },
+          {
+            "command": "/bundles",
+            "actualResponse": true
+          },
+          {
+            "command": "/skills pending",
+            "actualResponse": true
+          },
+          {
+            "command": "/skills diff",
+            "actualResponse": true
+          },
+          {
+            "command": "/title",
+            "actualResponse": true
+          },
+          {
+            "command": "/goal show",
+            "actualResponse": true
+          },
+          {
+            "command": "/goal status",
+            "actualResponse": true
+          },
+          {
+            "command": "/subgoal",
+            "actualResponse": true
+          },
+          {
+            "command": "/loop status",
+            "actualResponse": true
+          },
+          {
+            "command": "/heartbeat status",
+            "actualResponse": true
+          },
+          {
+            "command": "/curator status",
+            "actualResponse": true
+          },
+          {
+            "command": "/autoprune status",
+            "actualResponse": true
+          },
+          {
+            "command": "/egress status",
+            "actualResponse": true
+          },
+          {
+            "command": "/reasoning",
+            "actualResponse": true
+          },
+          {
+            "command": "/voice status",
+            "actualResponse": true
+          },
+          {
+            "command": "/approvals",
+            "actualResponse": true
+          },
+          {
+            "command": "/codex-runtime",
+            "actualResponse": true
+          },
+          {
+            "command": "/footer status",
+            "actualResponse": true
+          },
+          {
+            "command": "/busy status",
+            "actualResponse": true
+          },
+          {
+            "command": "/fast status",
+            "actualResponse": true
+          },
+          {
+            "command": "/personality",
+            "actualResponse": true
+          },
+          {
+            "command": "/toolsets",
+            "actualResponse": true
+          },
+          {
+            "command": "/platforms",
+            "actualResponse": true
+          },
+          {
+            "command": "/cron list",
+            "actualResponse": true
+          },
+          {
+            "command": "/tools",
+            "actualResponse": true
+          },
+          {
+            "command": "/tasks",
+            "actualResponse": true
+          },
+          {
+            "command": "/reload-skills",
+            "actualResponse": true
+          },
+          {
+            "command": "/reload",
+            "actualResponse": true
+          },
+          {
+            "command": "/queue list",
+            "actualResponse": true
+          },
+          {
+            "command": "/rollback list",
+            "actualResponse": true
+          },
+          {
+            "command": "/browser status",
+            "actualResponse": true
+          },
+          {
+            "command": "/reload-mcp",
+            "actualResponse": true
+          },
+          {
+            "command": "/debug local",
+            "actualResponse": true
+          },
+          {
+            "command": "/history",
+            "actualResponse": true
+          },
+          {
+            "command": "/nekodot-routine-status",
+            "actualResponse": true
+          },
+          {
+            "command": "/yolo",
+            "actualResponse": true
+          },
+          {
+            "command": "/yolo",
+            "actualResponse": true
+          },
+          {
+            "command": "/verbose",
+            "actualResponse": true
+          },
+          {
+            "command": "/verbose",
+            "actualResponse": true
+          },
+          {
+            "command": "/verbose",
+            "actualResponse": true
+          },
+          {
+            "command": "/verbose",
+            "actualResponse": true
+          }
+        ]
+      },
+      "advanced_commands": {
+        "realHermes": true,
+        "realModel": true,
+        "moaReply": true,
+        "referenceAndAggregatorUseSameConfiguredModel": true,
+        "normalTurnAfterMoa": true,
+        "busyMoaRefusedWithoutSteer": true,
+        "blueprintCreatedNativeJob": true,
+        "cronCreateEditResumeRunPause": true,
+        "jobsPausedAndPreserved": true,
+        "profileSettingsRestored": true
+      }
+    }
+  },
+  "dynamic": {
+    "realHermes": true,
+    "scope": "skill loading and real model dispatch; not external workflows",
+    "results": [
+      {
+        "command": "/airtable",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/architecture-diagram",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/arxiv",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/ascii-video",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/baoyu-infographic",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/blocked-page-recovery",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/box",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/claude-code",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/claude-design",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/codebase-inspection",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/codex",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/competitor-news-monitor",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/computer-use",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/design-md",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/document-to-action-items",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/docx",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/dogfood",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/email-inbox-triage",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/gif-search",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/github",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/google-workspace",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/grounded-citations",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/hermes-agent",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/hermes-agent-skill-authoring",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/himalaya",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/humanizer",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/inspecting-hermes-desktop-dom",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/llm-wiki",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/manim-video",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/maps",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/meeting-action-items",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/nekodot-routines",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/node-inspect-debugger",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/notion",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/obsidian",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/opencode",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/p5js",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/pdf",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/popular-web-designs",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/powerpoint",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/product-price-monitor",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/python-debugpy",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/requesting-code-review",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/simplify-code",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/songsee",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/songwriting-and-ai-music",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/spike",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/systematic-debugging",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/teams-meeting-pipeline",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/test-driven-development",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/weekly-review-planning",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/xlsx",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/xurl",
+        "loadedAndModelReplied": true
+      },
+      {
+        "command": "/youtube-content",
+        "loadedAndModelReplied": true
+      }
+    ]
+  },
+  "manual": {
+    "saveWindows": true,
+    "quitWindows": true,
+    "quitAndroid": true,
+    "serverTurnContinued": true,
+    "pluginStatus": true
+  },
+  "automation": {
+    "current": {
+      "windows": {
+        "realHermes": true,
+        "realModel": true,
+        "goalAndSubgoal": true,
+        "nativeLoopExecuted": true,
+        "nativeHeartbeatReadPauseStop": true,
+        "heartbeatExecution": "blocked by reproduced Hermes v0.22.5 local-session bug",
+        "singleTickThenStopped": true,
+        "blueprintDirectory": true,
+        "moaUsageOnly": true
+      },
+      "android": {
+        "realHermes": true,
+        "realModel": true,
+        "goalAndSubgoal": true,
+        "nativeLoopExecuted": true,
+        "nativeHeartbeatReadPauseStop": true,
+        "heartbeatExecution": "blocked by reproduced Hermes v0.22.5 local-session bug",
+        "singleTickThenStopped": true,
+        "blueprintDirectory": true,
+        "moaUsageOnly": true
+      }
+    },
+    "historicalInterruptedAttempt": {
+      "realHermes": true,
+      "realModel": true,
+      "windows": {
+        "goalNativeCompleted": true,
+        "loopNativeCompleted": true,
+        "loopDeliveredToApp": true,
+        "heartbeatExecuted": false,
+        "journeyStatus": "partial: native heartbeat did not trigger; original test failed"
+      },
+      "nativeHeartbeatCause": "Hermes v0.22.5 _heartbeat_poll_watch returns for local adapter without _message_handler",
+      "subsequentAndroidJourney": "blocked: actual provider HTTP 403 Insufficient account balance",
+      "learningJourney": "not passed: init waited for actual tool approval; UI approval step corrected, provider service must be restored before rerun"
+    },
+    "currentStatus": "Dual native clients passed goals, subgoals and loops after provider balance recovery; native heartbeat execution remains unavailable"
+  },
+  "moa": {
+    "realHermes": true,
+    "realModel": true,
+    "beforeFix": {
+      "ordinaryModelOnly": true,
+      "referenceTracePresent": false
+    },
+    "afterFix": [
+      {
+        "referenceCount": 1,
+        "referenceOutputsRecorded": true,
+        "referenceOutputTokens": 74,
+        "aggregatorOutputRecorded": true,
+        "normalFollowingTurnRecorded": true
+      },
+      {
+        "referenceCount": 1,
+        "referenceOutputsRecorded": true,
+        "referenceOutputTokens": 31,
+        "aggregatorOutputRecorded": true,
+        "normalFollowingTurnRecorded": true
+      }
+    ]
+  },
+  "learningFiles": {
+    "latestTwoLearningWorktrees": 2,
+    "actualAgentsFilesExist": true,
+    "nonemptyContents": true,
+    "skillsReadBackThroughApp": true,
+    "otherProfileUnchanged": true
+  },
+  "checks": {
+    "server": {
+      "baseline": "4e503403bf",
+      "results": [
+        {
+          "name": "frozen-install",
+          "exitCode": 0,
+          "seconds": 1
+        },
+        {
+          "name": "lint",
+          "exitCode": 0,
+          "seconds": 37
+        },
+        {
+          "name": "typecheck",
+          "exitCode": 0,
+          "seconds": 6
+        },
+        {
+          "name": "tests",
+          "exitCode": 0,
+          "seconds": 52
+        },
+        {
+          "name": "build",
+          "exitCode": 0,
+          "seconds": 6
+        }
+      ]
+    },
+    "flutter": {
+      "baseline": "4e503403bf",
+      "results": [
+        {
+          "name": "frozen-pub",
+          "exitCode": 0,
+          "seconds": 2
+        },
+        {
+          "name": "analyze",
+          "exitCode": 0,
+          "seconds": 9
+        },
+        {
+          "name": "flutter-tests",
+          "exitCode": 0,
+          "seconds": 12
+        }
+      ]
+    },
+    "release": {
+      "baseline": "4e503403bf",
+      "results": [
+        {
+          "name": "windows-release",
+          "exitCode": 0,
+          "seconds": 36
+        },
+        {
+          "name": "android-release",
+          "exitCode": 0,
+          "seconds": 15
+        }
+      ]
+    }
+  },
+  "commands": [
+    {
+      "command": "/new",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端新建原生 session 并真实对话；保留旧消息。"
+    },
+    {
+      "command": "/clear",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端 /reset 别名切换到空原生上下文，旧产品历史保留。"
+    },
+    {
+      "command": "/redraw",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端重新同步，消息标识不变，未重跑。"
+    },
+    {
+      "command": "/history",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/history",
+          "status": "done"
+        }
+      ],
+      "result": "双端读取刚完成的真实回复，无新增用户/模型回合。"
+    },
+    {
+      "command": "/save",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "Windows 系统保存 JSON/Markdown/HTML 并检查实际内容；Android 系统保存未验。"
+    },
+    {
+      "command": "/retry",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端显式重试一个无工具的真实回合；非断线自动重跑。"
+    },
+    {
+      "command": "/prompt",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/prompt Safe draft",
+          "status": "done"
+        }
+      ],
+      "result": "双端预填未发送草稿。"
+    },
+    {
+      "command": "/undo",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端原生 rewind，草稿恢复，产品历史和文件副作用保留。"
+    },
+    {
+      "command": "/title",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/title",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/handoff",
+      "wiring": "not-integrated",
+      "skill": false,
+      "calls": [],
+      "result": "当前 Hermes canonical session 明确不支持；未走 legacy 或 shell 伪装成功。"
+    },
+    {
+      "command": "/branch",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端真实分支，父 session 保留。"
+    },
+    {
+      "command": "/worktree",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端 list/new，实际创建并切换隔离 Git worktree；prune 未开放。"
+    },
+    {
+      "command": "/compress",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端预览与真实模型压缩；核对原生历史条数减少，测试后恢复压缩设置。"
+    },
+    {
+      "command": "/rollback",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/rollback list",
+          "status": "done"
+        }
+      ],
+      "result": "真实返回 checkpoints 关闭状态；diff 无实际 checkpoint，restore 未开放。"
+    },
+    {
+      "command": "/snapshot",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端创建原生备份，经认证文件接口下载真实 ZIP；不恢复或清理。"
+    },
+    {
+      "command": "/export",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端原生 profile 导出并下载实际 tar.gz。"
+    },
+    {
+      "command": "/import",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端从导出资料卡进入原生导入表单，产生新 Bot，记忆一致且真实欢迎回合完成。"
+    },
+    {
+      "command": "/stop",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/stop",
+          "status": "done"
+        }
+      ],
+      "result": "双端停止实际后台进程/子 Agent；与主回合 Stop 分开。"
+    },
+    {
+      "command": "/bg",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端真实模型后台问答；主 session 历史未改变。"
+    },
+    {
+      "command": "/btw",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端真实模型旁路问答；主 session 历史未改变。"
+    },
+    {
+      "command": "/agents",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/tasks",
+          "status": "done"
+        }
+      ],
+      "result": "双端真实子 Agent list/tail/steer/interrupt、进程 kill、暂停/恢复派生；ID 可用于后续操作。"
+    },
+    {
+      "command": "/journey",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端读取/编辑/读回真实原生学习条目；未删除。"
+    },
+    {
+      "command": "/queue",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/queue list",
+          "status": "done"
+        }
+      ],
+      "result": "双端真实 FIFO 入队、list、rm、edit 和 steer；审批期间操作与重连后 ID 保留，主回复和队列回复各一次。原生没有 reorder API。"
+    },
+    {
+      "command": "/steer",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端运行中原生 steer，真实任务采纳后续指令；主 Stop 核对本次新增 cancelled。"
+    },
+    {
+      "command": "/goal",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/goal show",
+          "status": "done"
+        },
+        {
+          "command": "/goal status",
+          "status": "done"
+        }
+      ],
+      "result": "双端原生 App 创建/暂停/查询/清除，真实模型完成目标；补充余额后重新完整运行通过。"
+    },
+    {
+      "command": "/heartbeat",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/heartbeat status",
+          "status": "done"
+        }
+      ],
+      "result": "实际保存后等待180秒无原生执行，定位 v0.22.5 local adapter 分支提前返回；App 保留 status/pause/stop，明确阻止创建/恢复。未宣称执行通过。"
+    },
+    {
+      "command": "/refine",
+      "wiring": "available",
+      "skill": false,
+      "calls": [],
+      "result": "双端等待原生记忆/技能整理完成，实际回读记忆；整理结果或无改动说明来自 Hermes，不以固定回复冒充。"
+    },
+    {
+      "command": "/review",
+      "wiring": "available",
+      "skill": false,
+      "calls": [],
+      "result": "双端真实独立审查完成，其真实模型结论回到 App；不是只有后台启动回执。"
+    },
+    {
+      "command": "/loop",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/loop status",
+          "status": "done"
+        }
+      ],
+      "result": "双端实际原生 loop 独立触发真实模型，原生历史与 App 均有同一最终回复；无另建调度器。"
+    },
+    {
+      "command": "/plan",
+      "wiring": "available",
+      "skill": false,
+      "calls": [],
+      "result": "双端原生 /plan 产生真实模型回合。"
+    },
+    {
+      "command": "/moa",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端真实 MoA 应答及后续普通回合；原生 trace 核对参考模型输出、token 和汇总输出。参考与汇总使用同一已配置模型，不冒称不同供应商验收。Android另验忙碌时拒绝，不变成steer。"
+    },
+    {
+      "command": "/subgoal",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/subgoal",
+          "status": "done"
+        }
+      ],
+      "result": "双端原生会话实际添加并读回子目标；不是从回显命令推断成功。"
+    },
+    {
+      "command": "/status",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/status",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/egress",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/egress status",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/context",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/context",
+          "status": "done"
+        },
+        {
+          "command": "/context all",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/whoami",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/whoami",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/profile",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/profile",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/resume",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端按 ID 恢复、会话选择器恢复；重连后消息标识不重复。"
+    },
+    {
+      "command": "/sessions",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/sessions",
+          "status": "done"
+        }
+      ],
+      "result": "双端浏览实际原生 session 和 transcript，再显式继续。"
+    },
+    {
+      "command": "/config",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/config",
+          "status": "done"
+        }
+      ],
+      "result": "双端打开真实 schema 设置页，搜索并读取当前 profile 配置。"
+    },
+    {
+      "command": "/model",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/model",
+          "status": "done"
+        }
+      ],
+      "result": "双端打开 Bot 编辑及原生 session model mutation；不是全部 provider 参数验收。"
+    },
+    {
+      "command": "/codex-runtime",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/codex-runtime",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/personality",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/personality",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/statusbar",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端本机状态栏；明确写 Bot config，不把配置冒称实际 session override。"
+    },
+    {
+      "command": "/battery",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端实际设备电量；一分钟刷新异常已真实复现并修正重跑。"
+    },
+    {
+      "command": "/timestamps",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端实际消息时间；Android 实拍修正用户气泡对比度。"
+    },
+    {
+      "command": "/diff",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/diff",
+          "status": "done"
+        },
+        {
+          "command": "/diff session",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/verbose",
+      "wiring": "available",
+      "skill": false,
+      "calls": [],
+      "result": "双端实际循环原生 off/new/all/verbose 四种输出级别，核对四种不同回执并恢复；未新增模型回合。"
+    },
+    {
+      "command": "/focus",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端当前设备显示偏好保存；不改变服务器工具策略。"
+    },
+    {
+      "command": "/footer",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/footer status",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/yolo",
+      "wiring": "available",
+      "skill": false,
+      "calls": [],
+      "result": "双端实际切换原生会话权限开关两次，核对相反状态并恢复；期间未提交模型任务。真实工具审批另验逐次允许。"
+    },
+    {
+      "command": "/approvals",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/approvals",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/reasoning",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/reasoning",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/fast",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/fast status",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/skin",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端实际浅/深主题及保存；终端皮肤不应用于 Flutter。"
+    },
+    {
+      "command": "/indicator",
+      "wiring": "terminal",
+      "skill": false,
+      "calls": [],
+      "result": "仅终端 UI 设置；Flutter 使用本机鼠标/触摸及运行指示，不提供终端仿真。"
+    },
+    {
+      "command": "/voice",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/voice status",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/wake",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端实际打开麦克风页，读回该 profile 原生依赖提示。PCM16 采集/上传已接；此环境缺原生 STT，未宣称语音识别或唤醒成功。"
+    },
+    {
+      "command": "/busy",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/busy status",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/autoprune",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/autoprune status",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/tools",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/tools",
+          "status": "done"
+        }
+      ],
+      "result": "双端实际禁用/启用 terminal，/new 后工具列表匹配；profile 隔离写入已验证。"
+    },
+    {
+      "command": "/toolsets",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/toolsets",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/skills",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/skills",
+          "status": "done"
+        },
+        {
+          "command": "/skills pending",
+          "status": "done"
+        },
+        {
+          "command": "/skills diff",
+          "status": "done"
+        }
+      ],
+      "result": "真实目录、pending、diff 读回；本轮未重新安装全部技能。动态加载见逐项 skill 行。"
+    },
+    {
+      "command": "/memory",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/memory pending",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/bundles",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/bundles",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/pet",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端从原生目录选择并停用，实际状态更新；scale 未独立验收。"
+    },
+    {
+      "command": "/hatch",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端实际显示未配置 reference-capable image provider；未宣称生成通过。"
+    },
+    {
+      "command": "/learn",
+      "wiring": "available",
+      "skill": false,
+      "calls": [],
+      "result": "双端真实模型调用 skill_manage 保存技能，实际 SKILL.md 读回，另一 profile 未安装；保留学习结果。"
+    },
+    {
+      "command": "/init",
+      "wiring": "available",
+      "skill": false,
+      "calls": [],
+      "result": "双端实际隔离 worktree 发起原生初始化，真实工具执行并完成；使用 App Allow once 回答实际审批，保留生成的 AGENTS.md。"
+    },
+    {
+      "command": "/cron",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/cron list",
+          "status": "done"
+        }
+      ],
+      "result": "双端实际 create/edit/pause/resume/run，核对原生执行 completed 及执行会话中的真实模型回复，验收后暂停并保留；删除未开放。"
+    },
+    {
+      "command": "/suggestions",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/suggestions",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/blueprint",
+      "wiring": "available",
+      "skill": false,
+      "calls": [],
+      "result": "双端使用 custom-reminder 的内联参数实际创建原生 cron，读回提示词与计划后暂停保留；对话式补全及其他外部模板未验。"
+    },
+    {
+      "command": "/curator",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/curator status",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/kanban",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/kanban list",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/reload",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/reload",
+          "status": "done"
+        }
+      ],
+      "result": "实际返回 updated=0；没有用它冒充真实凭据轮换验收。"
+    },
+    {
+      "command": "/reload-mcp",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/reload-mcp",
+          "status": "done"
+        }
+      ],
+      "result": "实际收到原生响应/确认要求；无运行中 MCP 服务的重载验收。"
+    },
+    {
+      "command": "/reload-skills",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/reload-skills",
+          "status": "done"
+        }
+      ],
+      "result": "双端重新扫描实际原生目录；/learn 独立旅程另验真实新增技能。"
+    },
+    {
+      "command": "/browser",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/browser status",
+          "status": "done"
+        }
+      ],
+      "result": "实际原生 status 为 disconnected；connect/use/屏幕未在本轮完成。"
+    },
+    {
+      "command": "/plugins",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/plugins",
+          "status": "done"
+        }
+      ],
+      "result": "双端原生插件页面导航；插件外部后端工作流本轮未验。"
+    },
+    {
+      "command": "/help",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/help",
+          "status": "done"
+        }
+      ],
+      "result": "实际 App 语法与目录读回，含 quit/queue/wake/snapshot/export；不是 CLI 全参数承诺。"
+    },
+    {
+      "command": "/palette",
+      "wiring": "app",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/palette",
+          "status": "done"
+        }
+      ],
+      "result": "双端原生指令栏预填。"
+    },
+    {
+      "command": "/usage",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/usage",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/subscription",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端显示该 profile 未登录 Nous；没有订阅账号，不计套餐操作通过。"
+    },
+    {
+      "command": "/login",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端授权/自定义来源页面导航；本轮未重新执行 OAuth。"
+    },
+    {
+      "command": "/topup",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/topup",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/insights",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/insights 1",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/platforms",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/platforms",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/copy",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端读取当前设备剪贴板，内容与刚完成真实模型回复一致。"
+    },
+    {
+      "command": "/paste",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端实际设备剪贴板图片上传，真实模型识别红方块和蓝圆。"
+    },
+    {
+      "command": "/image",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "Windows 中文路径实际上传并识图；Android 仅接受系统选择器，picker 本轮未手测。"
+    },
+    {
+      "command": "/update",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端原生 update check；没有替换服务或安装升级。"
+    },
+    {
+      "command": "/version",
+      "wiring": "available",
+      "skill": false,
+      "calls": [
+        {
+          "command": "/v",
+          "status": "done"
+        }
+      ],
+      "result": "实际 RPC 收到原生响应，仅验所列参数；不等于其修改、自动化或外部集成已通过。"
+    },
+    {
+      "command": "/debug",
+      "wiring": "available",
+      "skill": false,
+      "calls": [],
+      "result": "双端实际 /debug local 返回原生脱敏诊断，原生历史未变；未执行裸 /debug 的外部上传。原始诊断仅保留在私有环境。"
+    },
+    {
+      "command": "/quit",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "实际 Windows 进程退出、Android 进入后台；原服务器单次工具和模型回合继续完成。"
+    },
+    {
+      "command": "/density",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端本机紧凑布局及偏好保存。"
+    },
+    {
+      "command": "/logs",
+      "wiring": "app",
+      "skill": false,
+      "calls": [],
+      "result": "双端官方 profile 日志读取；原始日志不入 Git。"
+    },
+    {
+      "command": "/mouse",
+      "wiring": "terminal",
+      "skill": false,
+      "calls": [],
+      "result": "仅终端 UI 设置；Flutter 使用本机鼠标/触摸及运行指示，不提供终端仿真。"
+    },
+    {
+      "command": "/nekodot-routine-status",
+      "wiring": "available",
+      "skill": false,
+      "calls": [],
+      "result": "实际 App 调用插件命令，收到原生例行任务状态；无新增模型回合。"
+    },
+    {
+      "command": "/airtable",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/architecture-diagram",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/arxiv",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/ascii-video",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/baoyu-infographic",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/blocked-page-recovery",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/box",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/claude-code",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/claude-design",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/codebase-inspection",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/codex",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/competitor-news-monitor",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/computer-use",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/design-md",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/document-to-action-items",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/docx",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/dogfood",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/email-inbox-triage",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/gif-search",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/github",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/google-workspace",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/grounded-citations",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/hermes-agent",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/hermes-agent-skill-authoring",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/himalaya",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/humanizer",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/inspecting-hermes-desktop-dom",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/llm-wiki",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/manim-video",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/maps",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/meeting-action-items",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/nekodot-routines",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/node-inspect-debugger",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/notion",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/obsidian",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/opencode",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/p5js",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/pdf",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/popular-web-designs",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/powerpoint",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/product-price-monitor",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/python-debugpy",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/requesting-code-review",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/simplify-code",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/songsee",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/songwriting-and-ai-music",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/spike",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/systematic-debugging",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/teams-meeting-pipeline",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/test-driven-development",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/weekly-review-planning",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/xlsx",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/xurl",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    },
+    {
+      "command": "/youtube-content",
+      "wiring": "available",
+      "skill": true,
+      "calls": [],
+      "result": "Windows 原生 App 逐项调用，实际加载并由真实模型确认；未执行工具或该技能完整外部工作流。"
+    }
+  ],
+  "boundaries": [
+    "No production deployment, publish or push",
+    "Real journeys cover evolving module candidates before the final engineering snapshot; not every journey was rerun on the final release build",
+    "No physical Android device, FCM or full visual matrix this round",
+    "Microphone capture/wake feed/transcription wired; missing native STT/numpy prevents successful voice acceptance",
+    "Hermes v0.22.5 local heartbeat does not trigger; creation/resume explicitly unavailable",
+    "Provider balance interruption recovered; new real-model journeys were run after replenishment",
+    "MoA reference and aggregator use the same configured model; no multi-provider claim",
+    "Skill invocation does not prove each external workflow",
+    "No native reorder API or second scheduling engine",
+    "No destructive restore/prune/delete operations tested or enabled"
+  ]
+}
