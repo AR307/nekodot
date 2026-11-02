@@ -853,3 +853,9 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 双端逐项操作状态/目录命令、本地诊断、权限开关和四级输出切换；恢复开关与输出设置，原生历史未增加模型回合。Windows 54个动态技能均实际加载并由真实模型确认，未据此标记外部完整工作流通过。
 - 当前目录152条：55 App适配、94原生/动态、2纯终端、1 canonical不支持。逐项结果及参数见 `docs/side-phase5-command-matrix.md`，真实证据与限制见 `docs/side-phase5-command-acceptance.md`；原生 heartbeat、缺STT语音、外部账号和Android真机仍明确保留。
 - 产品快照 `4e503403bf` 的独立检出通过 frozen install、lint、typecheck、35文件59项服务端测试、build、Flutter frozen pub/analyze/18项测试和双端release构建；本次追加旅程脚本后 Flutter analyze 再通过。Windows安装器未做Authenticode签名，Android沿用既有签名。未改生产、删除数据、发布或push。
+
+### 2026-11-02 / Side Phase 5：用户确认结项
+
+- 用户在知悉已通过的核心真实旅程、已列明限制与待验边界后，明确确认本阶段“已验证完成”；Side Phase 5 据此结项。
+- 原生 heartbeat / handoff 限制、语音闭环、Android 真机/推送/完整视觉矩阵与缺配置外部工作流继续保留为后续事项，不改记为通过、不再阻塞本阶段。详细范围见 `side-phase5-command-acceptance.md`。
+- 本次只更新结项文档，不修改产品代码、服务或用户数据；本地提交，不发布或 push。
