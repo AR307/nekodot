@@ -712,3 +712,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - Windows 与固定 Android 模拟器使用官方 Hermes v0.22.5、真实 Node/Relay 和 gpt-6.1-sol 完成 GUI 新建 A/B、原生 session_search 读取旧会话、预览不切换、切回后真实回忆、草稿保留、重连无重放和其他 Bot 会话不变；测试后恢复原会话，所有测试历史保留。
 - 真实旅程发现并修正历史预览返回时 setState 返回 Future 的刷新异常；最终双端完整复测通过。Flutter analyze 与18项辅助测试通过。Android 真机及完整视觉矩阵不计通过，未部署生产或发布/push。
 - 主聊天时间线保留现有交互日志，切换改变原生上下文；具体会话历史在预览中读取，不清空或重写聊天记录。详见 `docs/bot-sessions-gui-acceptance.md`。
+
+## 2026-11-03 · 0.3.0 正式发布准备
+
+- 用户授权直接发布正式服，并确认 Android 验收已完成；不重复要求真机验收。
+- 版本更新为 0.3.0+6，更新官网、README、安装包版本与产品 Relay 镜像标签；保留 Claude 的官网设计及早期产品风险说明。
+- 包含原生 canonical 会话、能力/指令接入、Webhook 例行任务和 Bot 历史 Session GUI。
+- 正式服务上线及构建结果另记 docs/release-0.3.0-acceptance.md；保留账号、节点身份、profiles、历史、现场和既有未提交改动。

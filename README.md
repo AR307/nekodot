@@ -16,7 +16,7 @@
 <p align="center">
   <a href="https://github.com/AR307/nekodot/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AR307/nekodot/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Node 24 LTS" src="https://img.shields.io/badge/node-24%20LTS-000000">
-  <a href="https://github.com/AR307/nekodot/releases/tag/v0.2.0"><img alt="Release v0.2.0" src="docs/assets/release-0.2.0.svg"></a>
+  <a href="https://github.com/AR307/nekodot/releases/tag/v0.3.0"><img alt="Release v0.3.0" src="docs/assets/release-0.3.0.svg"></a>
 </p>
 
 <p align="center">
@@ -38,7 +38,7 @@
 <p align="center"><sub>两位 Bot 在群里接力整理周报：一位起草，再交给另一位核对数据来源。截图使用演示数据。</sub></p>
 
 > [!NOTE]
-> **0.2.0 正式版**采用 Flutter 原生客户端（`apps/native`）。[更新说明](docs/releases/v0.2.0.md)记录安装方式、账号补验和仍待完成的真机验收。截图使用演示数据。
+> **0.3.0 正式版**采用 Flutter 原生客户端（`apps/native`）。[更新说明](docs/releases/v0.3.0.md)记录原生会话、指令、例行任务及 Session 切换。截图使用演示数据。
 
 ## 为什么是 nekodot
 
@@ -151,7 +151,7 @@ App 本身不运行 Hermes。完整的模型密钥只保存在节点上，界面
 ## 快速开始
 
 > [!NOTE]
-> 当前正式版本为 **0.2.0**。Windows 干净安装、Android 真机和后台通知的完整验收仍在进行。
+> 当前正式版本为 **0.3.0**。Android 验收由用户确认完成；本轮发布结果及其余验收边界见更新说明。
 
 ### 用 App
 
@@ -196,7 +196,7 @@ pnpm native:analyze && pnpm native:test
 ```text
 apps/native            Flutter Windows / Android 产品客户端与原生 RFB 屏幕
 apps/web               React 网页与同步逻辑
-apps/client            旧 Tauri 2 宿主（保留源码，0.2.0 不构建此路径）
+apps/client            旧 Tauri 2 宿主（保留源码，0.3.0 不构建此路径）
 apps/site              双语静态官网
 apps/relay             账号、配对、WebSocket 路由、文件转发与节点发布通知
 apps/node              节点：持久化、Hermes 接入、群聊路由与自动更新
@@ -220,7 +220,7 @@ docs                   开发说明、Hermes 调研、实施记录与截图
 - [x] 同账号共享用户记忆
 - [x] 节点签名更新与自动回滚
 - [x] Flutter Windows / Android 客户端
-- [x] 0.2.0 正式发布
+- [x] 0.3.0 正式发布
 - [ ] Windows 干净用户安装、Android 真机与后台通知完整验收
 - [ ] PWA：添加到手机主屏幕
 - [ ] macOS 与 ARM 节点

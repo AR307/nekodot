@@ -866,3 +866,10 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 双端真实原生候选 + 真实持久化 Node/Relay + 官方 Hermes v0.22.5 + gpt-6.1-sol 完成新建与切换、原生 session_search 读历史、正确上下文回忆、预览不调用模型/不切换、草稿与重连、另一 Bot 不变及恢复原会话。最终 Windows/Android 旅程约61/75秒；Android 为固定模拟器，不冒充真机。
 - 修正真实发现的预览返回刷新 Future/setState 异常，完整复测通过；Flutter analyze和18项辅助测试通过。主聊天日志仍保留，按会话的原生上下文通过预览查看；没有删除、迁移或重写历史。
 - 实现与边界见 `bot-sessions-gui-acceptance.md`，脱敏结果及实际截图单独保留。未改 Hermes 核心或生产服务，不发布、不 push。
+
+## 2026-11-03 · 0.3.0 正式发布准备
+
+- 用户授权直接发布正式服，并确认 Android 验收已完成；不重复要求真机验收。
+- 版本更新为 0.3.0+6，更新官网、README、安装包版本与产品 Relay 镜像标签；保留 Claude 的官网设计及早期产品风险说明。
+- 包含原生 canonical 会话、能力/指令接入、Webhook 例行任务和 Bot 历史 Session GUI。
+- 正式服务上线及构建结果另记 docs/release-0.3.0-acceptance.md；保留账号、节点身份、profiles、历史、现场和既有未提交改动。

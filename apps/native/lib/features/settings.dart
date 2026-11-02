@@ -111,7 +111,7 @@ class SettingsPage extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Text(
-            'nekodot 0.2.0',
+            'nekodot 0.3.0',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.labelMedium,
           ),
