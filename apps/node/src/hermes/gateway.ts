@@ -24,11 +24,12 @@ export interface GatewayFrame {
 
 export class HermesGatewayError extends Error {
   constructor(
-    message: string,
+    readonly reason: string,
     readonly code?: number,
     readonly data?: unknown,
   ) {
-    super(message);
+    const detail = data && typeof data === 'object' && 'detail' in data ? data.detail : undefined;
+    super(typeof detail === 'string' && detail ? `${reason}: ${detail}` : reason);
     this.name = 'HermesGatewayError';
   }
 }
@@ -205,7 +206,7 @@ export class HermesGateway {
     const frame = JSON.parse(raw) as {
       id?: number | string;
       result?: unknown;
-      error?: { message?: string; code?: number };
+      error?: { message?: string; code?: number; data?: unknown };
       method?: string;
       params?: unknown;
     };
@@ -217,6 +218,7 @@ export class HermesGateway {
           new HermesGatewayError(
             frame.error.message ?? 'Hermes gateway request failed',
             frame.error.code,
+            frame.error.data,
           ),
         );
       else waiter.resolve(frame.result);

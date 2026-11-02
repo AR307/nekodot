@@ -21,6 +21,8 @@ class JourneyClient extends NekodotClient {
   final accepted = Completer<Json>();
   Json? update;
   var stops = 0;
+  var catalogs = 0;
+  bool rejectFirstCatalog = false;
   JourneyClient() {
     selectedNodeId = 'test-node';
     ready = true;
@@ -37,6 +39,21 @@ class JourneyClient extends NekodotClient {
     String? target,
   ]) async {
     switch (method) {
+      case 'commands.list':
+        catalogs++;
+        if (rejectFirstCatalog && catalogs == 1) {
+          throw RelayError('Invalid RPC arguments');
+        }
+        return {
+          'commands': [
+            {
+              'name': '/profile',
+              'description': 'Show the current native profile',
+              'availability': 'available',
+              'skill': false,
+            },
+          ],
+        };
       case 'bots.permissions.get':
         return {'mode': 'smart'};
       case 'providers.list':
@@ -68,6 +85,32 @@ class JourneyClient extends NekodotClient {
 }
 
 void main() {
+  testWidgets(
+    'Refresh a failed native command catalog without losing the draft',
+    (tester) async {
+      final client = JourneyClient()..rejectFirstCatalog = true;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: appTheme(Brightness.light),
+          home: ChatPage(client: client, conversationId: 'dm'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final input = find.byKey(const ValueKey('chat-input'));
+      await tester.enterText(input, '/');
+      await tester.pumpAndSettle();
+      expect(find.text('Invalid RPC arguments'), findsOneWidget);
+      await tester.tap(find.byTooltip('刷新指令'));
+      await tester.pumpAndSettle();
+      expect(client.catalogs, 2);
+      expect(find.text('/profile'), findsOneWidget);
+      expect(find.text('Invalid RPC arguments'), findsNothing);
+      expect(tester.widget<TextField>(input).controller!.text, '/');
+      await tester.pumpWidget(const SizedBox.shrink());
+      client.dispose();
+    },
+  );
+
   testWidgets(
     'An interrupted execution keeps the draft and offers Stop before a new send',
     (tester) async {

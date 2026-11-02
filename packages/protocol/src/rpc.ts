@@ -48,7 +48,7 @@ export const rpcContracts = {
         z.strictObject({
           name: z.string(),
           description: z.string(),
-          availability: z.string(),
+          availability: z.enum(['available', 'app', 'terminal', 'not-integrated']),
           skill: z.boolean(),
         }),
       ),

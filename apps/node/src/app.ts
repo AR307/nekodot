@@ -595,11 +595,6 @@ export class NodeApplication {
         )
     )
       throw new NodeFault('conflict', 'A Hermes command is already running for this bot.');
-    if (this.database.runs().some((run) => run.botId === params.botId))
-      throw new NodeFault(
-        'conflict',
-        'Wait for this bot to finish, or use the existing message and Stop controls.',
-      );
     return this.operations.start(
       'command:' + params.clientMsgId,
       [params.botId],
@@ -636,7 +631,9 @@ export class NodeApplication {
           detail: operation.detail,
           ...(result.type === 'prefill' && result.message
             ? { native: { prefill: result.message } }
-            : {}),
+            : result.type === 'navigate' && result.target
+              ? { native: { page: result.target } }
+              : {}),
         });
       },
     );

@@ -651,3 +651,11 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 实际重启隔离 Hermes 后设置/历史不变，canonical `/profile` 可用；再实际重启隔离 Node/Relay，复用原数据，12 条消息标识及设置保持一致，没有重建 Bot 或重新配对。
 - Node typecheck、31 文件 / 46 场景、全仓 ESLint/Prettier、Node bundle、Flutter analyze 与16项 Flutter tests通过；最终候选 Windows 约22秒、Android模拟器约26秒完成本模块真实旅程。详细证据与限制见 `docs/side-phase5-settings-acceptance.md`。
 - 本轮仍为 0.2.0+5 Debug 候选；Android真机、完整视觉矩阵、生产VPS匹配版本、其他全能力模块及最终release验收继续保留，不部署、不发布、不push。
+
+### 2026-11-02 / Side Phase 5：修复指令目录与 App 薄适配
+
+- 真实定位 `/history` 的 `unsupported_command`：Hermes 目录是多客户端能力合集，不保证每条都由 `slash.exec` 实现。历史改用 canonical `session.history`；工具、子 Agent/进程、技能重载、环境刷新接各自原生 RPC，设置/模型/插件打开已有 App 页面，编辑器/指令栏留在客户端处理。
+- 目录区分原生可执行、App 适配、服务器终端及待接入，将不可用条目折叠；保留原生别名、动态 Skills/Quick Commands/插件和详细错误，不增加 shell 转发或第二套 Agent 引擎。会话新建、分支、恢复、撤回等仍明确待接入。
+- Windows 与固定 Android API35 模拟器通过真实 Node/Relay、官方 v0.22.5 和 gpt-6.1-sol 的流式回复、历史无新增模型回合、工具/子 Agent 查询、别名、技能重载、设置跳转及重连无重放旅程；不是只靠录制测试。完整报告见 `docs/side-phase5-command-acceptance.md`。
+- Node 32 文件48测试、typecheck、lint、bundle，Flutter analyze及17项测试通过。没有改生产或发布；保留未验真机、完整命令/参数和会话控制边界。
+- 额外按已授权范围将三个旧原生安装包移入私有回收目录，未永久删除；重建并启动匹配服务的 Windows/Android 私有手测候选，不将其中 QA 配置纳入 Git 或公开分发。

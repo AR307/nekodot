@@ -805,3 +805,12 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - Node 24 typecheck、31文件46测试、全仓ESLint/Prettier及Node bundle通过；首次在Android冷构建期间并行测试有1项超时，后续单worker全量通过，没有放宽超时。canonical gateway两个文件只作格式修正。Flutter analyze与16项Flutter tests通过，后者为辅助检查，不替代实际模型旅程。
 - 预置已验证QA账号不算SMTP或注册UI验收；候选包含保留的其他UI工作区改动，不冒称全新检出的release包。真机、推送、完整视觉矩阵、生产VPS匹配版本及其余Side Phase 5能力仍待验收。
 - 报告及真实截图：`docs/side-phase5-settings-acceptance.md`；脱敏结果：`docs/evidence/side-phase5-settings-real.json`。未改Hermes核心、未部署生产、未发布或push。
+
+### 2026-11-02 / Side Phase 5：命令薄适配与手测候选
+
+- 手测 `/history` 报错已定位到目录与 canonical slash 支持不等价；改用原生 `session.history`，接入工具、子 Agent/进程和技能重载等明确 RPC，以及已有设置/模型/插件 App 页面；保留官方别名和动态扩展命令。
+- 分清“App 适配 / 原生可执行 / 服务器终端 / 待接入”，不可用命令折叠展示；会话切换、分支、撤回等有用能力仍待后续适配，不再误标为可执行。原生拒绝 detail 不丢失，不用 shell、Runs 或任意 URL 代理补功能。
+- Windows 与固定 Android API35 x64 模拟器完成真实原生 UI + Node/Relay + 官方 Hermes v0.22.5 + gpt-6.1-sol 旅程，验证流式回复后 `/history` 能查到同一结果且不新增模型/用户回合；`/tools`、`/tasks`、`/v`、`/reload-skills`、`/config` 和重连无重放通过，最终旅程约32/35秒。
+- Node typecheck、lint、32文件48测试及bundle、Flutter analyze与17项测试通过；初次真实自动化的输入焦点步骤问题已修正并重新完整运行。目录分类152条不等于152条命令全部实测。
+- 清理仅移动此前授权的三个旧安装包；没有永久删除或清空 AVD。匹配版本的 Windows/Android 私有手测候选另行拉起，生产、发布和push均未执行。报告：`docs/side-phase5-command-acceptance.md`；结果：`docs/evidence/side-phase5-commands-real.json`。
+- 真机、生产匹配版本、完整视觉矩阵、运行中子 Agent 控制及未列出的命令适配继续保留为待验收。

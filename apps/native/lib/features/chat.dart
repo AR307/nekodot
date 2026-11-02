@@ -204,6 +204,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       commandBotId = botId;
       loadingCommands = true;
       commands = [];
+      error = '';
     });
     try {
       final result = await c.rpc('commands.list', {'botId': botId});
@@ -240,6 +241,14 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
         if (prefill is String && input.text.isEmpty) input.text = prefill;
       }
       await c.loadMessages(id);
+      if (!mounted || commandNodeId != c.selectedNodeId) return;
+      for (final result in objects(operation['results'])) {
+        final page = result['native']?['page'];
+        if (page is String) {
+          await openCommandPage(context, c, page, '${result['botId']}');
+          if (!mounted) return;
+        }
+      }
     } catch (e) {
       if (mounted) setState(() => error = '$e');
     }
@@ -696,6 +705,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                       botId: commandBotId!,
                       loading: loadingCommands,
                       onBot: loadCommands,
+                      onRefresh: () => loadCommands(commandBotId!),
                       onSelect: (name) {
                         input.text = '$name ';
                         input.selection = TextSelection.collapsed(

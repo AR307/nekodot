@@ -2,7 +2,7 @@ import { AddressInfo } from 'node:net';
 import { once } from 'node:events';
 import { expect, it } from 'vitest';
 import { WebSocketServer } from 'ws';
-import { HermesGateway } from './gateway';
+import { HermesGateway, HermesGatewayError } from './gateway';
 
 it('speaks Hermes gateway-v1 RPC, delivers events, and answers server requests', async () => {
   const server = new WebSocketServer({
@@ -39,6 +39,21 @@ it('speaks Hermes gateway-v1 RPC, delivers events, and answers server requests',
             params: { message: 'attached' },
           }),
         );
+      } else if (frame.method === 'slash.exec') {
+        socket.send(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: frame.id,
+            error: {
+              code: 4001,
+              message: 'unsupported_command',
+              data: {
+                reason: 'unsupported_command',
+                detail: 'Use the native history view.',
+              },
+            },
+          }),
+        );
       } else resolveServerRequest(frame.result);
     });
   });
@@ -68,6 +83,13 @@ it('speaks Hermes gateway-v1 RPC, delivers events, and answers server requests',
     await ready;
     expect(ticketProfile).toBe('bot-profile');
     expect(await serverRequestReply).toEqual({ method: 'client.notice', message: 'attached' });
+    await expect(gateway.rpc('slash.exec', { command: '/history' })).rejects.toMatchObject({
+      name: 'HermesGatewayError',
+      reason: 'unsupported_command',
+      code: 4001,
+      message: 'unsupported_command: Use the native history view.',
+      data: { detail: 'Use the native history view.' },
+    } satisfies Partial<HermesGatewayError>);
   } finally {
     gateway.close();
     for (const client of server.clients) client.terminate();
