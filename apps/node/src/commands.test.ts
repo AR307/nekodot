@@ -25,6 +25,14 @@ async function commandJourney() {
         ],
       };
     if (method === 'slash.exec') return { output: 'Native reply' };
+    if (method === 'subagent.list')
+      return {
+        subagents: [
+          { subagent_id: 'child-qa', goal: 'Inspect a harmless fixture', status: 'running' },
+        ],
+      };
+    if (method === 'process.list')
+      return { processes: [{ session_id: 'proc-qa', command: 'sleep 60', status: 'running' }] };
     throw new Error('Unexpected native method: ' + method);
   });
   const saveHermesSession = vi.fn();
@@ -45,8 +53,9 @@ it('lists usable commands honestly and reads history through the native history 
       expect.objectContaining({ name: '/history', availability: 'app' }),
       expect.objectContaining({ name: '/config', availability: 'app' }),
       expect.objectContaining({ name: '/model', availability: 'app' }),
-      expect.objectContaining({ name: '/new', availability: 'not-integrated' }),
-      expect.objectContaining({ name: '/redraw', availability: 'terminal' }),
+      expect.objectContaining({ name: '/new', availability: 'app' }),
+      expect.objectContaining({ name: '/handoff', availability: 'not-integrated' }),
+      expect.objectContaining({ name: '/redraw', availability: 'app' }),
       expect.objectContaining({ name: '/toolsets', availability: 'available' }),
       expect.objectContaining({ name: '/plan', availability: 'available' }),
     ]),
@@ -59,6 +68,13 @@ it('lists usable commands honestly and reads history through the native history 
   expect(rpc.mock.calls.some(([method]) => ['slash.exec', 'prompt.submit'].includes(method))).toBe(
     false,
   );
+});
+
+it('shows native child and process identifiers that users need for tail, steer and stop', async () => {
+  const { commands } = await commandJourney();
+  const result = await commands.execute('test-bot', '/agents');
+  expect(result.output).toContain('Agent child-qa [running]: Inspect a harmless fixture');
+  expect(result.output).toContain('Process proc-qa [running]: sleep 60');
 });
 
 it('opens App settings and composes locally; unsupported session controls never alter the session', async () => {
@@ -75,7 +91,7 @@ it('opens App settings and composes locally; unsupported session controls never 
     type: 'prefill',
     message: 'My next instruction',
   });
-  await expect(commands.execute('test-bot', '/new')).rejects.toThrow('not connected yet');
+  await expect(commands.execute('test-bot', '/handoff')).rejects.toThrow('not connected yet');
   await expect(commands.execute('test-bot', '/config agent.max_turns 10')).rejects.toThrow(
     'without arguments',
   );

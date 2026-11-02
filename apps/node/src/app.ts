@@ -26,6 +26,7 @@ import { BotScreens } from './screens';
 import { Notifications } from './notifications';
 import { SharedUserMemory } from './user-memory';
 import { BotCommands } from './commands';
+import { NativeExtras } from './native-extras';
 import { Routines } from './routines';
 import { openNativeSession, type NativeSessionSnapshot } from './hermes/session';
 
@@ -60,8 +61,10 @@ interface NativeReplay {
   truncated: boolean;
 }
 
-function projectGatewayEvent(run: RunRecord, frame: GatewayFrame): HermesEvent | undefined {
+export function projectGatewayEvent(run: RunRecord, frame: GatewayFrame): HermesEvent | undefined {
   const payload = frame.payload ?? {};
+  // Native background completions share the session stream, not this admission.
+  if (frame.admission_id !== run.runId && payload.admission_id !== run.runId) return;
   const base = {
     run_id: run.runId ?? '',
     timestamp: Date.now() / 1000,
@@ -163,6 +166,7 @@ export class NodeApplication {
   readonly notifications: Notifications;
   readonly userMemory: SharedUserMemory;
   readonly commands: BotCommands;
+  readonly nativeExtras: NativeExtras;
   readonly routines: Routines;
   onEvent: (event: PersistedEvent) => void = () => {};
   onLive: (event: LiveEvent) => void = () => {};
@@ -194,6 +198,7 @@ export class NodeApplication {
     this.groups = new GroupService(this.database);
     this.operations = new Operations(this.database);
     this.commands = new BotCommands(this.database, hermes);
+    this.nativeExtras = new NativeExtras(hermes);
     this.userMemory = new SharedUserMemory(this.database, hermes);
     this.management = new BotManagement(
       this.database,
@@ -216,6 +221,54 @@ export class NodeApplication {
         return this.commands.catalog(request.params.botId);
       case 'commands.execute':
         return this.executeCommand(request.params);
+      case 'sessions.list':
+        this.bots.get(request.params.botId);
+        return this.commands.sessions.list(request.params.botId);
+      case 'sessions.history':
+        this.bots.get(request.params.botId);
+        return this.commands.sessions.history(request.params.botId, request.params.sessionId);
+      case 'learning.list':
+        this.bots.get(request.params.botId);
+        return this.nativeExtras.learning(request.params.botId);
+      case 'learning.get':
+        this.bots.get(request.params.botId);
+        return this.nativeExtras.learningEntry(request.params.botId, request.params.id);
+      case 'learning.save': {
+        this.bots.get(request.params.botId);
+        const result = await this.nativeExtras.learningEntry(
+          request.params.botId,
+          request.params.id,
+          request.params.content,
+        );
+        await this.userMemory.sync();
+        return result;
+      }
+      case 'pets.list':
+        this.bots.get(request.params.botId);
+        return this.nativeExtras.pets(request.params.botId);
+      case 'pets.thumbnail':
+        this.bots.get(request.params.botId);
+        return this.nativeExtras.petThumbnail(
+          request.params.botId,
+          request.params.slug,
+          request.params.url,
+        );
+      case 'pets.manage': {
+        const { botId, action, ...params } = request.params;
+        this.bots.get(botId);
+        return this.operations.start('pet:' + action, [botId], async (operation) => {
+          const result = await this.nativeExtras.petAction(botId, action, params);
+          operation.results.push({
+            botId,
+            ok: true,
+            detail: 'Hermes pet ' + action,
+            native: result,
+          });
+        });
+      }
+      case 'subscription.get':
+        this.bots.get(request.params.botId);
+        return this.nativeExtras.subscription(request.params.botId);
       case 'screen.status':
         return this.screens.status(request.params.botId);
       case 'screen.start':
@@ -348,7 +401,11 @@ export class NodeApplication {
       case 'hermes.settings.set':
         return this.providers.setSetting(request.params);
       case 'bots.create': {
-        const created = await this.bots.create(request.params);
+        const { archiveFileId, ...fields } = request.params;
+        const created = await this.bots.create(
+          fields,
+          archiveFileId ? this.files.profileArchive(archiveFileId) : undefined,
+        );
         this.startWelcome(created.bot.botId, created.conversation.conversationId);
         return created;
       }
@@ -580,9 +637,9 @@ export class NodeApplication {
         : !group?.botIds.includes(params.botId))
     )
       throw new NodeFault('forbidden', 'Choose a bot in this conversation.');
-    const existing = this.operations
-      .list()
-      .find((op) => op.kind === 'command:' + params.clientMsgId);
+    const side = /^\/(bg|btw)(?:\s|$)/.test(params.command);
+    const operationKind = `command${side ? '-side' : ''}:${params.clientMsgId}`;
+    const existing = this.operations.list().find((op) => op.kind === operationKind);
     if (existing) return existing;
     if (
       this.operations
@@ -595,48 +652,61 @@ export class NodeApplication {
         )
     )
       throw new NodeFault('conflict', 'A Hermes command is already running for this bot.');
-    return this.operations.start(
-      'command:' + params.clientMsgId,
-      [params.botId],
-      async (operation) => {
-        let result = await this.commands.execute(params.botId, params.command);
-        if (result.type === 'alias' && result.target)
-          result = await this.commands.execute(params.botId, result.target);
-        if ((result.type === 'send' || result.type === 'skill') && result.message) {
-          await this.sendMessage(
-            {
-              conversationId: params.conversationId,
-              text: result.display || params.command,
-              clientMsgId: params.clientMsgId,
-            },
-            { botId: params.botId, input: result.message },
-          );
-        }
-        const output = [result.output, result.warning, result.notice].filter(Boolean).join('\n');
-        if (output)
-          this.database.putMessage({
-            messageId: randomUUID(),
+    return this.operations.start(operationKind, [params.botId], async (operation) => {
+      let result = await this.commands.execute(params.botId, params.command, params.clientMsgId);
+      if (result.type === 'alias' && result.target)
+        result = await this.commands.execute(params.botId, result.target);
+      if ((result.type === 'send' || result.type === 'skill') && result.message) {
+        await this.sendMessage(
+          {
             conversationId: params.conversationId,
-            seq: this.database.head(),
-            author: { type: 'system' },
-            kind: 'system',
-            status: 'done',
-            createdAt: now(),
-            content: { text: params.command + '\n\n' + output },
-          });
-        operation.detail = output || 'Hermes command completed.';
-        operation.results.push({
-          botId: params.botId,
-          ok: true,
-          detail: operation.detail,
-          ...(result.type === 'prefill' && result.message
-            ? { native: { prefill: result.message } }
-            : result.type === 'navigate' && result.target
-              ? { native: { page: result.target } }
-              : {}),
+            text: result.display || params.command,
+            clientMsgId: params.clientMsgId,
+          },
+          { botId: params.botId, input: result.message },
+        );
+      }
+      const output = [result.output, result.warning, result.notice].filter(Boolean).join('\n');
+      if (output) {
+        const messageId = randomUUID();
+        const fileId = result.artifact
+          ? await this.files.deliverArchive(
+              params.botId,
+              params.conversationId,
+              messageId,
+              result.artifact,
+            )
+          : undefined;
+        this.database.putMessage({
+          messageId,
+          conversationId: params.conversationId,
+          seq: this.database.head(),
+          author: { type: 'system' },
+          kind: 'system',
+          status: 'done',
+          createdAt: now(),
+          content: {
+            text: params.command + '\n\n' + output,
+            ...(fileId ? { files: [fileId] } : {}),
+          },
         });
-      },
-    );
+      }
+      operation.detail = output || 'Hermes command completed.';
+      operation.results.push({
+        botId: params.botId,
+        ok: true,
+        detail: operation.detail,
+        ...(result.type === 'prefill' && result.message
+          ? { native: { prefill: result.message } }
+          : result.type === 'navigate' && result.target
+            ? { native: { page: result.target, argument: result.message ?? '' } }
+            : result.type === 'export'
+              ? { native: { export: { filename: result.filename, content: result.content } } }
+              : result.type === 'client'
+                ? { native: { action: result.target, argument: result.message ?? '' } }
+                : {}),
+      });
+    });
   }
 
   private async sendMessage(
@@ -1118,7 +1188,11 @@ export class NodeApplication {
             const sequence = frame.seq ?? -1;
             if (sequence <= Math.max(run.lastSeq, this.appliedSeq.get(run.runId) ?? -1)) continue;
             const event = projectGatewayEvent(run, frame);
-            if (event) await this.acceptEvent(run, event);
+            if (event) {
+              if (frame.execution_generation !== undefined)
+                run.executionGeneration = frame.execution_generation;
+              await this.acceptEvent(run, event);
+            }
             this.appliedSeq.set(run.runId, sequence);
             if (run.lastSeq >= sequence) {
               const session = this.database.hermesSession(

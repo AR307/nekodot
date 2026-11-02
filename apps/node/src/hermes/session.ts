@@ -8,7 +8,8 @@ export interface NativeSessionSnapshot {
   last_sequence: number;
   running: boolean;
   execution_generation: number;
-  messages?: { role: string; text?: string | null }[];
+  revision: number;
+  messages?: { role: string; content?: unknown; text?: string | null; row_id?: number }[];
   prompts?: {
     kind: 'approval' | 'clarify';
     prompt_id: string;

@@ -4,6 +4,9 @@ import type { NodeDatabase } from './database';
 import { openNativeSession } from './hermes/session';
 import { HermesGatewayError } from './hermes/gateway';
 import { NodeFault } from './fault';
+import { BotSessions, sessionCommandNames, type CommandResult } from './session-commands';
+import { commandControl, controlCommandNames } from './command-controls';
+import { hostCommand, hostCommandNames } from './host-commands';
 
 const catalogSchema = z.object({
   pairs: z.array(z.tuple([z.string(), z.string()])),
@@ -39,8 +42,29 @@ const pageCommands: Record<string, string> = {
   '/config': 'settings',
   '/model': 'model',
   '/plugins': 'plugins',
+  '/subscription': 'subscription',
+  '/journey': 'journey',
+  '/hatch': 'hatch',
+  '/import': 'profile-import',
 };
+const clientCommands = new Set([
+  '/copy',
+  '/image',
+  '/paste',
+  '/focus',
+  '/density',
+  '/timestamps',
+  '/skin',
+  '/statusbar',
+  '/battery',
+  '/redraw',
+  '/quit',
+]);
 const adaptedCommands = new Set([
+  ...clientCommands,
+  ...sessionCommandNames,
+  ...controlCommandNames,
+  ...hostCommandNames,
   ...Object.keys(pageCommands),
   '/history',
   '/agents',
@@ -49,14 +73,26 @@ const adaptedCommands = new Set([
   '/reload',
   '/prompt',
   '/palette',
+  '/pet',
+  '/login',
+  '/skills',
+  '/cron',
 ]);
+const unavailableReasons: Record<string, string> = {
+  '/handoff': 'Hermes v0.22.5 does not expose handoff on canonical gateway sessions.',
+  '/mouse': 'Terminal mouse-capture setting. App mouse and touch use native controls.',
+  '/indicator': 'Terminal prompt indicator. App uses its own running-state display.',
+};
 
 /** Discovery and execution remain in Hermes, against the Bot's existing session. */
 export class BotCommands {
+  readonly sessions: BotSessions;
   constructor(
     private readonly database: NodeDatabase,
     private readonly hermes: HermesRuntime,
-  ) {}
+  ) {
+    this.sessions = new BotSessions(database, hermes);
+  }
 
   private async discover(botId: string) {
     const catalog = catalogSchema.parse(
@@ -79,9 +115,10 @@ export class BotCommands {
             ? 'app'
             : gatewayCommands.has(name) || dynamic.has(name) || Object.hasOwn(catalog.skills, name)
               ? 'available'
-              : catalog.commands[name]?.desktop === 'terminal'
+              : catalog.commands[name]?.desktop === 'terminal' || name === '/mouse'
                 ? 'terminal'
                 : 'not-integrated',
+          ...(unavailableReasons[name] ? { unavailableReason: unavailableReasons[name] } : {}),
           skill:
             Object.hasOwn(catalog.skills, name) || Object.hasOwn(catalog.skills, name.slice(1)),
         })),
@@ -95,7 +132,7 @@ export class BotCommands {
     return { commands, warning };
   }
 
-  async execute(botId: string, command: string) {
+  async execute(botId: string, command: string, requestId?: string): Promise<CommandResult> {
     const dm = this.database.conversations().find((c) => c.kind === 'dm' && c.botId === botId);
     if (!dm) throw new NodeFault('not_found', 'Bot conversation not found');
     const catalog = await this.discover(botId);
@@ -110,13 +147,70 @@ export class BotCommands {
       );
     if (entry?.availability === 'terminal')
       throw new NodeFault('invalid_params', 'This Hermes command requires its native terminal.');
+    if (clientCommands.has(name)) return { type: 'client', target: name, message: arg };
+    if (hostCommandNames.has(name))
+      return hostCommand(this.database, this.hermes, botId, name, arg);
+    if (name === '/login' && !arg) return { type: 'navigate', target: 'sources' };
+    if (name === '/hatch') return { type: 'navigate', target: 'hatch', message: arg };
+    if (name === '/journey') {
+      if (!arg || arg === 'list') return { type: 'navigate', target: 'journey' };
+      if (arg.startsWith('edit '))
+        return { type: 'navigate', target: 'journey', message: arg.slice(5).trim() };
+      throw new NodeFault(
+        'invalid_params',
+        'Usage: /journey [list|edit <entry-id>]. Deletion is not offered.',
+      );
+    }
+    if (name === '/pet') {
+      if (!arg || arg === 'list') return { type: 'navigate', target: 'pets' };
+      const gateway = this.hermes.gateway(botId);
+      if (arg === 'toggle') {
+        const info = await gateway.rpc<{ enabled: boolean; active: string }>('pet.gallery', {
+          profile: botId,
+        });
+        if (!info.enabled && !info.active) return { type: 'navigate', target: 'pets' };
+        await gateway.rpc(info.enabled ? 'pet.disable' : 'pet.select', {
+          profile: botId,
+          ...(info.enabled ? {} : { slug: info.active }),
+        });
+      } else if (arg.startsWith('scale ')) {
+        const scale = Number(arg.slice(6));
+        if (!Number.isFinite(scale) || scale <= 0)
+          throw new NodeFault('invalid_params', 'Usage: /pet scale <positive number>');
+        await gateway.rpc('pet.scale', { profile: botId, scale });
+      } else {
+        await gateway.rpc('pet.select', { profile: botId, slug: arg }, 120_000);
+      }
+      return { output: 'Hermes profile pet setting saved.', type: 'navigate', target: 'pets' };
+    }
+    if (sessionCommandNames.has(name)) return this.sessions.execute(botId, name, arg, requestId);
+    if (
+      controlCommandNames.has(name) ||
+      (name === '/model' && arg && arg !== '--refresh') ||
+      (name === '/agents' && arg) ||
+      (name === '/tools' && arg && arg !== 'list')
+    )
+      return commandControl(this.database, this.hermes, botId, name, arg);
     if (name === '/profile' && arg)
       throw new NodeFault(
         'invalid_params',
         'Each Bot uses its own Hermes profile. Select a different Bot to switch profiles.',
       );
+    if (name === '/skills' && /^(install|search|browse|inspect)(?:\s|$)/.test(arg)) {
+      const [action, ...query] = arg.split(/\s+/);
+      const result = await this.hermes.management.rpc<Record<string, unknown>>(
+        'skills.manage',
+        {
+          profile: botId,
+          action,
+          query: query.join(' '),
+        },
+        15 * 60_000,
+      );
+      return { output: JSON.stringify(result, null, 2) };
+    }
     if (pageCommands[name]) {
-      if (arg)
+      if (arg && arg !== '--refresh')
         throw new NodeFault(
           'invalid_params',
           `Use ${name} without arguments to open its App page.`,
@@ -128,6 +222,21 @@ export class BotCommands {
     const gateway = this.hermes.gateway(botId);
     const session = await openNativeSession(this.database, this.hermes, botId, dm.conversationId);
     const params = { session_id: session.session_id };
+    if (name === '/cron' && arg && arg !== 'list') {
+      if (/^(remove|rm|delete|prune)(?:\s|$)/.test(arg))
+        throw new NodeFault(
+          'invalid_params',
+          'Task deletion requires separate authorization. Use /cron pause <id> to keep its data.',
+        );
+      const commandSocket = gateway.fork();
+      try {
+        return directiveSchema.parse(
+          await commandSocket.rpc('slash.exec', { ...params, command }, 15 * 60_000),
+        );
+      } finally {
+        commandSocket.close();
+      }
+    }
     if (name === '/history') {
       if (arg) throw new NodeFault('invalid_params', 'Usage: /history');
       const history = z
@@ -168,10 +277,11 @@ export class BotCommands {
         output:
           [
             ...agents.subagents.map(
-              (row) => `Agent [${row.status ?? 'running'}]: ${row.goal ?? row.subagent_id}`,
+              (row) => `Agent ${row.subagent_id} [${row.status ?? 'running'}]: ${row.goal ?? ''}`,
             ),
             ...processes.processes.map(
-              (row) => `Process [${row.status ?? 'running'}]: ${row.command ?? row.session_id}`,
+              (row) =>
+                `Process ${row.session_id} [${row.status ?? 'running'}]: ${row.command ?? ''}`,
             ),
           ].join('\n') || 'No active subagents or processes in this Hermes session.',
       };

@@ -814,3 +814,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - Node typecheck、lint、32文件48测试及bundle、Flutter analyze与17项测试通过；初次真实自动化的输入焦点步骤问题已修正并重新完整运行。目录分类152条不等于152条命令全部实测。
 - 清理仅移动此前授权的三个旧安装包；没有永久删除或清空 AVD。匹配版本的 Windows/Android 私有手测候选另行拉起，生产、发布和push均未执行。报告：`docs/side-phase5-command-acceptance.md`；结果：`docs/evidence/side-phase5-commands-real.json`。
 - 真机、生产匹配版本、完整视觉矩阵、运行中子 Agent 控制及未列出的命令适配继续保留为待验收。
+
+### 2026-11-02 / Side Phase 5：原生命令扩展，模块一（Node）
+
+- 接入 canonical 会话操作、后台问答与子 Agent/进程控制，以及固定官方管理 API 的工具配置、日志、备份、profile archive 和 Git worktree；学习历程、宠物、订阅仍以 Hermes 为准，未新增 Agent 引擎。
+- Windows 真实模型旅程完成后台问答不污染主上下文、工具启停、新会话、worktree 创建/切换、备份下载、导出后经 App 导入新 Bot并保留记忆/真实欢迎。固定 Android 模拟器也完成主机/导入旅程；完整双端复测在下一模块继续。
+- 运行中真实验证子 Agent tail/steer/interrupt、暂停/恢复派生、真实后台进程 kill、私聊 slash steer 与独立 Stop、真实模型压缩。发现并修正后台完成帧被错配到下一次用户 admission，复测原场景通过；不是用录制结果替代模型。
+- 目录 152 条，其中 App 适配 52、原生 97、终端设置 2、未支持 1；另完成 55 个调用场景，调用成功不冒充所有参数/外部集成都通过。当前尚未完成的真机、语音采集、队列入队/排序等边界见实现文档。
+- 新增与真实问题对应的事件归属、原生参数、profile 配置写入和会话 receipt 辅助测试。未改生产、未删除数据或新建 AVD；本模块本地 commit、不 push。

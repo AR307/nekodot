@@ -659,3 +659,12 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - Windows 与固定 Android API35 模拟器通过真实 Node/Relay、官方 v0.22.5 和 gpt-6.1-sol 的流式回复、历史无新增模型回合、工具/子 Agent 查询、别名、技能重载、设置跳转及重连无重放旅程；不是只靠录制测试。完整报告见 `docs/side-phase5-command-acceptance.md`。
 - Node 32 文件48测试、typecheck、lint、bundle，Flutter analyze及17项测试通过。没有改生产或发布；保留未验真机、完整命令/参数和会话控制边界。
 - 额外按已授权范围将三个旧原生安装包移入私有回收目录，未永久删除；重建并启动匹配服务的 Windows/Android 私有手测候选，不将其中 QA 配置纳入 Git 或公开分发。
+
+### 2026-11-02 / Side Phase 5：原生命令适配（Node 模块）
+
+- 将会话新建/恢复/分支/撤回/重试/压缩/导出集中到 `session-commands.ts`；子 Agent、进程、后台问答、工具启停及浏览器控制集中到 `command-controls.ts`；日志、备份、profile 导入导出和工作区使用 `host-commands.ts` 的固定官方接口，不增加 shell/URL 代理或第二套执行通路。
+- 增加原生学习历程、宠物与订阅的薄投影，以及对应 RPC。原生 profile archive 经既有资料库交付、导入为新 Bot，保留原生记忆和技能。
+- 冻结目录实际为 152 条：52 条 App 适配、97 条原生动态/命令条目、2 条纯终端设置、1 条 canonical 不支持的 handoff。目录可用不代表全部参数已经验收；wake 仅依赖状态、queue 仅查询/取消，恢复或删除数据的操作不开放。
+- 真实发现工具配置写错 profile，改用官方 profile-scoped REST；发现 `wake.status` 不接受 session_id，修正原生参数；子 Agent/进程列表补上可用于后续控制的真实标识。
+- 真实复现子 Agent 回投污染下一次私聊输出：canonical 事件按原生 admission ID 归属，排除其他后台回合，并随实际事件更新 execution generation。Windows 同场景复测通过，真实 steer/Stop、子 Agent 控制和模型压缩通过；55 个原生命令调用场景完成，完整双端复测另记录。
+- 本模块仅本地提交；未改 Hermes 核心、未部署生产、未发布、未 push。实现说明：`docs/side-phase5-command-adapters.md`。

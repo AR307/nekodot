@@ -185,7 +185,7 @@ it('uploads a user file, sends images natively, and executes a selected group me
       clientMsgId: randomUUID(),
     })) as Operation;
     await until(() => app.operations.get(newSession.operationId).status !== 'running');
-    expect(app.operations.get(newSession.operationId)).toMatchObject({ status: 'failed' });
+    expect(app.operations.get(newSession.operationId)).toMatchObject({ status: 'done' });
     expect(fake.inspectRuns()).toHaveLength(1);
     const plan = (await rpc('commands.execute', {
       ...command,

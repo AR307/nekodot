@@ -102,6 +102,37 @@ export class FileLibrary {
     }
     message.content.files = [...new Set(ids)];
   }
+  async deliverArchive(botId: string, conversationId: string, messageId: string, source: string) {
+    const fileId = randomUUID(),
+      storage = join(this.database.directory, 'library', fileId);
+    const info = await stat(source);
+    await mkdir(join(storage, '..'), { recursive: true, mode: 0o700 });
+    await copyFile(source, storage);
+    const file: Attachment = {
+      fileId,
+      botId,
+      conversationId,
+      messageId,
+      name: basename(source),
+      mime: lookup(source) || 'application/octet-stream',
+      size: info.size,
+      sentAt: new Date().toISOString(),
+      available: true,
+    };
+    this.database.db
+      .prepare('INSERT INTO attachments VALUES(?,?,?,?,?,?)')
+      .run(fileId, botId, messageId, 'native-archive:' + source, storage, JSON.stringify(file));
+    return fileId;
+  }
+  profileArchive(fileId: string) {
+    const file = this.get(fileId);
+    if (!file.available || !/\.(tar\.gz|tgz)$/.test(file.name))
+      throw new NodeFault('invalid_params', 'Choose an uploaded Hermes profile .tar.gz archive.');
+    const row = this.database.db
+      .prepare('SELECT storage_path FROM attachments WHERE file_id=?')
+      .get(fileId)!;
+    return String(row.storage_path);
+  }
   async input(botId: string, text: string, ids: string[] = []): Promise<HermesInput> {
     if (!ids.length) return text;
     const parts: Exclude<HermesInput, string>[number]['content'] = [];

@@ -61,6 +61,7 @@ function frameFromRecordedEvent(
   return {
     type: frameType,
     session_id: session.sessionId,
+    admission_id: String(event.run_id),
     seq,
     replay_epoch: session.replayEpoch,
     payload,

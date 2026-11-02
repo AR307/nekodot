@@ -16,7 +16,7 @@ export class BotService {
     if (!bot || bot.archived) throw new NodeFault('not_found', 'Bot not found');
     return bot;
   }
-  async create(input: RpcParams<'bots.create'>) {
+  async create(input: Omit<RpcParams<'bots.create'>, 'archiveFileId'>, archive?: string) {
     const { approvalMode, ...fields } = input;
     await this.providers.source(input.sourceId);
     if (this.database.handleUsed(input.handle))
@@ -28,7 +28,12 @@ export class BotService {
       archived: false,
       createdAt: new Date().toISOString(),
     };
-    await this.hermes.configureBot(bot, true, approvalMode);
+    if (archive)
+      await this.hermes.management.request('/api/profiles/import', undefined, {
+        method: 'POST',
+        body: JSON.stringify({ archive, name: bot.botId }),
+      });
+    await this.hermes.configureBot(bot, !archive, approvalMode);
     await this.providers.configureBot(bot);
     this.database.putBot(bot);
     const conversation: Conversation = {

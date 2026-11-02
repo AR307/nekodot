@@ -49,6 +49,7 @@ export const rpcContracts = {
           name: z.string(),
           description: z.string(),
           availability: z.enum(['available', 'app', 'terminal', 'not-integrated']),
+          unavailableReason: z.string().optional(),
           skill: z.boolean(),
         }),
       ),
@@ -63,6 +64,66 @@ export const rpcContracts = {
       clientMsgId: z.uuid(),
     }),
     result: operationSchema,
+  },
+  'sessions.list': {
+    params: z.strictObject(botTarget),
+    result: z.strictObject({ sessions: z.array(nativeRecordSchema), currentSessionId: z.string() }),
+  },
+  'sessions.history': {
+    params: z.strictObject({ ...botTarget, sessionId: idSchema }),
+    result: z.object({ messages: z.array(nativeRecordSchema) }),
+  },
+  'learning.list': {
+    params: z.strictObject(botTarget),
+    result: z.object({
+      buckets: z.array(nativeRecordSchema),
+      summary: z.array(z.string()),
+      count: z.number(),
+    }),
+  },
+  'learning.get': {
+    params: z.strictObject({ ...botTarget, id: z.string().min(1) }),
+    result: nativeRecordSchema,
+  },
+  'learning.save': {
+    params: z.strictObject({ ...botTarget, id: z.string().min(1), content: z.string().min(1) }),
+    result: nativeRecordSchema,
+  },
+  'pets.list': {
+    params: z.strictObject(botTarget),
+    result: nativeRecordSchema,
+  },
+  'pets.thumbnail': {
+    params: z.strictObject({ ...botTarget, slug: z.string().min(1), url: z.string() }),
+    result: nativeRecordSchema,
+  },
+  'pets.manage': {
+    params: z.discriminatedUnion('action', [
+      z.strictObject({ ...botTarget, action: z.literal('select'), slug: z.string().min(1) }),
+      z.strictObject({ ...botTarget, action: z.literal('disable') }),
+      z.strictObject({ ...botTarget, action: z.literal('scale'), scale: z.number().positive() }),
+      z.strictObject({
+        ...botTarget,
+        action: z.literal('generate'),
+        prompt: z.string().min(1),
+        provider: z.string().optional(),
+        count: z.number().int().min(1).max(4).optional(),
+      }),
+      z.strictObject({
+        ...botTarget,
+        action: z.literal('hatch'),
+        token: z.string().min(1),
+        index: z.number().int().min(0),
+        name: z.string().min(1),
+        prompt: z.string().optional(),
+        provider: z.string().optional(),
+      }),
+    ]),
+    result: operationSchema,
+  },
+  'subscription.get': {
+    params: z.strictObject(botTarget),
+    result: nativeRecordSchema,
   },
   'routines.list': {
     params: z.strictObject(botTarget),
@@ -263,6 +324,7 @@ export const rpcContracts = {
       ...botFields,
       sourceId: idSchema,
       approvalMode: approvalModeSchema.optional(),
+      archiveFileId: idSchema.optional(),
     }),
     result: z.strictObject({ bot: botSchema, conversation: conversationSchema }),
   },

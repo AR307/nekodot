@@ -106,7 +106,11 @@ export const messageSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     ...messageBase,
     kind: z.literal('system'),
-    content: z.strictObject({ text: z.string(), retryText: z.string().optional() }),
+    content: z.strictObject({
+      text: z.string(),
+      retryText: z.string().optional(),
+      files: z.array(idSchema).optional(),
+    }),
   }),
   z.strictObject({
     ...messageBase,

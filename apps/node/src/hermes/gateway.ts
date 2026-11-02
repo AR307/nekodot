@@ -139,6 +139,11 @@ export class HermesGateway {
     return this.openedGeneration;
   }
 
+  /** Native command sockets are unattached viewers (required by Hermes cron writes). */
+  fork() {
+    return new HermesGateway(this.endpoint, this.ticket);
+  }
+
   private async connect() {
     if (this.socket?.readyState === WebSocket.OPEN) return this.socket;
     if (this.connecting) return this.connecting;

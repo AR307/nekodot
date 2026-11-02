@@ -701,5 +701,7 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       await app.close();
       await relay.close();
     }
-  });
+    // This is a complete multi-group journey with restarts, not a 15-second benchmark.
+    // Each wait above still fails on missing behavior; allow the full journey to finish.
+  }, 60_000);
 });

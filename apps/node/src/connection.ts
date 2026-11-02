@@ -3,6 +3,7 @@ import { WebSocket } from 'ws';
 import { routineDeliverySchema } from '@nekodot/protocol';
 import type { Routines } from './routines';
 import { NodeFault } from './fault';
+import { HermesGatewayError } from './hermes/gateway';
 import type { SharedUserMemory } from './user-memory';
 import {
   envelopeSchema,
@@ -192,8 +193,16 @@ export function connectRelay(options: NodeConnectionOptions) {
           try {
             payload = { ok: true, result: await options.handleRpc(parsed.data) };
           } catch (error) {
-            const code = error instanceof NodeFault ? error.code : 'internal_error';
-            const message = error instanceof NodeFault ? error.message : 'Node request failed';
+            const code =
+              error instanceof NodeFault
+                ? error.code
+                : error instanceof HermesGatewayError
+                  ? 'unavailable'
+                  : 'internal_error';
+            const message =
+              error instanceof NodeFault || error instanceof HermesGatewayError
+                ? error.message
+                : 'Node request failed';
             payload = { ok: false, error: { code, message } };
           }
         }
