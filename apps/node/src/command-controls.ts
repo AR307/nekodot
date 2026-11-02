@@ -148,7 +148,7 @@ export async function commandControl(
     if (arg && arg !== 'status')
       throw new NodeFault(
         'invalid_params',
-        'Use /wake status to inspect native requirements. App microphone streaming is not connected; starting a server-local listener would not hear this device.',
+        'Use /wake to open this device’s microphone page, or /wake status for native requirements.',
       );
     const result = await gateway.rpc<Record<string, unknown>>('wake.status', {
       profile: botId,
@@ -156,7 +156,7 @@ export async function commandControl(
       client_capture: true,
     });
     return {
-      output: `Hermes wake-word requirements\n${JSON.stringify(result, null, 2)}\nScope: native detector on this Node. Client microphone capture is not connected; no listener was started.`,
+      output: `Hermes wake-word requirements\n${JSON.stringify(result, null, 2)}\nScope: native detector on this Node. Open /wake to stream this device’s microphone; no listener was started by this status query.`,
     };
   }
   if (name === '/agents') {
@@ -311,6 +311,8 @@ export async function commandControl(
     };
   }
   if (name === '/queue') {
+    const usage =
+      'Usage: /queue <prompt> | list | rm N | edit N <prompt> | steer N. Editing moves the replacement to the native FIFO tail.';
     const snapshot = await gateway.rpc<{
       pending: {
         admission_id: string;
@@ -330,18 +332,31 @@ export async function commandControl(
               .join('\n')
           : 'No pending Hermes admissions.',
       };
-    const match = /^rm\s+(\d+)$/.exec(arg);
+    const match = /^(rm|edit|steer)\s+(\d+)(?:\s+([\s\S]+))?$/.exec(arg);
     if (match) {
-      const row = snapshot.pending[Number(match[1]) - 1];
+      const row = snapshot.pending[Number(match[2]) - 1];
       if (!row || row.status !== 'queued')
         throw new NodeFault('invalid_params', 'That queued admission is no longer pending.');
+      if (match[1] === 'edit') {
+        if (!match[3]?.trim()) throw new NodeFault('invalid_params', usage);
+        return { type: 'queue', target: row.admission_id, message: match[3] };
+      }
+      if (match[3]) throw new NodeFault('invalid_params', usage);
+      if (match[1] === 'steer') {
+        const result = await gateway.rpc<{ status: string }>('prompt.steer_queued', {
+          ...params,
+          admission_id: row.admission_id,
+        });
+        return {
+          output: `Hermes queued steer: ${result.status}. The native owner decides whether this input is consumed or returns to its queue position.`,
+        };
+      }
       await gateway.rpc('prompt.cancel', { ...params, admission_id: row.admission_id });
       return { output: 'Native queued admission cancelled. The running turn was not interrupted.' };
     }
-    throw new NodeFault(
-      'invalid_params',
-      'Supported: /queue list, /queue rm N. Enqueueing and reordering are not connected to the App transcript yet; no task was submitted.',
-    );
+    if (/^(rm|edit|steer|move|reorder)(?:\s|$)/.test(arg))
+      throw new NodeFault('invalid_params', usage + ' This Hermes version has no reorder API.');
+    return { type: 'queue', message: arg };
   }
   // `/model model-id [--provider name] [--reasoning level]` is a native session pick.
   if (name === '/model') {

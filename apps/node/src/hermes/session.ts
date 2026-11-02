@@ -9,6 +9,7 @@ export interface NativeSessionSnapshot {
   running: boolean;
   execution_generation: number;
   revision: number;
+  pending?: { admission_id: string; steering?: boolean }[];
   messages?: { role: string; content?: unknown; text?: string | null; row_id?: number }[];
   prompts?: {
     kind: 'approval' | 'clarify';

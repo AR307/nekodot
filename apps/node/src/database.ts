@@ -27,6 +27,9 @@ export interface RunRecord {
   textMessageId?: string;
   inputMessageId: string;
   welcome?: true;
+  queue?: 'queued' | 'started';
+  replacesAdmissionId?: string;
+  native?: boolean;
 }
 
 export interface HermesSessionRecord {
@@ -383,6 +386,13 @@ export class NodeDatabase {
     this.db.prepare('UPDATE messages SET run_id=? WHERE message_id=?').run(runId, messageId);
   }
   saveRun(run: RunRecord) {
+    if (run.queue || run.native) {
+      this.setSetting(
+        (run.native ? 'native-admission:' : 'native-queue:') + run.inputMessageId,
+        run,
+      );
+      return;
+    }
     this.db
       .prepare(
         'INSERT INTO runs VALUES(?,?) ON CONFLICT(conversation_id) DO UPDATE SET data=excluded.data',
@@ -417,7 +427,12 @@ export class NodeDatabase {
       );
   }
   runs() {
-    return this.all<RunRecord>('SELECT data FROM runs').filter((r) => r.state !== 'idle');
+    return [
+      ...this.all<RunRecord>('SELECT data FROM runs'),
+      ...this.all<RunRecord>(
+        "SELECT value AS data FROM settings WHERE key LIKE 'native-queue:%' OR key LIKE 'native-admission:%' ORDER BY rowid",
+      ),
+    ].filter((r) => r.state !== 'idle');
   }
   groupHistory(conversationId: string) {
     return this.all<GroupChainRecord>(

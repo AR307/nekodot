@@ -390,6 +390,8 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
             };
       final chain = activity['chain'] as Map?;
       final hasText = input.text.trim().isNotEmpty || attached.isNotEmpty;
+      final queueCommand =
+          state != 'unknown' && RegExp(r'^/queue(?:\s|$)').hasMatch(input.text);
       final glassHeader = AppBar(
         flexibleSpace: const Frost(),
         automaticallyImplyLeading: !widget.embedded,
@@ -603,7 +605,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                   LogicalKeyboardKey.enter,
                   control: true,
                 ): () {
-                  if (!waiting && c.online) send();
+                  if ((!waiting || queueCommand) && c.online) send();
                 },
               },
               child: TextField(
@@ -674,7 +676,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
               ),
               onPressed:
                   !c.online ||
-                      waiting ||
+                      (waiting && !queueCommand) ||
                       sending ||
                       uploading ||
                       (commandOperation?['status'] == 'running' &&
@@ -869,6 +871,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
               )
             else
               ListView.builder(
+                key: const ValueKey('chat-messages'),
                 controller: scroll,
                 reverse: true,
                 padding: EdgeInsets.fromLTRB(14, 6, 14, composerHeight + 2),
@@ -1133,6 +1136,21 @@ class MessageTile extends StatelessWidget {
       content = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (body['queue'] != null)
+            Text(
+              switch (body['queue']) {
+                'queued' => c.tr(
+                  '已排队 · 当前任务完成后执行',
+                  'Queued · runs after the current turn',
+                ),
+                'running' => c.tr('队列任务', 'Queued task'),
+                'steered' => c.tr('已交给当前任务', 'Sent to the current turn'),
+                _ => c.tr('已取消排队', 'Queue entry cancelled'),
+              },
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: user ? tone.base.withValues(alpha: 0.75) : tone.ink3,
+              ),
+            ),
           if (body['routine'] != null)
             TextButton.icon(
               onPressed: () => pushPage(

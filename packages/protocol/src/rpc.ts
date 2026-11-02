@@ -56,6 +56,33 @@ export const rpcContracts = {
       warning: z.string(),
     }),
   },
+  'voice.status': {
+    params: z.strictObject({ botId: botSchema.shape.botId }),
+    result: nativeRecordSchema,
+  },
+  'voice.start': {
+    params: z.strictObject({ botId: botSchema.shape.botId }),
+    result: nativeRecordSchema,
+  },
+  'voice.feed': {
+    params: z.strictObject({
+      botId: botSchema.shape.botId,
+      listenerId: z.uuid(),
+      pcm: z.string().min(1),
+    }),
+    result: nativeRecordSchema,
+  },
+  'voice.stop': {
+    params: z.strictObject({ botId: botSchema.shape.botId, listenerId: z.uuid() }),
+    result: empty,
+  },
+  'voice.transcribe': {
+    params: z.strictObject({
+      botId: botSchema.shape.botId,
+      audio: z.string().startsWith('data:audio/wav;base64,'),
+    }),
+    result: operationSchema,
+  },
   'commands.execute': {
     params: z.strictObject({
       ...botTarget,

@@ -26,8 +26,11 @@ import { BotScreens } from './screens';
 import { Notifications } from './notifications';
 import { SharedUserMemory } from './user-memory';
 import { BotCommands } from './commands';
+import type { CommandResult } from './session-commands';
 import { NativeExtras } from './native-extras';
 import { Routines } from './routines';
+import { BotVoice } from './voice';
+import { NativeActivity } from './native-activity';
 import { openNativeSession, type NativeSessionSnapshot } from './hermes/session';
 
 type TextMessage = Extract<Message, { kind: 'text' }>;
@@ -168,6 +171,8 @@ export class NodeApplication {
   readonly commands: BotCommands;
   readonly nativeExtras: NativeExtras;
   readonly routines: Routines;
+  readonly voice: BotVoice;
+  private readonly nativeActivity: NativeActivity;
   onEvent: (event: PersistedEvent) => void = () => {};
   onLive: (event: LiveEvent) => void = () => {};
   private readonly consumers = new Map<string, AbortController>();
@@ -198,6 +203,52 @@ export class NodeApplication {
     this.groups = new GroupService(this.database);
     this.operations = new Operations(this.database);
     this.commands = new BotCommands(this.database, hermes);
+    this.voice = new BotVoice(this.database, hermes);
+    this.nativeActivity = new NativeActivity(
+      this.database,
+      hermes,
+      (session, frame, replayEpoch) => {
+        if (frame.type === 'review.summary') {
+          const text = frame.payload?.text;
+          const messageId = `native-review:${session.storedSessionId}:${replayEpoch}:${frame.seq}`;
+          if (typeof text === 'string' && text.trim() && !this.database.message(messageId))
+            this.database.putMessage({
+              messageId,
+              conversationId: session.conversationId,
+              seq: this.database.head(),
+              author: { type: 'bot', id: session.botId },
+              kind: 'system',
+              status: 'done',
+              createdAt: now(),
+              content: { text },
+            });
+          return;
+        }
+        const admissionId = frame.admission_id ?? frame.payload?.admission_id;
+        if (
+          typeof admissionId !== 'string' ||
+          this.database.runs().some((run) => run.runId === admissionId) ||
+          this.database.messagesForRun(admissionId).length
+        )
+          return;
+        const run: RunRecord = {
+          botId: session.botId,
+          conversationId: session.conversationId,
+          inputMessageId: admissionId,
+          runId: admissionId,
+          native: true,
+          storedSessionId: session.storedSessionId,
+          sessionId: session.storedSessionId,
+          executionGeneration: frame.execution_generation,
+          replayEpoch,
+          lastSeq: (frame.seq ?? 0) - 1,
+          state: 'thinking',
+        };
+        this.database.saveRun(run);
+        this.activeRuns.set(run.conversationId, run);
+        this.consume(run, hermes.gateway(run.botId));
+      },
+    );
     this.nativeExtras = new NativeExtras(hermes);
     this.userMemory = new SharedUserMemory(this.database, hermes);
     this.management = new BotManagement(
@@ -216,6 +267,33 @@ export class NodeApplication {
 
   async handle(request: RpcRequest): Promise<unknown> {
     switch (request.method) {
+      case 'voice.status':
+        this.bots.get(request.params.botId);
+        return this.voice.status(request.params.botId);
+      case 'voice.start':
+        this.bots.get(request.params.botId);
+        return this.voice.start(request.params.botId);
+      case 'voice.feed':
+        this.bots.get(request.params.botId);
+        return this.voice.feed(request.params.botId, request.params.listenerId, request.params.pcm);
+      case 'voice.stop':
+        this.bots.get(request.params.botId);
+        return this.voice.stop(request.params.listenerId, request.params.botId);
+      case 'voice.transcribe':
+        this.bots.get(request.params.botId);
+        return this.operations.start(
+          'voice-transcription',
+          [request.params.botId],
+          async (operation) => {
+            const result = await this.voice.transcribe(request.params.botId, request.params.audio);
+            operation.results.push({
+              botId: request.params.botId,
+              ok: true,
+              detail: 'Hermes transcription completed',
+              native: result,
+            });
+          },
+        );
       case 'commands.list':
         this.bots.get(request.params.botId);
         return this.commands.catalog(request.params.botId);
@@ -529,7 +607,7 @@ export class NodeApplication {
         if (!run.runId) {
           const input = this.database.message(run.inputMessageId);
           const chain = run.groupId ? this.database.chain(run.conversationId) : undefined;
-          this.activeRuns.set(run.conversationId, run);
+          if (run.queue !== 'queued') this.activeRuns.set(run.conversationId, run);
           void this.startRun(
             run,
             chain?.currentInput ?? (input?.kind === 'text' ? input.content.text : ''),
@@ -545,8 +623,16 @@ export class NodeApplication {
         if (receipt.status === 'unknown') {
           this.pauseUnknown(run);
         } else if (receipt.status === 'queued' || receipt.status === 'started') {
-          this.activeRuns.set(run.conversationId, run);
-          this.restoreNativePrompts(run, snapshot.prompts ?? []);
+          if (
+            run.queue === 'queued' &&
+            receipt.status === 'started' &&
+            !snapshot.pending?.some((row) => row.admission_id === run.runId && row.steering)
+          ) {
+            run.queue = 'started';
+            this.queueMessage(run, 'running');
+          }
+          if (run.queue !== 'queued') this.activeRuns.set(run.conversationId, run);
+          if (run.queue !== 'queued') this.restoreNativePrompts(run, snapshot.prompts ?? []);
           this.publishActivity(run);
           this.consume(run, gateway);
         } else {
@@ -559,7 +645,7 @@ export class NodeApplication {
                 : receipt.outcome === 'failed'
                   ? 'failed'
                   : 'interrupted',
-            undefined,
+            receipt.result?.final_response,
             undefined,
             typeof receipt.outcome === 'string' ? receipt.outcome : undefined,
           );
@@ -572,7 +658,7 @@ export class NodeApplication {
             'Hermes no longer has this execution. It was not restarted.',
           );
         else {
-          this.activeRuns.set(run.conversationId, run);
+          if (run.queue !== 'queued') this.activeRuns.set(run.conversationId, run);
           this.publishActivity(run);
           this.consume(run, gateway);
         }
@@ -583,9 +669,12 @@ export class NodeApplication {
       if (chain.queue.length && !activeConversations.has(chain.conversationId))
         await this.startNextGroupRun(chain);
     }
+    this.nativeActivity.start();
   }
 
   async close() {
+    await this.nativeActivity.close();
+    this.voice.close();
     await this.routines.close();
     await this.userMemory.close();
     this.screens.close();
@@ -653,9 +742,22 @@ export class NodeApplication {
     )
       throw new NodeFault('conflict', 'A Hermes command is already running for this bot.');
     return this.operations.start(operationKind, [params.botId], async (operation) => {
-      let result = await this.commands.execute(params.botId, params.command, params.clientMsgId);
+      const refine = /^\/refine(?:\s+(.*))?$/.exec(params.command.trim());
+      let result: CommandResult;
+      if (refine && !/^(pending|approve|reject|diff)(?:\s|$)/.test(refine[1] ?? '')) {
+        await this.management.refineInOperation(params.botId, refine[1] ?? '', operation);
+        result = { output: operation.detail };
+      } else result = await this.commands.execute(params.botId, params.command, params.clientMsgId);
       if (result.type === 'alias' && result.target)
         result = await this.commands.execute(params.botId, result.target);
+      if (result.type === 'queue' && result.message) {
+        if (conversation.kind !== 'dm')
+          throw new NodeFault(
+            'invalid_params',
+            'Queue inputs in this Bot’s private chat. Group handoffs keep their existing routing.',
+          );
+        await this.queueInput(params, result.message, result.target);
+      }
       if ((result.type === 'send' || result.type === 'skill') && result.message) {
         await this.sendMessage(
           {
@@ -707,6 +809,41 @@ export class NodeApplication {
                 : {}),
       });
     });
+  }
+
+  private async queueInput(
+    params: RpcParams<'commands.execute'>,
+    text: string,
+    replacesAdmissionId?: string,
+  ) {
+    if (this.database.byClient(params.clientMsgId)) return;
+    if (this.database.runs().some((run) => run.botId === params.botId && run.groupId))
+      throw new NodeFault(
+        'conflict',
+        'Finish this Bot’s group turn before queueing a private input.',
+      );
+    const message: TextMessage = {
+      messageId: randomUUID(),
+      conversationId: params.conversationId,
+      seq: this.database.head(),
+      author: { type: 'user' },
+      kind: 'text',
+      status: 'done',
+      createdAt: now(),
+      content: { text, queue: 'queued' },
+    };
+    const run: RunRecord = {
+      conversationId: params.conversationId,
+      botId: params.botId,
+      inputMessageId: message.messageId,
+      submissionId: params.clientMsgId,
+      lastSeq: -1,
+      state: 'thinking',
+      queue: 'queued',
+      ...(replacesAdmissionId ? { replacesAdmissionId } : {}),
+    };
+    this.database.putMessage(message, { clientMsgId: params.clientMsgId }, run);
+    await this.startRun(run, text);
   }
 
   private async sendMessage(
@@ -818,7 +955,7 @@ export class NodeApplication {
       inputMessageId: userMessage.messageId,
     };
     if (params.files?.length) this.files.attach(userMessage, params.files);
-    this.activeRuns.set(run.conversationId, run);
+    if (run.queue !== 'queued') this.activeRuns.set(run.conversationId, run);
     userMessage.seq = this.database.head();
     this.database.putMessage(userMessage, { clientMsgId: params.clientMsgId }, run);
     this.publishActivity(run);
@@ -1037,13 +1174,18 @@ export class NodeApplication {
         [instructions, input + routineContext.text].filter(Boolean).join('\n\n'),
         attachments,
       );
-      const admission = await gateway.rpc<NativeAdmission>('prompt.submit', {
-        session_id: run.sessionId,
-        text: nativeInput.text,
-        submission_id: run.submissionId,
-        input_id: run.inputMessageId,
-        ...(nativeInput.attachments.length ? { attachments: nativeInput.attachments } : {}),
-      });
+      const admission = await gateway.rpc<NativeAdmission>(
+        run.replacesAdmissionId ? 'prompt.replace_queued' : 'prompt.submit',
+        {
+          session_id: run.sessionId,
+          text: nativeInput.text,
+          submission_id: run.submissionId,
+          ...(run.replacesAdmissionId
+            ? { admission_id: run.replacesAdmissionId }
+            : { input_id: run.inputMessageId, ...(run.queue ? { queued: true } : {}) }),
+          ...(nativeInput.attachments.length ? { attachments: nativeInput.attachments } : {}),
+        },
+      );
       run.runId = admission.admission_id;
       run.executionGeneration = admission.execution_generation ?? snapshot.execution_generation;
       run.state = 'thinking';
@@ -1127,7 +1269,7 @@ export class NodeApplication {
             this.reconcileNativeText(run, snapshot);
             run.lastSeq = snapshot.last_sequence;
           }
-          this.restoreNativePrompts(run, snapshot.prompts ?? []);
+          if (run.queue !== 'queued') this.restoreNativePrompts(run, snapshot.prompts ?? []);
           const session = this.database.hermesSession(
             run.groupId
               ? (this.database
@@ -1165,7 +1307,7 @@ export class NodeApplication {
           run.lastSeq = snapshot.last_sequence;
           run.executionGeneration = snapshot.execution_generation;
           this.reconcileNativeText(run, snapshot);
-          this.restoreNativePrompts(run, snapshot.prompts ?? []);
+          if (run.queue !== 'queued') this.restoreNativePrompts(run, snapshot.prompts ?? []);
           const session = this.database.hermesSession(
             run.groupId
               ? (this.database
@@ -1188,7 +1330,13 @@ export class NodeApplication {
             const sequence = frame.seq ?? -1;
             if (sequence <= Math.max(run.lastSeq, this.appliedSeq.get(run.runId) ?? -1)) continue;
             const event = projectGatewayEvent(run, frame);
-            if (event) {
+            if (event && !(run.queue === 'queued' && event.event.startsWith('run.'))) {
+              if (run.queue === 'queued' && event.event !== 'run.cancelled') {
+                run.queue = 'started';
+                this.activeRuns.set(run.conversationId, run);
+                this.queueMessage(run, 'running');
+                this.publishActivity(run);
+              }
               if (frame.execution_generation !== undefined)
                 run.executionGeneration = frame.execution_generation;
               await this.acceptEvent(run, event);
@@ -1221,12 +1369,36 @@ export class NodeApplication {
             this.pauseUnknown(run);
             return;
           }
+          if (receipt.status === 'started' && run.queue === 'queued') {
+            const snapshot = await gateway.rpc<NativeSessionSnapshot>('session.resume', {
+              session_id: run.storedSessionId!,
+              omit_messages: true,
+            });
+            // A native steer transfer also reads as started, but owns no separate turn or prompts.
+            if (!snapshot.pending?.some((row) => row.admission_id === run.runId && row.steering)) {
+              run.queue = 'started';
+              run.executionGeneration = receipt.execution_generation ?? run.executionGeneration;
+              this.activeRuns.set(run.conversationId, run);
+              this.queueMessage(run, 'running');
+              this.restoreNativePrompts(run, snapshot.prompts ?? []);
+              this.database.saveRun(run);
+              this.publishActivity(run);
+            }
+          }
           if (receipt.status === 'terminal') {
             const completed = await gateway.rpc<NativeAdmission>('prompt.receipt', {
               session_id: run.sessionId!,
               admission_id: run.runId,
               include_result: true,
             });
+            if (
+              run.queue === 'queued' &&
+              (completed.outcome === 'cancelled' || completed.outcome === 'steered')
+            ) {
+              this.queueMessage(run, completed.outcome);
+              this.end(run);
+              return;
+            }
             await this.finishFromState(
               run,
               completed.outcome === 'cancelled'
@@ -1615,13 +1787,17 @@ export class NodeApplication {
   private end(run: RunRecord) {
     run.state = 'idle';
     this.database.saveRun(run);
-    this.activeRuns.delete(run.conversationId);
+    if (this.activeRuns.get(run.conversationId)?.runId === run.runId)
+      this.activeRuns.delete(run.conversationId);
     if (run.runId) this.appliedSeq.delete(run.runId);
     this.publishActivity(run);
     void this.userMemory.sync();
   }
 
   private publishActivity(run: RunRecord) {
+    if (run.queue === 'queued') return;
+    const current = this.activeRuns.get(run.conversationId);
+    if (run.state === 'idle' && current && current.runId !== run.runId) return;
     const chain = run.groupId ? this.database.chain(run.conversationId) : undefined;
     this.onLive({
       kind: 'activity',
@@ -1630,6 +1806,14 @@ export class NodeApplication {
       state: run.state,
       chain: chain ? { count: chain.count, max: MAX_CHAIN } : undefined,
     });
+  }
+
+  private queueMessage(run: RunRecord, state: 'running' | 'cancelled' | 'steered') {
+    const message = this.database.message(run.inputMessageId) as TextMessage | undefined;
+    if (!message) return;
+    message.content.queue = state;
+    if (state === 'cancelled') message.status = 'cancelled';
+    this.database.putMessage(message, { runId: run.runId });
   }
 
   private async stop(conversationId: string) {
@@ -1859,6 +2043,18 @@ export class NodeApplication {
     pendingSteer?: string,
     failureReason?: string,
   ) {
+    if (
+      run.queue === 'queued' &&
+      ['cancelled', 'steered', 'replaced'].includes(failureReason ?? status)
+    ) {
+      this.queueMessage(run, failureReason === 'steered' ? 'steered' : 'cancelled');
+      this.end(run);
+      return;
+    }
+    if (run.queue === 'queued') {
+      run.queue = 'started';
+      this.queueMessage(run, 'running');
+    }
     this.settleControls(
       run,
       status === 'cancelled' ? 'cancelled' : status === 'completed' ? 'done' : 'failed',

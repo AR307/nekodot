@@ -71,6 +71,7 @@ const textContent = z.strictObject({
   files: z.array(z.uuid()).optional(),
   failureReason: z.string().optional(),
   welcome: z.literal(true).optional(),
+  queue: z.enum(['queued', 'running', 'cancelled', 'steered']).optional(),
   routine: z
     .strictObject({ routineId: z.string(), executionId: z.string(), sessionId: z.string() })
     .optional(),

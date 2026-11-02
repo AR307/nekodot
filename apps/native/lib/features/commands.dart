@@ -10,6 +10,7 @@ import 'settings.dart';
 import 'learning.dart';
 import 'pets.dart';
 import 'subscription.dart';
+import 'voice.dart';
 
 Future<void> openCommandPage(
   BuildContext context,
@@ -39,6 +40,7 @@ Future<void> openCommandPage(
     'pets' => PetsPage(client: client, botId: botId),
     'hatch' => PetsPage(client: client, botId: botId, hatchPrompt: argument),
     'subscription' => SubscriptionPage(client: client, botId: botId),
+    'voice' => VoicePage(client: client, botId: botId),
     _ => null,
   };
   if (destination != null) await pushPage(context, destination);

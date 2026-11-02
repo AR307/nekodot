@@ -110,98 +110,100 @@ export class BotManagement {
     return openNativeSession(this.database, this.hermes, botId, conversation.conversationId);
   }
   refine(botId: string, focus: string) {
+    return this.operations.start('memory.refine', [botId], async (operation) => {
+      await this.refineInOperation(botId, focus, operation);
+      operation.results.push({ botId, ok: true, detail: operation.detail });
+    });
+  }
+  async refineInOperation(botId: string, focus: string, operation: Operation) {
     this.bots.get(botId);
     if (this.database.runs().some((run) => run.botId === botId))
       throw new NodeFault(
         'conflict',
         'Wait for this bot to finish its current task before refining',
       );
-    return this.operations.start('memory.refine', [botId], async (operation) => {
-      const session = await this.session(botId);
-      const gateway = this.hermes.gateway(botId);
-      // Hermes emits review.summary only when it writes something. Its own completion log
-      // also covers a successful no-change review and provider failures.
-      const logPath =
-        '/api/logs?file=agent&search=' +
-        encodeURIComponent('[' + session.session_id + ']') +
-        '&lines=100';
-      const before = await this.hermes.management.request<{ lines: string[] }>(logPath, botId);
-      const baseline = before.lines.at(-1);
-      await new Promise<void>((resolve, reject) => {
-        const api = this.hermes.management;
-        const finish = (error?: Error) => {
-          clearTimeout(timer);
-          clearInterval(poll);
-          gateway.listeners.delete(listener);
-          if (error) reject(error);
-          else resolve();
-        };
-        const listener = (event: GatewayFrame) => {
-          if (event.type === 'review.summary' && event.session_id === session.session_id) {
-            operation.detail = String(event.payload?.text ?? 'Hermes review completed');
-            operation.results.push({ botId, ok: true, detail: operation.detail });
-            finish();
-          }
-        };
-        const timer = setTimeout(
-          () =>
-            finish(
-              new NodeFault(
-                'unavailable',
-                'Hermes has not reported completion. Refresh the native memory and pending review.',
-              ),
+    const session = await this.session(botId);
+    const gateway = this.hermes.gateway(botId);
+    // Hermes emits review.summary only when it writes something. Its own completion log
+    // also covers a successful no-change review and provider failures.
+    const logPath =
+      '/api/logs?file=agent&search=' +
+      encodeURIComponent('[' + session.session_id + ']') +
+      '&lines=100';
+    const before = await this.hermes.management.request<{ lines: string[] }>(logPath, botId);
+    const baseline = before.lines.at(-1);
+    await new Promise<void>((resolve, reject) => {
+      const api = this.hermes.management;
+      const finish = (error?: Error) => {
+        clearTimeout(timer);
+        clearInterval(poll);
+        gateway.listeners.delete(listener);
+        if (error) reject(error);
+        else resolve();
+      };
+      const listener = (event: GatewayFrame) => {
+        if (event.type === 'review.summary' && event.session_id === session.session_id) {
+          operation.detail = String(event.payload?.text ?? 'Hermes review completed');
+          finish();
+        }
+      };
+      const timer = setTimeout(
+        () =>
+          finish(
+            new NodeFault(
+              'unavailable',
+              'Hermes has not reported completion. Refresh the native memory and pending review.',
             ),
-          15 * 60_000,
-        );
-        const poll = setInterval(() => {
-          void api
-            .request<{ lines: string[] }>(logPath, botId)
-            .then((value) => {
-              const index = baseline ? value.lines.indexOf(baseline) : -1;
-              const lines = value.lines.slice(index + 1);
-              const complete = lines.find((line) => line.includes('Background review complete:'));
-              const failed = lines.find(
-                (line) =>
-                  line.includes('Background memory/skill review failed:') ||
-                  line.includes('Background review skipped:'),
+          ),
+        15 * 60_000,
+      );
+      const poll = setInterval(() => {
+        void api
+          .request<{ lines: string[] }>(logPath, botId)
+          .then((value) => {
+            const index = baseline ? value.lines.indexOf(baseline) : -1;
+            const lines = value.lines.slice(index + 1);
+            const complete = lines.find((line) => line.includes('Background review complete:'));
+            const failed = lines.find(
+              (line) =>
+                line.includes('Background memory/skill review failed:') ||
+                line.includes('Background review skipped:'),
+            );
+            if (failed || complete?.includes('result=error'))
+              finish(
+                new NodeFault(
+                  'unavailable',
+                  'Hermes memory review failed. Check this profile’s model configuration.',
+                ),
               );
-              if (failed || complete?.includes('result=error'))
-                finish(
-                  new NodeFault(
-                    'unavailable',
-                    'Hermes memory review failed. Check this profile’s model configuration.',
-                  ),
-                );
-              else if (complete) {
-                operation.detail = complete.includes('result=none')
-                  ? 'Hermes review completed; no changes were needed.'
-                  : 'Hermes review completed. Refresh to read memory and pending changes.';
-                operation.results.push({ botId, ok: true, detail: operation.detail });
-                finish();
-              }
-            })
-            .catch((error: Error) => finish(error));
-        }, 2000);
-        gateway.listeners.add(listener);
-        void gateway
-          .rpc<{ output?: string }>(
-            'slash.exec',
-            {
-              session_id: session.session_id,
-              command: '/refine' + (focus.trim() ? ' ' + focus.trim() : ''),
-            },
-            120_000,
-          )
-          .then((result) => {
-            operation.detail = result.output ?? '';
-            this.operations.save(operation);
-            if (!/background|Reviewing/i.test(operation.detail))
-              finish(new NodeFault('conflict', operation.detail));
+            else if (complete) {
+              operation.detail = complete.includes('result=none')
+                ? 'Hermes review completed; no changes were needed.'
+                : 'Hermes review completed. Refresh to read memory and pending changes.';
+              finish();
+            }
           })
-          .catch(finish);
-      });
-      await this.userMemory.sync();
+          .catch((error: Error) => finish(error));
+      }, 2000);
+      gateway.listeners.add(listener);
+      void gateway
+        .rpc<{ output?: string }>(
+          'slash.exec',
+          {
+            session_id: session.session_id,
+            command: '/refine' + (focus.trim() ? ' ' + focus.trim() : ''),
+          },
+          120_000,
+        )
+        .then((result) => {
+          operation.detail = result.output ?? '';
+          this.operations.save(operation);
+          if (!/background|Reviewing/i.test(operation.detail))
+            finish(new NodeFault('conflict', operation.detail));
+        })
+        .catch(finish);
     });
+    await this.userMemory.sync();
   }
   async review(input: RpcParams<'memory.review'>) {
     this.bots.get(input.botId);

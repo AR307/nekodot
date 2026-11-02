@@ -78,9 +78,9 @@ def _status(raw_args):
     from hermes_state_runtime import list_session_admissions
     from gateway.session_results import admission_result
     from hermes_cli.profiles import get_profile_dir
-    params = json.loads(raw_args)
-    profile = params["profile"]
-    known = set(params["settled"])
+    params = json.loads(raw_args) if raw_args.strip() else {}
+    profile = params.get("profile") or _home().name
+    known = set(params.get("settled", []))
     events = []
     # command.dispatch has no live session here: bind the native store explicitly.
     db = SessionDB(db_path=get_profile_dir(profile) / "state.db", read_only=True)

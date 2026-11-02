@@ -676,3 +676,12 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 实测修正长时间使用的电量刷新 Future/setState 异常、用户气泡时间戳对比度和新页面长内容叠顶栏。`/help` 与指令栏展示实际 App 参数，不再照搬 CLI 的删除、服务器路径或未连接的麦克风/队列参数。
 - 最新原生目录 152 条：53 App 适配、96 原生/动态条目、2 纯终端设置、1 canonical 不支持。缺图像服务的孵化、无账号的 Nous 订阅、App 语音及队列写入不计通过；逐项范围记录在命令验收文档。
 - 不覆盖其它 UI/截图改动，不删除验收数据，不发布或 push；最终工程检查、安装包与手工系统对话框验收另行记录。
+
+### 2026-11-02 / Side Phase 5：队列、语音入口与原生后台结果
+
+- 原生 FIFO 队列接通入队/list/rm/edit/steer，保留输入卡的实际状态，取消/编辑/steer 不生成虚假回复。真实复现 pending.steering 被当成独立 started 回合，修正后双端真实审批/重连/队列旅程通过。
+- 增加本机 PCM16 麦克风、原生 wake/feed 与转录入口，离开页面或后台停止采音，转录可编辑后明确发送。双端仅通过原生依赖提示；QA Hermes 未配置 STT 且缺 numpy，不宣称音频唤醒或转录成功。
+- 只读观察 Hermes 原生自动回合 admission/review.summary，复用已有消费/恢复和消息通路；Windows 真实 loop 结果已进入聊天。/refine 与详情页共用原生操作，等待真实完成；无参数状态插件 JSON 解析修正，双端调用通过。
+- 官方 v0.22.5 local heartbeat 真实保存却不执行，源码确认原生 local adapter 分支提前返回。产品保留查询/暂停/停止，创建/恢复明确提示不可用；未修改核心或增加调度引擎。
+- Windows 实际系统保存 JSON/Markdown/HTML（中文文件名）及双端 /quit 后服务器任务继续完成已核对。新增 /init /learn /review /refine 完整旅程未通过；后续模型返回余额不足403，已请求用户恢复，不以 fake/回放替代。
+- 当前 typecheck、35文件57服务端测试、Flutter analyze通过；最终独立检出检查和构建另记。未删除数据、未改生产、未发布或push。

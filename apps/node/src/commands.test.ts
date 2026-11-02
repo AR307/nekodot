@@ -64,7 +64,7 @@ it('lists usable commands honestly and reads history through the native history 
     '--delete',
   );
   expect(catalog.commands.find((row) => row.name === '/queue')?.description).toContain(
-    'enqueue/edit/reorder are not connected',
+    'edit N <prompt>',
   );
   const history = await commands.execute('test-bot', '/history');
   expect(history.output).toContain('Bot: I remember the harmless test label.');
@@ -81,6 +81,15 @@ it('shows native child and process identifiers that users need for tail, steer a
   const result = await commands.execute('test-bot', '/agents');
   expect(result.output).toContain('Agent child-qa [running]: Inspect a harmless fixture');
   expect(result.output).toContain('Process proc-qa [running]: sleep 60');
+});
+
+it('does not acknowledge a local heartbeat that the pinned Hermes version cannot execute', async () => {
+  const { commands, rpc } = await commandJourney();
+  await expect(
+    commands.execute('test-bot', '/heartbeat every 60s Inspect the task'),
+  ).rejects.toThrow('does not execute them');
+  expect(rpc.mock.calls.some(([method]) => method === 'slash.exec')).toBe(false);
+  expect((await commands.execute('test-bot', '/heartbeat status')).output).toBe('Native reply');
 });
 
 it('App help explains the actual adapter syntax instead of advertising unsupported CLI arguments', async () => {

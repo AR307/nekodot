@@ -18,7 +18,16 @@ export const sessionCommandNames = new Set([
 
 export interface CommandResult {
   type?:
-    'exec' | 'plugin' | 'alias' | 'send' | 'skill' | 'prefill' | 'navigate' | 'export' | 'client';
+    | 'exec'
+    | 'plugin'
+    | 'alias'
+    | 'send'
+    | 'skill'
+    | 'prefill'
+    | 'navigate'
+    | 'export'
+    | 'client'
+    | 'queue';
   output?: string;
   warning?: string;
   notice?: string;

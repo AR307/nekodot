@@ -46,6 +46,7 @@ const pageCommands: Record<string, string> = {
   '/journey': 'journey',
   '/hatch': 'hatch',
   '/import': 'profile-import',
+  '/wake': 'voice',
 };
 const clientCommands = new Set([
   '/copy',
@@ -78,6 +79,7 @@ const adaptedCommands = new Set([
   '/skills',
   '/cron',
   '/help',
+  '/heartbeat',
 ]);
 const unavailableReasons: Record<string, string> = {
   '/handoff': 'Hermes v0.22.5 does not expose handoff on canonical gateway sessions.',
@@ -102,18 +104,20 @@ const appDescriptions: Record<string, string> = {
     'List native child/process IDs; tail, steer or stop a child, kill a process, pause/resume spawning.',
   '/journey': 'Browse or edit native learning entries (usage: /journey [list | edit <entry-id>]).',
   '/queue':
-    'Inspect or cancel native queued inputs (usage: /queue [list | rm N]). App enqueue/edit/reorder are not connected.',
+    'Queue a native input, inspect, cancel, edit or steer it (usage: /queue <prompt> | list | rm N | edit N <prompt> | steer N). Edits move to the FIFO tail.',
   '/model':
     'Open Bot model settings, or pick a session model: /model <id> [--provider name] [--reasoning level].',
   '/skin':
     'Set this App’s appearance (usage: /skin [light|dark|system]). Terminal skins do not apply.',
   '/wake':
-    'Read native wake-word requirements (usage: /wake [status]). App microphone capture is not connected.',
+    'Open this device’s microphone and native Hermes wake-word controls (usage: /wake [status]). The page shows missing native dependencies.',
   '/image': 'Attach a device image: /image [Windows path]; without a path opens the system picker.',
   '/update':
     'Check native Hermes updates (usage: /update [check]). Installation uses the managed Node release process.',
   '/quit':
     'Quit the Windows App or background Android; keep server tasks and history (usage: /quit).',
+  '/heartbeat':
+    'Read, pause or stop the native heartbeat (usage: /heartbeat [status|pause|stop]). Hermes v0.22.5 does not trigger it for local gateway sessions.',
   '/login': 'Open model authorization and custom API sources (usage: /login).',
 };
 
@@ -180,6 +184,11 @@ export class BotCommands {
       );
     if (entry?.availability === 'terminal')
       throw new NodeFault('invalid_params', 'This Hermes command requires its native terminal.');
+    if (name === '/heartbeat' && arg && !['status', 'pause', 'stop', 'off', 'clear'].includes(arg))
+      throw new NodeFault(
+        'unavailable',
+        'Hermes v0.22.5 saves local-session heartbeats but does not execute them. Creation/resume is unavailable; status, pause and stop still use native state. No task was created or changed.',
+      );
     if (name === '/help') {
       const query = arg.toLowerCase();
       const entries = catalog.commands.filter((row) =>
@@ -198,6 +207,7 @@ export class BotCommands {
     if (hostCommandNames.has(name))
       return hostCommand(this.database, this.hermes, botId, name, arg);
     if (name === '/login' && !arg) return { type: 'navigate', target: 'sources' };
+    if (name === '/wake' && !arg) return { type: 'navigate', target: 'voice' };
     if (name === '/hatch') return { type: 'navigate', target: 'hatch', message: arg };
     if (name === '/journey') {
       if (!arg || arg === 'list') return { type: 'navigate', target: 'journey' };
