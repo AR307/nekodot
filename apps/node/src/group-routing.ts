@@ -6,7 +6,9 @@ export const MAX_CHAIN = 6;
 export function mentionedBots(text: string, roster: Pick<Bot, 'botId' | 'handle'>[]) {
   const byHandle = new Map(roster.map((bot) => [bot.handle, bot.botId]));
   const result: string[] = [];
-  for (const match of text.matchAll(/(?:^|[^\w@-])@([a-z0-9-]+)(?![a-z0-9-])/g)) {
+  for (const match of text.matchAll(
+    /(?:^|[^\p{L}\p{M}\p{N}_@-])@([\p{L}\p{M}\p{N}_-]+)(?![\p{L}\p{M}\p{N}_-])/gu,
+  )) {
     const targets =
       match[1] === 'everyone' ? roster.map((bot) => bot.botId) : [byHandle.get(match[1]!)];
     for (const botId of targets) {

@@ -99,6 +99,22 @@ it('two custom APIs survive app restart; each profile keeps its selected route a
     expect(Object.values(await runtime.environment(bots[1]!.botId))).toEqual([
       'test-only-source-1',
     ]);
+    const namedBot = {
+      sourceId: source.sourceId,
+      displayName: '小鱼',
+      role: 'Test name-derived handle',
+      model: fixture.info.model,
+      avatar: { shape: 'dot' as const, color: '#E8603C' },
+    };
+    const automatic = await app.bots.create({ ...namedBot, handle: '' });
+    const repeated = await app.bots.create(namedBot);
+    expect(automatic.bot.handle).toBe('小鱼');
+    expect(repeated.bot.handle).toBe('小鱼-2');
+    const renamed = await app.bots.update({
+      botId: automatic.bot.botId,
+      displayName: '小鱼的新名字',
+    });
+    expect(renamed.bot.handle).toBe('小鱼');
     await app.bots.update({ botId: first.botId, modelSettings: { contextLength: null } });
     expect(await app.providers.info(first.botId)).toMatchObject({
       configuredContext: null,

@@ -900,3 +900,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 故障源为网络断流后的 WebSocket 握手无超时，连接卡住约 11 小时；重启现场节点恢复在线后，以 ws 原生 30 秒超时补齐重试触发。
 - 使用真实 TCP 代理和 Relay 验证首次握手卡住、第二次认证成功、在线状态及 snapshot；Node 24 测试、TypeScript、限定文件 ESLint/Prettier 和 Linux 单文件检查通过。
 - 已分发 Node `20261103022508` 并更新故障 VPS，保留旧 bundle、账号身份、profiles 与历史；无需新 APK，不重启 Relay 或其他产品。范围及证据见 docs/node-relay-handshake-fix.md。
+
+## 2026-11-03 · Bot 创建与默认代号修复
+
+- 根因为创建协议要求非空 handle，表单没有名称默认值。新建 handle 改为可省略，Node 从名称生成中文/英文代号，重名追加序号；手动代号与已有 Bot 的代号保留。
+- Flutter 候选已实现名称自动填入，修正群聊中文 @路由，RPC 参数错误指向实际字段，不记录输入或密钥。
+- 固定 NekodotNativePhase3 Android 模拟器 + 真实持久 Node/Relay + 官方 Hermes v0.22.5 + gpt-6.1-sol 完成创建、真实欢迎和指定 Bot 群聊回复；缺模型时保留表单并显示 params.model，补填后成功。Android 真机未在本次复验。
+- 4 文件 11 项辅助测试通过（含真实 TCP/Relay 握手恢复），TypeScript、限定 ESLint 和 Flutter analyze 通过。早期测试驱动的定位/等待及模型固定文本断言失败保留在私有现场，不记作产品通过。
+- 已发布 Node `20261103042820` 至现有分发入口，并在无活跃任务时更新故障 VPS；确认 active/running、NRestarts=0、online=true。保留身份、profiles、历史、备份和其他服务；未发布新 App 包、未 push。详情见 bot-default-handle-fix.md。

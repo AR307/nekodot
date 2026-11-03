@@ -41,6 +41,7 @@ class _BotEditorState extends State<BotEditor> {
   List<Json> sources = [];
   List<String> models = [];
   bool busy = false, permissionsReady = true;
+  bool handleEdited = false;
   NekodotClient get c => widget.client;
   @override
   void initState() {
@@ -143,7 +144,7 @@ class _BotEditorState extends State<BotEditor> {
         await c.rpc(existing == null ? 'bots.create' : 'bots.update', {
           if (existing != null) 'botId': existing['botId'],
           'displayName': name.text,
-          'handle': handle.text,
+          if (existing != null || handleEdited) 'handle': handle.text,
           'role': role.text,
           'model': model.text.trim(),
           'avatar': {'shape': shape, 'color': color},
@@ -338,7 +339,29 @@ class _BotEditorState extends State<BotEditor> {
           ],
           LabeledField(
             label: c.tr('名称', 'Name'),
-            child: TextField(controller: name, decoration: InputDecoration()),
+            child: TextField(
+              controller: name,
+              decoration: InputDecoration(),
+              onChanged: widget.group || widget.existing != null
+                  ? null
+                  : (value) {
+                      if (!handleEdited) {
+                        handle.text = value
+                            .trim()
+                            .toLowerCase()
+                            .replaceFirst(RegExp(r'^@'), '')
+                            .replaceAll(RegExp(r'\s+'), '-')
+                            .replaceAll(
+                              RegExp(r'[^a-z0-9\u3400-\u9fff_-]'),
+                              '-',
+                            )
+                            .replaceAll(RegExp(r'^-+|-+$'), '')
+                            .characters
+                            .take(24)
+                            .toString();
+                      }
+                    },
+            ),
           ),
           gap,
           if (widget.group) ...[
@@ -395,7 +418,14 @@ class _BotEditorState extends State<BotEditor> {
               label: '@handle',
               child: TextField(
                 controller: handle,
-                decoration: const InputDecoration(),
+                onChanged: (_) => handleEdited = true,
+                decoration: InputDecoration(
+                  helperText: c.tr(
+                    '默认按名称填写，支持中文；也可自己修改 @代号',
+                    'Filled from the name, including Chinese; you can customize the @handle',
+                  ),
+                  helperMaxLines: 3,
+                ),
               ),
             ),
             gap,

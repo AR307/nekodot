@@ -103,6 +103,40 @@ it('recovers a stalled Relay handshake and serves paired, persisted state', asyn
   const hello = new Promise<void>((resolve) => socket.once('message', () => resolve()));
   socket.send(JSON.stringify({ v: 1, id: randomUUID(), type: 'hello', payload: { token } }));
   await hello;
+  const invalidId = randomUUID();
+  const invalidResponse = new Promise<Envelope>((resolve) =>
+    socket.on('message', (raw) => {
+      const envelope = JSON.parse(raw.toString()) as Envelope;
+      if (envelope.replyTo === invalidId) resolve(envelope);
+    }),
+  );
+  socket.send(
+    JSON.stringify({
+      v: 1,
+      id: invalidId,
+      type: 'rpc.req',
+      nodeId: credentials.nodeId,
+      payload: {
+        method: 'bots.create',
+        params: {
+          displayName: '小鱼',
+          handle: '@Maple',
+          avatar: { shape: 'dot', color: '#E8603C' },
+          role: '',
+          sourceId: 'custom:research',
+          model: '',
+        },
+      },
+    }),
+  );
+  const invalid = rpcResponseSchema('bots.create').parse((await invalidResponse).payload);
+  expect(invalid).toMatchObject({
+    ok: false,
+    error: {
+      code: 'invalid_params',
+      message: 'Invalid RPC arguments: params.model: Choose a model or enter its model ID',
+    },
+  });
   const id = randomUUID();
   const response = new Promise<Envelope>((resolve) =>
     socket.on('message', (raw) => {

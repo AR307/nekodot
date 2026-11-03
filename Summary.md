@@ -746,3 +746,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 真实 VPS 在网络断流后停在 WebSocket 建立阶段约 11 小时；服务进程存活，Relay 已离线。使用 ws 原生 30 秒握手超时恢复既有退避重连，不改 Agent 执行逻辑。
 - 真实 TCP 卡住升级的 Relay 场景验证自动恢复、在线查询及持久 snapshot；限定文件检查和 Node 24 单文件运行通过。
 - Node 补丁 `20261103022508` 更新正式分发和故障 VPS，旧程序保留备份；不要求手机重装，不更改用户数据或其他服务。详情见 docs/node-relay-handshake-fix.md。
+
+## 2026-11-03 · 新建 Bot 默认按名称生成 handle
+
+- 修正空白 `@handle` 被创建协议拒绝的问题：新建时由 Node 按名称生成，支持中文；同名追加序号，手动代号仍可指定，已有 Bot 改名不改代号。
+- Flutter 表单在未手动修改时随名称填入代号；模型必填错误显示具体字段并保留表单。群聊提及同步支持中文代号。
+- 固定 Android 模拟器使用真实 Node/Relay、官方 Hermes v0.22.5 和 gpt-6.1-sol，通过实际表单创建、真实欢迎、中文群聊提及和缺模型纠正旅程；11 项辅助测试、TypeScript、限定 ESLint 及 Flutter analyze 通过。
+- Node `20261103042820` 已更新正式分发和故障 VPS，服务恢复 online；当前 APK 留空即可创建，无需重装。客户端自动填入的显示更新尚未发布新 APK/EXE，仅在候选中验证。未改 Hermes 核心、用户历史或其他服务，未 push。详见 docs/bot-default-handle-fix.md。

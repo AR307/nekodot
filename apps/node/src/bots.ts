@@ -17,14 +17,32 @@ export class BotService {
     return bot;
   }
   async create(input: Omit<RpcParams<'bots.create'>, 'archiveFileId'>, archive?: string) {
-    const { approvalMode, ...fields } = input;
+    const { approvalMode, handle: providedHandle, ...fields } = input;
     await this.providers.source(input.sourceId);
-    if (this.database.handleUsed(input.handle))
+    let handle = providedHandle;
+    if (!handle) {
+      const base = [
+        ...input.displayName
+          .trim()
+          .normalize('NFKC')
+          .toLowerCase()
+          .replace(/^@/, '')
+          .replace(/[^\p{L}\p{M}\p{N}_-]+/gu, '-')
+          .replace(/^-+|-+$/g, ''),
+      ].slice(0, 24);
+      if (!base.length) base.push(...'bot');
+      handle = base.join('');
+      for (let suffix = 2; this.database.handleUsed(handle); suffix++) {
+        const ending = '-' + suffix;
+        handle = base.slice(0, 24 - ending.length).join('') + ending;
+      }
+    } else if (this.database.handleUsed(handle))
       throw new NodeFault('conflict', 'Handle already used');
     const alphabet = 'abcdefghijklmnopqrstuvwxyz234567';
     const bot: Bot = {
       botId: 'nk-' + [...randomBytes(6)].map((n) => alphabet[n % 32]).join(''),
       ...fields,
+      handle,
       archived: false,
       createdAt: new Date().toISOString(),
     };

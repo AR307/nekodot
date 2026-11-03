@@ -47,6 +47,37 @@ const message = {
   createdAt: date,
 };
 describe('real product protocol journeys', () => {
+  it('accepts a displayed @handle when creating a Bot and names invalid fields', () => {
+    const params = {
+      displayName: '小鱼',
+      handle: ' @Maple-QA ',
+      avatar: { shape: 'dot', color: '#E8603C' },
+      role: '',
+      sourceId: 'custom:research',
+      model: 'chosen-model',
+      approvalMode: 'manual',
+      modelSettings: { contextLength: null },
+    };
+    const created = rpcRequestSchema.parse({ method: 'bots.create', params });
+    expect(created.params).toMatchObject({ displayName: '小鱼', handle: 'maple-qa' });
+    const invalid = rpcRequestSchema.safeParse({
+      method: 'bots.create',
+      params: { ...params, model: '' },
+    });
+    expect(invalid.success).toBe(false);
+    if (!invalid.success)
+      expect(invalid.error.issues).toContainEqual(
+        expect.objectContaining({
+          path: ['params', 'model'],
+          message: 'Choose a model or enter its model ID',
+        }),
+      );
+    for (const handle of ['', '小鱼', undefined])
+      expect(rpcContracts['bots.create'].params.safeParse({ ...params, handle }).success).toBe(
+        true,
+      );
+  });
+
   it('create bot, open DM, send, stream and reconcile full message', () => {
     expect(botSchema.parse(bot)).toEqual(bot);
     expect(conversationSchema.parse(conversation)).toEqual(conversation);

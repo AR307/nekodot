@@ -349,6 +349,7 @@ export const rpcContracts = {
   'bots.create': {
     params: z.strictObject({
       ...botFields,
+      handle: z.union([z.literal(''), botFields.handle]).optional(),
       sourceId: idSchema,
       approvalMode: approvalModeSchema.optional(),
       archiveFileId: idSchema.optional(),

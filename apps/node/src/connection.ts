@@ -189,7 +189,14 @@ export function connectRelay(options: NodeConnectionOptions) {
         if (!parsed.success)
           payload = {
             ok: false,
-            error: { code: 'invalid_params', message: 'Invalid RPC arguments' },
+            error: {
+              code: 'invalid_params',
+              message:
+                'Invalid RPC arguments: ' +
+                parsed.error.issues
+                  .map((issue) => `${issue.path.join('.') || 'request'}: ${issue.message}`)
+                  .join('; '),
+            },
           };
         else {
           try {

@@ -23,10 +23,20 @@ export const avatarSchema = z.strictObject({
 });
 export const botFields = {
   displayName: z.string().trim().min(1),
-  handle: z.string().regex(/^[a-z0-9-]{1,24}$/),
+  handle: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .transform((value) => value.replace(/^@/, ''))
+    .pipe(
+      z.string().regex(/^[\p{L}\p{M}\p{N}_-]{1,24}$/u, {
+        message:
+          '@handle must use 1-24 letters, Chinese characters, digits, underscores or hyphens',
+      }),
+    ),
   avatar: avatarSchema,
   role: z.string(),
-  model: z.string().min(1),
+  model: z.string().trim().min(1, 'Choose a model or enter its model ID'),
   sourceId: z.string().min(1).optional(),
   modelSettings: modelSettingsSchema.optional(),
 };
