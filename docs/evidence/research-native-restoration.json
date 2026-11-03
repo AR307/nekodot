@@ -1,0 +1,14 @@
+{
+  "windows": {
+    "passed": true,
+    "restoredReplies": 5
+  },
+  "android": {
+    "device": "android",
+    "createdBotsThisRun": 0,
+    "createdGroupThisRun": false,
+    "sentPromptThisRun": false,
+    "restoredFiveRepliesWithoutResending": true,
+    "physicalAndroidTested": false
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "hermes": "v0.22.5",
+  "evidence": "Native profile agent.log API completion summaries; endpoint, credentials and raw logs excluded",
+  "bots": [
+    {
+      "botId": "nk-7qvpft",
+      "calls": [
+        {
+          "model": "gpt-6.1-sol",
+          "inputTokens": 16844,
+          "outputTokens": 73,
+          "latencySeconds": 143.2
+        },
+        {
+          "model": "gpt-6.1-sol",
+          "inputTokens": 31693,
+          "outputTokens": 575,
+          "latencySeconds": 25.9
+        },
+        {
+          "model": "gpt-6.1-sol",
+          "inputTokens": 20136,
+          "outputTokens": 1612,
+          "latencySeconds": 51.2
+        }
+      ]
+    },
+    {
+      "botId": "nk-3phxq3",
+      "calls": [
+        {
+          "model": "gpt-6.1-sol",
+          "inputTokens": 30835,
+          "outputTokens": 69,
+          "latencySeconds": 5.8
+        },
+        {
+          "model": "gpt-6.1-sol",
+          "inputTokens": 32213,
+          "outputTokens": 618,
+          "latencySeconds": 22.1
+        }
+      ]
+    },
+    {
+      "botId": "nk-eoos62",
+      "calls": [
+        {
+          "model": "gpt-6.1-sol",
+          "inputTokens": 12705,
+          "outputTokens": 68,
+          "latencySeconds": 6.3
+        },
+        {
+          "model": "gpt-6.1-sol",
+          "inputTokens": 14603,
+          "outputTokens": 652,
+          "latencySeconds": 29.9
+        }
+      ]
+    },
+    {
+      "botId": "nk-3icqmv",
+      "calls": [
+        {
+          "model": "gpt-6.1-sol",
+          "inputTokens": 16844,
+          "outputTokens": 74,
+          "latencySeconds": 413.3
+        },
+        {
+          "model": "gpt-6.1-sol",
+          "inputTokens": 19328,
+          "outputTokens": 554,
+          "latencySeconds": 23.9
+        }
+      ]
+    }
+  ]
+}

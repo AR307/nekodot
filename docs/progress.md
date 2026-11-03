@@ -937,3 +937,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 辅助回归覆盖 @everyone + 待执行成员提及，以及失效提供方来源的群聊继续。TypeScript 与 36 文件/63 项测试通过。
 - 隔离 WSL 旧候选包启动报 YAML collection；从当前源码重建后恢复。当前源码未复现该异常，不把旧包问题计为新增源码修复。补充空 secrets 配置回归。
 - 真实 Windows 候选正在创建 4 个 gpt-6.1-sol Bot，随后运行论文讨论；本模块不提前声称真实旅程完成。无生产部署、无 push、无文件删除。
+
+## 2026-11-03 四 Bot 真实论文协作验收（模块二）
+
+- Windows 原生候选通过实际编辑器创建论文统筹、文献侦察、方法设计、实验审稿，全部 gpt-6.1-sol，组名“大模型论文工作组 · 真实验收”。
+- 实际模型 4 条欢迎 + 5 轮群聊完成；@everyone、待执行成员去重与已执行统筹再次接力均真实覆盖。Node 重启与客户端重开后保留相同消息，没有重复执行。
+- 固定 Android 模拟器 NekodotNativePhase3 读回同组五条结果，真实界面检查通过；不等于 Android 真机或生产 VPS 验收。
+- 产物：docs/research/rag-paper-concept.md、rag-group-discussion.md；完整环境、失败尝试、检查边界及截图见 docs/research-group-acceptance.md。文献原始页面已核对；论文实验与创新性仍待验证。
+- TypeScript/ESLint/build、36 文件63项辅助测试、Flutter analyze/18项测试通过。全仓 Prettier 原有3个文件仍未过；不修改无关成果。只本地提交，无 push、生产部署或删除。
