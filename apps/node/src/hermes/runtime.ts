@@ -10,6 +10,7 @@ import { HermesManagement } from './management';
 import { HermesGateway, type GatewayEndpoint } from './gateway';
 import { runHermesCli, spawnHermesCli, type HermesLaunch } from './cli';
 import { installRoutinePlugin } from './routines-plugin';
+import { installSecretsPlugin } from './secrets-plugin';
 
 export interface HermesRuntime {
   start(): Promise<void>;
@@ -149,7 +150,7 @@ export class ManagedHermes implements HermesRuntime {
     const apiTools = document.toJS().platform_toolsets?.api_server as string[] | undefined;
     document.setIn(
       ['platform_toolsets', 'api_server'],
-      [...new Set([...(apiTools ?? ['hermes-api-server']), 'clarify'])],
+      [...new Set([...(apiTools ?? ['hermes-api-server']), 'clarify', 'nekodot-secrets'])],
     );
     if (approvalMode) document.setIn(['approvals', 'mode'], approvalMode);
     if (profile === 'default') {
@@ -162,12 +163,21 @@ export class ManagedHermes implements HermesRuntime {
       else document.set('gateway', { multiplex_profiles: true });
     }
     await installRoutinePlugin(directory);
+    await installSecretsPlugin(directory);
     const enabled = document.toJS().plugins?.enabled as string[] | undefined;
-    document.setIn(['plugins', 'enabled'], [...new Set([...(enabled ?? []), 'nekodot-routines'])]);
+    document.setIn(
+      ['plugins', 'enabled'],
+      [...new Set([...(enabled ?? []), 'nekodot-routines', 'nekodot-secrets'])],
+    );
     document.setIn(
       ['plugins', 'entries', 'nekodot-routines', 'socket'],
       join(this.options.home, '..', 'routines.sock'),
     );
+    document.setIn(
+      ['plugins', 'entries', 'nekodot-secrets', 'socket'],
+      join(this.options.home, '..', 'routines.sock'),
+    );
+    document.setIn(['secrets', 'nekodot', 'enabled'], true);
     await writeFile(path, document.toString(), { mode: 0o600 });
   }
   async configureBot(
@@ -179,7 +189,7 @@ export class ManagedHermes implements HermesRuntime {
     if (create) await runHermesCli(this.launch, ['profile', 'create', bot.botId, '--no-alias']);
     await this.writeEnv(bot.botId);
     await this.config(bot.botId, approvalMode);
-    const rules = `<!-- nekodot managed: do not edit below -->\nYou are "${bot.displayName}", a member of the user's nekodot team. Your handle is @${bot.handle}.\n- Reply in the language the user writes in.\n- For passwords, 2FA codes, CAPTCHAs and payments: stop and ask the user to take over the screen. Never type these yourself.\n- In group chats, keep replies short. To hand work to a teammate, write @their-handle and say exactly what you need.\n- To create webhook routines, read the nekodot-routines skill. Use hermes routine; ask the user to open the task card and approve secure credential delivery. Never request or print the webhook secret in chat.\n<!-- end nekodot managed -->\n`;
+    const rules = `<!-- nekodot managed: do not edit below -->\nYou are "${bot.displayName}", a member of the user's nekodot team. Your handle is @${bot.handle}.\n- Reply in the language the user writes in.\n- For API keys, passwords, private keys and one-time codes: read the nekodot-secrets skill and request encrypted delivery cards. Never request values in chat or print them. Website logins use this profile's native vault and browser_vault. CAPTCHAs and other human verification require screen takeover. Payments are not supported by confidential delivery.\n- In group chats, keep replies short. To hand work to a teammate, write @their-handle and say exactly what you need.\n- To create webhook routines, read the nekodot-routines skill. Use hermes routine; ask the user to open the task card and approve secure credential delivery. Never request or print the webhook secret in chat.\n<!-- end nekodot managed -->\n`;
     const path = join(this.profileHome(bot.botId), 'SOUL.md');
     let soul = create ? bot.role + '\n\n' : await readFile(path, 'utf8');
     if (!create && previousRole !== undefined) {

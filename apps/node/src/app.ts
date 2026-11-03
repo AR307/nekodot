@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { BotSecrets } from './secrets';
 import { platform } from 'node:os';
 import type {
   LiveEvent,
@@ -171,6 +172,7 @@ export class NodeApplication {
   readonly commands: BotCommands;
   readonly nativeExtras: NativeExtras;
   readonly routines: Routines;
+  readonly secrets: BotSecrets;
   readonly voice: BotVoice;
   private readonly nativeActivity: NativeActivity;
   onEvent: (event: PersistedEvent) => void = () => {};
@@ -198,6 +200,51 @@ export class NodeApplication {
     this.database = new NodeDatabase(home);
     this.notifications = new Notifications(this.database);
     this.routines = new Routines(this.database, hermes, this.notifications);
+    this.secrets = new BotSecrets(this.database, hermes);
+    this.routines.onSecret = (input) => this.secrets.local(input);
+    this.secrets.onContinue = async (request, submissionId, text) => {
+      const gateway = hermes.gateway(request.botId);
+      const snapshot = await gateway.rpc<NativeSessionSnapshot>('session.resume', {
+        session_id: request.sessionId,
+        omit_messages: true,
+        defer_history: true,
+      });
+      const admission = await gateway.rpc<NativeAdmission>('prompt.submit', {
+        session_id: snapshot.session_id,
+        submission_id: submissionId,
+        input_id: submissionId,
+        text,
+        queued: true,
+      });
+      const run: RunRecord = {
+        botId: request.botId,
+        conversationId: request.conversationId,
+        inputMessageId: submissionId,
+        submissionId,
+        runId: admission.admission_id,
+        native: true,
+        queue: 'queued',
+        state: 'thinking',
+        sessionId: snapshot.session_id,
+        storedSessionId: snapshot.stored_session_id,
+        lastSeq: snapshot.last_sequence,
+        replayEpoch: snapshot.replay_epoch,
+        executionGeneration: admission.execution_generation ?? snapshot.execution_generation,
+      };
+      this.database.saveRun(run);
+      if (admission.status === 'terminal') {
+        const receipt = await gateway.rpc<NativeAdmission>('prompt.receipt', {
+          session_id: run.sessionId,
+          admission_id: run.runId,
+          include_result: true,
+        });
+        await this.finishFromState(
+          run,
+          receipt.outcome ?? 'failed',
+          receipt.result?.final_response,
+        );
+      } else this.consume(run, gateway);
+    };
     this.providers = new Providers(hermes, this.database);
     this.bots = new BotService(this.database, hermes, this.providers);
     this.groups = new GroupService(this.database);
@@ -267,6 +314,18 @@ export class NodeApplication {
 
   async handle(request: RpcRequest): Promise<unknown> {
     switch (request.method) {
+      case 'secrets.get':
+        return this.secrets.get(request.params.botId, request.params.requestId);
+      case 'secrets.submit':
+        return this.secrets.submit(request.params.botId, request.params.requestId, request.params);
+      case 'secrets.cancel':
+        return this.secrets.cancel(request.params.botId, request.params.requestId);
+      case 'secrets.list':
+        return this.secrets.list(request.params.botId);
+      case 'secrets.replace':
+        return this.secrets.replace(request.params.botId, request.params.credentialId);
+      case 'secrets.disable':
+        return this.secrets.disable(request.params.botId, request.params.credentialId);
       case 'voice.status':
         this.bots.get(request.params.botId);
         return this.voice.status(request.params.botId);
@@ -673,6 +732,7 @@ export class NodeApplication {
   }
 
   async close() {
+    this.secrets.close();
     await this.nativeActivity.close();
     this.voice.close();
     await this.routines.close();
@@ -1151,6 +1211,7 @@ export class NodeApplication {
 
   private async startRun(run: RunRecord, input: string, instructions?: string) {
     try {
+      this.secrets.attach(run.botId);
       await this.userMemory.sync();
       await this.providers.configureBot(this.bots.get(run.botId));
       const conversationId = run.groupId
@@ -1294,7 +1355,7 @@ export class NodeApplication {
                   run.conversationId)
               : run.conversationId,
           );
-          if (session)
+          if (session && session.storedSessionId === snapshot.stored_session_id)
             this.database.saveHermesSession({
               ...session,
               storedSessionId: snapshot.stored_session_id,
@@ -1367,7 +1428,7 @@ export class NodeApplication {
                       ?.conversationId ?? run.conversationId)
                   : run.conversationId,
               );
-              if (session)
+              if (session && session.storedSessionId === run.storedSessionId)
                 this.database.saveHermesSession({
                   ...session,
                   replayEpoch: replay.replay_epoch,
@@ -1465,6 +1526,7 @@ export class NodeApplication {
   }
 
   private async acceptEvent(run: RunRecord, event: HermesEvent) {
+    event = JSON.parse(this.secrets.scrub(run.botId, JSON.stringify(event))) as HermesEvent;
     const runId = run.runId!;
     if (event.event === 'clarify.request') {
       this.persistText(run, this.currentText(run), event.seq);
@@ -1694,6 +1756,7 @@ export class NodeApplication {
     status: 'completed' | 'failed' | 'cancelled',
     output: string,
   ) {
+    await this.secrets.finish(run);
     run.state = 'idle';
     const chain = this.database.chain(run.conversationId);
     this.activeRuns.delete(run.conversationId);
@@ -1801,6 +1864,9 @@ export class NodeApplication {
   }
 
   private end(run: RunRecord) {
+    void this.secrets
+      .finish(run)
+      .catch(() => console.warn('Temporary profile vault cleanup needs retry'));
     run.state = 'idle';
     this.database.saveRun(run);
     if (this.activeRuns.get(run.conversationId)?.runId === run.runId)
@@ -2059,6 +2125,7 @@ export class NodeApplication {
     pendingSteer?: string,
     failureReason?: string,
   ) {
+    if (output) output = this.secrets.scrub(run.botId, output);
     if (
       run.queue === 'queued' &&
       ['cancelled', 'steered', 'replaced'].includes(failureReason ?? status)

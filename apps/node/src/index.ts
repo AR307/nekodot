@@ -77,7 +77,10 @@ async function main() {
       onUpdate: () => {
         if (isRelease) void updater.offer();
       },
-      handleRpc: (request) => app.handle(request),
+      handleRpc: (request) => {
+        app.secrets.bind(credentials.nodeId);
+        return app.handle(request);
+      },
       userMemory: app.userMemory,
       routines: app.routines,
       handleTransfer: (request) => app.files.transfer(request),

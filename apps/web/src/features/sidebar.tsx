@@ -229,6 +229,7 @@ function previewText(message: Message) {
   if (message.kind === 'tool') return message.content.tool;
   if (message.kind === 'question') return message.content.question;
   if (message.kind === 'routine') return message.content.name;
+  if (message.kind === 'secret') return message.content.service;
   return message.content.command ?? message.content.prompt;
 }
 

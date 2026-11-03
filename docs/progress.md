@@ -908,3 +908,9 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 固定 NekodotNativePhase3 Android 模拟器 + 真实持久 Node/Relay + 官方 Hermes v0.22.5 + gpt-6.1-sol 完成创建、真实欢迎和指定 Bot 群聊回复；缺模型时保留表单并显示 params.model，补填后成功。Android 真机未在本次复验。
 - 4 文件 11 项辅助测试通过（含真实 TCP/Relay 握手恢复），TypeScript、限定 ESLint 和 Flutter analyze 通过。早期测试驱动的定位/等待及模型固定文本断言失败保留在私有现场，不记作产品通过。
 - 已发布 Node `20261103042820` 至现有分发入口，并在无活跃任务时更新故障 VPS；确认 active/running、NRestarts=0、online=true。保留身份、profiles、历史、备份和其他服务；未发布新 App 包、未 push。详情见 bot-default-handle-fix.md。
+
+## 2026-11-03 · 保密交付模块 1–2：原生请求、插件、加密保存
+
+- 实现 Bot 专属密钥、密文提交、精确用途匹配、原生技能请求/取消、CLI/skill 和 SecretSource；Node 只应用卡片中明确展示的目标。
+- 配置交付与原生继续使用固定请求 / submission 标识；群聊卡片包含接收 Bot，值和可用凭据不会通过群聊上下文转交其他 Bot。
+- 首轮辅助测试 3 文件 4 项通过，TypeScript 通过。真实隔离 Node/Relay、官方 Hermes v0.22.5 与 gpt-6.1-sol 已实际请求卡片；尚未完成双端交付及浏览器登录验收，不标记整个功能通过。

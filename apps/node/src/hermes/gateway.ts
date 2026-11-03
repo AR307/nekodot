@@ -128,7 +128,11 @@ export class HermesGateway {
   private openedGeneration = 0;
   private pending = new Map<number, Pending>();
   readonly listeners = new Set<(frame: GatewayFrame) => void>();
-  onRequest?: (method: string, params: Record<string, unknown>) => Promise<unknown>;
+  onRequest?: (
+    method: string,
+    params: Record<string, unknown>,
+    requestId: string,
+  ) => Promise<unknown>;
 
   constructor(
     private readonly endpoint: () => Promise<GatewayEndpoint>,
@@ -235,7 +239,11 @@ export class HermesGateway {
       return;
     }
     if (typeof frame.id === 'string' && frame.method && this.onRequest) {
-      void this.onRequest(frame.method, (frame.params ?? {}) as Record<string, unknown>).then(
+      void this.onRequest(
+        frame.method,
+        (frame.params ?? {}) as Record<string, unknown>,
+        frame.id,
+      ).then(
         (result) => {
           if (socket.readyState === WebSocket.OPEN)
             socket.send(JSON.stringify({ jsonrpc: '2.0', id: frame.id, result }));

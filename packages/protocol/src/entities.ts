@@ -89,6 +89,18 @@ const textContent = z.strictObject({
 export const messageSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     ...messageBase,
+    kind: z.literal('secret'),
+    content: z.strictObject({
+      requestId: z.string(),
+      botId: z.string(),
+      service: z.string(),
+      purpose: z.string(),
+      state: z.string(),
+      result: z.string(),
+    }),
+  }),
+  z.strictObject({
+    ...messageBase,
     kind: z.literal('routine'),
     content: z.strictObject({
       routineId: z.string(),

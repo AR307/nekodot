@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { secretRequestSchema, savedSecretSchema, secretEnvelopeSchema } from './secrets';
 import {
   routineInputSchema,
   routineSchema,
@@ -41,6 +42,45 @@ const groupCreate = z
   .strictObject(groupFields)
   .refine((g) => g.botIds.includes(g.leadBotId), 'Lead must be a member');
 export const rpcContracts = {
+  'secrets.get': {
+    params: z.strictObject({ ...botTarget, requestId: idSchema }),
+    result: z.strictObject({
+      request: secretRequestSchema,
+      publicKey: z.string(),
+      saved: z.array(savedSecretSchema),
+    }),
+  },
+  'secrets.submit': {
+    params: z
+      .strictObject({
+        ...botTarget,
+        requestId: idSchema,
+        envelope: secretEnvelopeSchema.optional(),
+        credentialId: z.string().optional(),
+        save: z.boolean(),
+      })
+      .refine(
+        (p) => Boolean(p.envelope) !== Boolean(p.credentialId),
+        'Submit encrypted fields or a saved credential',
+      ),
+    result: secretRequestSchema,
+  },
+  'secrets.cancel': {
+    params: z.strictObject({ ...botTarget, requestId: idSchema }),
+    result: secretRequestSchema,
+  },
+  'secrets.list': {
+    params: z.strictObject(botTarget),
+    result: z.strictObject({ credentials: z.array(savedSecretSchema) }),
+  },
+  'secrets.replace': {
+    params: z.strictObject({ ...botTarget, credentialId: idSchema }),
+    result: secretRequestSchema,
+  },
+  'secrets.disable': {
+    params: z.strictObject({ ...botTarget, credentialId: idSchema }),
+    result: empty,
+  },
   'commands.list': {
     params: z.strictObject(botTarget),
     result: z.strictObject({

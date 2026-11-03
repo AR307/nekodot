@@ -48,6 +48,7 @@ export class Routines {
   private draining?: Promise<void>;
   private publicUrl = '';
   onError: (message: string) => void = () => {};
+  onSecret?: (input: unknown) => Promise<unknown>;
   onRoutes: (routes: RoutineRoute[]) => Promise<void> = async () => {
     throw new NodeFault(
       'unavailable',
@@ -433,6 +434,11 @@ export class Routines {
     }, 5000);
   }
   private async local(value: unknown) {
+    if (value && typeof value === 'object' && 'action' in value && value.action === 'secret') {
+      if (!this.onSecret)
+        throw new NodeFault('unavailable', 'Confidential delivery is unavailable');
+      return this.onSecret(value);
+    }
     const base = z
       .object({
         action: z.enum(['create', 'update', 'get', 'list', 'send']),

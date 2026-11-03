@@ -753,3 +753,9 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - Flutter 表单在未手动修改时随名称填入代号；模型必填错误显示具体字段并保留表单。群聊提及同步支持中文代号。
 - 固定 Android 模拟器使用真实 Node/Relay、官方 Hermes v0.22.5 和 gpt-6.1-sol，通过实际表单创建、真实欢迎、中文群聊提及和缺模型纠正旅程；11 项辅助测试、TypeScript、限定 ESLint 及 Flutter analyze 通过。
 - Node `20261103042820` 已更新正式分发和故障 VPS，服务恢复 online；当前 APK 留空即可创建，无需重装。客户端自动填入的显示更新尚未发布新 APK/EXE，仅在候选中验证。未改 Hermes 核心、用户历史或其他服务，未 push。详见 docs/bot-default-handle-fix.md。
+
+## 2026-11-03 · 聊天内保密交付：Node 与原生插件
+
+- 新增 metadata-only secret 卡片、显式 secrets RPC、Bot 独立密钥和加密保存；Relay 只转发密文。通用请求使用原会话原生排队继续，不制造用户气泡，不重跑工具。
+- 复用 Unix socket 桥接，增加 profile 绑定的 CLI / skill / SecretSource；原生技能密钥通过 canonical server request 回答。网站通过原生 vault、browser supervisor 与控制权检查处理。
+- 辅助行为测试及 TypeScript 已通过；真实隔离 Hermes v0.22.5 + gpt-6.1-sol 已创建实际待交付卡片。客户端、网站及恢复验收继续进行，未发布、未 push。详见 docs/confidential-delivery.md。
