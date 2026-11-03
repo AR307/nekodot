@@ -3,6 +3,7 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { createServer, connect, type AddressInfo, type Socket } from 'node:net';
 import { WebSocket } from 'ws';
 import { nodeCredentialsSchema, rpcResponseSchema, type Envelope } from '@nekodot/protocol';
 import { createRelay } from '../../relay/src/server';
@@ -11,7 +12,7 @@ import { pairNode } from './pair';
 import { connectRelay } from './connection';
 import { NodeDatabase } from './database';
 
-it('pairs through HTTP, saves private credentials and serves persisted state over Relay', async () => {
+it('recovers a stalled Relay handshake and serves paired, persisted state', async () => {
   const home = await mkdtemp(join(tmpdir(), 'nekodot-node-pair-'));
   const relay = await createRelay({
     dataDir: join(home, 'relay'),
@@ -57,10 +58,30 @@ it('pairs through HTTP, saves private credentials and serves persisted state ove
   const online = new Promise<void>((resolve) => {
     ready = resolve;
   });
+  let attempts = 0;
+  const peers = new Set<Socket>();
+  const proxy = createServer((socket) => {
+    peers.add(socket);
+    socket.on('close', () => peers.delete(socket));
+    // Reproduce an intermediary accepting TCP but never completing the first upgrade.
+    if (++attempts === 1) return;
+    const upstream = connect(Number(new URL(base).port), '127.0.0.1');
+    peers.add(upstream);
+    upstream.on('close', () => peers.delete(upstream));
+    socket.pipe(upstream).pipe(socket);
+    socket.on('error', () => upstream.destroy());
+    upstream.on('error', () => socket.destroy());
+  });
+  await new Promise<void>((resolve) => proxy.listen(0, '127.0.0.1', resolve));
+  const failures: string[] = [];
   const connection = connectRelay({
     version: 'development',
-    credentials,
+    credentials: {
+      ...credentials,
+      relayUrl: `http://127.0.0.1:${(proxy.address() as AddressInfo).port}`,
+    },
     onReady: ready,
+    onError: (message) => failures.push(message),
     handleRpc: async () => ({
       bots: database.bots(),
       groups: [],
@@ -70,6 +91,13 @@ it('pairs through HTTP, saves private credentials and serves persisted state ove
     }),
   });
   await online;
+  expect(attempts).toBe(2);
+  expect(failures).toContain('Opening handshake has timed out');
+  const me = await relay.app.inject({
+    url: '/api/me',
+    headers: { authorization: 'Bearer ' + token },
+  });
+  expect(me.json<{ nodes: { online: boolean }[] }>().nodes[0]?.online).toBe(true);
   const socket = new WebSocket(base.replace('http', 'ws') + '/ws/client');
   await new Promise<void>((resolve) => socket.once('open', resolve));
   const hello = new Promise<void>((resolve) => socket.once('message', () => resolve()));
@@ -95,6 +123,8 @@ it('pairs through HTTP, saves private credentials and serves persisted state ove
   expect(result.ok && result.result.bots[0]?.displayName).toBe('Research');
   socket.terminate();
   connection.close();
+  for (const peer of peers) peer.destroy();
+  await new Promise<void>((resolve) => proxy.close(() => resolve()));
   database.db.close();
   await relay.app.close();
-});
+}, 45000);

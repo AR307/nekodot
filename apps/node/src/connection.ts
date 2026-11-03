@@ -18,6 +18,7 @@ import {
   type TunnelOpen,
   type TaskNotification,
   payloadSchemas,
+  protocolTimings,
   userMemoryResponseSchema,
   type UserMemoryState,
 } from '@nekodot/protocol';
@@ -101,6 +102,7 @@ export function connectRelay(options: NodeConnectionOptions) {
   function connect() {
     socket = new WebSocket(
       options.credentials.relayUrl.replace(/^http/, 'ws').replace(/\/$/, '') + '/ws/node',
+      { handshakeTimeout: protocolTimings.rpcTimeoutMs },
     );
     socket.on('open', () =>
       send(frame('hello', { nodeToken: options.credentials.nodeToken, version: options.version })),

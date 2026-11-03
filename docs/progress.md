@@ -890,8 +890,13 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 用户要求不再追加检查、快速发布；不等待额外 Windows Session GUI 重跑，不据此宣称新一轮原生 GUI 验收完成。Android 验收记录为用户确认完成。
 - 根据追加授权同步 GitHub 正式 v0.3.0，保留 MIT 及未做 Windows Authenticode 签名的说明。
 
-
 ### 0.3.0 公开发布完成
 
 - GitHub main 与 v0.3.0 标签已推送，正式 Release 已公开（非草稿、非预览），双端安装包已上传；官网正式服和下载已生效。
 - 按用户要求不再追加检查。先前启动的额外 Windows GUI 复验在 QA 账号邮箱补验处退出，未进入会话测试，不记为通过、不修改验证标记或继续重试；其余已完成真实结果见发布记录。
+
+## 2026-11-03 · Node offline 现场修复
+
+- 故障源为网络断流后的 WebSocket 握手无超时，连接卡住约 11 小时；重启现场节点恢复在线后，以 ws 原生 30 秒超时补齐重试触发。
+- 使用真实 TCP 代理和 Relay 验证首次握手卡住、第二次认证成功、在线状态及 snapshot；Node 24 测试、TypeScript、限定文件 ESLint/Prettier 和 Linux 单文件检查通过。
+- 已分发 Node `20261103022508` 并更新故障 VPS，保留旧 bundle、账号身份、profiles 与历史；无需新 APK，不重启 Relay 或其他产品。范围及证据见 docs/node-relay-handshake-fix.md。
