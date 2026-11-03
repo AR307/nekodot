@@ -1,6 +1,8 @@
 #include "flutter_window.h"
 
 #include <optional>
+#include <flutter/method_channel.h>
+#include <flutter/standard_method_codec.h>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -25,6 +27,21 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  flutter::MethodChannel<flutter::EncodableValue> updates(
+      flutter_controller_->engine()->messenger(), "app.nekodot/updates",
+      &flutter::StandardMethodCodec::GetInstance());
+  updates.SetMethodCallHandler([](const auto& call, auto result) {
+    if (call.method_name() == "version") {
+      const auto version = std::to_string(FLUTTER_VERSION_MAJOR) + "." +
+          std::to_string(FLUTTER_VERSION_MINOR) + "." +
+          std::to_string(FLUTTER_VERSION_PATCH);
+      result->Success(flutter::EncodableMap{
+          {flutter::EncodableValue("version"), flutter::EncodableValue(version)},
+          {flutter::EncodableValue("build"), flutter::EncodableValue(FLUTTER_VERSION_BUILD)}});
+    } else {
+      result->NotImplemented();
+    }
+  });
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {

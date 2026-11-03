@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/client.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
+import 'updates.dart';
 
 class AuthPage extends StatefulWidget {
   final NekodotClient client;
@@ -210,6 +211,11 @@ class _AuthPageState extends State<AuthPage> {
                     Wrap(
                       alignment: WrapAlignment.center,
                       children: [
+                        TextButton(
+                          onPressed: () =>
+                              pushPage(context, UpdatesPage(client: c)),
+                          child: Text(c.tr('检查更新', 'Check updates')),
+                        ),
                         if (mode != 'signup')
                           TextButton(
                             onPressed: () => switchTo('signup'),

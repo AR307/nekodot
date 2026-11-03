@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../data/client.dart';
 import '../ui/design.dart';
+import 'updates.dart';
 
 class SettingsPage extends StatelessWidget {
   final NekodotClient client;
@@ -110,10 +111,10 @@ class SettingsPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          Text(
-            'nekodot 0.3.0',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.labelMedium,
+          ListTile(
+            leading: const Icon(Icons.system_update_outlined),
+            title: Text(client.tr('版本与更新', 'Versions & updates')),
+            onTap: () => pushPage(context, UpdatesPage(client: client)),
           ),
         ],
       ),

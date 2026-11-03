@@ -38,4 +38,16 @@ python3 update-relay.py --apply
 
 ## 验收
 
-实现中；真实客户端和隔离服务结果将在完成后补充。静态检查不等于真实覆盖安装通过。
+2026-11-03，已实现，未正式发布：
+
+- Windows 原生 debug 候选读取实际 0.3.0 build 5，通过真实隔离 Relay 发现 build 6 并下载完整 NSIS 安装包。用户授权后在客户端点击“退出并安装”，实际退出候选并打开 NSIS 安装窗口。完整覆盖安装与重新启动仍待用户完成，不记为通过。
+- 固定 NekodotNativePhase3 / emulator-5554 读取真实 build 6，下载 build 7 的实际同签名 x64 APK；显示未授权安装提示，打开系统权限页并交由用户确认。用户实际授权并完成覆盖安装，系统显示 App installed，dumpsys 确认为 build 7，随后启动登录页；用户明确回复“安卓成功更新了”。Android 真机未验。
+- Windows、Android 实际页面已视觉检查；首张 Android 截图缺少产品 Ambient 容器导致透明背景，修正验收宿主后重跑并核对，不改产品主题。
+- 测试 VPS 的独立 Compose 项目完成真实 Relay build 5 → 6，健康接口返回新版本，实际 relay.db 中的验收记录保留，.env 备份权限 0600；再次检查显示无需更新。没有替换正式产品容器，正式 Relay/Caddy/其他应用启动时间不变。验收容器已停止，文件、旧镜像和数据保留。
+- 本机 Docker Desktop 因旧运行 socket 无法访问启动失败，未清理其数据；Relay 验收改在已有测试服务器的独立目录完成。第一次辅助数据探针误选 .sqlite 扩展，后改为真实 relay.db 并重跑，因此最终结论只依据后一次结果。
+- 服务端 TypeScript、限定 ESLint、37 文件65项辅助测试通过；Flutter analyze、原有20项辅助测试通过，另增加版本比较回归。Windows release EXE 和沿用原签名的 Android arm64 release APK 已构建，Windows 仍未做 Authenticode 签名。
+- 本功能不改变 Agent 执行逻辑，此次测试没有伪造模型调用或声称跑过聊天/屏幕全量回归。
+
+证据：docs/evidence/product-updates-acceptance.json、product-updates-windows.png、product-updates-android.png。检查/下载自动化入口：apps/native/integration_test/updates_journey_test.dart，必须连接真实候选 Relay，系统权限由用户处理。
+
+发布前仍需：Windows 完整覆盖安装、Android 真机确认，递增产品版本/build 并生成实际全量发布清单；当前候选沿用 0.3.0 build 6，不应作为新正式版本发布。没有 push 或更新官网/正式服务。

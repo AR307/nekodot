@@ -820,3 +820,14 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 新增独立运维 update-relay.py：检查、下载镜像、仅替换 Relay、健康确认、保留数据和旧镜像。现有 Compose 可选择镜像，不触碰 Node 或其他服务。
 - 真实隔离 Compose 在既有测试 VPS 完成 build 5 到 6 更新及真实 relay.db 保留；正式 Relay/Caddy/其他产品启动时间不变，验收容器已停止保留。
 - 服务端 37 文件65项辅助测试、TypeScript、限定 ESLint 通过。操作说明：docs/product-updates.md。无 push 或正式发布。
+
+
+## 2026-11-03 产品更新模块二：原生版本页面与安装入口
+
+- Windows/Android 登录页及设置页增加版本与更新，读取系统实际版本，显示发布说明和实际 Relay/最新 Relay 版本。
+- 流式下载完整安装包并显示进度，Windows 打开 NSIS 后退出客户端；Android 使用原生 FileProvider 与系统安装器，缺少安装权限时提供明确设置入口，不自动授权。
+- Windows 和固定 Android 模拟器通过真实隔离 Relay 检查/下载旅程；Windows 已按用户授权打开安装器并退出候选，Android 安装权限页交由用户确认。完整覆盖安装与真机结果仍待验。
+- Windows release 安装器、同签名 Android arm64 release APK 已构建；Flutter analyze、原有20项及新增1项辅助回归通过。细节和脱敏截图见 docs/product-updates.md。
+- 本地候选仍用0.3.0 build6，正式发布前必须递增，不自动push、更新官网或正式服务。保留全部无关UI改动、profiles及测试现场。
+
+- 后续用户手动确认 Android 权限并完成系统覆盖安装，实际 versionCode 从6变为7，重开到登录页；用户确认成功。Windows 被旧0.2.0客户端无法退出阻塞，另行修复。

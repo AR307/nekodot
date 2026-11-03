@@ -7,6 +7,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        UpdateInstaller.register(this, flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "app.nekodot/lifecycle")
             .setMethodCallHandler { call, result ->
                 if (call.method == "background") {
