@@ -791,3 +791,9 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 固定 Android 模拟器 NekodotNativePhase3 读回同组五条结果，真实界面检查通过；不等于 Android 真机或生产 VPS 验收。
 - 产物：docs/research/rag-paper-concept.md、rag-group-discussion.md；完整环境、失败尝试、检查边界及截图见 docs/research-group-acceptance.md。文献原始页面已核对；论文实验与创新性仍待验证。
 - TypeScript/ESLint/build、36 文件63项辅助测试、Flutter analyze/18项测试通过。全仓 Prettier 原有3个文件仍未过；不修改无关成果。只本地提交，无 push、生产部署或删除。
+
+## 2026-11-03 Windows 托盘右键菜单
+
+- 显式启用原生 rightClicked 菜单触发器，保留打开及退出入口；菜单和监听句柄随托盘保活，退出时释放。
+- 实际原生菜单点击退出后候选进程结束，真实 Node/Relay snapshot 正常且研究数据保留。右击任务栏图标本体未自动化，原生配置/菜单/退出已验；详见 docs/research-tools-acceptance.md。
+- 无生产部署、push、文件删除或其他服务重启。

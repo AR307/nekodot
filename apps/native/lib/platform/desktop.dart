@@ -6,6 +6,9 @@ import 'package:window_manager/window_manager.dart';
 class DesktopHost with WindowListener {
   static final instance = DesktopHost();
   static TrayIcon? icon;
+  // Native handles own the menu callbacks; keep them alive with the tray.
+  static Menu? _menu;
+  static final _menuItems = <MenuItem>[];
 
   static Future<void> initialize() async {
     await windowManager.ensureInitialized();
@@ -56,7 +59,10 @@ class DesktopHost with WindowListener {
       }
     });
     menu.addItem(quit);
+    _menu = menu;
+    _menuItems.addAll([show, quit]);
     tray.setContextMenu(menu);
+    tray.setContextMenuTrigger(ContextMenuTrigger.rightClicked);
     tray.setVisible(true);
     tray.addListener((event) {
       if (event is TrayIconClickedEvent) {
@@ -68,6 +74,13 @@ class DesktopHost with WindowListener {
 
   static Future<void> quit() async {
     icon?.dispose();
+    icon = null;
+    _menu?.dispose();
+    _menu = null;
+    for (final item in _menuItems) {
+      item.dispose();
+    }
+    _menuItems.clear();
     await windowManager.destroy();
   }
 
