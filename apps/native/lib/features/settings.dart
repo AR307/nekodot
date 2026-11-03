@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/client.dart';
+import '../platform/desktop.dart';
 import '../ui/design.dart';
 import 'updates.dart';
 
@@ -116,6 +118,16 @@ class SettingsPage extends StatelessWidget {
             title: Text(client.tr('版本与更新', 'Versions & updates')),
             onTap: () => pushPage(context, UpdatesPage(client: client)),
           ),
+          if (Platform.isWindows)
+            ListTile(
+              key: const ValueKey('quit-application'),
+              leading: const Icon(Icons.power_settings_new),
+              title: Text(client.tr('退出应用', 'Quit application')),
+              subtitle: Text(
+                client.tr('服务器任务继续运行', 'Server tasks keep running'),
+              ),
+              onTap: DesktopHost.quit,
+            ),
         ],
       ),
     ),

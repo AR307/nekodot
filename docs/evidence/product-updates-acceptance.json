@@ -5,7 +5,16 @@
     "actualRelayDownload": true,
     "installerInvoked": true,
     "installPermission": true,
-    "installationCompleted": false
+    "installationCompleted": false,
+    "quitFix": {
+      "candidate": "Windows release 0.3.0 build 6",
+      "settingsQuitClickedInRealUi": true,
+      "windowAndProcessExited": true,
+      "loginQuitEntryAdded": true,
+      "rebuiltInstallerOpened": true,
+      "installationAwaitingUser": true,
+      "evidence": "product-updates-windows-quit-crop.png"
+    }
   },
   "android": {
     "platform": "android",
