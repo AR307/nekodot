@@ -79,16 +79,21 @@ it('profile metadata edits retain all saved native credentials, selected route a
   }
 });
 
-it('enables the native multiplex gateway without replacing a profile route', async () => {
-  const { home, runtime, bot, close } = await existingProfile('gateway: false\n');
-  try {
-    await runtime.configureBot(bot, false);
-    expect(parse(await readFile(join(home, 'config.yaml'), 'utf8'))).toMatchObject({
-      gateway: { multiplex_profiles: true },
-      platform_toolsets: { api_server: ['hermes-api-server', 'clarify', 'nekodot-secrets'] },
-    });
-  } finally {
-    await runtime.close();
-    await close();
-  }
-});
+it.each(['null', '{}'])(
+  'enables the native gateway with an empty secrets section (%s)',
+  async (secrets) => {
+    const { home, runtime, bot, close } = await existingProfile(
+      `gateway: false\nsecrets: ${secrets}\n`,
+    );
+    try {
+      await runtime.configureBot(bot, false);
+      expect(parse(await readFile(join(home, 'config.yaml'), 'utf8'))).toMatchObject({
+        gateway: { multiplex_profiles: true },
+        platform_toolsets: { api_server: ['hermes-api-server', 'clarify', 'nekodot-secrets'] },
+      });
+    } finally {
+      await runtime.close();
+      await close();
+    }
+  },
+);

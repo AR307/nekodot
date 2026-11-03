@@ -515,6 +515,40 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
           .slice(before)
           .map((run) => run.profile),
       ).toEqual([lead.bot.botId, writer.bot.botId]);
+      before = relay.inspectRuns().length;
+      schedule.push('group-researcher', 'group-writer');
+      await send('@everyone Review together; the lead also hands off to the waiting writer.');
+      await waitIdle();
+      expect(
+        relay
+          .inspectRuns()
+          .slice(before)
+          .map((run) => run.profile),
+      ).toEqual([lead.bot.botId, writer.bot.botId]);
+
+      const originalLead = app.database.bot(lead.bot.botId)!;
+      app.database.putBot({ ...originalLead, sourceId: 'custom:missing-source' });
+      before = relay.inspectRuns().length;
+      schedule.push('group-writer');
+      await send('@everyone Continue with the writer when the lead source is unavailable.');
+      await waitIdle();
+      expect(
+        relay
+          .inspectRuns()
+          .slice(before)
+          .map((run) => run.profile),
+      ).toEqual([writer.bot.botId]);
+      expect(app.database.messages(conversation.conversationId)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            author: { type: 'bot', id: lead.bot.botId },
+            kind: 'text',
+            status: 'failed',
+            content: expect.objectContaining({ failureReason: expect.any(String) }),
+          }),
+        ]),
+      );
+      app.database.putBot(originalLead);
       schedule.push('group-self-outsider');
       before = relay.inspectRuns().length;
       await send('Check mentions of self and outsiders.');

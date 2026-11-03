@@ -1315,9 +1315,9 @@ export class NodeApplication {
           ? error.message
           : 'Could not start this run. Check the provider and try again.';
       const idle = this.idleRun(run);
+      this.database.putMessage(failed, { runId: run.runId }, idle);
       if (run.groupId) await this.finishGroupRun(run, 'failed', failed.content.text);
       else {
-        this.database.putMessage(failed, { runId: run.runId }, idle);
         this.notifications.send({
           notificationId: `request:${run.inputMessageId}`,
           conversationId: run.conversationId,
@@ -1796,7 +1796,7 @@ export class NodeApplication {
     chain.cursorByBot[run.botId] = this.database.head();
     if (status === 'completed')
       for (const botId of mentionedBots(output, chain.roster))
-        if (botId !== run.botId) chain.queue.push(botId);
+        if (botId !== run.botId && !chain.queue.includes(botId)) chain.queue.push(botId);
     chain.currentBotId = undefined;
     chain.currentInstructions = undefined;
     chain.requestId = randomUUID();

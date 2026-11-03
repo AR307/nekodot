@@ -928,3 +928,12 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 修正前两模块记录：批量 SecretSource 已移出执行路径，不再把不同用途的保存资料注入 profile 全局环境；使用 Bot/profile 绑定引用与明确确认的目标配置。真实 native session、普通数据/记忆/日志扫描无专用测试值，已保存通用资料为密文，临时 vault 回收经实际 CLI 核对。
 - 当前服务端 frozen install/ESLint/typecheck、36文件62项测试和 build 通过；Flutter frozen pub/analyze/18项辅助测试、Windows release 安装器及同签名 Android arm64 APK 已构建。全仓 lint 仍有3个既有文档 Prettier 问题，未冒充全绿或修改无关文件。
 - 真实截图、机器结果和精确边界见 docs/confidential-delivery-acceptance.md。本轮未修改 Hermes 核心、生产服务、用户历史或无关 UI 现场，不发布、不 push；所有安装包为本地候选，Windows 未做 Authenticode 签名。
+
+## 2026-11-03 代码复查：群聊真实论文旅程（模块一）
+
+- 检查 Node 群聊路由、Bot 创建、canonical 会话、失败反馈及 Flutter 编辑/聊天入口。
+- 修复：Bot 回复提及仍在队列的成员时重复排队，白白消耗 6 回合额度；仅对待执行队列去重，已经执行过的成员仍可再次接力。
+- 修复：群聊原生回合启动前失败，没有保存该 Bot 的失败消息/原因；现在与私聊一样持久显示失败，并让剩余成员继续。
+- 辅助回归覆盖 @everyone + 待执行成员提及，以及失效提供方来源的群聊继续。TypeScript 与 36 文件/63 项测试通过。
+- 隔离 WSL 旧候选包启动报 YAML collection；从当前源码重建后恢复。当前源码未复现该异常，不把旧包问题计为新增源码修复。补充空 secrets 配置回归。
+- 真实 Windows 候选正在创建 4 个 gpt-6.1-sol Bot，随后运行论文讨论；本模块不提前声称真实旅程完成。无生产部署、无 push、无文件删除。
