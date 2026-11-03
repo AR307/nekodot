@@ -10,6 +10,7 @@ import { registerFileTransfer } from './files';
 import { registerTunnels } from './tunnels';
 import { registerNotifications } from './notifications';
 import type { SmtpConfiguration } from './email';
+import { registerReleases, relayRelease } from './releases';
 
 export interface RelayOptions {
   dataDir: string;
@@ -71,7 +72,8 @@ export async function createRelay(options: RelayOptions) {
   registerFileTransfer(app, auth.authenticate, routing.transfer, (userId, nodeId) =>
     database.owns(userId, nodeId),
   );
-  app.get('/health', () => ({ service: 'nekodot-relay', status: 'ok' }));
+  app.get('/health', () => ({ service: 'nekodot-relay', status: 'ok', ...relayRelease }));
+  registerReleases(app, options.distributionDirectory);
   if (options.distributionDirectory)
     registerDownloads(app, options.distributionDirectory, options.publicUrl);
   app.setErrorHandler((error, _request, reply) => {

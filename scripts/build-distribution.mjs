@@ -15,6 +15,9 @@ try {
 }
 await copyFile('apps/node/dist/index.cjs', 'dist/distribution/nekodot-node.cjs');
 await copyFile('deploy/install.sh', 'dist/distribution/install.sh');
+const pubspec = await readFile('apps/native/pubspec.yaml', 'utf8');
+const buildNumber = pubspec.match(/^version: \d+\.\d+\.\d+\+(\d+)$/m)?.[1];
+if (!buildNumber) throw new Error('Native release build number is missing');
 await build({
   entryPoints: ['apps/relay/src/index.ts'],
   outfile: 'dist/relay/index.mjs',
@@ -23,6 +26,7 @@ await build({
   format: 'esm',
   target: 'node24',
   packages: 'external',
+  define: { 'process.env.NEKODOT_BUILD_NUMBER': JSON.stringify(buildNumber) },
   alias: { '@nekodot/protocol': resolve('packages/protocol/src/index.ts') },
 });
 const manifest = JSON.parse(await readFile('apps/relay/package.json', 'utf8'));

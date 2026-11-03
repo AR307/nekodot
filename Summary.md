@@ -811,3 +811,12 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 全新四 Bot/profile（全部 gpt-6.1-sol），Windows 实际编辑器组队，未提供题目/论文/URL，自主搜索原始文献、写脚本、运行报错后修正，审稿及统筹独立复跑，共44次原生工具调用、5轮群聊完成。
 - 固定 Android 模拟器恢复相同五轮，无新建实体或重发任务。7个论文原始入口另行核对；生成研究方案、源码和真实CSV，明确仅合成原型，不代表LLM研究效果或新颖性证明。
 - docs/research-tools-acceptance.md、脱敏机器证据与双端截图已补齐；保留私有原始现场，无push、生产部署或删除。
+
+
+## 2026-11-03 产品更新模块一：发布目录与 Relay 运维
+
+- 新增产品发布清单、按版本下载、Relay 实际版本/构建号；沿用既有 Node 更新，不暴露账号级服务器重启接口。
+- 发布脚本记录 APK 实际 versionCode，覆盖 Android split APK 的 ABI 偏移；完整产物准备后发布清单。
+- 新增独立运维 update-relay.py：检查、下载镜像、仅替换 Relay、健康确认、保留数据和旧镜像。现有 Compose 可选择镜像，不触碰 Node 或其他服务。
+- 真实隔离 Compose 在既有测试 VPS 完成 build 5 到 6 更新及真实 relay.db 保留；正式 Relay/Caddy/其他产品启动时间不变，验收容器已停止保留。
+- 服务端 37 文件65项辅助测试、TypeScript、限定 ESLint 通过。操作说明：docs/product-updates.md。无 push 或正式发布。
