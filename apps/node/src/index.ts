@@ -11,6 +11,7 @@ import { ManagedHermes } from './hermes/runtime';
 import { connectRelay } from './connection';
 import { NodeApplication } from './app';
 import { NodeUpdater } from './updater';
+import { bridgeEndpoint } from './bridge';
 import { nodeVersion, releaseKey, isRelease } from './release';
 
 async function main() {
@@ -22,6 +23,8 @@ async function main() {
       name: { type: 'string' },
       'hermes-source': { type: 'string' },
       'hermes-runtime': { type: 'string' },
+      'hermes-launcher': { type: 'string' },
+      desktop: { type: 'boolean' },
     },
   });
   const home = process.env.NEKODOT_HOME ?? join(homedir(), '.nekodot');
@@ -35,30 +38,70 @@ async function main() {
       JSON.parse(await readFile(join(home, 'node.json'), 'utf8')),
     );
     const log = pino();
+    const desktop = values.desktop === true;
     await mkdir(join(home, 'logs'), { recursive: true, mode: 0o700 });
-    const appRef: { current?: NodeApplication } = {};
+    const parts: {
+      app?: NodeApplication;
+      updater?: NodeUpdater;
+      connection?: ReturnType<typeof connectRelay>;
+    } = {};
+    const bridge = bridgeEndpoint(home);
     const runtime = new ManagedHermes({
       home: join(home, 'hermes'),
       apiPort: Number(process.env.NEKODOT_HERMES_API_PORT ?? 18642),
       source: values['hermes-source'] ?? process.env.NEKODOT_HERMES_SOURCE,
+      launcher: values['hermes-launcher'] ?? process.env.NEKODOT_HERMES_LAUNCHER,
+      bridge,
       runtime:
         values['hermes-runtime'] ??
         process.env.NEKODOT_HERMES_RUNTIME ??
         join(home, 'hermes-runtime'),
       onReady: () => {
-        void appRef.current?.resume();
+        void parts.app?.resume();
       },
       onLog: (line) => {
         void appendFile(join(home, 'logs', 'hermes.log'), line);
       },
     });
+    let stopping: Promise<void> | undefined;
+    const shutdown = () =>
+      (stopping ??= (async () => {
+        report('stopping');
+        parts.updater?.close();
+        parts.connection?.close();
+        await parts.app?.close();
+        await runtime.close();
+      })());
+    // Registered before Hermes starts so a stop during a long first boot still reaps its children.
+    for (const signal of ['SIGINT', 'SIGTERM'] as const)
+      process.on(signal, () => {
+        void shutdown();
+      });
+    if (desktop) {
+      // The desktop client owns this process: a closed stdin means the client is gone.
+      const stop = () =>
+        void shutdown().finally(() => {
+          report('stopped');
+          process.exit(0);
+        });
+      process.stdin.setEncoding('utf8');
+      process.stdin.on('data', (chunk: string) => {
+        if (chunk.split('\n').some((line) => line.trim() === 'stop')) stop();
+      });
+      process.stdin.once('end', stop);
+      process.stdin.once('close', stop);
+    }
+    function report(state: string, detail?: string) {
+      if (desktop) process.stdout.write(JSON.stringify({ desktop: { state, detail } }) + '\n');
+    }
+    report('starting');
     log.info({ service: 'nekodot-node' }, 'Starting Hermes before connecting to Relay');
     await runtime.start();
-    const app = new NodeApplication(home, runtime);
-    appRef.current = app;
+    const app = new NodeApplication(home, runtime, desktop);
+    parts.app = app;
     app.routines.onError = (message) => log.error({ service: 'nekodot-node', message });
-    await app.routines.start();
-    const updater = new NodeUpdater({
+    await app.routines.start(bridge);
+    const updater = (parts.updater = new NodeUpdater({
       home,
       relayUrl: credentials.relayUrl,
       version: nodeVersion,
@@ -70,8 +113,8 @@ async function main() {
         process.exit(75);
       },
       log: (message) => log.info({ service: 'nekodot-node' }, message),
-    });
-    const connection = connectRelay({
+    }));
+    const connection = (parts.connection = connectRelay({
       credentials,
       version: nodeVersion,
       onUpdate: () => {
@@ -99,30 +142,25 @@ async function main() {
         app.notifications.flush();
       },
       onNotifyAck: (id) => app.notifications.acknowledge(id),
-      onStatus: (online) => log.info({ service: 'nekodot-node', online }),
+      onStatus: (online) => {
+        log.info({ service: 'nekodot-node', online });
+        if (!stopping) report(online ? 'online' : 'offline');
+      },
       onError: (message) => log.error({ service: 'nekodot-node', message }),
-    });
+    }));
     app.onEvent = connection.event;
     app.onLive = connection.live;
     app.notifications.onSend = connection.notify;
     await app.resume();
-    let closing = false;
-    for (const signal of ['SIGINT', 'SIGTERM'] as const)
-      process.on(signal, () => {
-        void shutdown();
-      });
-    async function shutdown() {
-      if (closing) return;
-      closing = true;
-      updater.close();
-      connection.close();
-      await app.close();
-      await runtime.close();
-    }
-  } else console.log('nekodot-node pair --relay <url> --code <code> | nekodot-node run');
+  } else
+    console.log(
+      'nekodot-node pair --relay <url> --code <code> | nekodot-node run [--desktop] [--hermes-launcher <path>]',
+    );
 }
 void main().catch((reason: unknown) => {
   const detail = reason instanceof Error ? reason.message : 'Unknown startup error';
   console.error('Node startup failed:', detail);
+  if (process.argv.includes('--desktop'))
+    process.stdout.write(JSON.stringify({ desktop: { state: 'failed', detail } }) + '\n');
   process.exitCode = 1;
 });

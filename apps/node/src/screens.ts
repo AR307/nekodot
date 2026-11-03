@@ -36,7 +36,8 @@ interface ScreenSession {
 
 /** A product adapter for Hermes-owned displays; no agent or control lifecycle lives here. */
 export class BotScreens {
-  readonly available = platform() === 'linux' && !/microsoft/i.test(release());
+  /** Hermes-owned Bot displays exist only on Linux servers, never on a desktop-hosted node. */
+  readonly available: boolean;
   onStatus: (status: ScreenStatus) => void = () => {};
   private readonly sessions = new Map<string, ScreenSession>();
   private readonly statuses = new Map<string, NativeStatus>();
@@ -45,7 +46,9 @@ export class BotScreens {
     private readonly hermes: HermesRuntime,
     private readonly bots: BotService,
     private readonly operations: Operations,
+    desktop: boolean,
   ) {
+    this.available = !desktop && platform() === 'linux' && !/microsoft/i.test(release());
     hermes.management.listeners.add(this.handleEvent);
   }
   private handleEvent = (event: ManagementEvent) => {

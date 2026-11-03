@@ -34,6 +34,10 @@ export interface HermesRuntime {
 export interface RuntimeOptions {
   home: string;
   source?: string;
+  /** Official Hermes launcher (`hermes.exe` / `.hermes/bin/hermes`) of a desktop-managed checkout. */
+  launcher?: string;
+  /** Plugin bridge address served by Routines; defaults to the node home socket. */
+  bridge?: string;
   runtime: string;
   apiPort?: number;
   managementPort?: number;
@@ -53,7 +57,9 @@ export class ManagedHermes implements HermesRuntime {
   readonly webhookUrl: string;
   private secrets = new Set<string>();
   private gateways = new Map<string, HermesGateway>();
+  readonly bridge: string;
   constructor(readonly options: RuntimeOptions) {
+    this.bridge = options.bridge ?? join(options.home, '..', 'routines.sock');
     this.apiPort = options.apiPort ?? 18642;
     this.webhookUrl = 'http://127.0.0.1:' + (this.apiPort + 2);
     const token = randomBytes(32).toString('hex');
@@ -62,15 +68,22 @@ export class ManagedHermes implements HermesRuntime {
       'http://127.0.0.1:' + (options.managementPort ?? this.apiPort + 1),
       token,
     );
-    this.launch = options.source
+    this.launch = options.launcher
       ? {
-          command: 'bash',
-          prefixArgs: ['scripts/run-in-hermes-env', 'python', 'hermes'],
-          cwd: options.source,
+          command: options.launcher,
+          cwd: options.home,
           home: options.home,
           runtimeDir: options.runtime,
         }
-      : { command: 'hermes', cwd: options.home, home: options.home, runtimeDir: options.runtime };
+      : options.source
+        ? {
+            command: 'bash',
+            prefixArgs: ['scripts/run-in-hermes-env', 'python', 'hermes'],
+            cwd: options.source,
+            home: options.home,
+            runtimeDir: options.runtime,
+          }
+        : { command: 'hermes', cwd: options.home, home: options.home, runtimeDir: options.runtime };
     this.launch.env = { HERMES_DASHBOARD_SESSION_TOKEN: token };
   }
   profileHome(profile: string) {
@@ -169,14 +182,8 @@ export class ManagedHermes implements HermesRuntime {
       ['plugins', 'enabled'],
       [...new Set([...(enabled ?? []), 'nekodot-routines', 'nekodot-secrets'])],
     );
-    document.setIn(
-      ['plugins', 'entries', 'nekodot-routines', 'socket'],
-      join(this.options.home, '..', 'routines.sock'),
-    );
-    document.setIn(
-      ['plugins', 'entries', 'nekodot-secrets', 'socket'],
-      join(this.options.home, '..', 'routines.sock'),
-    );
+    document.setIn(['plugins', 'entries', 'nekodot-routines', 'socket'], this.bridge);
+    document.setIn(['plugins', 'entries', 'nekodot-secrets', 'socket'], this.bridge);
     if (document.hasIn(['secrets', 'nekodot'])) document.deleteIn(['secrets', 'nekodot']);
     await writeFile(path, document.toString(), { mode: 0o600 });
   }
@@ -311,16 +318,30 @@ export class ManagedHermes implements HermesRuntime {
         setTimeout(() => this.launchManagement(Math.min(backoff * 2, 30000)), backoff);
     });
   }
+  /** POSIX gateways drain on SIGTERM; on Windows a signal is TerminateProcess, so ask Hermes to stop. */
+  private async stop(child: ChildProcess | undefined, gateway: boolean, grace: number) {
+    if (!child || child.exitCode !== null || child.signalCode !== null) return;
+    const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()));
+    if (gateway && process.platform === 'win32')
+      void runHermesCli(this.launch, ['gateway', 'stop', '--yes']).catch((error: unknown) =>
+        this.options.onLog?.(
+          'Hermes gateway stop failed: ' + (error instanceof Error ? error.message : '') + '\n',
+        ),
+      );
+    else child.kill('SIGTERM');
+    await Promise.race([exited, delay(grace)]);
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill('SIGKILL');
+      await exited;
+    }
+  }
   async restart() {
     const children = [this.child, this.managementChild];
     this.child = undefined;
     this.managementChild = undefined;
     this.management.close();
-    for (const child of children)
-      if (child && child.exitCode === null) {
-        child.kill('SIGTERM');
-        await new Promise<void>((resolve) => child.once('exit', () => resolve()));
-      }
+    await this.stop(children[0], true, 40000);
+    await this.stop(children[1], false, 10000);
     this.launchGateway(1000);
     await this.waitHealthy('default');
     this.launchManagement(1000);
@@ -355,15 +376,7 @@ export class ManagedHermes implements HermesRuntime {
     for (const gateway of this.gateways.values()) gateway.close();
     this.gateways.clear();
     this.management.close();
-    for (const child of [this.child, this.managementChild]) {
-      if (child && child.exitCode === null) {
-        child.kill('SIGTERM');
-        await Promise.race([
-          new Promise<void>((resolve) => child.once('exit', () => resolve())),
-          delay(10000),
-        ]);
-        if (child.exitCode === null) child.kill('SIGKILL');
-      }
-    }
+    await this.stop(this.child, true, process.platform === 'win32' ? 40000 : 10000);
+    await this.stop(this.managementChild, false, 10000);
   }
 }

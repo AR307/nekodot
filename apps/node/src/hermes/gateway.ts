@@ -42,7 +42,17 @@ type Pending = {
 const protocol = 'hermes-gateway-v1';
 const ticketPrefix = 'hermes-gateway-ticket.';
 
+/** Hermes names the Windows pipe from `os.path.normcase` of the canonical home it reports. */
+export function windowsControlPipe(home: string) {
+  const hash = createHash('sha256')
+    .update(home.replaceAll('/', '\\').toLowerCase())
+    .digest('hex')
+    .slice(0, 16);
+  return '\\\\.\\pipe\\hermes-gateway-' + hash;
+}
+
 async function controlSocket(home: string) {
+  if (process.platform === 'win32') return windowsControlPipe(home);
   const direct = join(home, 'gateway.sock');
   try {
     if ((await lstat(direct)).isSocket()) return direct;

@@ -1,7 +1,7 @@
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { createServer, type Server } from 'node:net';
 import { chmod, mkdir, rename, stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import {
   routineInputSchema,
@@ -18,6 +18,7 @@ import type { NodeDatabase } from './database';
 import type { HermesRuntime } from './hermes/runtime';
 import type { Notifications } from './notifications';
 import { NodeFault } from './fault';
+import { isNamedPipe } from './bridge';
 import { RoutineSecrets, routineDigest } from './routine-secrets';
 
 interface StoredRoutine extends Routine {
@@ -384,18 +385,21 @@ export class Routines {
   setPublicUrl(publicUrl: string) {
     this.publicUrl = publicUrl.replace(/\/$/, '');
   }
-  async start() {
-    const path = join(this.database.directory, 'routines.sock');
-    // Retain the stale socket inode rather than deleting user files.
-    if (
-      await stat(path).then(
-        () => true,
-        () => false,
-      )
-    ) {
-      const retained = join(this.database.directory, 'retained-routine-sockets');
-      await mkdir(retained, { recursive: true, mode: 0o700 });
-      await rename(path, join(retained, String(Date.now()) + '.sock'));
+  /** Serves the Hermes plugin bridge at the address written into each profile config. */
+  async start(path: string) {
+    if (!isNamedPipe(path)) {
+      await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+      // Retain the stale socket inode rather than deleting user files.
+      if (
+        await stat(path).then(
+          () => true,
+          () => false,
+        )
+      ) {
+        const retained = join(this.database.directory, 'retained-routine-sockets');
+        await mkdir(retained, { recursive: true, mode: 0o700 });
+        await rename(path, join(retained, String(Date.now()) + '.sock'));
+      }
     }
     this.server = createServer((socket) => {
       let input = '';
@@ -423,7 +427,7 @@ export class Routines {
       this.server!.once('error', reject);
       this.server!.listen(path, resolve);
     });
-    await chmod(path, 0o600);
+    if (!isNamedPipe(path)) await chmod(path, 0o600);
     await this.drain();
     this.timer = setInterval(() => {
       void this.drain().catch(() =>

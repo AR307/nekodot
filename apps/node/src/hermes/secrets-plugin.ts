@@ -1,12 +1,14 @@
 import { randomBytes } from 'node:crypto';
 import { mkdir, access, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pythonBridgeCall } from '../bridge';
 
 const plugin = String.raw`"""Confidential UI adapter. No secret values are returned by CLI commands."""
 import json
 import os
 import socket
 
+${pythonBridgeCall}
 
 def _call(operation, **params):
     from hermes_constants import get_hermes_home
@@ -14,18 +16,8 @@ def _call(operation, **params):
     home = get_hermes_home()
     settings = load_config().get("plugins", {}).get("entries", {}).get("nekodot-secrets", {})
     token = (home / "plugins" / "nekodot-secrets" / "bridge.token").read_text().strip()
-    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-        client.settimeout(30)
-        client.connect(settings["socket"])
-        client.sendall((json.dumps(dict(action="secret", operation=operation, botId=home.name,
-            token=token, sessionId=os.environ.get("HERMES_SESSION_ID", ""), **params)) + "\n").encode())
-        data = b""
-        while not data.endswith(b"\n"):
-            chunk = client.recv(65536)
-            if not chunk:
-                raise RuntimeError("Confidential bridge disconnected")
-            data += chunk
-    response = json.loads(data)
+    response = _bridge_call(settings["socket"], dict(action="secret", operation=operation, botId=home.name,
+        token=token, sessionId=os.environ.get("HERMES_SESSION_ID", ""), **params), 30)
     if not response.get("ok"):
         raise RuntimeError("Confidential operation failed; open the nekodot card for status")
     return response["result"]
@@ -119,10 +111,10 @@ description: Request API keys, passwords or private keys through encrypted chat 
 # Confidential delivery
 Never ask for secrets in normal chat, tool arguments or generated scripts. Never read back the approved destination or print secret-bearing environment variables.
 Run \`hermes secret request --spec 'METADATA_JSON'\` from the active session. Fields: service, purpose, fields [{name,label,kind}], target. Kinds: text/password/private-key/otp. Keep the service, purpose and destination exact; the user is approving these together.
-- API config: target {"kind":"file","path":"/absolute/config.env","format":"env"}; fields named after environment keys. JSON and YAML merge those keys. raw writes exactly one field, preserving all whitespace (use for a private key).
+- API config: target {"kind":"file","path":"<absolute path>/config.env","format":"env"}; fields named after environment keys. JSON and YAML merge those keys. raw writes exactly one field, preserving all whitespace (use for a private key).
 - Website: target {"kind":"vault","origin":"https://actual-site.example"}; fields identifier/password. Use the actual site. After delivery use nekodot_secret_browser with the reference; it delegates to native browser_vault and also fills the confidential identifier. Never read form values. Then submit with native browser tools.
 - One-time codes: request a separate card with one field of kind otp and target {"kind":"browser-code","origin":"https://actual-site.example"}. Use nekodot_secret_browser with that reference. Codes cannot be saved. CAPTCHA and other human verification require screen takeover. Payments are not supported.
-Example: \`hermes secret request --spec '{"service":"Test API","purpose":"Configure the monitoring client","fields":[{"name":"TEST_API_KEY","label":"API Key","kind":"password"}],"target":{"kind":"file","path":"/absolute/monitor.env","format":"env"}}'\`.
+Example: \`hermes secret request --spec '{"service":"Test API","purpose":"Configure the monitoring client","fields":[{"name":"TEST_API_KEY","label":"API Key","kind":"password"}],"target":{"kind":"file","path":"<absolute path>/monitor.env","format":"env"}}'\`.
 The command returns pending metadata/reference immediately. Tell the user to open the card, then finish this turn. nekodot queues ONE native continuation in the original session after submission; do not poll, wait in terminal, or rerun earlier tools.
 If the same Bot already has a saved exact service/purpose/target match, the command applies it and returns applied metadata. Continue the remaining work in this turn. A changed purpose/destination requires another user confirmation.
 Delivery applies only the displayed destination. \`hermes secret status REF\` and \`hermes secret apply REF\` return metadata and idempotent results, never values. Do not substitute another destination. For scripts, use the profile-bound reference to apply the approved config and load that file; never embed values in script source. Saved service credentials are not exported into unrelated profile-wide environment variables.

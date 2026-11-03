@@ -216,6 +216,8 @@ export class NodeApplication {
   constructor(
     home: string,
     readonly hermes: HermesRuntime,
+    /** Hosted by the desktop client on the user's own computer rather than a server. */
+    readonly desktop = false,
   ) {
     this.database = new NodeDatabase(home);
     this.notifications = new Notifications(this.database);
@@ -340,7 +342,7 @@ export class NodeApplication {
     );
     this.files = new FileLibrary(this.database, hermes, this.operations);
     this.extensions = new Extensions(this.database, this.bots, hermes, this.operations);
-    this.screens = new BotScreens(hermes, this.bots, this.operations);
+    this.screens = new BotScreens(hermes, this.bots, this.operations, desktop);
     this.screens.onStatus = (status) => this.onLive({ kind: 'screen', status });
     this.database.onEvent = (event) => this.onEvent(event);
   }

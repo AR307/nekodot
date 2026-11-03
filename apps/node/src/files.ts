@@ -4,6 +4,7 @@ import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import { basename, join, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { lookup } from 'mime-types';
 import {
   transferChunkBytes,
@@ -22,12 +23,15 @@ import type { HermesInput } from './hermes/api';
 export function deliveryReferences(text: string): string[] {
   const found: string[] = [];
   for (const match of text.matchAll(
-    /(?:^|\n)\s*MEDIA:\s*(?:"([^"]+)"|'([^']+)'|([^\r\n]+))|!?\[[^\]]*\]\(<?((?:sandbox:|file:\/\/|\/|\.\/|~\/)[^)>]+)>?\)/g,
+    /(?:^|\n)\s*MEDIA:\s*(?:"([^"]+)"|'([^']+)'|([^\r\n]+))|!?\[[^\]]*\]\(<?((?:sandbox:|file:\/\/|\/|\.\/|~\/|[A-Za-z]:[\\/])[^)>]+)>?\)/g,
   )) {
     let path = (match[1] ?? match[2] ?? match[3] ?? match[4] ?? '').trim();
     if (path.startsWith('sandbox:')) path = path.slice(8);
-    if (path.startsWith('file://')) path = new URL(path).pathname;
-    path = decodeURIComponent(path);
+    try {
+      path = path.startsWith('file://') ? fileURLToPath(path) : decodeURIComponent(path);
+    } catch {
+      continue;
+    }
     if (path && !found.includes(path)) found.push(path);
   }
   return found;

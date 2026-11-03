@@ -812,7 +812,6 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 固定 Android 模拟器恢复相同五轮，无新建实体或重发任务。7个论文原始入口另行核对；生成研究方案、源码和真实CSV，明确仅合成原型，不代表LLM研究效果或新颖性证明。
 - docs/research-tools-acceptance.md、脱敏机器证据与双端截图已补齐；保留私有原始现场，无push、生产部署或删除。
 
-
 ## 2026-11-03 产品更新模块一：发布目录与 Relay 运维
 
 - 新增产品发布清单、按版本下载、Relay 实际版本/构建号；沿用既有 Node 更新，不暴露账号级服务器重启接口。
@@ -820,7 +819,6 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 新增独立运维 update-relay.py：检查、下载镜像、仅替换 Relay、健康确认、保留数据和旧镜像。现有 Compose 可选择镜像，不触碰 Node 或其他服务。
 - 真实隔离 Compose 在既有测试 VPS 完成 build 5 到 6 更新及真实 relay.db 保留；正式 Relay/Caddy/其他产品启动时间不变，验收容器已停止保留。
 - 服务端 37 文件65项辅助测试、TypeScript、限定 ESLint 通过。操作说明：docs/product-updates.md。无 push 或正式发布。
-
 
 ## 2026-11-03 产品更新模块二：原生版本页面与安装入口
 
@@ -839,3 +837,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 实际 release 候选中点击设置页退出，确认窗口及进程消失；登录/设置退出辅助回归与既有登录、版本回归共4项通过。
 - 重建 Windows release 和 NSIS，已打开新安装器交由用户确认。完整 Windows 覆盖安装仍待确认，Android 用户确认的成功不受影响。
 - 脱敏裁剪证据见 docs/evidence/product-updates-windows-quit-crop.png；没有 push、发布、服务端变更或文件删除。
+
+## 2026-11-05 本地电脑运行 · 模块一：Node 桌面托管
+
+- 新增 `run --desktop`：由桌面客户端持有进程，stdin 关闭或 `stop` 即优雅停止，stdout 输出机器可读状态；停止信号在 Hermes 启动前生效。
+- Hermes 通过明确 launcher 路径启动；插件桥接 POSIX 用 Unix socket，Windows 用随机命名 named pipe；gateway 控制通道支持 Windows 管道并在 Windows 上经 `gateway stop --yes` 停止。
+- 桌面节点不提供 Bot 独立屏幕；文件交付识别 Windows 路径。实施计划见 docs/local-desktop-plan.md。
+- Windows 上 38 文件 68 项辅助测试、TypeScript、ESLint、bundle 通过；未连接真实 Hermes，不计真实验收。无 push 或部署。

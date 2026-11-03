@@ -51,7 +51,7 @@ try {
 }
 await runtime.start();
 const app = new NodeApplication(q.home, runtime);
-await app.routines.start();
+await app.routines.start(runtime.bridge);
 const connection = connectRelay({
   credentials: nodeCredentialsSchema.parse(credentials),
   version: 'development',

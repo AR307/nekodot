@@ -1,11 +1,13 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pythonBridgeCall } from '../bridge';
 
 const plugin = String.raw`"""nekodot UI/transport adapter. All tasks execute in native Hermes."""
 import base64
 import json
 import socket
 
+${pythonBridgeCall}
 
 def _home():
     from hermes_constants import get_hermes_home
@@ -18,17 +20,7 @@ def _call(action, **params):
     path = settings.get("socket")
     if not path:
         raise RuntimeError("nekodot routine bridge is not configured")
-    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-        client.settimeout(120)
-        client.connect(path)
-        client.sendall((json.dumps({"action": action, "botId": _home().name, **params}) + "\n").encode())
-        data = b""
-        while not data.endswith(b"\n"):
-            chunk = client.recv(65536)
-            if not chunk:
-                raise RuntimeError("nekodot routine bridge disconnected")
-            data += chunk
-    result = json.loads(data)
+    result = _bridge_call(path, {"action": action, "botId": _home().name, **params}, 120)
     if not result.get("ok"):
         raise RuntimeError(result.get("error", "Routine operation failed"))
     return result["result"]
