@@ -567,10 +567,12 @@ dependencies = [
  "anyhow",
  "flutter_rust_bridge",
  "futures-util",
+ "libc",
  "rustls",
  "tokio",
  "tokio-tungstenite",
  "vnc-rs",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

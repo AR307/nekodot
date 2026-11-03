@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api.dart';
+import 'api/process.dart';
 
 import 'dart:async';
 import 'dart:convert';
@@ -25,6 +26,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException dco_decode_AnyhowException(dynamic raw);
 
   @protected
+  RustStreamSink<OwnedEvent> dco_decode_StreamSink_owned_event_Sse(dynamic raw);
+
+  @protected
   RustStreamSink<ScreenFrame> dco_decode_StreamSink_screen_frame_Sse(
     dynamic raw,
   );
@@ -39,7 +43,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ScreenInput dco_decode_box_autoadd_screen_input(dynamic raw);
 
   @protected
+  int dco_decode_i_32(dynamic raw);
+
+  @protected
+  List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  OwnedEvent dco_decode_owned_event(dynamic raw);
 
   @protected
   ScreenFrame dco_decode_screen_frame(dynamic raw);
@@ -63,6 +76,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
+  RustStreamSink<OwnedEvent> sse_decode_StreamSink_owned_event_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<ScreenFrame> sse_decode_StreamSink_screen_frame_Sse(
     SseDeserializer deserializer,
   );
@@ -77,7 +95,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ScreenInput sse_decode_box_autoadd_screen_input(SseDeserializer deserializer);
 
   @protected
+  int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
+  List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  OwnedEvent sse_decode_owned_event(SseDeserializer deserializer);
 
   @protected
   ScreenFrame sse_decode_screen_frame(SseDeserializer deserializer);
@@ -98,11 +125,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_decode_unit(SseDeserializer deserializer);
 
   @protected
-  int sse_decode_i_32(SseDeserializer deserializer);
-
-  @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_owned_event_Sse(
+    RustStreamSink<OwnedEvent> self,
     SseSerializer serializer,
   );
 
@@ -125,10 +155,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_owned_event(OwnedEvent self, SseSerializer serializer);
 
   @protected
   void sse_encode_screen_frame(ScreenFrame self, SseSerializer serializer);
@@ -147,9 +186,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer);
 }
 
 // Section: wire_class

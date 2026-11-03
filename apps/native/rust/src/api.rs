@@ -1,3 +1,5 @@
+pub mod process;
+
 use crate::frb_generated::StreamSink;
 use anyhow::{anyhow, Result};
 use futures_util::{SinkExt, StreamExt};

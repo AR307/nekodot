@@ -6,9 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/client.dart';
+import '../platform/rust.dart';
 import '../ui/design.dart';
 import 'bridge/api.dart';
-import 'bridge/frb_generated.dart';
 
 class ScreenPage extends StatefulWidget {
   final NekodotClient client;
@@ -33,7 +33,6 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
   ui.Image? image;
   String error = '';
   bool connected = false, active = true, busy = false, typing = false;
-  static Future<void>? bridgeInitialization;
   int attempts = 0, buttons = 0;
   final keyboard = TextEditingController(), focus = FocusNode();
   NekodotClient get c => widget.client;
@@ -75,7 +74,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
     if (!mounted || !active || busy || viewer != null) return;
     busy = true;
     try {
-      await (bridgeInitialization ??= RustLib.init());
+      await ensureRust();
       final ticket = await c.request(
         '/tunnels',
         method: 'POST',
