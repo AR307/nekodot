@@ -16,6 +16,7 @@ import { BotSecrets } from './secrets';
 import { secretContext } from './secret-crypto';
 import { installSecretsPlugin } from './hermes/secrets-plugin';
 import type { HermesRuntime } from './hermes/runtime';
+import type { HermesGateway } from './hermes/gateway';
 
 function encrypt(
   publicKey: string,
@@ -57,10 +58,14 @@ function encrypt(
 it('delivers a multiline key once, saves only when selected, and isolates references by Bot', async () => {
   const home = await mkdtemp(join(tmpdir(), 'nekodot-confidential-'));
   const db = new NodeDatabase(home);
-  const gateway = { listeners: new Set(), onRequest: undefined };
+  const gateways = new Map<string, Pick<HermesGateway, 'listeners' | 'onRequest'>>();
   const hermes = {
-    gateway: () => gateway,
+    gateway: (botId: string) => {
+      if (!gateways.has(botId)) gateways.set(botId, { listeners: new Set(), onRequest: undefined });
+      return gateways.get(botId)!;
+    },
     profileHome: (bot: string) => join(home, 'profiles', bot),
+    environment: async () => ({ NATIVE_QA: 'native-test-value' }),
   } as unknown as HermesRuntime;
   for (const botId of ['nk-abcdef', 'nk-bcdefg']) {
     db.putBot({
@@ -78,6 +83,13 @@ it('delivers a multiline key once, saves only when selected, and isolates refere
       botId,
       conversationId: botId,
       createdAt: new Date().toISOString(),
+    });
+    db.saveHermesSession({
+      botId,
+      conversationId: botId,
+      storedSessionId: 'session-' + botId,
+      replayEpoch: 'qa',
+      lastSequence: 0,
     });
     db.saveRun({
       botId,
@@ -146,9 +158,41 @@ it('delivers a multiline key once, saves only when selected, and isolates refere
     service.submit('nk-abcdef', changed.requestId, { envelope, save: false }),
   ).rejects.toThrow('could not be opened');
   const credential = service.list('nk-abcdef').credentials[0]!;
+  const replacement = service.replace('nk-abcdef', credential.credentialId);
+  const replacementKey = service.get('nk-abcdef', replacement.requestId).publicKey;
+  await service.submit('nk-abcdef', replacement.requestId, {
+    envelope: encrypt(replacementKey, 'nk-abcdef', replacement.requestId, {
+      KEY: raw + 'replacement',
+    }),
+    save: true,
+  });
+  expect(continuations).toBe(1);
+  expect(service.list('nk-abcdef').credentials[0]!.credentialId).toBe(credential.credentialId);
+  expect(await readFile(path, 'utf8')).toBe(raw + 'replacement');
   await service.disable('nk-abcdef', credential.credentialId);
   const deniedReuse = (await local('request', { spec })) as { state: string };
   expect(deniedReuse.state).toBe('pending');
+  const nativeReply = hermes.gateway('nk-abcdef').onRequest!(
+    'secret',
+    { session_id: 'session-nk-abcdef', env_var: 'NATIVE_QA', prompt: 'Native setup' },
+    'srq-qa',
+  );
+  const nativeRow = db.db
+    .prepare('SELECT data FROM secret_requests')
+    .all()
+    .map((r) => JSON.parse(String(r.data)))
+    .find((r) => r.nativeRequestId === 'srq-qa');
+  const nativeKey = service.get('nk-abcdef', nativeRow.requestId).publicKey;
+  await service.submit('nk-abcdef', nativeRow.requestId, {
+    envelope: encrypt(nativeKey, 'nk-abcdef', nativeRow.requestId, {
+      NATIVE_QA: 'native-test-value',
+    }),
+    save: false,
+  });
+  expect(await nativeReply).toEqual({ value: 'native-test-value' });
+  expect(service.get('nk-abcdef', nativeRow.requestId).request.state).toBe('delivered');
+  await service.finish(db.runs().find((r) => r.botId === 'nk-abcdef')!);
+  expect(service.get('nk-abcdef', nativeRow.requestId).request.state).toBe('applied');
   service.close();
   service = new BotSecrets(db, hermes);
   expect(service.list('nk-abcdef').credentials[0]!.enabled).toBe(false);

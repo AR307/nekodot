@@ -76,9 +76,6 @@ void main() {
       ),
     );
     await tester.pump(const Duration(seconds: 1));
-      if (Platform.isAndroid) {
-        await binding.convertFlutterSurfaceToImage();
-      }
     await tap(find.byKey(ValueKey('conversation-$conversationId')));
     await until(
       () => find.byKey(const ValueKey('chat-input')).evaluate().isNotEmpty,
@@ -110,6 +107,18 @@ void main() {
               'format': 'raw',
             },
           }
+        : mode == 'otp'
+        ? {
+            'service': service,
+            'purpose': 'Enter a temporary code on the isolated acceptance page',
+            'fields': [
+              {'name': 'code', 'label': 'One-time code', 'kind': 'otp'},
+            ],
+            'target': {
+              'kind': 'browser-code',
+              'origin': 'http://127.0.0.1:19439',
+            },
+          }
         : mode.startsWith('login')
         ? {
             'service': service,
@@ -138,7 +147,9 @@ void main() {
             },
           };
     final verification = mode == 'private-key'
-        ? 'After delivery verify the file exists and has exactly four lines, preserve trailing newline and spaces. Never print any file contents. Reply CONFIDENTIAL_KEY_FILE_OK only if correct.'
+        ? 'After delivery use Python cryptography in the Hermes PM environment, or openssl, to load the approved PKCS8 PEM file, sign the harmless bytes nekodot-confidential-proof and verify with its public key. Never print file contents, key bytes or signatures. Reply CONFIDENTIAL_KEY_FILE_OK only after actual signature verification succeeds.'
+        : mode == 'otp'
+        ? 'After delivery open http://127.0.0.1:19439/otp with native browser_exec, use nekodot_secret_browser with the delivered reference, submit the form and verify CONFIDENTIAL_OTP_OK. Never read form values.'
         : mode.startsWith('login')
         ? 'After delivery open http://127.0.0.1:19439/login with native browser_exec, use nekodot_secret_browser with the delivered reference, submit the existing form and verify the page shows CONFIDENTIAL_LOGIN_OK. Do not read form values or use curl to perform login.'
         : 'After delivery verify with Python urllib GET http://127.0.0.1:19439/check using header X-QA-Key loaded from the approved env file. Print only HTTP status and the response marker, never the key. Reply CONFIDENTIAL_SERVICE_OK only on actual success.';
@@ -203,17 +214,24 @@ void main() {
       client.dispose();
       return;
     }
-    expect(
-      tester
-          .widget<CheckboxListTile>(find.byKey(const ValueKey('secret-save')))
-          .value,
-      isFalse,
-    );
-    const values = {
+    if (mode == 'otp') {
+      expect(find.byKey(const ValueKey('secret-save')), findsNothing);
+    } else {
+      expect(
+        tester
+            .widget<CheckboxListTile>(find.byKey(const ValueKey('secret-save')))
+            .value,
+        isFalse,
+      );
+    }
+    final values = {
       'QA_API_KEY': 'nekodot-qa-key-20261103',
-      'PRIVATE_KEY': '-----BEGIN TEST PRIVATE KEY-----\n  keep these spaces  \nnekodot-qa-multiline\n-----END TEST PRIVATE KEY-----\n',
+      'PRIVATE_KEY': utf8.decode(
+        base64Decode(const String.fromEnvironment('QA_SECRET_TEST_KEY_B64')),
+      ),
       'identifier': 'nekodot-qa-user',
       'password': 'nekodot-qa-password-20261103',
+      'code': '879421',
       'NEKODOT_SECRET_NATIVE_QA': 'nekodot-qa-native-value-20261103',
     };
     for (final definition in definitions) {
@@ -227,9 +245,9 @@ void main() {
       );
     }
     final inputController = tester.widget<TextField>(field).controller!;
-      if (mode == 'api' || mode == 'login-save') {
+    if (mode == 'api' || mode == 'login-save') {
       await tap(find.byKey(const ValueKey('secret-save')));
-      }
+    }
     await tap(find.byKey(const ValueKey('secret-submit')));
     await until(
       () => (client.node.messages[conversationId] ?? []).any(
@@ -249,6 +267,7 @@ void main() {
               'private-key' => 'CONFIDENTIAL_KEY_FILE_OK',
               'login' || 'login-save' => 'CONFIDENTIAL_LOGIN_OK',
               'native' => 'CONFIDENTIAL_NATIVE_SECRET_OK',
+              'otp' => 'CONFIDENTIAL_OTP_OK',
               _ => 'CONFIDENTIAL_SERVICE_OK',
             }),
       ),
@@ -277,9 +296,10 @@ void main() {
       'actualServiceUse': true,
       'chatContainsSecret': false,
     };
-      await Scrollable.ensureVisible(tester.element(card), alignment: .2);
     await tester.pump(const Duration(seconds: 1));
     if (Platform.isAndroid) {
+      await binding.convertFlutterSurfaceToImage();
+      await tester.pump(const Duration(seconds: 1));
       await binding.takeScreenshot('confidential-card-$mode');
     }
     client.dispose();

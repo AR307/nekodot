@@ -920,3 +920,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 原生聊天内表单、Bot 专属元数据管理及 X25519/HKDF/AES-GCM 提交已接入；输入提交后、取消、路由离开与后台时清空，不进入持久草稿或离线队列。
 - Windows 真实 API 配置与实际服务调用、Hermes 原生技能密钥请求通过；固定 NekodotNativePhase3 Android 模拟器真实提交多行私钥并继续任务，独立核对文件空格/换行完全一致。
 - 当前隔离环境使用官方 Hermes v0.22.5 和真实 gpt-6.1-sol；服务端 36 文件 62 项辅助测试及 Flutter analyze 通过。原生网站登录、超时/取消、隔离与重启继续进行，Android 真机未验。
+
+## 2026-11-03 · 保密交付模块 4：真实旅程与收尾
+
+- Windows 和固定 NekodotNativePhase3 Android 模拟器、真实隔离 Node/Relay、官方 Hermes v0.22.5、gpt-6.1-sol 完成 API 配置与实际服务调用、双端临时 RSA 私钥真实签名验证及原样文件核对、原生技能密钥、原生取消/120秒超时、真实浏览器单次/保存登录和 OTP、精确用途复用、跨 Bot 与真实账号拒绝、双端重复提交及 Node 重启。真机和完整视觉/恢复组合仍保留待验，不用模拟器或单元测试代替。
+- 真实发现并修正 vault identifier_type/站点聚焦、原生已交付与实际写入状态分离、管理替换不恢复聊天、跨端取消后的管理表单同步及 Android 长下拉项溢出；双端管理与实际 Android 后台输入清空复测。
+- 修正前两模块记录：批量 SecretSource 已移出执行路径，不再把不同用途的保存资料注入 profile 全局环境；使用 Bot/profile 绑定引用与明确确认的目标配置。真实 native session、普通数据/记忆/日志扫描无专用测试值，已保存通用资料为密文，临时 vault 回收经实际 CLI 核对。
+- 当前服务端 frozen install/ESLint/typecheck、36文件62项测试和 build 通过；Flutter frozen pub/analyze/18项辅助测试、Windows release 安装器及同签名 Android arm64 APK 已构建。全仓 lint 仍有3个既有文档 Prettier 问题，未冒充全绿或修改无关文件。
+- 真实截图、机器结果和精确边界见 docs/confidential-delivery-acceptance.md。本轮未修改 Hermes 核心、生产服务、用户历史或无关 UI 现场，不发布、不 push；所有安装包为本地候选，Windows 未做 Authenticode 签名。

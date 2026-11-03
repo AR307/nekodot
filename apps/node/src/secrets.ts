@@ -273,10 +273,10 @@ export class BotSecrets {
         this.waiting.delete(request.requestId);
         resolve?.({ value: null });
         if (actionable(request) || request.state === 'delivered') {
-          request.state = frame.payload?.reason === 'resolved' ? 'applied' : 'expired';
+          request.state = frame.payload?.reason === 'resolved' ? 'delivered' : 'expired';
           request.result =
             frame.payload?.reason === 'resolved'
-              ? 'Hermes accepted the configuration.'
+              ? 'Hermes accepted the delivery. Native configuration is still being processed.'
               : 'Native request ended: ' + String(frame.payload?.reason ?? 'disconnected');
           this.persist(request);
         }
@@ -382,7 +382,16 @@ export class BotSecrets {
       } else if (request.replaceId) {
         await this.disable(botId, request.replaceId);
       }
-      if (!request.nativeRequestId) {
+      if (request.replaceId) {
+        // A settings edit is not an instruction to resume unrelated chat work.
+        request.completed = true;
+        this.temporary.delete(id);
+        if (!request.saved && request.vaultId) {
+          await this.hermes.management.rpc('vault.remove', { profile: botId, id: request.vaultId });
+          delete request.vaultId;
+          request.result += ' Temporary vault item withdrawn; no login task was started.';
+        }
+      } else if (!request.nativeRequestId) {
         request.continuationId ??= 'secret-delivery:' + id;
         // Persist before native admission; a retry uses Hermes' submission ID deduplication.
         this.persist(request);
@@ -528,7 +537,7 @@ export class BotSecrets {
       .object({
         botId: z.string(),
         token: z.string(),
-        operation: z.enum(['request', 'status', 'apply', 'source', 'scrub', 'browser-code']),
+        operation: z.enum(['request', 'status', 'apply', 'scrub', 'browser-code']),
         sessionId: z.string().optional(),
         requestId: z.string().optional(),
         spec: secretSpecSchema.optional(),
@@ -545,19 +554,12 @@ export class BotSecrets {
     if (!p.token || p.token !== (await readFile(tokenPath, 'utf8')).trim())
       throw new NodeFault('not_found', 'Profile credential access denied');
     if (p.operation === 'scrub') return this.scrub(p.botId, p.text ?? '');
-    if (p.operation === 'source') {
-      const environment: Record<string, string> = {};
-      for (const entry of this.credentials(p.botId).filter(
-        (c) => c.enabled && c.sealed && c.target.kind === 'file' && c.target.format === 'env',
-      ))
-        Object.assign(environment, this.keys.open(p.botId, entry.sealed!));
-      return environment;
-    }
     if (p.operation === 'request') {
       const run = this.sourceRun(p.botId, p.sessionId ?? '');
       if (!run)
         throw new NodeFault('not_found', 'Create the request from the active native Bot session');
-      const spec = secretSpecSchema.parse(p.spec);
+      const spec = p.spec;
+      if (!spec) throw new NodeFault('invalid_params', 'Secret request specification is required');
       if (
         spec.target.kind === 'browser-code' &&
         (spec.fields.length !== 1 || spec.fields[0]!.kind !== 'otp')
@@ -652,6 +654,20 @@ export class BotSecrets {
           : request.originatingRunId !== run.runId
       )
         continue;
+      if (request.nativeRequestId) {
+        const name = request.fields[0]!.name;
+        const expected = this.temporary.get(request.requestId)?.[name];
+        const stored =
+          expected !== undefined &&
+          (await this.hermes.environment(run.botId).then(
+            (env) => env[name] === expected,
+            () => false,
+          ));
+        request.state = stored ? 'applied' : 'failed';
+        request.result = stored
+          ? 'Hermes stored the native skill configuration.'
+          : 'Hermes ended the request, but the native configuration was not stored. Request delivery again; no tools were replayed.';
+      }
       if (!request.saved && request.vaultId) {
         await this.hermes.management.rpc('vault.remove', {
           profile: run.botId,

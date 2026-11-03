@@ -103,21 +103,7 @@ def _browser(args, task_id="default", **kwargs):
 
 
 def register(ctx):
-    from agent.secret_sources.base import SecretSource, FetchResult, ErrorKind
-
-    class NekodotSource(SecretSource):
-        name = "nekodot"
-        label = "This Bot's approved nekodot credentials"
-        shape = "bulk"
-
-        def fetch(self, cfg, home_path):
-            try:
-                return FetchResult(secrets=_call("source"))
-            except Exception:
-                return FetchResult().fail("nekodot Node is unavailable", ErrorKind.NETWORK)
-
     ctx.register_cli_command("secret", "Request confidential delivery or apply an approved reference", _setup, _command)
-    ctx.register_secret_source(NekodotSource())
     ctx.register_hook("transform_tool_result", _scrub)
     from tools.browser_vault_tool import _check_vault_available
     ctx.register_tool(name="nekodot_secret_browser", toolset="nekodot-secrets", check_fn=_check_vault_available,
@@ -139,7 +125,7 @@ Run \`hermes secret request --spec 'METADATA_JSON'\` from the active session. Fi
 Example: \`hermes secret request --spec '{"service":"Test API","purpose":"Configure the monitoring client","fields":[{"name":"TEST_API_KEY","label":"API Key","kind":"password"}],"target":{"kind":"file","path":"/absolute/monitor.env","format":"env"}}'\`.
 The command returns pending metadata/reference immediately. Tell the user to open the card, then finish this turn. nekodot queues ONE native continuation in the original session after submission; do not poll, wait in terminal, or rerun earlier tools.
 If the same Bot already has a saved exact service/purpose/target match, the command applies it and returns applied metadata. Continue the remaining work in this turn. A changed purpose/destination requires another user confirmation.
-Delivery applies only the displayed destination. \`hermes secret status REF\` and \`hermes secret apply REF\` return metadata and idempotent results, never values. Do not substitute another destination. For scripts, load the approved target config or use native secrets.nekodot (only saved env credentials, profile-scoped); never embed values in script source.
+Delivery applies only the displayed destination. \`hermes secret status REF\` and \`hermes secret apply REF\` return metadata and idempotent results, never values. Do not substitute another destination. For scripts, use the profile-bound reference to apply the approved config and load that file; never embed values in script source. Saved service credentials are not exported into unrelated profile-wide environment variables.
 Not saving means no extra reusable copy: approved config files and browser sessions can still persist. Temporary vault items are withdrawn at task completion. Saved entries can be replaced or disabled in Bot details.
 `;
 

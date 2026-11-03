@@ -41,6 +41,31 @@ class _SecretCardState extends State<SecretCard>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    c.addListener(sync);
+  }
+
+  void sync() {
+    final current = data;
+    if (!expanded || current == null) return;
+    final request = object(current['request']);
+    final message = (c.node.messages[request['conversationId']] ?? [])
+        .where(
+          (m) =>
+              m['kind'] == 'secret' &&
+              m['content']['requestId'] == target['requestId'],
+        )
+        .firstOrNull;
+    setState(() {
+      if (message == null) return;
+      final content = object(message['content']);
+      if (!['pending', 'failed', 'redelivery'].contains(content['state'])) {
+        clear();
+      }
+      data = {
+        ...current,
+        'request': {...request, ...content},
+      };
+    });
   }
 
   @override
@@ -58,7 +83,7 @@ class _SecretCardState extends State<SecretCard>
   @override
   void didUpdateWidget(SecretCard old) {
     super.didUpdateWidget(old);
-    if (widget.content['state'] != old.content['state'] && expanded && !busy) {
+    if (widget.content['state'] != old.content['state'] && expanded) {
       if (![
         'pending',
         'failed',
@@ -84,6 +109,7 @@ class _SecretCardState extends State<SecretCard>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    c.removeListener(sync);
     nativeRoutes.unsubscribe(this);
     clear();
     for (final field in fields.values) {
@@ -205,6 +231,7 @@ class _SecretCardState extends State<SecretCard>
                   if (saved.isNotEmpty)
                     DropdownButtonFormField<String>(
                       key: ValueKey(savedId),
+                      isExpanded: true,
                       initialValue: savedId ?? '',
                       decoration: InputDecoration(
                         labelText: c.tr(
@@ -222,6 +249,8 @@ class _SecretCardState extends State<SecretCard>
                             value: '${item['credentialId']}',
                             child: Text(
                               '${item['service']} · ${item['lastUsedAt']}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                       ],
@@ -359,6 +388,7 @@ class BotSecretsPage extends StatelessWidget {
                     children: [
                       Text(
                         '${entry['service']}',
+                        key: ValueKey('saved-secret-${entry['credentialId']}'),
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       Text('${entry['purpose']}'),

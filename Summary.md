@@ -766,3 +766,11 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - Bot 详情新增保密资料管理区，仅显示元数据，支持重新交付、替换和停用。原生请求沿用 Hermes 的等待状态，并发送不含资料值的提问提醒。
 - Windows 候选使用真实隔离 Node/Relay、Hermes v0.22.5 与 gpt-6.1-sol，通过 API 配置后实际 HTTP 调用及 canonical 原生技能密钥请求；固定 Android 模拟器通过多行私钥提交、真实继续和文件逐字读回。网站登录、隔离及恢复仍继续验收，不记为整个功能完成。
 - 服务端 62 项辅助测试及 Flutter analyze 通过；Windows/Android 截图驱动问题单独修正，不作为产品功能成功证据。未修改 Hermes 核心、生产服务或无关 UI 改动，未发布或 push。
+
+## 2026-11-03 · 保密交付模块 4：真实旅程与收尾
+
+- Windows 和固定 NekodotNativePhase3 Android 模拟器、真实隔离 Node/Relay、官方 Hermes v0.22.5、gpt-6.1-sol 完成 API 配置与实际服务调用、双端临时 RSA 私钥真实签名验证及原样文件核对、原生技能密钥、原生取消/120秒超时、真实浏览器单次/保存登录和 OTP、精确用途复用、跨 Bot 与真实账号拒绝、双端重复提交及 Node 重启。真机和完整视觉/恢复组合仍保留待验，不用模拟器或单元测试代替。
+- 真实发现并修正 vault identifier_type/站点聚焦、原生已交付与实际写入状态分离、管理替换不恢复聊天、跨端取消后的管理表单同步及 Android 长下拉项溢出；双端管理与实际 Android 后台输入清空复测。
+- 修正前两模块记录：批量 SecretSource 已移出执行路径，不再把不同用途的保存资料注入 profile 全局环境；使用 Bot/profile 绑定引用与明确确认的目标配置。真实 native session、普通数据/记忆/日志扫描无专用测试值，已保存通用资料为密文，临时 vault 回收经实际 CLI 核对。
+- 当前服务端 frozen install/ESLint/typecheck、36文件62项测试和 build 通过；Flutter frozen pub/analyze/18项辅助测试、Windows release 安装器及同签名 Android arm64 APK 已构建。全仓 lint 仍有3个既有文档 Prettier 问题，未冒充全绿或修改无关文件。
+- 真实截图、机器结果和精确边界见 docs/confidential-delivery-acceptance.md。本轮未修改 Hermes 核心、生产服务、用户历史或无关 UI 现场，不发布、不 push；所有安装包为本地候选，Windows 未做 Authenticode 签名。

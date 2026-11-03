@@ -177,7 +177,7 @@ export class ManagedHermes implements HermesRuntime {
       ['plugins', 'entries', 'nekodot-secrets', 'socket'],
       join(this.options.home, '..', 'routines.sock'),
     );
-    document.setIn(['secrets', 'nekodot', 'enabled'], true);
+    if (document.hasIn(['secrets', 'nekodot'])) document.deleteIn(['secrets', 'nekodot']);
     await writeFile(path, document.toString(), { mode: 0o600 });
   }
   async configureBot(
