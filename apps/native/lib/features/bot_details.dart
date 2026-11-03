@@ -13,6 +13,7 @@ import 'model_info.dart';
 import 'routines.dart';
 import 'user_memory.dart';
 import 'sessions.dart';
+import 'secrets.dart';
 
 class BotDetails extends StatelessWidget {
   final NekodotClient client;
@@ -95,6 +96,22 @@ class BotDetails extends StatelessWidget {
                     key: ValueKey('${bot['model']}:${bot['modelSettings']}'),
                     client: c,
                     botId: bot['botId'] as String,
+                  ),
+                  ListTile(
+                    key: const ValueKey('bot-secrets'),
+                    leading: const Icon(Icons.lock_outline),
+                    title: Text(c.tr('保密资料', 'Confidential information')),
+                    subtitle: Text(
+                      c.tr(
+                        '仅此 Bot 可复用的已保存资料',
+                        'Saved credentials for this Bot only',
+                      ),
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => pushPage(
+                      context,
+                      BotSecretsPage(client: c, botId: '${bot['botId']}'),
+                    ),
                   ),
                   RoutineList(client: c, routines: routines, reload: reload),
                 ],

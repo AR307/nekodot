@@ -759,3 +759,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 新增 metadata-only secret 卡片、显式 secrets RPC、Bot 独立密钥和加密保存；Relay 只转发密文。通用请求使用原会话原生排队继续，不制造用户气泡，不重跑工具。
 - 复用 Unix socket 桥接，增加 profile 绑定的 CLI / skill / SecretSource；原生技能密钥通过 canonical server request 回答。网站通过原生 vault、browser supervisor 与控制权检查处理。
 - 辅助行为测试及 TypeScript 已通过；真实隔离 Hermes v0.22.5 + gpt-6.1-sol 已创建实际待交付卡片。客户端、网站及恢复验收继续进行，未发布、未 push。详见 docs/confidential-delivery.md。
+
+## 2026-11-03 · 聊天内保密交付：Flutter 卡片与管理
+
+- Flutter 使用 cryptography 加密提交；聊天卡片展示接收 Bot、用途、准确目标与默认不保存选项，支持多行私钥、匹配资料选择、取消和实际状态恢复。输入不写入草稿，提交、取消、离开及后台时清空。
+- Bot 详情新增保密资料管理区，仅显示元数据，支持重新交付、替换和停用。原生请求沿用 Hermes 的等待状态，并发送不含资料值的提问提醒。
+- Windows 候选使用真实隔离 Node/Relay、Hermes v0.22.5 与 gpt-6.1-sol，通过 API 配置后实际 HTTP 调用及 canonical 原生技能密钥请求；固定 Android 模拟器通过多行私钥提交、真实继续和文件逐字读回。网站登录、隔离及恢复仍继续验收，不记为整个功能完成。
+- 服务端 62 项辅助测试及 Flutter analyze 通过；Windows/Android 截图驱动问题单独修正，不作为产品功能成功证据。未修改 Hermes 核心、生产服务或无关 UI 改动，未发布或 push。

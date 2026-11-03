@@ -65,7 +65,7 @@ def _browser(args, task_id="default", **kwargs):
     from agent.vault_store import get_vault_store, normalize_origin
     from agent.redact import register_vault_redaction_value
     from tools.browser_vault_tool import (browser_vault_fill, _current_page_origin,
-        _eval_js_secret, _fenced_page_op, _parse_json_result)
+        _eval_js_secret, _fenced_page_op, _parse_json_result, _focus_bound_origin)
     reference = args["reference"]
     request = _call("status", requestId=reference)
     if request["state"] not in ("applied", "delivered"):
@@ -76,6 +76,7 @@ def _browser(args, task_id="default", **kwargs):
     expected = normalize_origin(target["origin"])
 
     def fill():
+        _focus_bound_origin(task_id, expected, "login" if target["kind"] == "vault" else "otp")
         if _current_page_origin(task_id) != expected:
             return json.dumps(dict(success=False, error="Browser origin differs from the approved card"))
         if target["kind"] == "vault":

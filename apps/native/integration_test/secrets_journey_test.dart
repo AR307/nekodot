@@ -1,0 +1,287 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/features/home.dart';
+import 'package:nekodot_native/features/secrets.dart';
+import 'package:nekodot_native/platform/desktop.dart';
+import 'package:nekodot_native/ui/design.dart';
+
+void main() {
+  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('real Bot card, encrypted submission and original-session continuation', (
+    tester,
+  ) async {
+    tester.testTextInput.register();
+    addTearDown(tester.testTextInput.unregister);
+    final client = NekodotClient();
+    const botId = String.fromEnvironment('QA_SECOND_BOT');
+    const mode = String.fromEnvironment('QA_SECRET_MODE', defaultValue: 'api');
+    Future<void> until(bool Function() ready, {int seconds = 180}) async {
+      final end = DateTime.now().add(Duration(seconds: seconds));
+      while (!ready() && DateTime.now().isBefore(end)) {
+        await tester.pump(const Duration(milliseconds: 200));
+        final allow = find.widgetWithText(FilledButton, '允许一次');
+        if (allow.evaluate().isNotEmpty &&
+            tester.widget<FilledButton>(allow.first).onPressed != null) {
+          await Scrollable.ensureVisible(
+            tester.element(allow.first),
+            alignment: .4,
+          );
+          await tester.pump(const Duration(milliseconds: 200));
+          await tester.tap(allow.first);
+        }
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 150)),
+        );
+      }
+      expect(ready(), isTrue, reason: 'Real confidential journey timed out');
+    }
+
+    Future<void> tap(Finder finder) async {
+      await Scrollable.ensureVisible(tester.element(finder), alignment: .4);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(finder);
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    await tester.runAsync(() async {
+      final session = await client.request(
+        '/auth/login',
+        method: 'POST',
+        body: {
+          'email': const String.fromEnvironment('QA_EMAIL'),
+          'password': const String.fromEnvironment('QA_PASSWORD'),
+        },
+      );
+      client.token = session['token'];
+      await client.bootstrap();
+      await client.selectNode(const String.fromEnvironment('QA_NODE'));
+    });
+    await until(() => client.online && client.node.conversations.isNotEmpty);
+    final conversationId =
+        '${client.node.conversations.firstWhere((c) => c['kind'] == 'dm' && c['botId'] == botId)['conversationId']}';
+    runApp(
+      MaterialApp(
+        theme: appTheme(Brightness.light),
+        navigatorObservers: [nativeRoutes],
+        builder: (context, child) =>
+            Theme.of(context).platform == TargetPlatform.windows
+            ? WindowChrome(child: child!)
+            : Ambient(child: child!),
+        home: HomePage(client: client),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 1));
+      if (Platform.isAndroid) {
+        await binding.convertFlutterSurfaceToImage();
+      }
+    await tap(find.byKey(ValueKey('conversation-$conversationId')));
+    await until(
+      () => find.byKey(const ValueKey('chat-input')).evaluate().isNotEmpty,
+    );
+    await tester.runAsync(() => client.loadMessages(conversationId));
+    await until(
+      () =>
+          (client.node.activities[conversationId]?['state'] ?? 'idle') ==
+          'idle',
+    );
+    final native = mode.startsWith('native');
+    final service = native
+        ? const String.fromEnvironment('QA_NATIVE_ENV')
+        : 'confidential-$mode-${DateTime.now().millisecondsSinceEpoch}';
+    final spec = mode == 'private-key'
+        ? {
+            'service': service,
+            'purpose': 'Install a harmless multiline test identity',
+            'fields': [
+              {
+                'name': 'PRIVATE_KEY',
+                'label': 'Test private key',
+                'kind': 'private-key',
+              },
+            ],
+            'target': {
+              'kind': 'file',
+              'path': '/root/.cache/nekodot-phase5-settings/confidential/identity.pem',
+              'format': 'raw',
+            },
+          }
+        : mode.startsWith('login')
+        ? {
+            'service': service,
+            'purpose': 'Sign in to the isolated acceptance page',
+            'fields': [
+              {'name': 'identifier', 'label': 'Account', 'kind': 'text'},
+              {'name': 'password', 'label': 'Password', 'kind': 'password'},
+            ],
+            'target': {'kind': 'vault', 'origin': 'http://127.0.0.1:19439'},
+          }
+        : {
+            'service': service,
+            'purpose': 'Configure the harmless local acceptance service',
+            'fields': [
+              {
+                'name': 'QA_API_KEY',
+                'label': 'Test API Key',
+                'kind': 'password',
+              },
+            ],
+            'target': {
+              'kind': 'file',
+              'path':
+                  '/root/.cache/nekodot-phase5-settings/confidential/qa.env',
+              'format': 'env',
+            },
+          };
+    final verification = mode == 'private-key'
+        ? 'After delivery verify the file exists and has exactly four lines, preserve trailing newline and spaces. Never print any file contents. Reply CONFIDENTIAL_KEY_FILE_OK only if correct.'
+        : mode.startsWith('login')
+        ? 'After delivery open http://127.0.0.1:19439/login with native browser_exec, use nekodot_secret_browser with the delivered reference, submit the existing form and verify the page shows CONFIDENTIAL_LOGIN_OK. Do not read form values or use curl to perform login.'
+        : 'After delivery verify with Python urllib GET http://127.0.0.1:19439/check using header X-QA-Key loaded from the approved env file. Print only HTTP status and the response marker, never the key. Reply CONFIDENTIAL_SERVICE_OK only on actual success.';
+    await tester.enterText(
+      find.byKey(const ValueKey('chat-input')),
+      native
+          ? 'Use skill_view to read ${const String.fromEnvironment('QA_NATIVE_SKILL')}. Complete its native secret setup through the confidential card. Never ask for the value in chat, never print it or read it into model context. After actual setup succeeds, reply CONFIDENTIAL_NATIVE_SECRET_OK.'
+          : 'Read nekodot-secrets skill. Use terminal to run hermes secret request --spec \'${jsonEncode(spec)}\'. These are harmless acceptance values. Do not ask for them in chat. After creating the card, finish this turn and ask me to open it. $verification',
+    );
+    await tap(find.byTooltip('发送'));
+    await until(
+      () => (client.node.messages[conversationId] ?? []).any(
+        (m) => m['kind'] == 'secret' && m['content']['service'] == service,
+      ),
+      seconds: 300,
+    );
+    final requestCard = (client.node.messages[conversationId] ?? [])
+        .where(
+          (m) =>
+              m['kind'] == 'secret' &&
+              m['content']['state'] == 'pending' &&
+              m['content']['service'] == service,
+        )
+        .last;
+    final requestId = '${requestCard['content']['requestId']}';
+    final previousMessages = (client.node.messages[conversationId] ?? [])
+        .map((m) => m['messageId'])
+        .toSet();
+    final card = find.byWidgetPredicate(
+      (w) => w is SecretCard && w.content['requestId'] == requestId,
+    );
+    await until(() => card.evaluate().isNotEmpty);
+    await tap(find.descendant(of: card, matching: find.byType(ListTile)).first);
+    final details = (await tester.runAsync(
+      () => client.rpc('secrets.get', {'botId': botId, 'requestId': requestId}),
+    ))!;
+    final definitions = objects(object(details['request'])['fields']);
+    final field = find.byKey(
+      ValueKey('secret-field-${definitions.first['name']}'),
+    );
+    await until(() => field.evaluate().isNotEmpty);
+    if (mode == 'native-cancel' || mode == 'native-timeout') {
+      if (mode == 'native-cancel') {
+        await tap(find.widgetWithText(TextButton, '取消请求').last);
+      }
+      await until(
+        () => (client.node.messages[conversationId] ?? []).any(
+          (m) =>
+              m['kind'] == 'secret' &&
+              m['content']['requestId'] == requestId &&
+              m['content']['state'] ==
+                  (mode == 'native-cancel' ? 'cancelled' : 'expired'),
+        ),
+        seconds: 160,
+      );
+      debugPrint('QA native secret $mode passed');
+      binding.reportData = {
+        'mode': mode,
+        'requestId': requestId,
+        'actualNativeRequest': true,
+      };
+      client.dispose();
+      return;
+    }
+    expect(
+      tester
+          .widget<CheckboxListTile>(find.byKey(const ValueKey('secret-save')))
+          .value,
+      isFalse,
+    );
+    const values = {
+      'QA_API_KEY': 'nekodot-qa-key-20261103',
+      'PRIVATE_KEY': '-----BEGIN TEST PRIVATE KEY-----\n  keep these spaces  \nnekodot-qa-multiline\n-----END TEST PRIVATE KEY-----\n',
+      'identifier': 'nekodot-qa-user',
+      'password': 'nekodot-qa-password-20261103',
+      'NEKODOT_SECRET_NATIVE_QA': 'nekodot-qa-native-value-20261103',
+    };
+    for (final definition in definitions) {
+      final finder = find.byKey(ValueKey('secret-field-${definition['name']}'));
+      await Scrollable.ensureVisible(tester.element(finder), alignment: .4);
+      await tester.enterText(
+        finder,
+        native
+            ? 'nekodot-qa-native-value-20261103'
+            : values['${definition['name']}']!,
+      );
+    }
+    final inputController = tester.widget<TextField>(field).controller!;
+      if (mode == 'api' || mode == 'login-save') {
+      await tap(find.byKey(const ValueKey('secret-save')));
+      }
+    await tap(find.byKey(const ValueKey('secret-submit')));
+    await until(
+      () => (client.node.messages[conversationId] ?? []).any(
+        (m) =>
+            m['kind'] == 'secret' &&
+            m['content']['requestId'] == requestId &&
+            m['content']['state'] == 'applied',
+      ),
+    );
+    await until(
+      () => (client.node.messages[conversationId] ?? []).any(
+        (m) =>
+            m['kind'] == 'text' &&
+            !previousMessages.contains(m['messageId']) &&
+            m['status'] == 'done' &&
+            '${m['content']['text']}'.contains(switch (mode) {
+              'private-key' => 'CONFIDENTIAL_KEY_FILE_OK',
+              'login' || 'login-save' => 'CONFIDENTIAL_LOGIN_OK',
+              'native' => 'CONFIDENTIAL_NATIVE_SECRET_OK',
+              _ => 'CONFIDENTIAL_SERVICE_OK',
+            }),
+      ),
+      seconds: 300,
+    );
+    expect(
+      jsonEncode(client.node.messages[conversationId])
+          .contains('nekodot-qa-key-20261103'),
+      isFalse,
+    );
+    expect(inputController.text, isEmpty);
+    final metadata = (await tester.runAsync(
+      () => client.rpc('secrets.list', {'botId': botId}),
+    ))!;
+    expect(
+      objects(metadata['credentials'])
+          .any((c) => c['service'] == requestCard['content']['service']),
+      mode == 'api' || mode == 'login-save',
+    );
+    debugPrint('QA encrypted real-model service configuration passed');
+    binding.reportData = {
+      'realModel': 'gpt-6.1-sol',
+      'hermes': 'v0.22.5',
+      'requestId': requestId,
+      'encryptedDelivery': true,
+      'actualServiceUse': true,
+      'chatContainsSecret': false,
+    };
+      await Scrollable.ensureVisible(tester.element(card), alignment: .2);
+    await tester.pump(const Duration(seconds: 1));
+    if (Platform.isAndroid) {
+      await binding.takeScreenshot('confidential-card-$mode');
+    }
+    client.dispose();
+  });
+}

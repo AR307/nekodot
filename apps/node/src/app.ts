@@ -201,6 +201,19 @@ export class NodeApplication {
     this.notifications = new Notifications(this.database);
     this.routines = new Routines(this.database, hermes, this.notifications);
     this.secrets = new BotSecrets(this.database, hermes);
+    this.secrets.onRequestCard = (request) =>
+      this.notifications.send({
+        notificationId: 'secret:' + request.requestId,
+        conversationId: request.conversationId,
+        kind: 'question',
+      });
+    this.secrets.onWaiting = (run, waiting) =>
+      this.onLive({
+        kind: 'activity',
+        conversationId: run.conversationId,
+        botId: run.botId,
+        state: waiting ? 'waiting_question' : 'thinking',
+      });
     this.routines.onSecret = (input) => this.secrets.local(input);
     this.secrets.onContinue = async (request, submissionId, text) => {
       const gateway = hermes.gateway(request.botId);
@@ -617,6 +630,7 @@ export class NodeApplication {
   }
 
   async resume() {
+    await this.secrets.recover();
     for (const run of this.database.runs()) {
       const conversationId = run.groupId
         ? (this.database

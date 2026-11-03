@@ -57,6 +57,7 @@ dependencies:
   pasteboard: ^0.6.0
   battery_plus: ^7.1.2
   record: 7.1.2
+  cryptography: ^2.9.0
 
 dev_dependencies:
   integration_test:

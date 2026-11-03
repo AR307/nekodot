@@ -39,6 +39,8 @@ export class BotSecrets {
   private waiting = new Map<string, (value: unknown) => void>();
   private submitting = new Map<string, Promise<SecretRequest>>();
   private attached = new Map<string, () => void>();
+  onRequestCard: (request: SecretRequest) => void = () => {};
+  onWaiting: (run: RunRecord, waiting: boolean) => void = () => {};
   onContinue: (request: SecretRequest, submissionId: string, text: string) => Promise<void> =
     async () => {
       throw new NodeFault('unavailable', 'The original Hermes session is unavailable');
@@ -73,6 +75,18 @@ export class BotSecrets {
   }
   bind(nodeId: string) {
     this.nodeId = nodeId;
+  }
+  async recover() {
+    for (const request of this.requests().filter(
+      (r) => !r.saved && r.vaultId && (['redelivery', 'failed'].includes(r.state) || r.completed),
+    )) {
+      await this.hermes.management.rpc('vault.remove', {
+        profile: request.botId,
+        id: request.vaultId,
+      });
+      delete request.vaultId;
+      this.persist(request);
+    }
   }
   private bot(botId: string) {
     const bot = this.db.bot(botId);
@@ -198,6 +212,7 @@ export class BotSecrets {
     spec: SecretSpec,
     run: Pick<RunRecord, 'conversationId' | 'sessionId' | 'storedSessionId' | 'runId'>,
     nativeRequestId?: string,
+    notify = true,
   ) {
     this.bot(botId);
     const request: StoredRequest = {
@@ -215,6 +230,7 @@ export class BotSecrets {
       originatingRunId: run.runId,
     };
     this.persist(request);
+    if (notify) this.onRequestCard(this.view(request));
     return request;
   }
   attach(botId: string) {
@@ -239,7 +255,13 @@ export class BotSecrets {
         run,
         nativeId,
       );
-      return new Promise((resolve) => this.waiting.set(request.requestId, resolve));
+      this.onWaiting(run, true);
+      return new Promise((resolve) =>
+        this.waiting.set(request.requestId, (value) => {
+          this.onWaiting(run, false);
+          resolve(value);
+        }),
+      );
     };
     const listener = (frame: { type: string; payload?: Record<string, unknown> }) => {
       if (frame.type !== 'request.cancel' && frame.type !== 'gateway.disconnected') return;
@@ -335,6 +357,7 @@ export class BotSecrets {
         request.result = 'Existing profile vault login is ready for browser_vault.';
       } else await this.apply(request, values);
       if (request.saved) {
+        const replaced = request.replaceId ? this.credential(botId, request.replaceId) : undefined;
         const entry: StoredCredential = {
           service: request.service,
           purpose: request.purpose,
@@ -351,6 +374,13 @@ export class BotSecrets {
         };
         this.saveCredential(entry);
         request.credentialId = entry.credentialId;
+        if (replaced?.vaultId && replaced.vaultId !== request.vaultId)
+          await this.hermes.management.rpc('vault.remove', {
+            profile: botId,
+            id: replaced.vaultId,
+          });
+      } else if (request.replaceId) {
+        await this.disable(botId, request.replaceId);
       }
       if (!request.nativeRequestId) {
         request.continuationId ??= 'secret-delivery:' + id;
@@ -363,10 +393,30 @@ export class BotSecrets {
         );
       }
       this.persist(request);
-    } catch {
+    } catch (error) {
       request.state = 'failed';
+      const detail =
+        error instanceof NodeFault
+          ? this.scrub(botId, error.message)
+          : String((error as NodeJS.ErrnoException).code ?? 'configuration_failed');
       request.result =
-        'Delivery received, but configuration or the original session could not continue. Check the destination/session, then explicitly deliver again. Previous tools were not replayed.';
+        'Delivery received, but configuration or the original session could not continue: ' +
+        detail +
+        '. Check the destination/session, then explicitly deliver again. Previous tools were not replayed.';
+      this.temporary.delete(id);
+      if (!request.saved && request.vaultId) {
+        await this.hermes.management
+          .rpc('vault.remove', { profile: botId, id: request.vaultId })
+          .then(
+            () => {
+              delete request.vaultId;
+            },
+            () => {
+              request.result +=
+                ' Temporary vault cleanup is pending; this reference cannot be used.';
+            },
+          );
+      }
       this.persist(request);
     }
     return this.view(request);
@@ -384,7 +434,14 @@ export class BotSecrets {
         kind: 'login',
         label: request.service,
         origin: request.target.origin,
-        secret: values,
+        secret: {
+          ...values,
+          identifier_type: values.identifier!.includes('@')
+            ? 'email'
+            : /^\+?\d+$/.test(values.identifier!)
+              ? 'phone'
+              : 'username',
+        },
       });
       request.vaultId = result.id;
       request.result = 'Profile vault login is ready. Browser login itself has not completed.';
@@ -433,7 +490,8 @@ export class BotSecrets {
     this.waiting.delete(id);
     this.temporary.delete(id);
     request.state = 'cancelled';
-    request.result = 'Cancelled. No new configuration was applied.';
+    request.result =
+      'Cancelled. Existing target configuration or website sessions were not reverted.';
     this.persist(request);
     return this.view(request);
   }
@@ -527,7 +585,7 @@ export class BotSecrets {
           'Website login fields must include identifier and password',
         );
       const match = this.credentials(p.botId).find((c) => c.enabled && this.matches(c, spec));
-      const request = this.create(p.botId, spec, run);
+      const request = this.create(p.botId, spec, run, undefined, !match);
       if (match && !spec.fields.some((f) => f.kind === 'otp')) {
         // Already approved exact service/purpose/target: apply in this turn, no extra continuation.
         const values = match.sealed ? this.keys.open(p.botId, match.sealed) : {};

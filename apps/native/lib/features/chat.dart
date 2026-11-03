@@ -17,6 +17,7 @@ import 'files.dart';
 import 'commands.dart';
 import 'client_commands.dart';
 import 'routines.dart';
+import 'secrets.dart';
 import 'sessions.dart';
 
 class ChatPage extends StatefulWidget {
@@ -1149,7 +1150,13 @@ class MessageTile extends StatelessWidget {
       );
     }
     Widget content;
-    if (kind == 'routine') {
+    if (kind == 'secret') {
+      content = SecretCard(
+        key: ValueKey(m['messageId']),
+        client: c,
+        content: body,
+      );
+    } else if (kind == 'routine') {
       content = RoutineCard(client: c, content: body);
     } else if (kind == 'tool') {
       content = ToolRow(message: m);

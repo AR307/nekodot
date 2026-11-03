@@ -85,7 +85,7 @@ it('enables the native multiplex gateway without replacing a profile route', asy
     await runtime.configureBot(bot, false);
     expect(parse(await readFile(join(home, 'config.yaml'), 'utf8'))).toMatchObject({
       gateway: { multiplex_profiles: true },
-      platform_toolsets: { api_server: ['hermes-api-server', 'clarify'] },
+      platform_toolsets: { api_server: ['hermes-api-server', 'clarify', 'nekodot-secrets'] },
     });
   } finally {
     await runtime.close();
