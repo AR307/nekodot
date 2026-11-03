@@ -588,6 +588,8 @@ MarkdownStyleSheet markdownStyle(BuildContext context, {Color? color}) {
       border: Border(top: BorderSide(color: tone.line)),
     ),
     tableBorder: TableBorder.all(color: tone.line),
+    tableColumnWidth: const FixedColumnWidth(180),
+    tableScrollbarThumbVisibility: true,
     tableHead: body.copyWith(fontWeight: FontWeight.w700),
     tableBody: body,
   );

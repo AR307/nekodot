@@ -4,12 +4,11 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../data/client.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
+import '../ui/message_markdown.dart';
 import '../screen/viewer.dart';
 import 'bot_details.dart';
 import 'bot_editor.dart';
@@ -1024,7 +1023,7 @@ class _ToolRowState extends State<ToolRow> {
     final tone = context.tone;
     final m = widget.message, body = object(m['content']);
     final running = m['status'] == 'streaming',
-        failed = m['status'] == 'failed';
+        failed = m['status'] == 'failed' || body['error'] == true;
     final duration = (body['durationMs'] as num?) ?? 0;
     final preview = '${body['preview'] ?? ''}'.trim();
     final detail = [
@@ -1199,19 +1198,10 @@ class MessageTile extends StatelessWidget {
               icon: const Icon(Icons.webhook, size: 16),
               label: Text(c.tr('例行任务 · 查看执行', 'Routine · view execution')),
             ),
-          MarkdownBody(
+          MessageMarkdown(
             data:
                 '${body['text'] ?? ''}${m['status'] == 'streaming' ? ' •' : ''}',
-            selectable: true,
-            styleSheet: markdownStyle(context, color: user ? tone.base : null),
-            onTapLink: (text, href, title) {
-              if (href != null) {
-                launchUrl(
-                  Uri.parse(href),
-                  mode: LaunchMode.externalApplication,
-                );
-              }
-            },
+            color: user ? tone.base : null,
           ),
           if (body['files'] is List)
             for (final fileId in body['files'] as List)

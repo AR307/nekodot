@@ -91,17 +91,37 @@ export function projectGatewayEvent(run: RunRecord, frame: GatewayFrame): Hermes
         event: 'tool.started',
         tool_call_id: String(payload.tool_id ?? ''),
         tool: String(payload.name ?? 'tool'),
-        preview: String(payload.preview ?? payload.args_text ?? ''),
+        preview: String(
+          payload.preview ??
+            payload.args_text ??
+            (payload.args ? JSON.stringify(payload.args, null, 2) : (payload.context ?? '')),
+        ),
       };
-    case 'tool.complete':
+    case 'tool.complete': {
+      const result = payload.result;
       return {
         ...base,
         event: 'tool.completed',
         tool_call_id: String(payload.tool_id ?? ''),
-        preview: String(payload.summary ?? payload.result_text ?? ''),
+        preview: String(
+          payload.result_text ??
+            payload.summary ??
+            (typeof result === 'string' ? result : JSON.stringify(result ?? '', null, 2)),
+        ),
         duration: typeof payload.duration_s === 'number' ? payload.duration_s : 0,
-        error: payload.error === true,
+        error:
+          payload.error === true ||
+          payload.is_error === true ||
+          (result !== null &&
+            typeof result === 'object' &&
+            (('error' in result && !!result.error) ||
+              ('success' in result && result.success === false) ||
+              ('ok' in result && result.ok === false) ||
+              ('exit_code' in result &&
+                typeof result.exit_code === 'number' &&
+                result.exit_code !== 0))),
       };
+    }
     case 'tool.generating':
       return {
         ...base,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+
+import '../ui/message_markdown.dart';
 
 import '../data/client.dart';
 import '../ui/design.dart';
@@ -348,7 +349,7 @@ class _SessionHistoryState extends State<_SessionHistory> {
                 '${row['role']}',
                 style: Theme.of(context).textTheme.labelMedium,
               ),
-              MarkdownBody(data: '${row['text'] ?? ''}', selectable: true),
+              MessageMarkdown(data: '${row['text'] ?? ''}'),
               const Divider(height: 24),
             ],
           ],
