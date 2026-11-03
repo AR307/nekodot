@@ -72,7 +72,16 @@ class DesktopHost with WindowListener {
     });
   }
 
+  static Future<void> reveal() async {
+    await windowManager.show();
+    await windowManager.focus();
+  }
+
+  /// Stops what this app owns (the local node); returning false keeps the app open.
+  static Future<bool> Function()? beforeQuit;
+
   static Future<void> quit() async {
+    if (beforeQuit != null && !await beforeQuit!()) return;
     icon?.dispose();
     icon = null;
     _menu?.dispose();

@@ -1014,3 +1014,18 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - gateway 控制通道在 Windows 按 Hermes `os.path.normcase` 规则连接 `\.\pipe\hermes-gateway-<hash>`；Windows 停止 gateway 先执行 `gateway stop --yes`，超时后才结束进程。
 - 桌面托管节点不提供 Bot 独立屏幕；文件交付识别 `C:\…` 路径和 Windows file URL。
 - 验证：TypeScript、ESLint、Node bundle；Windows 上全量 Vitest 38 文件 68 项通过，新增测试用系统 Python 实际经 named pipe 往返中文请求，并与 Python `normcase` 对照中文路径的管道名。尚未连接真实 Hermes，真实验收在模块四进行。
+
+## 2026-11-05 / 模块二：客户端本机运行模块
+
+- `lib/local/`：两个目录分别选择与检查（绝对路径、不在应用安装目录、本机固定磁盘、空文件夹或已有 nekodot 目录、剩余空间），新建目录设为仅当前用户可访问；系统应用数据目录只保存指针 `local-runtime.json`。
+- 安装：Node 24.22.1 按内置 sha256 下载并解压；Hermes 安装脚本按 v0.22.6 提交下载并核对内置 sha256；依次执行官方 `prerequisites`→`complete` 阶段并解析结果帧，完成情况写入运行环境目录，重试跳过已完成阶段。`products` 由包装脚本加载官方 install.ps1 的函数后执行其源码构建，不执行发布命令与 PATH 改写。安装进程不继承用户的 `HERMES_*`、`NEKODOT_*`、`UV_*` 变量，uv 的 Python 与缓存放在运行环境目录。
+- 进程：Rust 桥接新增受控子进程，Windows 用 `CREATE_NO_WINDOW` 与 kill-on-close Job Object，POSIX 用独立进程组；Dart 读取按行输出与退出码。Node 以 `run --desktop` 启动，stdin 发 `stop` 优雅停止，60 秒后结束整个进程树；退出码 75 时执行与服务器启动脚本相同的 pending/tried/rejected 回滚标记后重启。端口在 18642–18742 内取连续三个空闲端口。
+- 账号：每个账号 `accounts/<userId>` 运行官方 `config` 阶段、从 Relay 下载 Node bundle，最后才申请配对码并以 `pair` 写入节点身份。
+- 验证：Rust Windows 目标编译、flutter analyze 无问题、23 项 Flutter 测试通过。尚未进行真实安装，在模块四验收。
+
+## 2026-11-05 / 模块三：首次使用与生命周期界面
+
+- 桌面“添加电脑”先选择“在这台电脑运行”或“连接远程服务器”；Android 不变。本机页面显示两个目录与可用空间、逐步安装状态、真实错误、取消与重试；上线后自动选中这台电脑并回到首页。
+- 设置页新增“这台电脑”卡片：运行状态、启动/停止、两个目录及打开入口。登录后自动启动该账号已配对的本机节点；退出账号先停止本机节点；退出应用先停止本机节点，本机有任务运行时先确认。
+- 修正配对页在快速配对时把新节点当成旧节点、无法自动选中的问题。
+- 验证：flutter analyze 与 23 项测试通过；真实界面旅程在模块四进行。

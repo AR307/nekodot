@@ -18,13 +18,14 @@ class _PairingPageState extends State<PairingPage> {
   String error = '';
   Timer? timer;
   bool busy = false, copied = false;
-  late final previous = objects(widget.client.me?['nodes'])
-      .map((x) => x['nodeId'])
-      .toSet();
+
+  /// Captured before the code exists: a fast pairing must not count as an old node.
+  final previous = <Object?>{};
   NekodotClient get c => widget.client;
   @override
   void initState() {
     super.initState();
+    previous.addAll(objects(c.me?['nodes']).map((x) => x['nodeId']));
     generate();
     timer = Timer.periodic(const Duration(seconds: 2), (_) async {
       try {

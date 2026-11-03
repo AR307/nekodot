@@ -13,6 +13,8 @@ import 'bot_editor.dart';
 import 'extensions.dart';
 import 'settings.dart';
 import 'pairing.dart';
+import 'local_setup.dart';
+import '../local/runtime.dart';
 import 'node_update.dart';
 
 class HomePage extends StatefulWidget {
@@ -70,6 +72,11 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  /// Desktops can run Bots here or connect a server; phones only connect.
+  Widget _addComputer() => localRuntime == null
+      ? PairingPage(client: c)
+      : RunLocationPage(client: c);
+
   Widget nodePicker() {
     final nodes = objects(c.me?['nodes']);
     final current = nodes
@@ -80,7 +87,7 @@ class _HomePageState extends State<HomePage> {
       position: PopupMenuPosition.under,
       onSelected: (id) {
         if (id == '') {
-          pushPage(context, PairingPage(client: c));
+          pushPage(context, _addComputer());
         } else {
           setState(() {
             conversation = null;
@@ -334,6 +341,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> signOut() async {
     try {
+      await localRuntime?.stop();
       await c.logout();
     } catch (e) {
       if (mounted) {
@@ -470,7 +478,7 @@ class _HomePageState extends State<HomePage> {
                   onPressed: () => pushPage(
                     context,
                     c.selectedNodeId == null
-                        ? PairingPage(client: c)
+                        ? _addComputer()
                         : BotEditor(client: c),
                   ),
                   icon: const CatAvatar(size: 56),

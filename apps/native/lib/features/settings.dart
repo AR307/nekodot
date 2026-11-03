@@ -6,7 +6,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/client.dart';
+import '../local/runtime.dart';
 import '../platform/desktop.dart';
+import 'local_setup.dart';
 import '../ui/design.dart';
 import 'updates.dart';
 
@@ -20,6 +22,7 @@ class SettingsPage extends StatelessWidget {
       title: client.tr('设置', 'Settings'),
       body: PageList(
         children: [
+          LocalComputerPanel(client: client),
           PanelGroup(
             children: [
               ListTile(
@@ -99,6 +102,7 @@ class SettingsPage extends StatelessWidget {
                   title: Text(client.tr('退出账号', 'Sign out')),
                   onTap: () async {
                     try {
+                      await localRuntime?.stop();
                       await client.logout();
                       if (context.mounted) {
                         Navigator.popUntil(context, (route) => route.isFirst);
@@ -124,7 +128,12 @@ class SettingsPage extends StatelessWidget {
               leading: const Icon(Icons.power_settings_new),
               title: Text(client.tr('退出应用', 'Quit application')),
               subtitle: Text(
-                client.tr('服务器任务继续运行', 'Server tasks keep running'),
+                localRuntime?.running == true
+                    ? client.tr(
+                        '这台电脑上的 Bot 会停止，服务器任务继续运行',
+                        'Bots on this computer stop; server tasks keep running',
+                      )
+                    : client.tr('服务器任务继续运行', 'Server tasks keep running'),
               ),
               onTap: DesktopHost.quit,
             ),

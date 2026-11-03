@@ -844,3 +844,15 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - Hermes 通过明确 launcher 路径启动；插件桥接 POSIX 用 Unix socket，Windows 用随机命名 named pipe；gateway 控制通道支持 Windows 管道并在 Windows 上经 `gateway stop --yes` 停止。
 - 桌面节点不提供 Bot 独立屏幕；文件交付识别 Windows 路径。实施计划见 docs/local-desktop-plan.md。
 - Windows 上 38 文件 68 项辅助测试、TypeScript、ESLint、bundle 通过；未连接真实 Hermes，不计真实验收。无 push 或部署。
+
+## 2026-11-05 本地电脑运行 · 模块二：客户端本机运行模块
+
+- 客户端可分别选择运行环境与数据目录（可放在非系统盘），按内置校验值下载 Node 24 与 Hermes v0.22.6 安装脚本，执行官方分阶段安装；`products` 阶段经包装脚本只构建、不改写 PATH。
+- Rust 桥接托管本机进程：无控制台窗口，Windows Job Object / POSIX 进程组随客户端回收；Node 更新退出后按原回滚规则重启。
+- Rust 编译、flutter analyze 与 23 项测试通过；未真实安装，不计验收。
+
+## 2026-11-05 本地电脑运行 · 模块三：首次使用与生命周期界面
+
+- 桌面添加电脑可选本机运行或远程服务器；本机安装页显示目录、进度、错误与重试，上线后自动选中。
+- 设置页“这台电脑”卡片；登录自动启动、退出账号与退出应用先停止本机节点，运行中的本机任务先确认。修正配对页快速配对的基线竞态。
+- 尚未真实验收。

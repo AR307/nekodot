@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'data/client.dart';
 import 'features/auth.dart';
 import 'features/home.dart';
+import 'features/local_setup.dart';
+import 'local/runtime.dart';
 import 'platform/desktop.dart';
 import 'platform/notifications.dart';
 import 'ui/design.dart';
@@ -17,7 +20,9 @@ Future<void> main() async {
   } else {
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
-  runApp(NekodotApp(client: NekodotClient()));
+  final client = NekodotClient();
+  if (Platform.isWindows) localRuntime = LocalRuntime(client);
+  runApp(NekodotApp(client: client));
 }
 
 class NekodotApp extends StatefulWidget {
@@ -40,12 +45,14 @@ class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    DesktopHost.beforeQuit = _stopLocal;
     widget.client
         .initialize()
         .catchError((Object e) {
           error = '$e';
         })
         .whenComplete(() {
+          unawaited(localRuntime?.initialize());
           if (mounted) {
             setState(() => loading = false);
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -54,6 +61,21 @@ class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
             });
           }
         });
+  }
+
+  /// Quitting stops the node on this computer; running tasks are interrupted only on confirm.
+  Future<bool> _stopLocal() async {
+    final local = localRuntime;
+    if (local == null) return true;
+    final context = navigation.currentContext;
+    if (local.working && context != null) {
+      await DesktopHost.reveal();
+      if (!context.mounted || !await confirmLocalQuit(context, widget.client)) {
+        return false;
+      }
+    }
+    await local.stop();
+    return true;
   }
 
   @override
