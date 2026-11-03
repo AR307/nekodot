@@ -1,0 +1,39 @@
+{
+  "artifact_hashes_match_attachment": true,
+  "full_csv_matches_attachment": true,
+  "checks_passed": 8,
+  "source_sha256": "f27df9d41922feec2bba208b3e370459c4cd91ea192353b9d2cf5803cb523cd3",
+  "clean_observed_origins_equal_hidden_roots": true,
+  "all_initial_urls_unique": true,
+  "candidate_selection_invariant_to_scrambled_votes_and_text": true,
+  "fixed_coverage_answer_sets": [
+    {
+      "regime": "clean",
+      "shared_answered": 302,
+      "only_each": 18,
+      "fixed_answered_each": 320
+    },
+    {
+      "regime": "missing",
+      "shared_answered": 309,
+      "only_each": 11,
+      "fixed_answered_each": 320
+    },
+    {
+      "regime": "split",
+      "shared_answered": 317,
+      "only_each": 3,
+      "fixed_answered_each": 320
+    },
+    {
+      "regime": "merge",
+      "shared_answered": 299,
+      "only_each": 21,
+      "fixed_answered_each": 320
+    }
+  ],
+  "oracle_calls": [0],
+  "group_novelty_calls": [1],
+  "gated_calibrated_answers": [0, 0, 0, 0],
+  "scope": "Synthetic replay only; no LLM/API/search effectiveness experiment."
+}

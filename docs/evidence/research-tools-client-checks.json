@@ -1,0 +1,64 @@
+{
+  "date": "2026-11-03",
+  "journeys": {
+    "windows": {
+      "model": "gpt-6.1-sol",
+      "createdBots": 4,
+      "createdGroup": true,
+      "sentResearch": true,
+      "replies": 5,
+      "toolSmokeSent": false,
+      "smokeTools": [
+        {
+          "tool": "terminal",
+          "argsVisible": true,
+          "resultVisible": true,
+          "error": false
+        },
+        {
+          "tool": "terminal",
+          "argsVisible": true,
+          "resultVisible": true,
+          "error": true
+        }
+      ]
+    },
+    "android": {
+      "model": "gpt-6.1-sol",
+      "createdBots": 0,
+      "createdGroup": false,
+      "sentResearch": false,
+      "replies": 5,
+      "toolSmokeSent": false,
+      "smokeTools": [
+        {
+          "tool": "terminal",
+          "argsVisible": true,
+          "resultVisible": true,
+          "error": false
+        },
+        {
+          "tool": "terminal",
+          "argsVisible": true,
+          "resultVisible": true,
+          "error": true
+        }
+      ]
+    }
+  },
+  "tray": {
+    "nativeTrigger": "rightClicked",
+    "nativeMenuExitClicked": true,
+    "processEnded": true,
+    "nodeSnapshotAfterExit": true,
+    "taskbarPhysicalRightClickTested": false
+  },
+  "checks": {
+    "serverTests": 64,
+    "flutterTests": 20,
+    "typecheck": true,
+    "flutterAnalyze": true
+  },
+  "androidPhysicalDevice": false,
+  "productionChanged": false
+}

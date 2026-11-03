@@ -139,8 +139,21 @@ void main() {
       await binding.convertFlutterSurfaceToImage();
       await tester.pump();
       await binding.takeScreenshot('tool-markdown-native-android');
-      await tester.drag(find.byType(Table).last, const Offset(-420, 0));
+      final tableScroll = find
+          .byWidgetPredicate(
+            (w) =>
+                w is SingleChildScrollView &&
+                w.scrollDirection == Axis.horizontal,
+          )
+          .first;
+      await tester.drag(tableScroll, const Offset(-420, 0));
       await tester.pump(const Duration(milliseconds: 300));
+      final tableScrollable = tester.state<ScrollableState>(
+        find
+            .descendant(of: tableScroll, matching: find.byType(Scrollable))
+            .first,
+      );
+      expect(tableScrollable.position.pixels, greaterThan(0));
       await binding.takeScreenshot('tool-markdown-table-scrolled-android');
       final failedTool = find.byWidgetPredicate(
         (w) => w is ToolRow && w.message['content']['error'] == true,
