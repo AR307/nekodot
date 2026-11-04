@@ -1,0 +1,31 @@
+{
+  "pairedPlatform": "win32",
+  "tools": ["read_file:done", "write_file:done"],
+  "fileWritten": true,
+  "secondSendEnabled": true,
+  "secondAnswered": true,
+  "processesAfterStop": "0",
+  "restartKeepsHistory": true,
+  "restartAddsNothing": true,
+  "date": "2026-11-04",
+  "model": "gpt-6.1-sol",
+  "hermes": "v0.22.6",
+  "relay": "isolated loopback 4459",
+  "downloadedAndCancelled": true,
+  "retryFinishedRuntimeInstall": true,
+  "powershellModuleConflictReproduced": true,
+  "powershellModuleFixPassed": true,
+  "freshAccountPmPrepared": true,
+  "android": "NekodotNativePhase3 emulator-5554",
+  "androidRealLocalFileAndStreaming": true,
+  "androidBackToList": true,
+  "processesAfterQuit": 0,
+  "unverified": [
+    "fresh Windows user",
+    "network drop during download",
+    "macOS real host",
+    "Ubuntu desktop real host",
+    "Android physical device",
+    "local Node update"
+  ]
+}

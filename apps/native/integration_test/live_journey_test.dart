@@ -5,6 +5,8 @@ import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/main.dart';
 import 'package:nekodot_native/ui/design.dart';
 
+import 'local_desktop_journey_test.dart' show MemoryVault;
+
 /// Opt-in real HTTPS/model/screen journey. Credentials come only from a private
 /// --dart-define-from-file passed to the test build, never from this source.
 void main() {
@@ -16,6 +18,7 @@ void main() {
   const withScreen = bool.fromEnvironment('QA_SCREEN', defaultValue: true);
   const inspect = bool.fromEnvironment('QA_INSPECT');
   const inputTest = bool.fromEnvironment('QA_SCREEN_INPUT');
+  const toolFile = String.fromEnvironment('QA_TOOL_FILE');
 
   testWidgets('native login, real streaming reply, screen and Android back', (
     tester,
@@ -30,8 +33,7 @@ void main() {
       isTrue,
       reason: 'Select an isolated QA node and conversation.',
     );
-    final client = NekodotClient();
-    await client.vault.delete(key: 'nekodot-session');
+    final client = NekodotClient(vault: MemoryVault());
     Future<void> until(bool Function() ready, {int seconds = 60}) async {
       final deadline = DateTime.now().add(Duration(seconds: seconds));
       final reported = <String>{};
@@ -91,12 +93,14 @@ void main() {
     debugPrint('QA: authenticated real remote account');
     await until(() => client.online && client.node.conversations.isNotEmpty);
     final conversation = find.byKey(ValueKey('conversation-$conversationId'));
+    await until(() => find.byType(Scrollable).evaluate().isNotEmpty);
     await tester.scrollUntilVisible(
       conversation,
       200,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.tap(conversation);
+    debugPrint('QA opened conversation');
     await tester.pump(const Duration(seconds: 1));
     await until(
       () => find.byKey(const ValueKey('chat-input')).evaluate().isNotEmpty,
@@ -104,6 +108,7 @@ void main() {
     final input = find.byKey(const ValueKey('chat-input'));
     const marker = 'NEKODOT_NATIVE_LIVE_OK';
     await client.loadMessages(conversationId);
+    debugPrint('QA loaded history');
     final before = (client.node.messages[conversationId] ?? [])
         .map((m) => m['messageId'])
         .toSet();
@@ -122,10 +127,13 @@ void main() {
     client.addListener(observeReply);
     await tester.enterText(
       input,
-      'This is a harmless native-client acceptance test. Do not use tools. Reply with exactly $marker.',
+      toolFile.isEmpty
+          ? 'This is a harmless native-client acceptance test. Do not use tools. Reply with exactly $marker.'
+          : '请用文件工具读取这台电脑上的真实文件 $toolFile，然后回复文件里的原文。',
     );
     await tester.pump();
     await tester.tap(find.byTooltip('发送'));
+    debugPrint('QA tapped send');
     await until(
       () => (client.node.messages[conversationId] ?? []).any(
         (m) => !before.contains(m['messageId']),
@@ -143,6 +151,17 @@ void main() {
       seconds: 180,
     );
     expect(client.node.activities[conversationId]?['state'], 'idle');
+    if (toolFile.isNotEmpty) {
+      expect(
+        (client.node.messages[conversationId] ?? []).any(
+          (m) => !before.contains(m['messageId']) && m['kind'] == 'tool',
+        ),
+        isTrue,
+        reason:
+            'The mobile client must receive actual local-node tool activity.',
+      );
+      debugPrint('QA: real local file tool result received on Android');
+    }
     client.removeListener(observeReply);
     expect(
       streamed,
@@ -207,6 +226,7 @@ void main() {
       'streamedReply': true,
       'screen': withScreen,
       'inputSubmitted': inputTest,
+      'localFileTool': toolFile.isNotEmpty,
     };
     await tester.pumpWidget(const SizedBox.shrink());
   });

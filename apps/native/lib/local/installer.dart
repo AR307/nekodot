@@ -72,6 +72,7 @@ class RuntimeInstaller {
   final void Function(String step, String state, String detail) progress;
   OwnedProcess? _current;
   bool _cancelled = false;
+  final _abort = Completer<void>();
 
   RuntimeInstaller(this.location, this.platform, this.web, this.progress);
 
@@ -80,10 +81,15 @@ class RuntimeInstaller {
     'HERMES_HOME': home,
     'UV_PYTHON_INSTALL_DIR': joinPath(location.owner, 'cache', 'uv-python'),
     'UV_CACHE_DIR': joinPath(location.owner, 'cache', 'uv'),
+    // The installer uses Windows PowerShell 5.1, not the launching shell's modules.
+    // A PowerShell 7 host can otherwise shadow Get-FileHash with incompatible modules.
+    if (Platform.isWindows)
+      'PSModulePath': windowsTool(r'WindowsPowerShell\v1.0\Modules'),
   });
 
   void cancel() {
     _cancelled = true;
+    if (!_abort.isCompleted) _abort.complete();
     _current?.kill();
   }
 
@@ -98,15 +104,19 @@ class RuntimeInstaller {
         continue;
       }
       progress(step, 'running', '');
-      switch (step) {
-        case 'node':
-          await _node();
-        case 'installer':
-          await _installer();
-        case 'verify':
-          await _verify();
-        default:
-          await stage(step, location.owner);
+      try {
+        switch (step) {
+          case 'node':
+            await _node();
+          case 'installer':
+            await _installer();
+          case 'verify':
+            await _verify();
+          default:
+            await stage(step, location.owner);
+        }
+      } on http.RequestAbortedException {
+        throw InstallFailure(step, 'cancelled');
       }
       done.add(step);
       await location.record(done);
@@ -154,13 +164,19 @@ class RuntimeInstaller {
   Future<void> _installer() async {
     await Directory(_scripts).create(recursive: true);
     final name = Platform.isWindows ? 'install.ps1' : 'install.sh';
-    final response = await web
-        .get(
-          Uri.parse(
-            'https://raw.githubusercontent.com/NousResearch/hermes-agent/$hermesCommit/scripts/$name',
-          ),
-        )
-        .timeout(const Duration(minutes: 2));
+    final response = await http.Response.fromStream(
+      await web
+          .send(
+            http.AbortableRequest(
+              'GET',
+              Uri.parse(
+                'https://raw.githubusercontent.com/NousResearch/hermes-agent/$hermesCommit/scripts/$name',
+              ),
+              abortTrigger: _abort.future,
+            ),
+          )
+          .timeout(const Duration(minutes: 2)),
+    );
     if (response.statusCode != 200) {
       throw InstallFailure('installer', 'HTTP ${response.statusCode}');
     }
@@ -179,9 +195,8 @@ class RuntimeInstaller {
       ...utf8.encode(Platform.isWindows ? _productsPs1 : _productsSh),
     ]);
     if (Platform.isWindows) {
-      await File(
-        joinPath(_scripts, 'run-stage.ps1'),
-      ).writeAsBytes([...bom, ...utf8.encode(_runStagePs1)]);
+      await File(joinPath(_scripts, 'run-stage.ps1'))
+          .writeAsBytes([...bom, ...utf8.encode(_runStagePs1)]);
     }
   }
 
@@ -309,6 +324,39 @@ class RuntimeInstaller {
     if (result.code != 0) throw InstallFailure('verify', result.output);
   }
 
+  /// Hermes shares its checkout, but each account home owns its PM dependency state.
+  /// Prepare it during installation, before the gateway's short health-check window.
+  Future<void> prepareAccount(String home) async {
+    final log = File(joinPath(location.logs, 'install-account.log'))
+        .openWrite(mode: FileMode.append);
+    try {
+      final process = _current = await OwnedProcess.start(
+        location.launcher,
+        ['pm', 'install', '--extra', 'all'],
+        workingDirectory: home,
+        environment: {
+          ..._environment(home),
+          'HERMES_RUNTIME_DIR': location.tools,
+        },
+        log: log,
+      );
+      process.lines.listen((line) {
+        if (line.trim().isNotEmpty) progress('account', 'running', line.trim());
+      });
+      final code = await process.exitCode;
+      if (_cancelled) throw const InstallFailure('account', 'cancelled');
+      if (code != 0) {
+        throw InstallFailure(
+          'account',
+          process.tail.lastOrNull ?? 'Hermes account preparation exited $code',
+        );
+      }
+    } finally {
+      _current = null;
+      await log.close();
+    }
+  }
+
   Future<void> _download(
     String step,
     Uri url,
@@ -320,7 +368,9 @@ class RuntimeInstaller {
       return;
     }
     final partial = File('${target.path}.part');
-    final response = await web.send(http.Request('GET', url));
+    final response = await web
+        .send(http.AbortableRequest('GET', url, abortTrigger: _abort.future))
+        .timeout(const Duration(minutes: 2));
     if (response.statusCode != 200) {
       throw InstallFailure(step, 'HTTP ${response.statusCode}');
     }
@@ -328,18 +378,22 @@ class RuntimeInstaller {
     final sink = partial.openWrite();
     final hash = Sha256().newHashSink();
     var received = 0;
-    await for (final chunk in response.stream) {
-      if (_cancelled) {
-        await sink.close();
-        throw InstallFailure(step, 'cancelled');
+    try {
+      await for (final chunk in response.stream.timeout(
+        const Duration(seconds: 60),
+      )) {
+        if (_cancelled) {
+          throw InstallFailure(step, 'cancelled');
+        }
+        sink.add(chunk);
+        hash.add(chunk);
+        received += chunk.length;
+        if (total > 0) progress(step, 'running', '${received * 100 ~/ total}%');
       }
-      sink.add(chunk);
-      hash.add(chunk);
-      received += chunk.length;
-      if (total > 0) progress(step, 'running', '${received * 100 ~/ total}%');
+    } finally {
+      await sink.close();
+      hash.close();
     }
-    await sink.close();
-    hash.close();
     if (_hex((await hash.hash()).bytes) != sha256) {
       throw InstallFailure(step, 'download digest mismatch');
     }

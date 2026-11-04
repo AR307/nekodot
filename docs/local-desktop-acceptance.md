@@ -80,3 +80,15 @@
 - 修正旅程的目录指针，每次明确选择对应隔离目录，避免其他旅程改变指针后误用别的账号运行环境。
 - 先前“欢迎期间发送”产品修复仍成立；此次连续消息问题与其不同。
 - 日志仅留在 .runtime/local-desktop/handoff-control-focus.log 和 handoff-journey.log，公开证据只保留脱敏结果。
+
+
+## 2026-11-04 接手修复：安装取消、账号冷启动与双端真实回归
+
+- 修复下载取消需等下一块数据的问题：使用现有 http AbortableRequest，取消立即中断等待并关闭文件流。全新运行环境6在 Node 下载中点击取消，显示取消；点击重试重新下载成功，官方安装阶段全部完成。
+- 真实复现 PowerShell 5.1 继承其他 PowerShell 运行时 PSModulePath 后找不到 Get-FileHash。仅安装子进程使用系统5.1模块目录，不改全局 shell，不改 Hermes 脚本；同一主机新目录复验 prerequisites 通过。
+- 真实复现新账号的 Hermes PM 环境首次准备超过 gateway 健康检查窗口。源码确认每个账号数据根拥有各自 PM 状态；安装的 account 阶段先运行官方 hermes pm install --extra all 并展示输出/允许取消，不再把依赖下载藏在 gateway 启动里；不增加超时重试引擎。
+- runtime6完成共享安装、首次账号启动失败现场保留；修正后以同一共享运行环境和全新数据7/账号重跑，account准备19.5秒，gateway上线11.6秒。GUI建Bot、欢迎期间排队、真实 read_file/write_file、第二条消息、停止/重启不重跑均通过。
+- Windows 候选保持节点在线，固定 Android NekodotNativePhase3/emulator-5554 同账号真实登录，读取电脑上的中文文件并收到原生工具记录和流式模型回复，返回会话列表通过。隔离 Relay 4459 + 官方 Hermes v0.22.6 + gpt-6.1-sol，不是生产/公网或 Android 真机验收。
+- Android首次尝试发生连接中断，下一次脚本抢在列表渲染前滚动失败；保持失败日志，等待实际列表后重跑通过，不修改消息执行逻辑、不自动重发任务。旅程改用内存测试凭据存储，不清除已安装客户端登录。
+- Windows 最后退出后所属进程0；原生桌面操作的两次成功结果见前节及 local-desktop-handoff.json。启动失败现在立即反馈，不额外等待客户端6分钟。
+- Flutter analyze 无问题，24项 Flutter 辅助测试；Node24全量38文件69项辅助测试、TypeScript与触及文件ESLint通过。不部署、不push；测试值和凭据留在忽略目录。

@@ -106,6 +106,7 @@ void main() {
     }
     final client = NekodotClient(vault: MemoryVault());
     final local = localRuntime = LocalRuntime(client);
+    addTearDown(() => local.stop());
     await DesktopHost.initialize();
 
     final seen = <String>{};
@@ -170,6 +171,7 @@ void main() {
 
     // Windows has no driver screenshot channel; render the root layer of this debug build.
     Future<void> shot(String name) async {
+      await Directory(evidenceFolder).create(recursive: true);
       await tester.pump(const Duration(milliseconds: 500));
       final view = tester.binding.renderViews.first;
       await tester.runAsync(() async {
@@ -244,21 +246,20 @@ void main() {
       await shot('folders');
       final started = DateTime.now();
       await tester.tap(find.byKey(const ValueKey('start-local')));
-      await until(
-        () => local.steps.where((s) => s.state == 'done').length >= 2,
-        seconds: 900,
-        what: 'install under way',
-      );
-      await shot('installing');
       if (phase == 'retry') {
+        const download = bool.fromEnvironment('QA_CANCEL_DOWNLOAD');
+        const stage = download ? 'node' : 'python-deps';
         await until(
           () => local.steps.any(
-            (s) => s.id == 'python-deps' && s.state == 'running',
+            (s) =>
+                s.id == stage &&
+                s.state == 'running' &&
+                (!download || s.detail.endsWith('%')),
           ),
           seconds: 900,
-          what: 'dependency stage running',
+          what: 'requested install stage running',
         );
-        await tester.pump(const Duration(seconds: 20));
+        if (!download) await tester.pump(const Duration(seconds: 20));
         await tester.ensureVisible(find.byKey(const ValueKey('cancel-local')));
         await tester.pump(const Duration(milliseconds: 300));
         await tester.tap(find.byKey(const ValueKey('cancel-local')));
@@ -290,6 +291,12 @@ void main() {
             if (s.state == 'done') s.id,
         ]);
       }
+      await until(
+        () => local.steps.where((s) => s.state == 'done').length >= 2,
+        seconds: 900,
+        what: 'install under way',
+      );
+      await shot('installing');
       await until(
         () =>
             local.phase == LocalPhase.online &&

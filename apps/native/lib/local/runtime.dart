@@ -134,6 +134,9 @@ class LocalRuntime extends ChangeNotifier {
     failedStep = step;
     error = detail;
     phase = LocalPhase.failed;
+    if (!(_online?.isCompleted ?? true)) {
+      _online!.completeError(InstallFailure(step, detail));
+    }
     if (localSteps.contains(step)) _progress(step, 'failed', detail);
     notifyListeners();
   }
@@ -180,8 +183,10 @@ class LocalRuntime extends ChangeNotifier {
       step = 'start';
       _progress(step, 'running', '');
       _online = Completer<void>();
-      await start();
-      await _online!.future.timeout(const Duration(minutes: 6));
+      await Future.wait([
+        _online!.future.timeout(const Duration(minutes: 6)),
+        start(),
+      ]);
       _progress(step, 'done', '');
       await client.refreshMe();
       await client.selectNode(nodeId!);
@@ -191,6 +196,7 @@ class LocalRuntime extends ChangeNotifier {
       _fail(step, '$failure');
     } finally {
       _installer = null;
+      _online = null;
     }
   }
 
@@ -208,6 +214,7 @@ class LocalRuntime extends ChangeNotifier {
         (_, state, detail) => _progress('account', 'running', detail),
       ).stage('config', hermes);
     }
+    await _installer!.prepareAccount(hermes);
     final bundle = File(_bundle);
     if (await bundle.exists()) return;
     await bundle.parent.create(recursive: true);
