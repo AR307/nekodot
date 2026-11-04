@@ -25,7 +25,7 @@ class _PromptCardState extends State<PromptCard> {
     final duration = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : const Duration(milliseconds: 300);
-    return Focus(
+    final card = Focus(
       onFocusChange: (value) => setState(() => focused = value),
       child: AnimatedContainer(
         duration: duration,
@@ -85,5 +85,8 @@ class _PromptCardState extends State<PromptCard> {
         ),
       ),
     );
+    // Toolbar presses belong to the field, so mouse-down must not unfocus it
+    // and remove the expanded controls before their click can complete.
+    return TextFieldTapRegion(child: card);
   }
 }

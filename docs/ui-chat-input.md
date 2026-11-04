@@ -32,3 +32,15 @@ pnpm exec playwright test tests/browser/private-chat.spec.ts -g 'composer expand
 ## 验收边界
 
 用户选择自行填写 API Key，本地目前没有模型来源；尚未验证真实模型回复、真实语音识别、执行中停止与补充指令的端到端结果。Windows 原生 GUI、实体设备、Android、macOS 与 Linux 未做完整人工交互验收。没有将回放结果作为上述链路通过的证据。
+
+## 2026-11-05 / 模型与附件按钮点击修复
+
+截图与实际进程对应 `26aa` 工作树的 Windows Release。空草稿聚焦时，鼠标按下模型按钮或「+」会被 TextField 判为外部点击：焦点先丢失，PromptCard 随即收起并移除工具栏，鼠标松开时无法完成原按钮的点击。为整个输入卡片增加标准 `TextFieldTapRegion`，使工具栏属于输入框的点击区域；点击卡片外部仍失焦收起。未改变模型更新、文件上传或 Hermes 执行协议。
+
+- 新增四项回归，覆盖 1000/390px 下模型与附件按钮。鼠标按下与松开之间等待完整动画，修复前四项均在焦点断言失败，修复后均可完成按钮动作并打开测试对话框；同时验证点击外部仍收起。测试对话框不代表真实模型目录或系统文件选择器。
+- `flutter test test/prompt_card_test.dart test/product_test.dart --no-pub --reporter expanded`：14 项通过，包含草稿、停止、发送确认和附件草稿回归。
+- `flutter analyze --no-pub`：无问题；两个改动 Dart 文件格式检查与 `git diff --check` 通过。
+- 全量 `flutter test --no-pub`：28 项通过、1 项失败。原 `widget_test.dart:22` 期望只有一个“登录”文本，而当前账号页标题与按钮各有一个；单独重跑同样失败，该测试及账号页未修改。
+- `flutter build windows --release --no-pub --dart-define=RELAY_URL=http://127.0.0.1:4319`：通过。旧运行目录完整保留于忽略的 `.runtime/composer-click-fix/previous-release`；新 `data/app.so` 的 SHA-256 与备份不同，已重新启动本次 Release，保留原 Relay 编译配置。
+
+实窗验收工具返回 `product policy blocks this app: nekoDOT.exe`。未改用其他桌面自动化方式绕过此限制，未宣称真实窗口点击、系统文件选择器、真实模型切换/回复或完整上传链路验收通过。Android 仅有窄屏 widget 辅助检查，未构建或进行模拟器/真机验收；Web、Tauri、macOS、Linux 本轮未修改。
