@@ -2,17 +2,8 @@ import { useState, type CSSProperties, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { Bot, Conversation, Group, Message } from '@nekodot/protocol';
 import { selectNodeData, useAppStore, type ActivityState } from '../store';
-import {
-  BotAvatar,
-  GroupDots,
-  Icon,
-  Kbd,
-  Segmented,
-  SpinnerDots,
-  Wordmark,
-  ease,
-  type IconName,
-} from '../ui';
+import { BotAvatar, GroupDots, Icon, Kbd, SpinnerDots, Wordmark, ease } from '../ui';
+import { GooeyNav } from '../components/ui/gooey-nav';
 import { avatarColors, fill, listTime, type Texts } from '../shared';
 import { NodePicker } from './node-picker';
 import { readableMessageText } from './files';
@@ -55,10 +46,10 @@ export function TeamSidebar({
   const [copied, setCopied] = useState(false);
   const activeBots = node.bots.filter((bot) => !bot.archived);
   const canGroup = activeBots.length >= 2 && node.online;
-  const views: { value: AppView; label: string; icon: IconName }[] = [
-    { value: 'chats', label: t.chatsPage, icon: 'chat' },
-    { value: 'skills', label: t.skillsPage, icon: 'spark' },
-    { value: 'plugins', label: t.pluginsPage, icon: 'plugin' },
+  const views: { value: AppView; label: string; icon: ReactNode }[] = [
+    { value: 'chats', label: t.chatsPage, icon: <Icon name="chat" /> },
+    { value: 'skills', label: t.skillsPage, icon: <Icon name="spark" /> },
+    { value: 'plugins', label: t.pluginsPage, icon: <Icon name="plugin" /> },
   ];
   const highlight = view === 'chats' ? activeConversationId : undefined;
   const groupBusy = (botId: string) =>
@@ -108,7 +99,7 @@ export function TeamSidebar({
           <span>{t.searchJump}</span>
           <Kbd>{modKey} K</Kbd>
         </button>
-        <Segmented id="app-view" label="nekoDOT" value={view} options={views} onChange={onView} />
+        <GooeyNav label="nekoDOT" value={view} options={views} onChange={onView} />
       </div>
       <div
         className="sidebar-conversations"

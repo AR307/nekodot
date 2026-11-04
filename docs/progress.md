@@ -1,3 +1,15 @@
+# 开发进度
+
+## 2026-11-04 ReactBits Gooey Nav（Web / Tauri）
+
+- 范围由用户确认：Web 与共用 React 界面的 Tauri；不修改 Flutter 和静态官网。三组导航为聊天/Skills/插件、Bot 详情/记忆/资料库、SOUL.md/MEMORY.md/USER.md。共用受控 `components/ui/gooey-nav.tsx`，原 Segmented 实现和旧导航样式规则已替换，未删除文件或增加依赖。
+- 改编自 ReactBits `c83b5e7e026f003af33ff9ebc3d93afb5c86ad22` 的 DOM/CSS 粒子胶囊版本；保留许可证和出处。局部 SVG alpha 滤镜适配明暗背景，颜色/字体沿用产品 tokens。44px 触摸目标、可见焦点、方向键/Home/End/Enter/Space、动态翻译和 ResizeObserver 定位、动画结束清理均已检查。
+- 真实浏览器验收：独立候选 Web `127.0.0.1:4396` 连接既有真实 Relay/Node `4319` 与官方 Hermes；原账号登录，Node 显示已同步。主导航三页、命令面板跳转后的选中同步、键盘、中英、明暗、320/390/768/1440px、手机 Skills 与返回通过，浏览器无运行错误。原 4318/4338 端口属于其他工作副本，未据其结果验收本次代码。
+- 减少动效先复现失败：Motion hook 缓存初始值、全局 CSS 保留 120ms 时长。改用现有 `useMediaQuery` 实时订阅并局部覆盖时长后，系统设置运行中切换生效，粒子为 0、位移 transition 为 0s；同一失败检查复跑通过。
+- 补充 Edge 旅程 `tests/browser/gooey-nav.spec.ts` 使用生产 Web 构建与录制管理数据，三组导航、页面内容、选中定位、键盘、320/390/768/1440px、44px 控件、减少动效、连续切换后粒子清理通过：1 passed。为适配现有源码 JSON 导入，使用 `pnpm exec tsx node_modules/@playwright/test/cli.js test tests/browser/gooey-nav.spec.ts --workers=1`，并设置 `PLAYWRIGHT_WEB_PORT=4396` 复用候选预览。录制旅程仅辅助，不代表真实模型通过。
+- 工程检查：`pnpm typecheck`、相关 ESLint/Prettier、`pnpm --filter @nekodot/web build` 通过；构建仍提示已有大体积 chunk。脱敏截图：`docs/evidence/gooey-nav-live.png` 为真实主导航，`docs/evidence/gooey-nav-documents-320.png` 为录制数据的 320px 详情/文档导航；完整本地记录在忽略的 `.runtime/gooey-live-report.json`。
+- 未验：真实 Node 当前无已配置的模型来源和 Bot，所以未调用真实模型，Bot 详情/文档未在该真实节点验收。Tauri Windows/Android 未重打包或设备实测，Flutter 不在此次范围内。保留工作区其他任务改动，本模块仅本地提交，未 push 或发布正式服务。
+
 # Phase 0 进度
 
 | 模块                  | 状态                         | 证据                                                       |

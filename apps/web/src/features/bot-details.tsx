@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Attachment, Bot, MemoryDocument, Operation, RpcResult } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
-import { BotAvatar, Icon, Segmented, SpinnerDots } from '../ui';
+import { BotAvatar, Icon, SpinnerDots } from '../ui';
+import { GooeyNav } from '../components/ui/gooey-nav';
 import { selectNodeData, useAppStore } from '../store';
 import type { Texts } from '../shared';
 import { OperationProgress } from './operations';
@@ -58,8 +59,7 @@ export function BotDetails({
           </button>
         </header>
         <div className="details-tabs">
-          <Segmented<typeof tab>
-            id="details-tab"
+          <GooeyNav<typeof tab>
             label={t.botDetails}
             value={tab}
             onChange={setTab}
@@ -306,17 +306,16 @@ function MemoryPanel({ bot, t }: { bot: Bot; t: Texts }) {
       <section className="detail-section">
         <h3>{t.nativeMemory}</h3>
         <p className="muted">{t.memoryTiming}</p>
-        <div className="document-tabs">
-          {(['SOUL.md', 'MEMORY.md', 'USER.md'] as const).map((doc) => (
-            <button
-              key={doc}
-              className={name === doc ? 'selected' : ''}
-              onClick={() => setName(doc)}
-            >
-              {doc}
-            </button>
-          ))}
-        </div>
+        <GooeyNav<MemoryDocument>
+          className="document-tabs"
+          label={t.nativeMemory}
+          value={name}
+          onChange={setName}
+          options={(['SOUL.md', 'MEMORY.md', 'USER.md'] as const).map((doc) => ({
+            value: doc,
+            label: doc,
+          }))}
+        />
         <p className="muted">
           {name === 'SOUL.md'
             ? t.soulDescription
