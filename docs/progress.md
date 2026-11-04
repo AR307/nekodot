@@ -1120,3 +1120,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 适用于所有 Bot 的设置（模型服务、消息平台、凭据、网络与代理、Hermes 界面、通用）移到应用设置「所有 Bot → 共用 Hermes 设置」，与模型来源、关于你、Skills 与插件同组。Node 新增 hermes.shared.get/set：写入根 profile 与所有 Bot profile（含已归档）并记录，新建 Bot 自动继承；Bot 级接口拒绝共用 key，共用接口拒绝 Bot key。
 - 真实验收（QA Relay 127.0.0.1:4459、本机 Node、官方 Hermes；本轮只验界面与设置，未发起新的模型对话，聊天内容为此前真实对话）：Windows 当前源码 debug 客户端完整旅程通过——分组折叠、详情面板中间宽度 65/276px、Bot 设置六类与共用 330 项无重叠、能力页搜到 terminal.backend、界面切换 display.compact 后根 profile 与 4 个 Bot profile（含 2 个已归档）配置文件实际写入、之后新建的 Bot 继承、还原、Bot 级写共用 key 被拒；测试 Bot 已归档。Android 模拟器 NekodotNativePhase3 同一旅程通过，详情放大采到 0.962/0.989/0.999 三个中间帧。
 - 深浅色截图逐张检查：docs/evidence/ui-refresh-*.png。node 52 项、Flutter 24 项辅助测试与 analyze、tsc、eslint、prettier 通过。未验：Android 真机、macOS/Linux、release 包流畅度（模拟器 debug 包推入详情时约 5 帧/秒）。只做本地提交，未 push。
+
+## 2026-11-04 Hermes 设置与命令中文、Android 黑白配色
+
+- 913 项 Hermes 原生设置（Bot 自身 583 项与共用 330 项）全部有中文名称和说明，命令面板 138 条命令（含 40 个默认技能）有中文说明，3 条 App 不支持的原因也有中文；依据固定版本 Hermes v0.22.6 的配置说明、默认值和命令源码写成，表在 `apps/native/lib/data/hermes_zh.dart`。
+- 中文界面里设置以中文名打头，下面是说明、当前值和原始 key（小字，便于对照 Hermes 文档）；搜索可用中文名、说明或 key；编辑框标题与提示同为中文。英文界面不变。Hermes 新版本新增、表里还没有的项按 Hermes 原文显示。
+- Android 改回纯黑白：保留手机的大尺寸控件、顶栏与底部 dock，去掉灰色渐变底和光斑，卡片改为不透明白/黑底加阴影，与 Windows 一致。
+- 真实验收（QA Relay 127.0.0.1:4459、本机 Node、官方 Hermes）：Windows 当前源码客户端与 Android 模拟器 NekodotNativePhase3 的同一旅程均通过；真实节点返回的 913 项设置、138 条命令无一缺中文，底色为纯白/纯黑，命令面板与能力页实际显示中文，共用设置写入与继承照旧通过。截图：docs/evidence/ui-refresh-*.png。
+- Flutter 25 项辅助测试（新增中文设置用例）与 analyze 通过。未验：Android 真机、macOS/Linux；用户自行安装的技能、插件命令仍是原文。只做本地提交，未 push。

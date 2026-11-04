@@ -9,53 +9,16 @@ import 'design.dart';
 
 const _blur = 26.0;
 
-/// The one backdrop every phone page floats over. Soft neutral orbs give the
-/// glass something to refract; it stays still so content carries the motion.
+/// The one plain ground every phone page sits on, shared so pages can fade
+/// over each other and bars can blur what scrolls beneath them.
 class Ambient extends StatelessWidget {
   final Widget child;
   const Ambient({super.key, required this.child});
   @override
-  Widget build(BuildContext context) => Stack(
-    fit: StackFit.expand,
-    children: [
-      RepaintBoundary(
-        child: CustomPaint(
-          painter: _OrbPainter(context.tone),
-          size: Size.infinite,
-        ),
-      ),
-      BackdropGroup(child: child),
-    ],
+  Widget build(BuildContext context) => ColoredBox(
+    color: context.tone.base,
+    child: BackdropGroup(child: child),
   );
-}
-
-class _OrbPainter extends CustomPainter {
-  final Tone tone;
-  _OrbPainter(this.tone);
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = tone.base);
-    final unit = math.max(size.width, size.height);
-    void orb(double x, double y, double radius, Color color) {
-      final center = Offset(size.width * x, size.height * y);
-      canvas.drawCircle(
-        center,
-        unit * radius,
-        Paint()
-          ..shader = ui.Gradient.radial(center, unit * radius, [
-            color,
-            color.withValues(alpha: 0),
-          ]),
-      );
-    }
-
-    orb(.08, .02, .62, tone.orbs[0]);
-    orb(.96, .78, .58, tone.orbs[1]);
-    orb(.74, .12, .34, tone.orbs[2]);
-  }
-
-  @override
-  bool shouldRepaint(_OrbPainter old) => old.tone != tone;
 }
 
 /// The frosted strip behind a phone page's bar; content scrolls beneath it.
@@ -78,8 +41,8 @@ class Frost extends StatelessWidget {
   }
 }
 
-/// A card: a raised surface on the desktop, frosted glass on the phone. Both
-/// carry their depth as a soft shadow, never a hairline under it.
+/// A card: a raised surface that carries its depth as a soft shadow, never a
+/// hairline under it.
 class Panel extends StatelessWidget {
   final Widget child;
   final double radius;
@@ -98,35 +61,6 @@ class Panel extends StatelessWidget {
   Widget build(BuildContext context) {
     final tone = context.tone;
     final shadows = lifted ? tone.lift : tone.rest;
-    if (tone.glass) {
-      final corners = BorderRadius.circular(radius + 2);
-      return DecoratedBox(
-        decoration: ShapeDecoration(
-          shape: RoundedSuperellipseBorder(borderRadius: corners),
-          shadows: shadows,
-        ),
-        child: ClipRSuperellipse(
-          borderRadius: corners,
-          child: BackdropFilter.grouped(
-            filter: ui.ImageFilter.blur(sigmaX: _blur, sigmaY: _blur),
-            child: DecoratedBox(
-              decoration: ShapeDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [tone.fillTop, tone.fillBottom],
-                ),
-                shape: RoundedSuperellipseBorder(
-                  borderRadius: corners,
-                  side: BorderSide(color: tone.line),
-                ),
-              ),
-              child: Material(type: MaterialType.transparency, child: child),
-            ),
-          ),
-        ),
-      );
-    }
     final corners = BorderRadius.circular(radius);
     return DecoratedBox(
       decoration: BoxDecoration(borderRadius: corners, boxShadow: shadows),

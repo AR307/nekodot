@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
+import '../data/hermes_zh.dart';
 import '../ui/design.dart';
 import 'bot_editor.dart';
 import 'extensions.dart';
@@ -11,6 +12,17 @@ import 'learning.dart';
 import 'pets.dart';
 import 'subscription.dart';
 import 'voice.dart';
+
+/// What a command does, in the app's language. Hermes and Node describe it in
+/// English; a command newer than [hermesCommandZh] shows as they wrote it.
+String commandText(NekodotClient c, Json entry) {
+  final name = '${entry['name']}';
+  if (entry['unavailableReason'] != null) {
+    return (c.zh ? hermesUnavailableZh[name] : null) ??
+        '${entry['unavailableReason']}';
+  }
+  return (c.zh ? hermesCommandZh[name] : null) ?? '${entry['description']}';
+}
 
 Future<void> openCommandPage(
   BuildContext context,
@@ -71,9 +83,10 @@ class CommandPalette extends StatelessWidget {
   Widget build(BuildContext context) {
     final filtered = entries
         .where(
-          (entry) => '${entry['name']} ${entry['description']}'
-              .toLowerCase()
-              .contains(query.toLowerCase()),
+          (entry) =>
+              '${entry['name']} ${entry['description']} ${commandText(client, entry)}'
+                  .toLowerCase()
+                  .contains(query.toLowerCase()),
         )
         .toList();
     final usable = filtered
@@ -86,7 +99,7 @@ class CommandPalette extends StatelessWidget {
       dense: true,
       title: Text('${entry['name']}'),
       subtitle: Text(
-        '${entry['unavailableReason'] ?? entry['description']}',
+        commandText(client, entry),
         maxLines: 3,
         overflow: TextOverflow.ellipsis,
       ),

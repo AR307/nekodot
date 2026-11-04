@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
+import '../data/hermes_zh.dart';
 import '../ui/design.dart';
 
 /// The kinds a Bot's own settings fall into, in page order; Node assigns each
@@ -40,6 +41,14 @@ String settingGroupName(NekodotClient c, String group) => switch (group) {
   'general' => c.tr('通用', 'General'),
   _ => c.tr('其他', 'Other'),
 };
+
+/// A setting's name and note in the app's language. Hermes writes only the key
+/// and an English note; a key newer than [hermesSettingZh] shows as Hermes wrote it.
+(String, String) settingText(NekodotClient c, Json field) {
+  final key = '${field['key']}';
+  return (c.zh ? hermesSettingZh[key] : null) ??
+      (key, '${field['description']}');
+}
 
 /// Hermes's own settings for one Bot, or with no Bot the ones every Bot on
 /// this computer shares. With no [group] it shows the kinds, each with the
@@ -87,7 +96,9 @@ class _HermesSettingsState extends State<HermesSettings> {
           .where((f) => widget.group == null || groupOf(f) == widget.group)
           .toList();
       final filtered = all.where((field) {
-        final words = '${field['key']} ${field['description']}'.toLowerCase();
+        final (name, note) = settingText(c, field);
+        final words = '${field['key']} ${field['description']} $name $note'
+            .toLowerCase();
         return words.contains(query.toLowerCase());
       }).toList();
       final categories = <String>[
@@ -221,40 +232,53 @@ class _HermesSettingsState extends State<HermesSettings> {
     );
   }
 
-  Widget fieldTile(Json field, VoidCallback reload) =>
-      field['type'] == 'boolean' && field['sensitive'] != true
-      ? SwitchListTile.adaptive(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-          title: Text('${field['key']}'),
-          subtitle: Text(
-            '${field['description']}',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          value: field['value'] == true,
-          onChanged: field['editable'] == true
-              ? (value) => _save(field, value, reload)
-              : null,
-        )
-      : ListTile(
-          title: Text('${field['key']}'),
-          subtitle: Text(
-            [
-              '${field['description']}',
+  /// The translated name leads; Hermes's key stays under it, small, so a
+  /// setting can still be matched to Hermes's own documentation.
+  Widget fieldTile(Json field, VoidCallback reload) {
+    final key = '${field['key']}';
+    final (name, note) = settingText(c, field);
+    Widget subtitle(List<String> lines) => Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: lines.join('\n')),
+          if (name != key)
+            TextSpan(
+              text: '\n$key',
+              style: TextStyle(fontSize: 11.5, color: context.tone.ink3),
+            ),
+        ],
+      ),
+      maxLines: lines.length + 2,
+      overflow: TextOverflow.ellipsis,
+    );
+    return field['type'] == 'boolean' && field['sensitive'] != true
+        ? SwitchListTile.adaptive(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+            title: Text(name),
+            subtitle: subtitle([note]),
+            value: field['value'] == true,
+            onChanged: field['editable'] == true
+                ? (value) => _save(field, value, reload)
+                : null,
+          )
+        : ListTile(
+            title: Text(name),
+            subtitle: subtitle([
+              note,
               _valueLabel(c, field),
               if (field['editable'] != true && field['sensitive'] != true)
                 c.tr('修改请前往 Bot 模型设置', 'Change this in Bot model settings'),
-            ].join('\n'),
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: field['sensitive'] == true
-              ? const Icon(Icons.lock_outline, size: 18)
-              : field['editable'] == true
-              ? const Icon(Icons.chevron_right)
-              : null,
-          onTap: field['editable'] != true ? null : () => _edit(field, reload),
-        );
+            ]),
+            trailing: field['sensitive'] == true
+                ? const Icon(Icons.lock_outline, size: 18)
+                : field['editable'] == true
+                ? const Icon(Icons.chevron_right)
+                : null,
+            onTap: field['editable'] != true
+                ? null
+                : () => _edit(field, reload),
+          );
+  }
 
   Future<void> _save(Json field, Object? value, VoidCallback reload) async {
     try {
@@ -314,7 +338,7 @@ class _HermesSettingsState extends State<HermesSettings> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, updateDialog) => AlertDialog(
-          title: Text('${field['key']}'),
+          title: Text(settingText(c, field).$1),
           content: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520, maxHeight: 480),
             child: Column(
@@ -349,7 +373,7 @@ class _HermesSettingsState extends State<HermesSettings> {
                           decoration: InputDecoration(
                             helperText: type == 'list' || type == 'object'
                                 ? 'JSON'
-                                : '${field['description']}',
+                                : settingText(c, field).$2,
                           ),
                         ),
                 ),
@@ -425,7 +449,7 @@ String _valueLabel(NekodotClient client, Json field) {
 String _categoryName(NekodotClient client, String category) =>
     switch (category) {
       'general' => client.tr('常规', 'General'),
-      'agent' => 'Agent',
+      'agent' => client.tr('智能体', 'Agent'),
       'terminal' => client.tr('终端', 'Terminal'),
       'display' => client.tr('显示', 'Display'),
       'delegation' => client.tr('委派', 'Delegation'),
@@ -469,5 +493,9 @@ String _categoryName(NekodotClient client, String category) =>
       'database' => client.tr('数据库', 'Database'),
       'attachments' => client.tr('附件', 'Attachments'),
       'logging' => client.tr('日志', 'Logging'),
+      'discord' => 'Discord',
+      'slack' => 'Slack',
+      'mattermost' => 'Mattermost',
+      'matrix' => 'Matrix',
       _ => category,
     };

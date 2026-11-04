@@ -11,6 +11,8 @@ import 'package:http/http.dart' as http;
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/features/bot_details.dart';
+import 'package:nekodot_native/features/chat.dart';
+import 'package:nekodot_native/data/hermes_zh.dart';
 import 'package:nekodot_native/features/hermes_settings.dart';
 import 'package:nekodot_native/features/settings.dart';
 import 'package:nekodot_native/features/user_memory.dart';
@@ -284,6 +286,10 @@ void main() {
       await settle(400);
     }
     await shot('home');
+    // Black and white on every device: the ground is plain white or black.
+    final ground = tester.element(botSection).tone.base.toARGB32();
+    note('ground', ground.toRadixString(16));
+    expect([0xffffffff, 0xff000000], contains(ground));
     await tap(botSection);
     await settle(300);
     note('botsFolded', dmRow.evaluate().isEmpty);
@@ -298,6 +304,33 @@ void main() {
       what: 'chat title',
     );
     await shot('chat');
+
+    // The command palette describes every command in Chinese.
+    final composer = find.descendant(
+      of: find.byType(ChatPage),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(composer.last, '/');
+    await until(
+      () => find.text(hermesCommandZh['/new']!).evaluate().isNotEmpty,
+      what: 'commands in Chinese',
+    );
+    final commands = objects(
+      (await client.rpc('commands.list', {
+        'botId': '${dm['botId']}',
+      }))['commands'],
+    );
+    final untranslated = [
+      for (final command in commands)
+        if (!hermesCommandZh.containsKey(command['name'])) command['name'],
+    ];
+    note('commands', commands.length);
+    note('commandsWithoutChinese', untranslated);
+    expect(untranslated, isEmpty);
+    await shot('commands');
+    await tester.enterText(composer.last, '');
+    await settle(400);
+
     final (frames, between) = await openDetails();
     note(android ? 'detailsFramesAfterShots' : 'detailsFrames', frames);
     if (!android) expect(between, isTrue);
@@ -342,6 +375,14 @@ void main() {
       }
     }
     expect(find.byKey(const ValueKey('bot-secrets')), findsOneWidget);
+    // Every Hermes setting this node offers, the Bot's own and the shared
+    // ones, has a Chinese name and note.
+    final missing = [
+      for (final key in [...ownKeys, ...sharedKeys])
+        if (!hermesSettingZh.containsKey(key)) key,
+    ];
+    note('settingsWithoutChinese', missing);
+    expect(missing, isEmpty);
     await shot('bot-settings');
     await tap(find.byKey(const ValueKey('settings-group-tools')));
     // The capabilities page, once its settings have loaded.
@@ -364,11 +405,11 @@ void main() {
       () => find
           .descendant(
             of: find.byType(ListTile),
-            matching: find.text('terminal.backend'),
+            matching: find.text(hermesSettingZh['terminal.backend']!.$1),
           )
           .evaluate()
           .isNotEmpty,
-      what: 'terminal.backend',
+      what: 'terminal.backend in Chinese',
     );
     await shot('bot-settings-tools');
     await tester.pageBack();
@@ -421,7 +462,10 @@ void main() {
       );
       await tester.enterText(search, 'display.compact');
       await settle(500);
-      final toggle = find.widgetWithText(SwitchListTile, 'display.compact');
+      final toggle = find.widgetWithText(
+        SwitchListTile,
+        hermesSettingZh['display.compact']!.$1,
+      );
       await until(() => toggle.evaluate().isNotEmpty, what: 'shared field');
       await tap(toggle);
       await until(

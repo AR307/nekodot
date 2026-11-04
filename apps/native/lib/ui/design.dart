@@ -53,7 +53,7 @@ const _sansFallback = [
   'Noto Sans SC',
 ];
 
-/// Black and white: flat on the desktop, frosted glass on the phone. Bot avatars
+/// Black and white on every device; the phone has larger controls. Bot avatars
 /// are the only hue on screen, so a speaker can be told apart at a glance.
 @immutable
 class Tone extends ThemeExtension<Tone> {
@@ -70,8 +70,7 @@ class Tone extends ThemeExtension<Tone> {
 
   /// Round icon buttons are smaller than text controls; a phone pads the target.
   final double button;
-  final Color fillTop, fillBottom, bar, fieldFocus;
-  final List<Color> orbs;
+  final Color bar, fieldFocus;
 
   /// Depth is shadow alone: a resting card, and a lifted one (menus, the
   /// selected row, the details panel). Dark grounds carry it as a lighter surface.
@@ -95,11 +94,8 @@ class Tone extends ThemeExtension<Tone> {
     this.corner = 8,
     this.icon = 18,
     this.button = 28,
-    this.fillTop = Colors.transparent,
-    this.fillBottom = Colors.transparent,
     this.bar = Colors.transparent,
     this.fieldFocus = Colors.transparent,
-    this.orbs = const [],
     this.rest = const [],
     this.lift = const [],
   });
@@ -150,38 +146,35 @@ class Tone extends ThemeExtension<Tone> {
       ),
     ],
   );
+  // The phone keeps its larger controls and bars over a plain black or white
+  // ground; cards are opaque, carried by shadow like the desktop's.
   static const glassLight = Tone(
     glass: true,
     control: 40,
     corner: 10,
     icon: 21,
     button: 36,
-    base: Color(0xffe6e6e9),
+    base: Color(0xffffffff),
     sidebar: Colors.transparent,
-    surface: Color(0x8cffffff),
-    ink: Color(0xff0b0b0c),
-    ink2: Color(0xa60b0b0c),
-    ink3: Color(0x8c0b0b0c),
-    line: Color(0x140b0b0c),
-    bubble: Color(0x80ffffff),
-    raised: Color(0x0f0b0b0c),
-    hover: Color(0x0d0b0b0c),
-    menu: Color(0xfff6f6f7),
+    surface: Color(0xffffffff),
+    ink: Color(0xff000000),
+    ink2: Color(0xff5c5c5c),
+    ink3: Color(0xff767676),
+    line: Color(0xffe6e6e6),
+    bubble: Color(0xfff2f2f2),
+    raised: Color(0xfff0f0f0),
+    hover: Color(0xfff0f0f0),
+    menu: Color(0xffffffff),
     danger: Color(0xffc22f2f),
-    fillTop: Color(0xbdffffff),
-    fillBottom: Color(0x80ffffff),
-    bar: Color(0x73f4f4f5),
-    fieldFocus: Color(0xd9ffffff),
-    orbs: [Color(0xffffffff), Color(0xffb9b9c1), Color(0xfff8f8fa)],
+    bar: Color(0xebffffff),
+    fieldFocus: Color(0xffffffff),
     rest: [
-      BoxShadow(color: Color(0x0f000000), blurRadius: 18, offset: Offset(0, 6)),
+      BoxShadow(color: Color(0x0f000000), blurRadius: 3, offset: Offset(0, 1)),
+      BoxShadow(color: Color(0x0d000000), blurRadius: 14, offset: Offset(0, 4)),
     ],
     lift: [
-      BoxShadow(
-        color: Color(0x1f000000),
-        blurRadius: 30,
-        offset: Offset(0, 12),
-      ),
+      BoxShadow(color: Color(0x14000000), blurRadius: 4, offset: Offset(0, 1)),
+      BoxShadow(color: Color(0x1f000000), blurRadius: 24, offset: Offset(0, 8)),
     ],
   );
   static const glassDark = Tone(
@@ -190,31 +183,29 @@ class Tone extends ThemeExtension<Tone> {
     corner: 10,
     icon: 21,
     button: 36,
-    base: Color(0xff08080a),
+    base: Color(0xff000000),
     sidebar: Colors.transparent,
-    surface: Color(0x17ffffff),
-    ink: Color(0xfff6f6f7),
-    ink2: Color(0xadf6f6f7),
-    ink3: Color(0x85f6f6f7),
-    line: Color(0x1cffffff),
-    bubble: Color(0x14ffffff),
-    raised: Color(0x14ffffff),
-    hover: Color(0x12ffffff),
-    menu: Color(0xff1b1b1f),
+    surface: Color(0xff161616),
+    ink: Color(0xffffffff),
+    ink2: Color(0xffb0b0b0),
+    ink3: Color(0xff8c8c8c),
+    line: Color(0xff2a2a2a),
+    bubble: Color(0xff1c1c1c),
+    raised: Color(0xff2a2a2a),
+    hover: Color(0xff1e1e1e),
+    menu: Color(0xff1c1c1c),
     danger: Color(0xffff8a80),
-    fillTop: Color(0x1fffffff),
-    fillBottom: Color(0x0dffffff),
-    bar: Color(0x4d101013),
-    fieldFocus: Color(0x2bffffff),
-    orbs: [Color(0xff4c4c56), Color(0xff34343c), Color(0xff2c2c33)],
+    thumb: Color(0xff3a3a3a),
+    bar: Color(0xeb000000),
+    fieldFocus: Color(0xff1c1c1c),
     rest: [
-      BoxShadow(color: Color(0x59000000), blurRadius: 18, offset: Offset(0, 6)),
+      BoxShadow(color: Color(0x66000000), blurRadius: 14, offset: Offset(0, 4)),
     ],
     lift: [
       BoxShadow(
-        color: Color(0x80000000),
-        blurRadius: 30,
-        offset: Offset(0, 12),
+        color: Color(0x99000000),
+        blurRadius: 28,
+        offset: Offset(0, 10),
       ),
     ],
   );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/hermes_zh.dart';
 import 'package:nekodot_native/features/hermes_settings.dart';
 import 'package:nekodot_native/ui/design.dart';
 
@@ -145,4 +146,39 @@ void main() {
       client.dispose();
     },
   );
+
+  testWidgets('In Chinese a setting leads with its name and keeps its key', (
+    tester,
+  ) async {
+    final client = SettingsClient()..language = 'zh';
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: appTheme(Brightness.light),
+        home: Scaffold(
+          body: HermesSettings(client: client, botId: 'nk-settings'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final (name, note) = hermesSettingZh['compression.enabled']!;
+    // Found by its Chinese name as well as by its key.
+    await tester.enterText(find.byType(TextField), name);
+    await tester.pumpAndSettle();
+    final tile = find.widgetWithText(SwitchListTile, name);
+    expect(tile, findsOneWidget);
+    expect(
+      find.descendant(of: tile, matching: find.textContaining(note)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: tile,
+        matching: find.textContaining('compression.enabled'),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    client.dispose();
+  });
 }
