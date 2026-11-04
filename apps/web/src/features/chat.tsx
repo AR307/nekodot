@@ -17,6 +17,7 @@ import { MessageFiles, readableMessageText } from './files';
 import { Markdown, MentionText } from './markdown';
 import { useDrafts } from '../drafts';
 import { writeClipboard } from '../native';
+import AIApproval from '../components/ui/ai-approval';
 
 type Activity = 'thinking' | 'tool' | 'waiting_approval' | 'waiting_question' | 'unknown' | 'idle';
 
@@ -1048,19 +1049,11 @@ function ApprovalCard({
   t: Texts;
   message: Extract<Message, { kind: 'approval' }>;
 }) {
-  const [busy, setBusy] = useState<ApprovalChoice | null>(null);
-  const [error, setError] = useState('');
-  async function respond(choice: ApprovalChoice) {
-    setBusy(choice);
-    setError('');
-    try {
-      await callNode('approvals.respond', { messageId: message.messageId, choice });
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : t.saveError);
-    } finally {
-      setBusy(null);
-    }
-  }
+  const connected = useAppStore(
+    (state) =>
+      state.socketReady &&
+      Boolean(state.selectedNodeId && state.nodes[state.selectedNodeId]?.online),
+  );
   const choiceLabels = {
     once: t.allowOnce,
     session: t.allowSession,
@@ -1081,66 +1074,32 @@ function ApprovalCard({
         ? t.failed
         : '';
   const choices = message.content.choices ?? (['once', 'deny'] as const);
-  const extra = choices.filter((choice) => choice === 'session' || choice === 'always');
-  const pending = !status && message.status === 'streaming';
-  const allowed = message.content.choice && message.content.choice !== 'deny';
   return (
-    <div className={`approval-card${pending ? ' is-pending' : ' is-resolved'}`}>
-      <div className="approval-title">
-        <span className="approval-icon">
-          <Icon name="warning" />
-        </span>
-        <strong>{t.approvalTitle}</strong>
-      </div>
+    <AIApproval
+      key={message.messageId}
+      className="approval-card"
+      disabled={!connected}
+      question={t.approvalTitle}
+      options={choices.map((choice) => ({
+        id: choice,
+        label: choiceLabels[choice],
+        resultLabel: resultLabels[choice],
+        destructive: choice === 'deny',
+      }))}
+      resolvedId={message.content.choice}
+      resolvedLabel={status || (message.status !== 'streaming' ? t.completed : undefined)}
+      onDecide={async (option) => {
+        await callNode('approvals.respond', {
+          messageId: message.messageId,
+          choice: option.id as ApprovalChoice,
+        });
+      }}
+    >
       <p>{message.content.prompt}</p>
       {message.content.command && <pre className="approval-command">{message.content.command}</pre>}
-      {pending && (
-        <>
-          <div className="approval-actions">
-            {choices.includes('once') && (
-              <button
-                className="primary-button"
-                disabled={Boolean(busy)}
-                onClick={() => void respond('once')}
-              >
-                {busy === 'once' && <SpinnerDots />}
-                {choiceLabels.once}
-              </button>
-            )}
-            {choices.includes('deny') && (
-              <button
-                className="secondary-button"
-                disabled={Boolean(busy)}
-                onClick={() => void respond('deny')}
-              >
-                {choiceLabels.deny}
-              </button>
-            )}
-          </div>
-          {extra.length > 0 && (
-            <div className="approval-more">
-              {extra.map((choice) => (
-                <button
-                  key={choice}
-                  className="approval-chip"
-                  disabled={Boolean(busy)}
-                  onClick={() => void respond(choice)}
-                >
-                  {choiceLabels[choice]}
-                </button>
-              ))}
-              <small className="approval-scope-hint">{t.approvalScopeHint}</small>
-            </div>
-          )}
-        </>
+      {choices.some((choice) => choice === 'session' || choice === 'always') && (
+        <small className="approval-scope-hint">{t.approvalScopeHint}</small>
       )}
-      {status && (
-        <span className={`approval-result${allowed ? ' is-allowed' : ''}`}>
-          <Icon name={allowed ? 'check' : 'close'} />
-          {status}
-        </span>
-      )}
-      {error && <small className="form-error">{error}</small>}
-    </div>
+    </AIApproval>
   );
 }

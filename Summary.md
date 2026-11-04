@@ -20,6 +20,12 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 
 ## 更新记录
 
+### 2026-11-04 / AI approval 全局卡片（本地）
+
+- Web/Tauri 共用 React 与 Flutter 的私聊、群聊审批统一为纵向全宽选项；提交成功后收起其他选项并显示结果，失败保留重试。保留审批范围、命令、中英、主题、减少动画和离线禁用，仍调用原有 Hermes 审批接口。
+- TypeScript、相关 ESLint/Prettier、Web 构建、5 项 Edge 辅助检查、4 项 Flutter widget 测试及受影响 Dart analyze 通过；Windows Release 构建成功。浏览器浅色桌面与深色手机预览已检查。
+- Edge 审批旅程使用真实 Node/Relay 和录制 Hermes 事件，覆盖私聊/群聊允许、拒绝和刷新恢复，属于辅助验收。真实本地账号尚无模型来源，官方 Hermes/真实模型审批及原生设备交互仍未验；未替换已安装包、未发布或 push。详见 `docs/ai-approval-acceptance.md`。
+
 ### 2026-11-04 / ReactBits Gooey Nav（Web / Tauri）
 
 - 聊天/Skills/插件主导航、Bot 详情/记忆/资料库、SOUL.md/MEMORY.md/USER.md 三组导航统一使用 ReactBits 官方 DOM/CSS 粒子胶囊实现，保留来源和许可证；沿用现有字体、橙色主题、中英和页面状态，不增加依赖。

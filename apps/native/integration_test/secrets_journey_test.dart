@@ -24,9 +24,9 @@ void main() {
       final end = DateTime.now().add(Duration(seconds: seconds));
       while (!ready() && DateTime.now().isBefore(end)) {
         await tester.pump(const Duration(milliseconds: 200));
-        final allow = find.widgetWithText(FilledButton, '允许一次');
+        final allow = find.widgetWithText(OutlinedButton, '允许一次');
         if (allow.evaluate().isNotEmpty &&
-            tester.widget<FilledButton>(allow.first).onPressed != null) {
+            tester.widget<OutlinedButton>(allow.first).onPressed != null) {
           await Scrollable.ensureVisible(
             tester.element(allow.first),
             alignment: .4,

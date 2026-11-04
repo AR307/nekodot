@@ -160,7 +160,7 @@ void main() {
       final end = DateTime.now().add(const Duration(minutes: 6));
       var stopped = false;
       while (!done(fresh()) && DateTime.now().isBefore(end)) {
-        final allow = find.widgetWithText(FilledButton, '允许一次').hitTestable();
+        final allow = find.widgetWithText(OutlinedButton, '允许一次').hitTestable();
         if (allow.evaluate().isNotEmpty) {
           await tester.tap(allow.first);
           note('approved', true);

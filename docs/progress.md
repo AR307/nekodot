@@ -1,5 +1,13 @@
 # 开发进度
 
+## 2026-11-04 AI approval 全局卡片（本地）
+
+- 按用户提供的 AIApproval 参考，将 React 和 Flutter 私聊/群聊审批改为共享卡片：全宽纵向选项、命令与范围说明、拒绝危险色、确认后只保留结果。Web/Tauri 共用 React 源码，Flutter 原生界面同步实现；Node/Relay/Hermes 审批策略不变。
+- 异步提交锁定按钮，RPC 成功后收起选项，失败显示错误并允许重试；历史、取消/失败、其他客户端处理和离线状态正确展示。支持独立无回调使用、窄屏换行、键盘焦点与减少动画。深色危险色局部加强对比度，无新增依赖。
+- TypeScript、受影响 ESLint/Prettier、Web 构建通过；Edge 4 项组件检查 + 1 项独立审批旅程通过，覆盖私聊/群聊允许与拒绝、处理前后刷新及不再显示选项。Flutter 4 项 widget 测试和 5 个相关 Dart 文件 analyze 通过，Windows Release 构建成功。两个依赖旧按钮类型的原生旅程选择器同步调整，未据静态检查声称原生旅程通过。
+- 真实浏览器检查了候选组件的桌面浅色与手机深色预览。审批集成使用真实 Node/Relay 与录制 Hermes 事件，仅作辅助；本地真实官方 Hermes 在线但账号未配置模型服务，真实模型审批待验证。原有完整私聊/群聊回放在审批前的欢迎/接力次数断言失败，详情见 `docs/ai-approval-acceptance.md`。
+- Windows GUI 审批、Android 模拟器/真机、macOS/Linux 与 Tauri 宿主未验；未替换已安装程序、未发布或 push。本任务独立本地提交，保留同工作区其他 UI 任务差异。
+
 ## 2026-11-04 ReactBits Gooey Nav（Web / Tauri）
 
 - 范围由用户确认：Web 与共用 React 界面的 Tauri；不修改 Flutter 和静态官网。三组导航为聊天/Skills/插件、Bot 详情/记忆/资料库、SOUL.md/MEMORY.md/USER.md。共用受控 `components/ui/gooey-nav.tsx`，原 Segmented 实现和旧导航样式规则已替换，未删除文件或增加依赖。

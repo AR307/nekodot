@@ -9,6 +9,7 @@ import '../data/client.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
 import '../ui/message_markdown.dart';
+import '../ui/ai_approval.dart';
 import '../screen/viewer.dart';
 import 'bot_details.dart';
 import 'bot_editor.dart';
@@ -1425,6 +1426,81 @@ class _ControlCardState extends State<ControlCard> {
       'deny' => c.tr('拒绝', 'Deny'),
       _ => '$choice',
     };
+    if (!question) {
+      final choice = data['choice'] as String?;
+      String resultLabel(String value) => switch (value) {
+        'once' => c.tr('已允许一次', 'Allowed once'),
+        'session' => c.tr('已在本会话允许', 'Allowed in this chat'),
+        'always' => c.tr('此 bot 已始终允许', 'Always allowed for this bot'),
+        'deny' => c.tr('已拒绝', 'Denied'),
+        _ => value,
+      };
+      final choices = (data['choices'] as List? ?? ['once', 'deny'])
+          .cast<String>();
+      return AIApproval(
+        key: ValueKey(m['messageId']),
+        question: c.tr('需要你确认', 'Needs your approval'),
+        options: [
+          for (final value in choices)
+            AIApprovalOption(
+              id: value,
+              label: label(value),
+              resultLabel: resultLabel(value),
+              destructive: value == 'deny',
+            ),
+        ],
+        disabled: !c.online,
+        resolvedId: choice,
+        resolvedLabel: choice != null
+            ? resultLabel(choice)
+            : !pending
+            ? switch (m['status']) {
+                'cancelled' => c.tr('已停止', 'Stopped'),
+                'failed' => c.tr('未完成', 'Not completed'),
+                _ => c.tr('已完成', 'Completed'),
+              }
+            : null,
+        onDecide: (option) async {
+          await c.rpc('approvals.respond', {
+            'messageId': m['messageId'],
+            'choice': option.id,
+          });
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SelectableText('${data['prompt']}'),
+            if (data['command'] != null)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: tone.bubble,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: SelectableText(
+                  '${data['command']}',
+                  style: const TextStyle(fontFamily: monoFont, fontSize: 12),
+                ),
+              ),
+            if (choices.contains('session') || choices.contains('always'))
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  c.tr(
+                    '会话允许仅限本会话；始终允许会将此操作保存到此 bot 的 Hermes profile。',
+                    'Chat approval applies to this conversation. Always approval saves this operation in this bot’s Hermes profile.',
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
     return Panel(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -1507,30 +1583,6 @@ class _ControlCardState extends State<ControlCard> {
                         ].join('\n'),
                       ),
                 child: Text(c.tr('提交', 'Submit')),
-              ),
-            ],
-            if (pending && !question) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final (index, choice)
-                      in (data['choices'] as List? ?? ['once', 'deny']).indexed)
-                    index == 0
-                        ? FilledButton(
-                            onPressed: !c.online || busy
-                                ? null
-                                : () => respond('$choice'),
-                            child: Text(label(choice)),
-                          )
-                        : OutlinedButton(
-                            onPressed: !c.online || busy
-                                ? null
-                                : () => respond('$choice'),
-                            child: Text(label(choice)),
-                          ),
-                ],
               ),
             ],
             ErrorNotice(error),

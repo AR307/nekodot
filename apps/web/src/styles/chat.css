@@ -609,7 +609,6 @@
 }
 
 /* approval card */
-.approval-card,
 .question-card {
   display: flex;
   flex-direction: column;
@@ -619,41 +618,6 @@
   border: 1.5px solid var(--accent);
   background: var(--accent-soft);
 }
-.approval-card.is-pending {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
-  animation: approval-glow 2.4s ease-in-out infinite;
-}
-@keyframes approval-glow {
-  50% {
-    box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 5%, transparent);
-  }
-}
-.approval-card.is-resolved {
-  border-color: var(--line);
-  border-width: 1px;
-  background: var(--surface);
-}
-.approval-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.approval-title strong {
-  font-size: 14px;
-  font-weight: 800;
-}
-.approval-icon {
-  display: flex;
-  color: var(--accent-text);
-}
-.approval-card.is-resolved .approval-icon {
-  color: var(--ink-2);
-}
-.approval-icon .icon {
-  width: 18px;
-  height: 18px;
-}
-.approval-card p,
 .question-card p {
   margin: 0;
   font-size: 13px;
@@ -675,53 +639,11 @@
 .approval-actions button {
   width: 100%;
 }
-.approval-more {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-.approval-chip {
-  min-height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
-  background: color-mix(in srgb, var(--surface) 60%, transparent);
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 700;
-  transition: background-color 160ms var(--ease);
-}
-.approval-chip:not(:disabled):hover {
-  background: var(--surface);
-}
 .approval-scope-hint {
   flex-basis: 100%;
   color: var(--ink-2);
   font-size: 11px;
   line-height: 1.5;
-}
-.approval-result {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  align-self: flex-start;
-  min-height: 26px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  color: var(--ink-2);
-  font-size: 12px;
-  font-weight: 800;
-}
-.approval-result.is-allowed {
-  background: color-mix(in srgb, var(--ok) 14%, transparent);
-  color: var(--ok);
-}
-.approval-result .icon {
-  width: 14px;
-  height: 14px;
-  stroke-width: 2.4;
 }
 
 /* handoff and relay progress */
