@@ -348,7 +348,11 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
           .toList();
       final messages = (c.node.messages[id] ?? [])
           .where(
-            (row) => c.chatDisplay['focus'] != true || row['kind'] != 'tool',
+            (row) =>
+                (c.chatDisplay['focus'] != true || row['kind'] != 'tool') &&
+                // A text segment that ended empty when a tool started has nothing to show.
+                !(row['kind'] == 'commentary' &&
+                    '${row['content']?['text'] ?? ''}'.trim().isEmpty),
           )
           .toList();
       final lastBot = messages

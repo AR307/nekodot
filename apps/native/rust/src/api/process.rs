@@ -102,15 +102,23 @@ pub fn owned_process_run(
         forward(stdout, 1, sink.clone()),
         forward(stderr, 2, sink.clone()),
     ];
+    let leader = child.id();
     thread::spawn(move || {
         let status = child.wait();
+        owned().lock().unwrap().remove(&id);
+        // Reap what the child left running before draining output: an orphan that inherited
+        // the child's stdout would otherwise keep the pipe open.
+        #[cfg(windows)]
+        drop(job);
+        #[cfg(unix)]
+        unsafe {
+            libc::killpg(leader as libc::pid_t, libc::SIGKILL);
+        }
+        #[cfg(windows)]
+        let _ = leader;
         for reader in readers {
             let _ = reader.join();
         }
-        owned().lock().unwrap().remove(&id);
-        // Dropping the last job handle reaps anything the child left running.
-        #[cfg(windows)]
-        drop(job);
         let code = match status {
             Ok(status) => status.code().unwrap_or(-1),
             Err(_) => -1,

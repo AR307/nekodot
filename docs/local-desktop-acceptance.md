@@ -1,0 +1,57 @@
+# 本地电脑运行：真实验收记录
+
+日期：2026-11-04。实施计划见 [local-desktop-plan.md](local-desktop-plan.md)。
+
+## 环境
+
+- Windows 11 Home 10.0.26200 x64，Windows PowerShell 5.1；本次候选客户端 debug 构建，由 `integration_test/local_desktop_journey_test.dart` 驱动真实界面。
+- 官方 Hermes **v0.22.6**（提交 `f0d94882e8`），私有 Node 24.22.1，已配置的真实模型。
+- 隔离 loopback Relay（`.runtime/local-desktop/qa-relay.ts`，带 loopback SMTP 收件箱与私有 QA 路由），分发本次源码构建的 Node bundle。不是生产服务，未部署、未发布。
+- 运行环境与数据目录位于 `D:\nekodot 本地验收\运行环境` 与 `D:\nekodot 本地验收\数据`（中文与空格路径）。测试只在内存中保存登录，不改动已安装客户端的登录与偏好。
+- 这台电脑已有用户自装的 Python、uv、Node 与开发工具，**不是干净用户环境**；安装进程隔离了 `HERMES_*`、`UV_*`、`NEKODOT_*` 变量并核对了外部副作用（见下），但未在全新 Windows 账户上验收。
+
+## Windows 结果
+
+| 项目                   | 实际结果                                                                                                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 官方阶段（命令行复放） | `prerequisites`→`complete` 全部成功，约 7 分钟；`hermes.exe --version` 报告 v0.22.6 · f0d94882e89a，安装目录为中文路径                                                    |
+| 外部副作用             | 用户 PATH 无 Hermes 项；未创建 `%LOCALAPPDATA%\hermes`、开始菜单或桌面快捷方式；用户自己的 `%APPDATA%\uv\python` 未改动（最后修改 10-28）；uv 的 Python 落在运行环境目录  |
+| 目录权限               | 两个新建目录关闭继承，仅 SYSTEM、Administrators 与当前用户可访问                                                                                                          |
+| GUI 首次使用           | 注册（loopback 收件箱验证码）→ 添加电脑 → 在这台电脑运行 → 显示所选目录与可用空间 → 安装并启动；13 步依次完成，**6.3 分钟**上线并自动选中这台电脑，Relay 记录平台 `win32` |
+| 创建 Bot               | 通过 GUI Bot 编辑器创建，真实模型欢迎回复 9.4 秒                                                                                                                          |
+| 真实工具与本地文件     | 真实模型调用原生 `read_file` 读取 `D:\nekodot 本地验收\工作区\来源-*.txt`，再以 `write_file` 写出新文件；磁盘内容与源文件第一行逐字一致；两轮独立运行均通过               |
+| 重新打开               | 再次登录后自动启动已配对节点，不重新配对；同一 nodeId，历史完整                                                                                                           |
+| 停止与启动             | 停止后所属进程 0 个；再启动恢复在线，历史不变，无重复执行                                                                                                                 |
+| 退出                   | 退出前停止本机节点，所属进程 0 个                                                                                                                                         |
+| 异常结束               | 强制结束客户端进程后 0.9 秒内所属 6 个进程（node、2 个 hermes.exe、3 个 python）全部结束；Relay 立即显示该节点离线                                                        |
+
+| Relay 中断 | 隔离 Relay 实际停止并重启后，本机节点自动重连上线，客户端无需操作 |
+| Android 访问 | 固定 `NekodotNativePhase3` 模拟器（emulator-5554，经 `adb reverse`）用同一账号登录，选中这台电脑上的节点，打开桌面端创建的会话，真实模型流式回复由本机 Hermes 完成；桌面客户端随后退出，Relay 立即显示该节点离线。不是 Android 真机结果 |
+| 保持在线 | 桌面客户端持续运行 7.7 分钟（Android 访问、Relay 重启期间）始终在线；退出后所属进程 0 个 |
+
+截图：[目录选择](evidence/local-desktop-windows-folders.png)、[安装进度](evidence/local-desktop-windows-installing.png)、[真实工具聊天](evidence/local-desktop-windows-chat.png)；机器结果：[local-desktop-windows.json](evidence/local-desktop-windows.json)。
+
+## 模块五：本机桌面操作能力（真实节点）
+
+- `desktop.status` 在真实 Windows 节点返回 `host: desktop`、`computerUse: false`（无 Bot 独立屏幕），`desktopControl` 为已安装且 `ready: true`（cua-driver 健康检查）。
+- Hermes 默认为新 profile 开启 `computer_use`。nekodot 在这台电脑上新建 Bot 时改为默认关闭，由 Bot 详情“操作这台电脑”开关显式开启；经官方 `/api/tools/toolsets/computer_use` 写入，Hermes CLI 读回新 Bot 与关闭后的旧 Bot 均为 disabled。
+- 尚未让真实模型实际操作桌面（会接管鼠标和键盘），也未验 macOS 授权；见“未验”。
+
+## 观察到的边界
+
+- 本机 Hermes 与用户是同一系统账户：模型来源列表中出现 Hermes 自己检测到的 Claude Code 登录。nekodot 不会自动使用，用户选择后才会作为来源。
+- 驱动状态检查提示 cua-driver 首次实际操作时会在用户目录创建 `.cua-driver`（驱动自己的目录，Hermes 未提供迁移设置）；本次尚未实际操作，未创建。用户已有的 `.hermes` 与 `.local/state/hermes` 在验收期间没有改动，gateway 锁目录位于账号数据目录内。
+
+## 真实验收中发现并修正
+
+- **Windows 控制台编码**：PowerShell 5.1 以 GBK 输出，中文路径在阶段详情和错误里乱码。阶段改经 `run-stage.ps1` 以 UTF-8 输出，命令行复验中文路径与结果帧正常；首次 GUI 安装使用修正前版本，修正后的 GUI 路径待下一次全新安装复验。
+- **孙进程持有输出管道**：进程结束后先回收整棵进程树再读取剩余输出，避免遗留进程让读取永远不结束。
+- **空白 commentary 气泡**：工具开始时空的文本段被保存为 commentary，聊天显示空气泡（截图可见，为修正前）；聊天列表不再显示空白 commentary，存储不变。
+- 旅程脚本本身的问题（Windows 无驱动截图通道、过渡动画中点击、账号文件解析）已在测试中修正，不计为产品问题。
+
+## 未验或仍待验
+
+- 全新 Windows 用户账户、断网重试与中途取消、UTF-8 修正后的 GUI 全新安装。
+- macOS、Ubuntu 桌面：无验收环境，未运行。
+- 本机桌面操作：真实模型在记事本输入、保存、读取，以及权限拒绝与恢复、任务中停止。
+- 本地 Node 自动更新：本次 bundle 为开发构建，不触发更新。

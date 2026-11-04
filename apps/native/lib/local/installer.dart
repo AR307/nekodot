@@ -178,6 +178,11 @@ class RuntimeInstaller {
       ...bom,
       ...utf8.encode(Platform.isWindows ? _productsPs1 : _productsSh),
     ]);
+    if (Platform.isWindows) {
+      await File(
+        joinPath(_scripts, 'run-stage.ps1'),
+      ).writeAsBytes([...bom, ...utf8.encode(_runStagePs1)]);
+    }
   }
 
   /// Runs one official protocol-1 stage and reads its final JSON frame.
@@ -212,6 +217,7 @@ class RuntimeInstaller {
       command = Platform.isWindows
           ? [
               ..._powershell,
+              joinPath(_scripts, 'run-stage.ps1'),
               installer,
               '-Stage',
               name,
@@ -362,6 +368,17 @@ Future<Hash> _hashFile(File file) async {
 String _hex(List<int> bytes) =>
     bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 
+/// Windows PowerShell 5.1 writes the console code page (GBK on Chinese Windows); this runs an
+/// official stage with UTF-8 output so paths and errors reach the app intact.
+const _runStagePs1 = r'''
+$ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$OutputEncoding = [Console]::OutputEncoding
+$script, $rest = $args
+& $script @rest
+exit $LASTEXITCODE
+''';
+
 /// Loads install.ps1's definitions (it stops before running anything when dot-sourced) and
 /// runs its own source completion, without Publish-UserCommand.
 const _productsPs1 = r'''
@@ -371,6 +388,8 @@ param(
   [Parameter(Mandatory = $true)][string]$InstallDir
 )
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$OutputEncoding = [Console]::OutputEncoding
 . $Installer -HermesHome $HermesHome -InstallDir $InstallDir -NonInteractive -Json
 Initialize-ResolvedPaths
 $env:UV_NO_CONFIG = "1"
@@ -385,9 +404,23 @@ try {
 }
 ''';
 
-/// POSIX counterpart; completed in the macOS/Linux module.
+/// POSIX counterpart: sources install.sh for its functions (its main is guarded) and runs the
+/// same completion without `wire_shell_path`; `cli.expose_on_path: false` keeps launchers out
+/// of ~/.local/bin.
 const _productsSh = r'''
 #!/usr/bin/env bash
-printf '%s\n' '{"ok":false,"stage":"products","skipped":false,"reason":"not available on this platform yet"}'
-exit 1
+installer="$1"; home="$2"; checkout="$3"
+set -- --hermes-home "$home" --dir "$checkout" --non-interactive --json
+# shellcheck disable=SC1090
+source "$installer"
+config="$home/config.yaml"
+if ! grep -q '^cli:' "$config" 2>/dev/null; then
+  printf '\ncli:\n  expose_on_path: false\n' >> "$config"
+fi
+STAGE=products
+trap 'stage_result "$?"' EXIT
+bootstrap_python
+(cd "$INSTALL_DIR" && run_logged "Building the hermes command and apps" \
+  "$boot_py" -I -B -X utf8 hermes_cli/source_completion.py --source "$INSTALL_DIR") \
+  || fail "app products failed" products_build_failed
 ''';

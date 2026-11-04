@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-04",
+  "hermes": {
+    "version": "v0.22.6",
+    "commit": "f0d94882e89ab8d4098b5bb2f166adfb9ee0a0ab"
+  },
+  "node": "24.22.1",
+  "environment": "Windows 11 Home 10.0.26200 x64, Windows PowerShell 5.1, isolated loopback Relay, real configured model, runtime and data under D:\\nekodot 本地验收",
+  "firstInstall": {
+    "guiSignup": true,
+    "installMinutes": 6.28,
+    "stagesMinutes": {
+      "shellReplay": 7
+    },
+    "pairedPlatform": "win32",
+    "autoSelected": true,
+    "botCreatedInGui": true,
+    "welcomeFromRealModel": true
+  },
+  "reopen": {
+    "phase": "reopen",
+    "started": "2026-11-04T10:58:45.709914",
+    "signedIn": "2026-11-04T10:58:51.246543",
+    "historyBefore": 1,
+    "historyKept": true,
+    "sameNode": true,
+    "approvals": 0,
+    "tools": [
+      "null:null",
+      "null:null"
+    ],
+    "fileWritten": true,
+    "processesAfterStop": "0",
+    "restartKeepsHistory": true,
+    "restartAddsNothing": true,
+    "finished": "2026-11-04T10:59:50.524608"
+  }
+}
