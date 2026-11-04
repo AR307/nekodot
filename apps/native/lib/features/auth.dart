@@ -79,7 +79,9 @@ class _AuthPageState extends State<AuthPage> {
         countdown?.cancel();
         countdown = Timer.periodic(const Duration(seconds: 1), (timer) {
           if (!mounted) return timer.cancel();
-          final remaining = retryAt!.difference(DateTime.now()).inSeconds;
+          final remaining =
+              (retryAt!.difference(DateTime.now()).inMilliseconds / 1000)
+                  .ceil();
           setState(() => seconds = remaining.clamp(0, 60));
           if (seconds == 0) timer.cancel();
         });

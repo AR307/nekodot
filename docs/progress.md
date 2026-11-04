@@ -1127,3 +1127,13 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 真实 Web 验收：本次 Web production build 由本机 Relay `127.0.0.1:4319` 提供，使用隔离浏览器和新测试账号，经本地 Mailpit 收到邮件，完成注册、密码登录、重置密码和新密码登录；错误密码保留账号页并显示错误，空表单由必填校验阻止。重置时先观察到正常的 60 秒频率限制，间隔结束后成功，不绕过邮箱验证。
 - 浏览器视觉检查：1440×960 左栏流线可见、浅色登录/深色注册截图已查看；390×844 中文注册截图已查看；320×568、390×844、768×600 与 1440×960 无横向溢出，320px 下滚动后提交可达；中英文切换通过；减少动效时 72 条路径为静态。私有测试凭据、截图和报告保存在忽略的 `.runtime/local-deployment`，不提交账号或认证响应。
 - 工程检查：TypeScript、触及文件 ESLint/Prettier、Web 构建、Flutter analyze 和 6 项表单/窗口/退出辅助测试通过；Windows Release 以本机 Relay URL 构建成功。Windows 原生安装入口、真实注册/收码/登录由部署任务独立验收，本模块不据构建结果宣称真实认证通过。Android/macOS/Linux 未重建/验收，模型链路不属于本次账号页检查；未 push 或更新正式服务。
+
+## 2026-11-04 Windows 注册报错与旧版入口修复（本地）
+
+- 根因：用户截图来自 `AppData/Local/nekodot/nekodot-client.exe`，运行版本 0.1.1，注册只显示邮箱/密码；当前 Relay 要求 6 位邮箱验证码。开始菜单与任务栏仍指向该旧 EXE，桌面入口更新未覆盖这两个实际入口。未修改后端验证规则。
+- 使用仓库现有 Flutter 客户端与账号页新布局；邮箱/密码/验证码前置校验、发送间隔和模式清码由账号页模块提交。本次进一步使用毫秒向上取整计算倒计时，发送按钮等待完整间隔。
+- `apps/native/integration_test/auth_journey_test.dart` 在真实 Windows Debug 客户端、本机 Relay/Node/Mailpit 上通过：漏码本地提示、邮件发送与接收、注册、退出后重新登录、原本地账号登录、节点在线、snapshot 同步、官方 Hermes `providers.list` RPC、通过账户菜单打开实际设置页。首次执行已走通认证，在设置入口选择器处失败；改用实际账户菜单后完整通过。
+- 本次不恢复此前被用户停止的桌面 Computer Use；通过 Flutter 集成测试驱动真实候选应用。截图及脱敏结果保存在忽略的 `.runtime/local-deployment/windows/auth-fix-evidence/`，凭据及验证码不输出、不入库。
+- 最终产品 `lib/main.dart` 使用本机 Relay URL 构建 Windows Release，重新打包未签名 NSIS 安装器并实际安装至 `AppData/Local/Programs/nekoDOT`。安装后对 35 个程序文件逐一核对 SHA-256 与 Release 一致，主窗口标题为 nekoDOT 且响应正常；旧 0.1.1 已退出。
+- 桌面 2 个原生入口、开始菜单旧入口与新入口、任务栏固定项共 5 个入口统一经本地启动脚本打开新安装程序，原快捷方式和完整构建均保留备份。浏览器专用 `nekoDOT Local` 继续使用原本地服务入口。
+- 最终改动后相关 5 项 Flutter 辅助测试、认证文件与集成测试的 analyze、格式和 diff 检查通过。真实认证交互使用 Debug 集成测试构建；安装后的 Release 验证覆盖文件一致性、启动路径与窗口响应。本地 SMTP/Mailpit 不代表外网邮箱实际投递；用户稍后填写模型 Key，本次未调用模型、未验证移动设备，未 push 或发布正式服务。

@@ -81,6 +81,14 @@ pnpm dev:remote --ssh <your-ssh-alias>
 - 产品运行时始终使用真实的 Hermes CLI 与 API。真实模型的验收与回放验收分开记录，见 [实施进度](progress.md)。
 - `tests/browser/screens-live.spec.ts` 只在提供本地 `NEKODOT_SCREEN_ACCEPTANCE_FILE` 时运行，连接独立的真实 Linux 节点。文件包含 `url`、登录 `token`、`nodeId` 及 `bots[].bot.botId` / `bots[].conversation.conversationId`，不得提交。普通 E2E 明确跳过这一项，不以回放替代屏幕验收。
 
+Windows 账号旅程连接真实本地 Relay 和 `127.0.0.1:8025` 的 Mailpit。先部署服务并准备私有本地账号文件，再运行：
+
+```powershell
+node scripts/flutter.mjs flutter test integration_test/auth_journey_test.dart -d windows --no-pub --dart-define=RELAY_URL=http://127.0.0.1:4319 --dart-define=LOCAL_ACCOUNT_FILE=C:/private/local-account.json --dart-define=LOCAL_EVIDENCE=C:/private/auth-evidence
+```
+
+账号文件只包含 `email` 和 `password`，不得提交。旅程会新建专用测试账号、读取它的真实验证码、注册并重新登录，最后用指定本地账号登录、连接其现有节点并检查 Hermes 提供方 RPC；需要该账号已有在线节点。输出为截图和不含凭据的检查结果，不调用模型。测试在启动应用前检查本地 Relay 和必要路径；Windows 构建依赖按现有 Flutter 工具链配置。
+
 ## Android 固定验收环境
 
 ```sh
