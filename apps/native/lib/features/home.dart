@@ -287,13 +287,22 @@ class _HomePageState extends State<HomePage> {
 
   /// The latest thing said there, as one line; a group names who said it.
   String? preview(Json value, bool isGroup) {
-    final last = (c.node.messages[value['conversationId']] ?? [])
+    final id = value['conversationId'];
+    final loaded = (c.node.messages[id] ?? [])
         .where(
           (x) =>
               (x['kind'] == 'text' || x['kind'] == 'commentary') &&
               '${x['content']?['text'] ?? ''}'.trim().isNotEmpty,
         )
         .lastOrNull;
+    // Loaded messages are newer than the node's first report once they pass it.
+    final reported = c.node.latest[id];
+    final last =
+        loaded == null ||
+            (reported != null &&
+                (reported['seq'] as int) > (loaded['seq'] as int))
+        ? reported
+        : loaded;
     if (last == null) return null;
     final text = '${last['content']['text']}'
         .replaceAll(RegExp(r'[*_`#>]+'), '')

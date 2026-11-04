@@ -27,6 +27,10 @@ class NodeData {
   /// What the node can do: host (server/desktop), Bot screens and desktop control.
   Json capabilities = {};
   final Map<String, List<Json>> messages = {};
+
+  /// Each conversation's newest words as the node last reported them, so the
+  /// list can preview a conversation whose messages are not loaded.
+  Map<String, Json> latest = {};
   final Map<String, Json> activities = {}, screens = {};
   int seq = 0;
   bool online = false, syncing = false;
@@ -35,6 +39,10 @@ class NodeData {
     bots = objects(data['bots']);
     groups = objects(data['groups']);
     conversations = objects(data['conversations']);
+    latest = {
+      for (final message in objects(data['latest']))
+        message['conversationId'] as String: message,
+    };
     seq = data['headSeq'] as int;
     capabilities = object(data['node'] ?? {});
   }

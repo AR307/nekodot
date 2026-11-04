@@ -949,3 +949,9 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - Android 改回纯黑白：保留手机的大尺寸控件、顶栏与底部 dock，去掉灰色渐变底和光斑，卡片改为不透明白/黑底加阴影，与 Windows 一致。
 - 真实验收（QA Relay 127.0.0.1:4459、本机 Node、官方 Hermes）：Windows 当前源码客户端与 Android 模拟器 NekodotNativePhase3 的同一旅程均通过；真实节点返回的 913 项设置、138 条命令无一缺中文，底色为纯白/纯黑，命令面板与能力页实际显示中文，共用设置写入与继承照旧通过。截图：docs/evidence/ui-refresh-*.png。
 - Flutter 25 项辅助测试（新增中文设置用例）与 analyze 通过。未验：Android 真机、macOS/Linux；用户自行安装的技能、插件命令仍是原文。只做本地提交，未 push。
+
+## 2026-11-04 打开即显示每个会话的最新消息
+
+- 原来启动后只同步会话列表，消息要打开会话才加载，所以没打开过的会话在列表里没有最新消息。现在 Node 首次同步（sync.snapshot 新增 `latest`）附带每个会话最新一条有文字的消息，客户端单独保存，不预加载整段历史；之后的实时消息照旧更新列表。Windows 与 Android 共用这一逻辑。
+- 真实验收：本机 QA Node 换上新构建（旧包另存为 nekodot-node.cjs.before-latest），Windows 当前源码客户端与 Android 模拟器 NekodotNativePhase3 冷启动后、未打开任何会话前，本机小助手与笔笔两行即显示各自最新消息；两端旅程其余步骤照旧通过。截图：docs/evidence/ui-refresh-windows-home.png、ui-refresh-android-home.png。
+- 新增 Node 用例（跳过工具步骤与空草稿，只取有文字的最新一条）；Node/协议/Relay 62 项、Flutter 25 项辅助测试与 tsc、eslint、analyze 通过。有一轮 Windows 旅程在 Hermes 刚启动时命令面板 90 秒内未加载出命令，重跑正常，未改产品代码。未验：Android 真机、macOS/Linux。只做本地提交，未 push。

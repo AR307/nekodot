@@ -534,6 +534,7 @@ export class NodeApplication {
           bots: this.database.allBots(),
           groups: this.database.groups(),
           conversations: this.database.conversations(),
+          latest: this.database.latestTexts(),
           headSeq: this.database.head(),
           node: this.desktopControl.capabilities(),
         } satisfies RpcResult<'sync.snapshot'>;

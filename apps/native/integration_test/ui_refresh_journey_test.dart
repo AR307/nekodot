@@ -12,6 +12,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/features/bot_details.dart';
 import 'package:nekodot_native/features/chat.dart';
+import 'package:nekodot_native/features/commands.dart';
 import 'package:nekodot_native/data/hermes_zh.dart';
 import 'package:nekodot_native/features/hermes_settings.dart';
 import 'package:nekodot_native/features/settings.dart';
@@ -233,6 +234,56 @@ void main() {
     );
     final dm = client.node.conversations.firstWhere((x) => x['kind'] == 'dm');
     final dmRow = find.byKey(ValueKey('conversation-${dm['conversationId']}'));
+
+    // Before any conversation is opened, each row already shows its newest
+    // words, as the node reports them.
+    expect(client.node.messages, isEmpty);
+    // Only conversations the list shows: an archived Bot keeps its history.
+    final latest = objects((await client.rpc('sync.snapshot'))['latest'])
+        .where((message) {
+          final conversation = client.node.conversations.firstWhere(
+            (x) => x['conversationId'] == message['conversationId'],
+          );
+          return conversation['kind'] == 'group'
+              ? client.node.groups.any(
+                  (g) =>
+                      g['groupId'] == conversation['groupId'] &&
+                      g['archived'] != true,
+                )
+              : client.node.bots.any(
+                  (b) =>
+                      b['botId'] == conversation['botId'] &&
+                      b['archived'] != true,
+                );
+        })
+        .toList();
+    note('latestOnOpen', {
+      for (final message in latest)
+        '${message['conversationId']}': '${message['content']['text']}'
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim(),
+    });
+    expect(latest, isNotEmpty);
+    for (final message in latest) {
+      final words = '${message['content']['text']}'
+          .replaceAll(RegExp(r'[*_`#>]+'), '')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+      final row = find.byKey(
+        ValueKey('conversation-${message['conversationId']}'),
+      );
+      await tester.ensureVisible(row);
+      expect(
+        find.descendant(
+          of: row,
+          matching: find.textContaining(
+            words.substring(0, words.length.clamp(0, 12)),
+          ),
+        ),
+        findsOneWidget,
+        reason: '${message['conversationId']}',
+      );
+    }
     // Opens the details from the chat title and samples the frames as they
     // appear, with the real time of each: they must pass through between.
     Future<(List<String>, bool)> openDetails() async {
@@ -311,10 +362,29 @@ void main() {
       matching: find.byType(TextField),
     );
     await tester.enterText(composer.last, '/');
-    await until(
-      () => find.text(hermesCommandZh['/new']!).evaluate().isNotEmpty,
-      what: 'commands in Chinese',
-    );
+    final chinese = find.text(hermesCommandZh['/new']!);
+    final waited = DateTime.now().add(const Duration(seconds: 90));
+    while (chinese.evaluate().isEmpty && DateTime.now().isBefore(waited)) {
+      await tester.pump(const Duration(milliseconds: 200));
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+    }
+    if (chinese.evaluate().isEmpty) {
+      // Record what the palette shows instead, then fail.
+      note('paletteShown', find.byType(CommandPalette).evaluate().isNotEmpty);
+      note('paletteText', [
+        for (final element
+            in find
+                .descendant(
+                  of: find.byType(ChatPage),
+                  matching: find.byType(Text),
+                )
+                .evaluate()
+                .take(60))
+          '${(element.widget as Text).data ?? (element.widget as Text).textSpan?.toPlainText()}',
+      ]);
+      await shot('commands-failed');
+    }
+    expect(chinese, findsWidgets, reason: 'commands in Chinese');
     final commands = objects(
       (await client.rpc('commands.list', {
         'botId': '${dm['botId']}',

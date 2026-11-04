@@ -365,6 +365,8 @@ export const rpcContracts = {
       bots: z.array(botSchema),
       groups: z.array(groupSchema),
       conversations: z.array(conversationSchema),
+      // Each conversation's newest words, so a list previews it before it is opened.
+      latest: z.array(messageSchema),
       headSeq: seqSchema,
       node: nodeCapabilitiesSchema,
     }),
