@@ -13,6 +13,7 @@
     "noEmit": true,
     "types": ["node", "vite/client"],
     "paths": {
+      "@/*": ["./apps/web/src/*"],
       "@nekodot/protocol": ["./packages/protocol/src/index.ts"],
       "@nekodot/fake-hermes": ["./packages/fake-hermes/src/index.ts"]
     }

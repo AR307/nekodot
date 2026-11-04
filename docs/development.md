@@ -28,6 +28,12 @@ pnpm test:e2e    # Playwright + Edge 完整用户旅程
 
 群聊与扩展两条端到端旅程直接加载 `apps/web/dist`，改动界面后请先执行 `pnpm --filter @nekodot/web build` 再跑 `pnpm test:e2e`。
 
+## Web 账号页组件
+
+账号页展示壳与基础 Button/Input 位于 `apps/web/src/components/ui`，认证状态及真实请求位于 `apps/web/src/features/auth.tsx`，专用样式为 `src/styles/auth.css`。这个目录与 `apps/web/components.json` 的 shadcn UI 别名保持一致，后续组件可以使用 `@/components/ui` 与 `@/lib/utils`，避免将认证逻辑混入可复用基础组件。
+
+项目已经配置 TypeScript、Tailwind 4 与 Vite 插件，无需重新初始化。路径动画使用现有 `motion/react`；组件依赖已列入 Web package 与锁文件，执行 `pnpm install --frozen-lockfile` 即可。
+
 ## 本地运行
 
 Relay 需要一个私有的 `JWT_SECRET`，只在本地 shell 中设置，不要写进源码或提交：

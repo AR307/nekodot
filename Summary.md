@@ -20,6 +20,13 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 
 ## 更新记录
 
+### 2026-11-04 / 注册与登录页流线布局（本地）
+
+- 按用户提供的 React 参考重做 Web 与现有 Flutter 账号页：桌面左右分栏、品牌区双向流线、简洁图标表单；窄屏收起左栏并保留可滚动表单。保留 nekoDOT 名称、产品标题/介绍、认证与错误提示、中英切换和隐私短句；移除功能清单及技术链路。
+- Web 增加 `components/ui` 展示组件、Button/Input 和 shadcn 别名配置，沿用现有 Tailwind/TypeScript/Motion。邮箱登录、验证码注册、补验邮箱及找回密码请求仍由原 feature 管理。Flutter 保留窗口拖动、语言、更新、退出，合入协作修复的前置校验与 60 秒发送倒计时。
+- 本地真实 Relay + Mailpit + 浏览器：新账号收码注册、密码登录、收码重置、用新密码登录及错误反馈通过；中英、明暗、减少动效和 320/390/768/1440px 布局检查通过。TypeScript、相关 ESLint/Prettier、Web 构建、Flutter analyze 及 6 项表单/窗口/退出辅助测试通过，Windows Release 构建成功。
+- Windows 安装入口与真实原生认证由部署任务独立验收记录；本模块不据网页结果宣称其通过。Android/macOS/Linux 未重建或做设备验收，未调用模型、未更新正式服务或 push。
+
 ### 2026-11-04 / 产品名统一为 nekoDOT
 
 - 原有 Flutter 客户端、Tauri 宿主、Web、官网、托盘、通知、验证码邮件与面向用户的 Node 文案统一显示 `nekoDOT`。Windows 可执行文件为 `nekoDOT.exe`，各平台宿主和打包入口同步调整。

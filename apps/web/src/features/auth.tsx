@@ -2,15 +2,12 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { relayRequest } from '../api';
 import { useAppStore } from '../store';
-import { BotAvatar, Icon, SpinnerDots, Wordmark, ease } from '../ui';
-import { avatarColors, type Texts } from '../shared';
-
-const crew = [
-  { color: avatarColors[2]!, size: 76, x: '8%', y: '18%', delay: 0, working: true },
-  { color: avatarColors[0]!, size: 92, x: '46%', y: '4%', delay: 0.6, working: false },
-  { color: avatarColors[1]!, size: 64, x: '74%', y: '40%', delay: 1.2, working: false },
-  { color: avatarColors[3]!, size: 56, x: '30%', y: '58%', delay: 1.8, working: false },
-];
+import { AtSign, ArrowRight, KeyRound, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { SpinnerDots, ease } from '../ui';
+import type { Texts } from '../shared';
+import { AuthPage as AuthLayout } from '../components/ui/auth-page';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 
 export function AuthPage({
   t,
@@ -91,182 +88,161 @@ export function AuthPage({
       setBusy(false);
     }
   }
+  const title =
+    mode === 'signup'
+      ? t.signUp
+      : mode === 'verify'
+        ? t.verifyEmail
+        : mode === 'reset'
+          ? t.resetPassword
+          : t.signIn;
+  function switchMode(next: typeof mode) {
+    setMode(next);
+    setCode('');
+    setNotice('');
+    setError('');
+  }
   return (
-    <main className="auth-layout" lang={language}>
-      <section className="auth-brand-panel">
-        <Wordmark />
-        <div className="auth-crew" aria-hidden="true">
-          {crew.map((member, index) => (
-            <motion.span
-              key={index}
-              className="auth-crew-member"
-              style={{ left: member.x, top: member.y }}
-              initial={reduceMotion ? false : { opacity: 0, scale: 0.6, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{
-                delay: 0.1 + index * 0.08,
-                type: 'spring',
-                stiffness: 260,
-                damping: 18,
-              }}
-            >
-              <span style={{ animationDelay: `${member.delay}s` }}>
-                <BotAvatar color={member.color} size={member.size} working={member.working} />
-              </span>
-            </motion.span>
-          ))}
-        </div>
-        <div className="auth-intro">
-          <h1>{t.authHeadline}</h1>
-          <p>{t.authBody}</p>
-          <ul>
-            {[t.authPoint1, t.authPoint2, t.authPoint3].map((point) => (
-              <li key={point}>
-                <Icon name="check" />
-                {point}
-              </li>
-            ))}
-          </ul>
-          <div className="path-pill">
-            Web <span>→</span> Relay <span>→</span> {t.yourComputer} <span>→</span> Hermes
-          </div>
-        </div>
-      </section>
-      <section className="auth-form-panel">
-        <button className="quiet-button auth-language" type="button" onClick={onToggleLanguage}>
-          <Icon name="globe" />
-          {t.language}
-        </button>
-        <form className="auth-card" onSubmit={(event) => void submit(event)}>
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={mode}
-              className="auth-card-heading"
-              initial={{ opacity: 0, y: reduceMotion ? 0 : 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }}
-              transition={{ duration: 0.16, ease }}
-            >
-              <h2>
-                {mode === 'signup'
-                  ? t.signUp
-                  : mode === 'verify'
-                    ? t.verifyEmail
-                    : mode === 'reset'
-                      ? t.resetPassword
-                      : t.signIn}
-              </h2>
-              <p className="muted">{t.welcome}</p>
-            </motion.div>
-          </AnimatePresence>
-          <label>
-            {t.email}
-            <input
-              autoComplete="email"
-              type="email"
-              required
-              value={email}
-              placeholder={t.emailPlaceholder}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </label>
-          <label>
-            {t.password}
-            <input
-              autoComplete={
-                mode === 'signup' || mode === 'reset' ? 'new-password' : 'current-password'
-              }
-              type="password"
-              minLength={8}
-              required
-              value={password}
-              placeholder={t.passwordPlaceholder}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </label>
-          {mode !== 'login' && (
-            <label>
-              {t.emailCode}
-              <input
-                aria-label={t.emailCode}
-                autoComplete="one-time-code"
-                inputMode="numeric"
-                pattern="[0-9]{6}"
-                minLength={6}
-                maxLength={6}
-                required
-                value={code}
-                onChange={(event) => setCode(event.target.value)}
-              />
-              <button
-                type="button"
-                className="secondary-button"
-                disabled={sending || seconds > 0 || !email || (mode === 'verify' && !password)}
-                onClick={() => void sendCode()}
-              >
-                {seconds > 0 ? `${seconds}s` : t.sendCode}
-              </button>
-            </label>
-          )}
-          {notice && (
-            <p role="status" className="inline-success">
-              {notice}
-            </p>
-          )}
-          {error && (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
-          )}
-          <button className="primary-button full-button" disabled={busy}>
-            {busy ? <SpinnerDots /> : t.submit}
-            {!busy && <Icon name="arrow" />}
-          </button>
-          <button
-            className="text-button account-toggle"
-            type="button"
-            onClick={() => {
-              setMode(mode === 'signup' ? 'login' : 'signup');
-              setCode('');
-              setNotice('');
-              setError('');
-            }}
+    <AuthLayout
+      headline={t.authHeadline}
+      description={t.authBody}
+      language={language}
+      languageLabel={t.language}
+      homeLabel={t.authHome}
+      onToggleLanguage={onToggleLanguage}
+    >
+      <form className="auth-card" onSubmit={(event) => void submit(event)} aria-busy={busy}>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={mode}
+            className="auth-card-heading"
+            initial={{ opacity: 0, y: reduceMotion ? 0 : 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }}
+            transition={{ duration: 0.16, ease }}
           >
-            {mode === 'signup' ? t.alreadyAccount : t.newAccount}
-          </button>
-          {mode === 'login' && (
-            <button
-              className="text-button"
-              type="button"
-              onClick={() => {
-                setMode('reset');
-                setError('');
-                setNotice('');
-                setCode('');
-              }}
-            >
-              {t.forgotPassword}
-            </button>
+            <h2>{title}</h2>
+            <p>{t.welcome}</p>
+          </motion.div>
+        </AnimatePresence>
+        <div className="auth-fields">
+          <div className="auth-field">
+            <label htmlFor="auth-email">{t.email}</label>
+            <div className="auth-input-wrap">
+              <AtSign aria-hidden="true" />
+              <Input
+                id="auth-email"
+                autoComplete="email"
+                type="email"
+                required
+                disabled={busy}
+                value={email}
+                placeholder={t.emailPlaceholder}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </div>
+          </div>
+          <div className="auth-field">
+            <div className="auth-label-row">
+              <label htmlFor="auth-password">{t.password}</label>
+              {mode === 'login' && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => switchMode('reset')}
+                >
+                  {t.forgotPassword}
+                </Button>
+              )}
+            </div>
+            <div className="auth-input-wrap">
+              <LockKeyhole aria-hidden="true" />
+              <Input
+                id="auth-password"
+                autoComplete={
+                  mode === 'signup' || mode === 'reset' ? 'new-password' : 'current-password'
+                }
+                type="password"
+                minLength={8}
+                required
+                disabled={busy}
+                value={password}
+                placeholder={t.passwordPlaceholder}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </div>
+          </div>
+          {mode !== 'login' && (
+            <div className="auth-field">
+              <label htmlFor="auth-code">{t.emailCode}</label>
+              <div className="auth-code-row">
+                <div className="auth-input-wrap">
+                  <KeyRound aria-hidden="true" />
+                  <Input
+                    id="auth-code"
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                    pattern="[0-9]{6}"
+                    minLength={6}
+                    maxLength={6}
+                    required
+                    disabled={busy}
+                    value={code}
+                    placeholder="000000"
+                    onChange={(event) => setCode(event.target.value)}
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  type="button"
+                  disabled={
+                    busy || sending || seconds > 0 || !email || (mode === 'verify' && !password)
+                  }
+                  onClick={() => void sendCode()}
+                >
+                  {seconds > 0 ? seconds + 's' : t.sendCode}
+                </Button>
+              </div>
+            </div>
           )}
-          {(mode === 'verify' || mode === 'reset') && (
-            <button
-              className="text-button"
-              type="button"
-              onClick={() => {
-                setMode('login');
-                setError('');
-                setNotice('');
-              }}
-            >
-              {t.signIn}
-            </button>
-          )}
-          <p className="auth-privacy">
-            <Icon name="check" />
-            {t.privateByDesign}
+        </div>
+        {notice && (
+          <p role="status" className="auth-notice">
+            {notice}
           </p>
-        </form>
-      </section>
-    </main>
+        )}
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+        <Button type="submit" size="lg" className="auth-submit" disabled={busy || sending}>
+          {busy ? (
+            <SpinnerDots />
+          ) : (
+            <>
+              {title}
+              <ArrowRight size={17} aria-hidden="true" />
+            </>
+          )}
+        </Button>
+        <div className="auth-account-switch">
+          <Button
+            variant="link"
+            type="button"
+            disabled={busy}
+            onClick={() => switchMode(mode === 'login' ? 'signup' : 'login')}
+          >
+            {mode === 'signup' ? t.alreadyAccount : mode === 'login' ? t.newAccount : t.signIn}
+          </Button>
+        </div>
+        <p className="auth-privacy">
+          <ShieldCheck size={14} aria-hidden="true" />
+          {t.privateByDesign}
+        </p>
+      </form>
+    </AuthLayout>
   );
 }

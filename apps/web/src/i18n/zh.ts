@@ -32,6 +32,7 @@ const zh = {
   offline: '电脑离线',
   reconnecting: '正在重连',
   signIn: '登录',
+  authHome: '返回首页',
   signUp: '创建账号',
   welcome: '把你的 AI 小队，带到自己的电脑上。',
   email: '邮箱',

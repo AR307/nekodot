@@ -1118,3 +1118,12 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - Windows Release 构建通过，程序资源验证 ProductName/FileDescription 为 `nekoDOT`、OriginalFilename 为 `nekoDOT.exe`。旧 CMake 缓存与 EXE 移至本地备份后重建；未删除文件。NSIS 打包脚本补充 `vswhere -products *`，实际识别本机 VS Build Tools，未签名安装器 `dist/native/nekoDOT_0.3.1_x64-setup.exe` 构建通过并核对产品信息。
 - 验证：TypeScript typecheck、Web/Node/Relay 构建、Flutter analyze、相关 ESLint/Prettier 检查和 5 个测试文件的 9 项现有测试通过。真实本地 Relay 重启后健康；agent-browser 核对网页标题、侧栏/导航名称以及原账号节点“已同步”，截图保存于 Git 忽略的本地部署目录。
 - 本地运行副本与桌面快捷方式已更新，账号、节点 ID、数据目录保留。本轮未重新交互验收 Windows 原生登录、托盘或模型回复；用户选择稍后自行配置 API Key。Android/macOS/Linux/Tauri 仅改源码与配置，未出新包或做设备验收。未 push、未更新正式站点或发布版本。
+
+## 2026-11-04 注册与登录页参考改版（本地）
+
+- 使用用户提供的 AuthPage 参考：左侧品牌与原有产品文案、双向 SVG 流线，右侧居中账号表单；收起原来的功能列表、浮动 Bot 与技术链路。手机仅显示品牌和表单，低高度页面可滚动。保持原有品牌、认证端点和账号存储，不加入占位社交登录、用户证言或协议链接。
+- React 展示层放在 `apps/web/src/components/ui/auth-page.tsx`，表单状态和请求保留在 `features/auth.tsx`；新增 shadcn 风格 Button/Input、`cn` 和 `@` 别名配置，复用现有 Tailwind 4、TypeScript 与 Motion。账号页使用局部黑白样式，其他界面主题不随之更改。
+- 原有 Flutter 账号页采用同样分栏与流线，保留窗口标题栏、语言、更新及退出入口。协作任务在同一文件补充邮箱/密码/6 位验证码前置校验、发送间隔倒计时、模式切换清验证码和测试 keys；其新增两项辅助测试一起纳入本模块，Windows 真实集成旅程单独提交。
+- 真实 Web 验收：本次 Web production build 由本机 Relay `127.0.0.1:4319` 提供，使用隔离浏览器和新测试账号，经本地 Mailpit 收到邮件，完成注册、密码登录、重置密码和新密码登录；错误密码保留账号页并显示错误，空表单由必填校验阻止。重置时先观察到正常的 60 秒频率限制，间隔结束后成功，不绕过邮箱验证。
+- 浏览器视觉检查：1440×960 左栏流线可见、浅色登录/深色注册截图已查看；390×844 中文注册截图已查看；320×568、390×844、768×600 与 1440×960 无横向溢出，320px 下滚动后提交可达；中英文切换通过；减少动效时 72 条路径为静态。私有测试凭据、截图和报告保存在忽略的 `.runtime/local-deployment`，不提交账号或认证响应。
+- 工程检查：TypeScript、触及文件 ESLint/Prettier、Web 构建、Flutter analyze 和 6 项表单/窗口/退出辅助测试通过；Windows Release 以本机 Relay URL 构建成功。Windows 原生安装入口、真实注册/收码/登录由部署任务独立验收，本模块不据构建结果宣称真实认证通过。Android/macOS/Linux 未重建/验收，模型链路不属于本次账号页检查；未 push 或更新正式服务。
