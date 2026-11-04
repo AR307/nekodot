@@ -25,10 +25,7 @@
     "historyKept": true,
     "sameNode": true,
     "approvals": 0,
-    "tools": [
-      "null:null",
-      "null:null"
-    ],
+    "tools": ["null:null", "null:null"],
     "fileWritten": true,
     "processesAfterStop": "0",
     "restartKeepsHistory": true,
