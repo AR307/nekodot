@@ -78,47 +78,86 @@ class Frost extends StatelessWidget {
   }
 }
 
-/// A card: flat with one hairline on the desktop, frosted on the phone.
+/// A card: a raised surface on the desktop, frosted glass on the phone. Both
+/// carry their depth as a soft shadow, never a hairline under it.
 class Panel extends StatelessWidget {
   final Widget child;
   final double radius;
-  const Panel({super.key, required this.child, this.radius = 12});
+
+  /// Lifted cards (menus, the selected row) sit higher than resting ones.
+  final bool lifted;
+  final Color? color;
+  const Panel({
+    super.key,
+    required this.child,
+    this.radius = 14,
+    this.lifted = false,
+    this.color,
+  });
   @override
   Widget build(BuildContext context) {
     final tone = context.tone;
+    final shadows = lifted ? tone.lift : tone.rest;
     if (tone.glass) {
       final corners = BorderRadius.circular(radius + 2);
-      return ClipRSuperellipse(
-        borderRadius: corners,
-        child: BackdropFilter.grouped(
-          filter: ui.ImageFilter.blur(sigmaX: _blur, sigmaY: _blur),
-          child: DecoratedBox(
-            decoration: ShapeDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [tone.fillTop, tone.fillBottom],
+      return DecoratedBox(
+        decoration: ShapeDecoration(
+          shape: RoundedSuperellipseBorder(borderRadius: corners),
+          shadows: shadows,
+        ),
+        child: ClipRSuperellipse(
+          borderRadius: corners,
+          child: BackdropFilter.grouped(
+            filter: ui.ImageFilter.blur(sigmaX: _blur, sigmaY: _blur),
+            child: DecoratedBox(
+              decoration: ShapeDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [tone.fillTop, tone.fillBottom],
+                ),
+                shape: RoundedSuperellipseBorder(
+                  borderRadius: corners,
+                  side: BorderSide(color: tone.line),
+                ),
               ),
-              shape: RoundedSuperellipseBorder(
-                borderRadius: corners,
-                side: BorderSide(color: tone.line),
-              ),
+              child: Material(type: MaterialType.transparency, child: child),
             ),
-            child: Material(type: MaterialType.transparency, child: child),
           ),
         ),
       );
     }
-    return Material(
-      color: tone.surface,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(radius),
-        side: BorderSide(color: tone.line),
+    final corners = BorderRadius.circular(radius);
+    return DecoratedBox(
+      decoration: BoxDecoration(borderRadius: corners, boxShadow: shadows),
+      child: Material(
+        color: color ?? tone.surface,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: corners),
+        child: child,
       ),
-      child: child,
     );
   }
+}
+
+/// The small pill for a choice inside a card: approval options, answers.
+ButtonStyle optionStyle(BuildContext context) {
+  final glass = context.tone.glass;
+  return ButtonStyle(
+    minimumSize: WidgetStatePropertyAll(Size(0, glass ? 34 : 28)),
+    padding: WidgetStatePropertyAll(
+      EdgeInsets.symmetric(horizontal: glass ? 14 : 12),
+    ),
+    textStyle: WidgetStatePropertyAll(
+      Theme.of(context).textTheme.labelLarge?.copyWith(
+        fontSize: glass ? 13.5 : 12.5,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+    tapTargetSize: glass
+        ? MaterialTapTargetSize.padded
+        : MaterialTapTargetSize.shrinkWrap,
+  );
 }
 
 class IconAction extends StatelessWidget {
@@ -373,9 +412,7 @@ class Segment<T> extends StatelessWidget {
     final keys = options.keys.toList();
     final selected = keys.indexOf(value);
     final still = MediaQuery.disableAnimationsOf(context);
-    final corners = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(tone.corner - 1),
-    );
+    const corners = StadiumBorder();
     return Container(
       height: tone.glass ? 36 : 28,
       padding: const EdgeInsets.all(2),
@@ -399,9 +436,8 @@ class Segment<T> extends StatelessWidget {
                   child: DecoratedBox(
                     decoration: ShapeDecoration(
                       color: tone.ink,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(tone.corner - 2),
-                      ),
+                      shape: corners,
+                      shadows: tone.rest,
                     ),
                   ),
                 ),
@@ -447,6 +483,158 @@ class Segment<T> extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A panel that slides in from the right edge, pushing the content beside it
+/// aside, and slides back out when [child] becomes null. It casts its shadow
+/// over that content, so the opening reads as the panel rising above it.
+class SidePanel extends StatefulWidget {
+  final Widget? child;
+  final double width;
+  const SidePanel({super.key, this.child, this.width = 340});
+  @override
+  State<SidePanel> createState() => _SidePanelState();
+}
+
+class _SidePanelState extends State<SidePanel>
+    with SingleTickerProviderStateMixin {
+  late final controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 240),
+    reverseDuration: const Duration(milliseconds: 180),
+    value: widget.child == null ? 0 : 1,
+  );
+  late final curve = CurvedAnimation(
+    parent: controller,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeInCubic,
+  );
+  late Widget? shown = widget.child;
+
+  @override
+  void didUpdateWidget(SidePanel old) {
+    super.didUpdateWidget(old);
+    final still = MediaQuery.disableAnimationsOf(context);
+    if (widget.child != null) {
+      final opening = shown == null;
+      shown = widget.child;
+      if (still) {
+        controller.value = 1;
+      } else if (opening) {
+        // Build the panel at zero width first, so its first (costly) frame
+        // is not the one the slide starts on.
+        afterFirstFrames(() {
+          if (mounted && widget.child != null) controller.forward();
+        });
+      } else {
+        controller.forward();
+      }
+    } else if (still) {
+      controller.value = 0;
+      shown = null;
+    } else {
+      // Keep the last panel on screen while it leaves.
+      controller.reverse().whenComplete(() {
+        if (mounted && widget.child == null) setState(() => shown = null);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    curve.dispose();
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    return AnimatedBuilder(
+      animation: curve,
+      builder: (context, child) {
+        final t = curve.value;
+        if (shown == null) return const SizedBox.shrink();
+        return SizedBox(
+          width: widget.width * t,
+          child: OverflowBox(
+            alignment: Alignment.centerLeft,
+            minWidth: widget.width,
+            maxWidth: widget.width,
+            child: Transform.translate(
+              offset: Offset((1 - t) * 28, 0),
+              child: Opacity(opacity: t, child: child),
+            ),
+          ),
+        );
+      },
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: tone.base,
+          boxShadow: [
+            for (final shadow in tone.lift)
+              shadow.copyWith(offset: Offset(-shadow.offset.dy, 0)),
+          ],
+        ),
+        child: shown,
+      ),
+    );
+  }
+}
+
+/// Opens a page that grows out of the bar above, for details that pop up
+/// from where they were asked for rather than slide in as a new step.
+Future<T?> popPage<T>(BuildContext context, Widget page) =>
+    Navigator.of(context).push<T>(_PopRoute(page));
+
+class _PopRoute<T> extends PageRouteBuilder<T> {
+  _PopRoute(Widget page)
+    : super(
+        transitionDuration: const Duration(milliseconds: 240),
+        reverseTransitionDuration: const Duration(milliseconds: 180),
+        pageBuilder: (context, animation, secondary) => page,
+        transitionsBuilder: (context, animation, secondary, child) {
+          if (MediaQuery.disableAnimationsOf(context)) return child;
+          final grow = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          );
+          return FadeTransition(
+            opacity: grow,
+            child: ScaleTransition(
+              alignment: Alignment.topCenter,
+              scale: Tween<double>(begin: .94, end: 1).animate(grow),
+              child: child,
+            ),
+          );
+        },
+      );
+
+  /// Holds at the start until the page's first (costly) frame is on screen,
+  /// so that frame is not the one the motion starts on.
+  @override
+  TickerFuture didPush() {
+    final pushed = super.didPush();
+    controller!.stop();
+    afterFirstFrames(() {
+      if (isActive && controller!.status == AnimationStatus.forward) {
+        controller!.forward();
+      }
+    });
+    return pushed;
+  }
+}
+
+/// Runs [start] once the next two frames are drawn. A costly first build
+/// holds up the frame after it too, which then carries a stale time stamp;
+/// a motion started there would jump straight to its end.
+void afterFirstFrames(VoidCallback start) {
+  final binding = WidgetsBinding.instance;
+  binding.addPostFrameCallback((_) {
+    binding.addPostFrameCallback((_) => start());
+    binding.scheduleFrame();
+  });
 }
 
 /// Reports a child's height, so a list can scroll under a floating composer.

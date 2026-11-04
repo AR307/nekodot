@@ -931,3 +931,13 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 官网和正式Relay已更新0.3.1/build7，Node按既有空闲机制更新20261104070530并上线；账号、历史、profiles和无关服务保留。
 - 正式HTTPS/WSS真实gpt-6.1-sol回复与Webhook执行/去重通过；官网安装包实际下载正确。详情见docs/release-0.3.1-acceptance.md。
 - GitHub源码/标签/正式Release按用户授权同步。macOS未出包、Linux未完整桌面验收、本轮无Android真机结果；没有把待验项目写成通过。
+
+## 2026-11-04 UI 重构：主界面、Bot 详情与设置归类
+
+- 主界面按 Ardot「Desktop - 1」：侧栏顶部节点名＋搜索/新建，群聊与 Bot 两个可折叠分组；会话为圆角卡片，选中抬起阴影、悬停浅阴影，显示角色说明与最近消息；底部为账号菜单与设置入口。
+- 按钮统一为胶囊形，图标按钮为更小的圆形；卡片、分段控件、输入框与聊天顶部 Bot 标签统一圆角＋阴影；深色、Android 玻璃风格分别给出阴影与选中滑块颜色（新增 `thumb`）。
+- Bot 详情：桌面右侧面板先以零宽渲染、两帧后再滑入（240ms 出、180ms 收）；手机从标题处放大淡入，同样两帧后开始，避免首帧构建耗时把动画直接跳到终点；尊重系统减少动画。标签改为贴合内容的滑块。
+- Bot 设置按种类重排为模型、能力、记忆与学习、安全与隐私、语音、运行；Hermes 原生设置按 key 前缀归入对应种类，模型、操作这台电脑、保密资料、语音与唤醒等产品入口放进同一种类。
+- 适用于所有 Bot 的设置（模型服务、消息平台、凭据、网络与代理、Hermes 界面、通用）移到应用设置「所有 Bot → 共用 Hermes 设置」，与模型来源、关于你、Skills 与插件同组。Node 新增 hermes.shared.get/set：写入根 profile 与所有 Bot profile（含已归档）并记录，新建 Bot 自动继承；Bot 级接口拒绝共用 key，共用接口拒绝 Bot key。
+- 真实验收（QA Relay 127.0.0.1:4459、本机 Node、官方 Hermes；本轮只验界面与设置，未发起新的模型对话，聊天内容为此前真实对话）：Windows 当前源码 debug 客户端完整旅程通过——分组折叠、详情面板中间宽度 65/276px、Bot 设置六类与共用 330 项无重叠、能力页搜到 terminal.backend、界面切换 display.compact 后根 profile 与 4 个 Bot profile（含 2 个已归档）配置文件实际写入、之后新建的 Bot 继承、还原、Bot 级写共用 key 被拒；测试 Bot 已归档。Android 模拟器 NekodotNativePhase3 同一旅程通过，详情放大采到 0.962/0.989/0.999 三个中间帧。
+- 深浅色截图逐张检查：docs/evidence/ui-refresh-*.png。node 52 项、Flutter 24 项辅助测试与 analyze、tsc、eslint、prettier 通过。未验：Android 真机、macOS/Linux、release 包流畅度（模拟器 debug 包推入详情时约 5 帧/秒）。只做本地提交，未 push。

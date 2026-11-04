@@ -3,6 +3,7 @@ import type { Bot, Conversation, RpcParams } from '@nekodot/protocol';
 import type { NodeDatabase } from './database';
 import type { HermesRuntime } from './hermes/runtime';
 import type { Providers } from './providers';
+import type { HermesSettings } from './hermes-settings';
 
 import { NodeFault } from './fault';
 export class BotService {
@@ -10,6 +11,7 @@ export class BotService {
     readonly database: NodeDatabase,
     readonly hermes: HermesRuntime,
     readonly providers: Providers,
+    readonly settings: HermesSettings,
   ) {}
   get(botId: string) {
     const bot = this.database.bot(botId);
@@ -53,6 +55,7 @@ export class BotService {
       });
     await this.hermes.configureBot(bot, !archive, approvalMode);
     await this.providers.configureBot(bot);
+    await this.settings.applyShared(bot.botId);
     this.database.putBot(bot);
     const conversation: Conversation = {
       conversationId: randomUUID(),

@@ -414,7 +414,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                     BotEditor(client: c, group: true, existing: group),
                   );
                 } else if (bot != null) {
-                  pushPage(context, BotDetails(client: c, bot: bot));
+                  popPage(context, BotDetails(client: c, bot: bot));
                 }
               },
               child: Padding(
@@ -523,7 +523,8 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 child: DecoratedBox(
                   decoration: ShapeDecoration(
                     color: tone.surface,
-                    shape: StadiumBorder(side: BorderSide(color: tone.line)),
+                    shape: const StadiumBorder(),
+                    shadows: tone.rest,
                   ),
                   child: Material(
                     type: MaterialType.transparency,
@@ -539,30 +540,34 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                           if (widget.onDetails != null) {
                             widget.onDetails!(bot);
                           } else {
-                            pushPage(context, BotDetails(client: c, bot: bot));
+                            popPage(context, BotDetails(client: c, bot: bot));
                           }
                         }
                       },
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(4, 3, 10, 3),
+                        padding: const EdgeInsets.fromLTRB(8, 5, 14, 5),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (group != null)
                               GroupAvatar(
-                                size: 20,
+                                size: 22,
                                 working: working,
                                 avatars: memberAvatars,
                               )
                             else if (bot != null)
-                              CatAvatar.of(bot, size: 20, working: working),
+                              CatAvatar.of(bot, size: 22, working: working),
                             const SizedBox(width: 8),
                             Flexible(
                               child: Text(
                                 title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.titleMedium,
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                               ),
                             ),
                             if (chain != null) ...[
@@ -606,6 +611,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                     },
                     icon: const Icon(Icons.forum_outlined),
                   ),
+                const SizedBox(width: 4),
                 IconAction(
                   tooltip: c.tr('屏幕', 'Screen'),
                   icon: Icons.desktop_windows_outlined,
@@ -676,9 +682,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 tapTargetSize: tone.glass
                     ? MaterialTapTargetSize.padded
                     : MaterialTapTargetSize.shrinkWrap,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(tone.corner - 2),
-                ),
+                shape: const CircleBorder(),
                 backgroundColor: hasText ? tone.raised : tone.ink,
                 foregroundColor: hasText ? tone.ink : tone.base,
               ),
@@ -697,9 +701,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 tapTargetSize: tone.glass
                     ? MaterialTapTargetSize.padded
                     : MaterialTapTargetSize.shrinkWrap,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(tone.corner - 2),
-                ),
+                shape: const CircleBorder(),
                 backgroundColor: tone.ink,
                 foregroundColor: tone.base,
                 disabledBackgroundColor: tone.raised,
@@ -851,11 +853,11 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                     )
                   else
                     Container(
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.fromLTRB(4, 6, 6, 6),
                       decoration: BoxDecoration(
                         color: tone.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: tone.line),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: tone.rest,
                       ),
                       child: composerRow,
                     ),
@@ -1425,9 +1427,10 @@ class _ControlCardState extends State<ControlCard> {
       'deny' => c.tr('拒绝', 'Deny'),
       _ => '$choice',
     };
+    final option = optionStyle(context);
     return Panel(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1442,11 +1445,11 @@ class _ControlCardState extends State<ControlCard> {
                 ),
                 decoration: BoxDecoration(
                   color: tone.bubble,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: SelectableText(
                   '${data['command']}',
-                  style: const TextStyle(fontFamily: monoFont, fontSize: 12),
+                  style: const TextStyle(fontFamily: monoFont, fontSize: 12.5),
                 ),
               ),
             if (!pending)
@@ -1495,6 +1498,7 @@ class _ControlCardState extends State<ControlCard> {
               ),
               const SizedBox(height: 10),
               FilledButton(
+                style: option,
                 onPressed:
                     !c.online ||
                         busy ||
@@ -1519,12 +1523,14 @@ class _ControlCardState extends State<ControlCard> {
                       in (data['choices'] as List? ?? ['once', 'deny']).indexed)
                     index == 0
                         ? FilledButton(
+                            style: option,
                             onPressed: !c.online || busy
                                 ? null
                                 : () => respond('$choice'),
                             child: Text(label(choice)),
                           )
                         : OutlinedButton(
+                            style: option,
                             onPressed: !c.online || busy
                                 ? null
                                 : () => respond('$choice'),

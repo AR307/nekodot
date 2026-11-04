@@ -59,13 +59,23 @@ const _sansFallback = [
 class Tone extends ThemeExtension<Tone> {
   final Color base, sidebar, surface, ink, ink2, ink3, line;
   final Color bubble, raised, hover, menu, danger;
+
+  /// The chosen pill in a track: lighter than the track on either ground.
+  final Color thumb;
   final bool glass;
 
   /// Control height, control corner and icon size. A desktop is pointer-driven
   /// and dense; a phone keeps Material's 40 dp controls inside 48 dp targets.
   final double control, corner, icon;
+
+  /// Round icon buttons are smaller than text controls; a phone pads the target.
+  final double button;
   final Color fillTop, fillBottom, bar, fieldFocus;
   final List<Color> orbs;
+
+  /// Depth is shadow alone: a resting card, and a lifted one (menus, the
+  /// selected row, the details panel). Dark grounds carry it as a lighter surface.
+  final List<BoxShadow> rest, lift;
   const Tone({
     required this.base,
     required this.sidebar,
@@ -79,15 +89,19 @@ class Tone extends ThemeExtension<Tone> {
     required this.hover,
     required this.menu,
     required this.danger,
+    this.thumb = const Color(0xffffffff),
     this.glass = false,
     this.control = 32,
     this.corner = 8,
     this.icon = 18,
+    this.button = 28,
     this.fillTop = Colors.transparent,
     this.fillBottom = Colors.transparent,
     this.bar = Colors.transparent,
     this.fieldFocus = Colors.transparent,
     this.orbs = const [],
+    this.rest = const [],
+    this.lift = const [],
   });
   static const light = Tone(
     base: Color(0xffffffff),
@@ -102,6 +116,14 @@ class Tone extends ThemeExtension<Tone> {
     hover: Color(0xfff0f0f0),
     menu: Color(0xffffffff),
     danger: Color(0xffc22f2f),
+    rest: [
+      BoxShadow(color: Color(0x0f000000), blurRadius: 3, offset: Offset(0, 1)),
+      BoxShadow(color: Color(0x0d000000), blurRadius: 14, offset: Offset(0, 4)),
+    ],
+    lift: [
+      BoxShadow(color: Color(0x14000000), blurRadius: 4, offset: Offset(0, 1)),
+      BoxShadow(color: Color(0x1f000000), blurRadius: 24, offset: Offset(0, 8)),
+    ],
   );
   static const dark = Tone(
     base: Color(0xff000000),
@@ -116,12 +138,24 @@ class Tone extends ThemeExtension<Tone> {
     hover: Color(0xff1e1e1e),
     menu: Color(0xff1c1c1c),
     danger: Color(0xffff8a80),
+    thumb: Color(0xff3a3a3a),
+    rest: [
+      BoxShadow(color: Color(0x66000000), blurRadius: 14, offset: Offset(0, 4)),
+    ],
+    lift: [
+      BoxShadow(
+        color: Color(0x99000000),
+        blurRadius: 28,
+        offset: Offset(0, 10),
+      ),
+    ],
   );
   static const glassLight = Tone(
     glass: true,
     control: 40,
     corner: 10,
-    icon: 22,
+    icon: 21,
+    button: 36,
     base: Color(0xffe6e6e9),
     sidebar: Colors.transparent,
     surface: Color(0x8cffffff),
@@ -139,12 +173,23 @@ class Tone extends ThemeExtension<Tone> {
     bar: Color(0x73f4f4f5),
     fieldFocus: Color(0xd9ffffff),
     orbs: [Color(0xffffffff), Color(0xffb9b9c1), Color(0xfff8f8fa)],
+    rest: [
+      BoxShadow(color: Color(0x0f000000), blurRadius: 18, offset: Offset(0, 6)),
+    ],
+    lift: [
+      BoxShadow(
+        color: Color(0x1f000000),
+        blurRadius: 30,
+        offset: Offset(0, 12),
+      ),
+    ],
   );
   static const glassDark = Tone(
     glass: true,
     control: 40,
     corner: 10,
-    icon: 22,
+    icon: 21,
+    button: 36,
     base: Color(0xff08080a),
     sidebar: Colors.transparent,
     surface: Color(0x17ffffff),
@@ -162,6 +207,16 @@ class Tone extends ThemeExtension<Tone> {
     bar: Color(0x4d101013),
     fieldFocus: Color(0x2bffffff),
     orbs: [Color(0xff4c4c56), Color(0xff34343c), Color(0xff2c2c33)],
+    rest: [
+      BoxShadow(color: Color(0x59000000), blurRadius: 18, offset: Offset(0, 6)),
+    ],
+    lift: [
+      BoxShadow(
+        color: Color(0x80000000),
+        blurRadius: 30,
+        offset: Offset(0, 12),
+      ),
+    ],
   );
   @override
   Tone copyWith() => this;
@@ -303,10 +358,9 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
           borderRadius: BorderRadius.circular(tone.corner),
           borderSide: BorderSide(color: color),
         );
-  final control = RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(tone.corner),
-  );
-  final buttonSize = Size(0, tone.control);
+  // Text buttons are pills and icon buttons circles; fields keep their corners.
+  const control = StadiumBorder();
+  final buttonSize = Size(0, tone.control - 2);
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
@@ -362,10 +416,10 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
         hoverColor: tone.hover,
         highlightColor: tone.hover,
         visualDensity: VisualDensity.standard,
-        minimumSize: Size.square(tone.control),
+        minimumSize: Size.square(tone.button),
         padding: EdgeInsets.zero,
-        iconSize: tone.icon,
-        shape: frosted ? const CircleBorder() : control,
+        iconSize: tone.icon - 1,
+        shape: const CircleBorder(),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
@@ -408,7 +462,7 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
         disabledForegroundColor: tone.ink3,
         visualDensity: VisualDensity.standard,
         minimumSize: buttonSize,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         textStyle: text.labelLarge,
         shape: control,
       ),
@@ -420,7 +474,7 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
         side: BorderSide(color: tone.line),
         visualDensity: VisualDensity.standard,
         minimumSize: buttonSize,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         textStyle: text.labelLarge,
         shape: control,
       ),
@@ -485,8 +539,9 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       dividerColor: Colors.transparent,
       indicatorSize: TabBarIndicatorSize.tab,
       indicator: ShapeDecoration(
-        color: frosted ? tone.ink : tone.raised,
+        color: frosted ? tone.ink : tone.thumb,
         shape: control,
+        shadows: frosted ? null : tone.rest,
       ),
       labelColor: frosted ? tone.base : tone.ink,
       unselectedLabelColor: tone.ink2,
@@ -498,12 +553,9 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
     popupMenuTheme: PopupMenuThemeData(
       color: tone.menu,
       surfaceTintColor: Colors.transparent,
-      elevation: 8,
-      shadowColor: Colors.black.withValues(alpha: .18),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: tone.line),
-      ),
+      elevation: 10,
+      shadowColor: Colors.black.withValues(alpha: dark ? .6 : .16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       textStyle: text.bodyMedium,
     ),
     tooltipTheme: TooltipThemeData(
@@ -525,7 +577,7 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
     dialogTheme: DialogThemeData(
       backgroundColor: tone.menu,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       titleTextStyle: text.titleLarge,
       contentTextStyle: text.bodyMedium,
     ),

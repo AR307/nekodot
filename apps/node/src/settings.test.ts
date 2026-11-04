@@ -7,7 +7,7 @@ import { rpcRequestSchema } from '@nekodot/protocol';
 import { NodeApplication } from './app';
 import type { HermesRuntime } from './hermes/runtime';
 
-it('reads Hermes profile settings and saves one typed setting without crossing Bot profiles', async () => {
+it('keeps Bot settings on one profile and shared settings on every profile', async () => {
   const home = await mkdtemp(join(tmpdir(), 'nekodot-hermes-settings-'));
   const key = 'test-only-management';
   const fake = await startFakeHermes({
@@ -46,6 +46,17 @@ it('reads Hermes profile settings and saves one typed setting without crossing B
         type: 'number',
         description: 'Context window override',
         category: 'general',
+      },
+      'logging.level': {
+        type: 'select',
+        description: 'Log level',
+        category: 'logging',
+        options: ['INFO', 'DEBUG'],
+      },
+      'slack.require_mention': {
+        type: 'boolean',
+        description: 'Require a mention in Slack',
+        category: 'slack',
       },
     },
   };
@@ -92,6 +103,7 @@ it('reads Hermes profile settings and saves one typed setting without crossing B
       type: 'string',
       description: 'Sensitive value',
       category: 'agent',
+      group: 'run',
       value: null,
       sensitive: true,
       editable: false,
@@ -146,6 +158,50 @@ it('reads Hermes profile settings and saves one typed setting without crossing B
         }),
       ),
     ).rejects.toThrow('Manage model settings in the Bot editor');
+
+    // Installation settings leave the Bot page and are written to every profile at once.
+    expect(firstSettings.fields.map((field) => field.key)).not.toContain('logging.level');
+    await expect(
+      app.handle(
+        request('hermes.settings.set', {
+          botId: first.bot.botId,
+          key: 'logging.level',
+          value: 'DEBUG',
+        }),
+      ),
+    ).rejects.toThrow('change it in app settings');
+    const shared = (await app.handle(request('hermes.shared.get', {}))) as {
+      fields: { key: string; group: string }[];
+    };
+    expect(shared.fields.map((field) => [field.key, field.group])).toEqual([
+      ['logging.level', 'general'],
+      ['slack.require_mention', 'channels'],
+    ]);
+    await expect(
+      app.handle(request('hermes.shared.set', { key: 'compression.enabled', value: false })),
+    ).rejects.toThrow('change it on that Bot');
+    await expect(
+      app.handle(request('hermes.shared.set', { key: 'logging.level', value: 'TRACE' })),
+    ).rejects.toThrow('Value does not match the Hermes setting');
+    expect(
+      await app.handle(request('hermes.shared.set', { key: 'logging.level', value: 'DEBUG' })),
+    ).toEqual({ key: 'logging.level', saved: true, profiles: 3 });
+    const level = async (profile: string) =>
+      (
+        (
+          await runtime.management.request<Record<string, unknown>>(
+            '/api/config?include_defaults=true',
+            profile,
+          )
+        ).logging as Record<string, unknown> | undefined
+      )?.level;
+    expect([
+      await level('default'),
+      await level(first.bot.botId),
+      await level(second.bot.botId),
+    ]).toEqual(['DEBUG', 'DEBUG', 'DEBUG']);
+    const third = await createBot('Settings C', 'settings-c');
+    expect(await level(third.bot.botId)).toBe('DEBUG');
   } finally {
     await app.close();
     runtime.management.close();

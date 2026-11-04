@@ -87,6 +87,9 @@ void main() {
       () => find.byTooltip(c.tr('详情', 'Details')).evaluate().isNotEmpty,
     );
     await tap(find.byTooltip(c.tr('详情', 'Details')).first);
+    final settingsTab = find.widgetWithText(Tab, c.tr('设置', 'Settings'));
+    await until(() => settingsTab.evaluate().isNotEmpty);
+    await tap(settingsTab);
     await until(
       () => find.byKey(const ValueKey('bot-secrets')).evaluate().isNotEmpty,
     );

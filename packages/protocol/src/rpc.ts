@@ -27,6 +27,7 @@ import {
   providerOutputSchema,
   modelInfoSchema,
   hermesSettingsSchema,
+  hermesSharedSettingsSchema,
 } from './providers';
 import { userMemorySaveSchema, userMemoryViewSchema } from './user-memory';
 import {
@@ -466,6 +467,15 @@ export const rpcContracts = {
   'hermes.settings.set': {
     params: z.strictObject({ ...botTarget, key: z.string().min(1), value: z.json() }),
     result: z.strictObject({ key: z.string(), saved: z.literal(true) }),
+  },
+  'hermes.shared.get': { params: empty, result: hermesSharedSettingsSchema },
+  'hermes.shared.set': {
+    params: z.strictObject({ key: z.string().min(1), value: z.json() }),
+    result: z.strictObject({
+      key: z.string(),
+      saved: z.literal(true),
+      profiles: z.number().int().nonnegative(),
+    }),
   },
   'screen.status': {
     params: z.strictObject(botTarget),
