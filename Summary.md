@@ -980,3 +980,8 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 真实 Windows 候选客户端、现有本地 Relay/Node、官方 Hermes providers RPC 与用户此前生成的900×1100小丑SVG完成验收：右侧实际像素非空、源码一致、缩放/适合窗口、窄窗口、关闭保留聊天、默认应用调用及打开方式对话框观察/取消。右侧和窄窗口截图人工检查；未新调用模型。早期仅DOM成功的验收被实际像素断言发现并修正。
 - Flutter analyze、37项辅助测试通过，最终相关7项回归再次通过；Windows Release和未签名NSIS构建成功，安装至 AppData/Local/Programs/nekoDOT，40个文件逐一SHA256核对一致，5个启动入口已恢复本地启动脚本。旧程序/安装器/快捷方式保留备份，旧worktree客户端已正常退出，新安装程序启动响应正常。
 - 证据留在忽略的.runtime/local-deployment/windows/svg-preview-evidence；没有提交凭据、原始聊天或运行目录，没有push/正式发布。未真实操作文件夹定位、系统保存/分享对话框；打开方式未替用户选择应用；Web布局及Android/macOS/Linux设备本轮未验。
+
+## 2026-11-05 分支整合前辅助测试修正
+
+- 合并前基线发现测试 Hermes 服务仍按旧产品名识别 Bot 欢迎消息，与现有 `nekoDOT` 提示不一致；仅同步测试服务的名称匹配，不修改真实 Hermes 或产品运行逻辑。
+- 修正前 3 项欢迎消息辅助测试失败，修正后 Node 全量 38 文件、69 项测试通过，TypeScript 检查通过；不据此宣称真实模型或设备验收通过。

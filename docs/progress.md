@@ -1174,3 +1174,8 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - Windows真实集成使用现有本地Relay/Node、Hermes providers.list、用户此前生成的900×1100 SVG：校验原文件下载、解码尺寸、Flutter预览区实际非空像素、右侧聊天并存、源码一致、125%/适合窗口、窄窗口、关闭返回聊天。Windows默认应用调用成功，观察打开方式对话框并取消，未更改默认关联；未选择具体外部应用。右侧与窄窗口截图已人工检查。早期截图与对话框观察辅助脚本失败后已修正并完整重跑通过。
 - 全部37项Flutter辅助测试、analyze通过，最后相关7项再次通过；Windows lib/main.dart Release、未签名NSIS成功。旧worktree客户端正常退出后实际安装至AppData/Local/Programs/nekoDOT，40个文件SHA256与Release一致，5个入口恢复；新程序路径/响应及Relay健康核对通过。保留旧程序、安装器和快捷方式备份。
 - 私有证据位于忽略的.runtime/local-deployment/windows/svg-preview-evidence；操作说明docs/file-preview.md。未新调用模型、未交互验收系统保存/分享/文件夹定位，未验其他平台设备，Web布局未改。无文件删除、凭据提交、push或正式发布。
+
+## 2026-11-05 分支整合前辅助测试修正
+
+- 在新整合分支上运行合并前基线，发现测试 Hermes 服务欢迎消息匹配仍使用旧产品名，导致 3 项测试失败；按现有产品提示同步为 `nekoDOT`，不改产品逻辑。
+- Node 全量 38 文件、69 项辅助测试与 TypeScript 检查通过。Flutter 默认 SDK/Rust 路径不在当前 shell 中，改用仓库已有、被忽略的 Windows 工具链环境复验；不修改公共构建配置，不新增兼容层。

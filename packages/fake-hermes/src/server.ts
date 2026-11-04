@@ -212,7 +212,7 @@ export async function startFakeHermes(options: FakeHermesOptions) {
       const inputText = text.toLowerCase();
       const scenario =
         options.scenarioFor?.(normalized, profile) ??
-        (text.startsWith('You have just been created as a nekodot Bot.')
+        (text.startsWith('You have just been created as a nekoDOT Bot.')
           ? 'runs-welcome'
           : undefined) ??
         scenarios.find((name) => name === text) ??
