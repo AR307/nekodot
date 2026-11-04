@@ -41,8 +41,9 @@ String localPhaseLabel(NekodotClient c, LocalPhase phase) => switch (phase) {
 };
 
 /// Install failures carry the real tool output; only the cancel marker needs words.
-String localErrorText(NekodotClient c, String error) =>
-    error == 'cancelled' ? c.tr('已取消，可从中断处继续', 'Cancelled; retry continues from here') : error;
+String localErrorText(NekodotClient c, String error) => error == 'cancelled'
+    ? c.tr('已取消，可从中断处继续', 'Cancelled; retry continues from here')
+    : error;
 
 String _gigabytes(int bytes) => (bytes / (1 << 30)).toStringAsFixed(1);
 
@@ -242,10 +243,52 @@ class _LocalSetupPageState extends State<LocalSetupPage> {
         runtime != null &&
         data != null;
     final showSteps = local.steps.any((s) => s.state != 'pending');
+    final completed = local.steps.where((s) => s.state == 'done').length;
+    final progressLabel = c.tr(
+      '已完成 $completed / ${local.steps.length} 步',
+      '$completed / ${local.steps.length} steps completed',
+    );
     return AppPage(
       title: c.tr('在这台电脑运行', 'Run on this computer'),
       body: PageList(
         children: [
+          if (showSteps) ...[
+            PanelGroup(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              c.tr('安装进度', 'Installation progress'),
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                          ),
+                          Text(
+                            progressLabel,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      LinearProgressIndicator(
+                        key: const ValueKey('local-install-progress'),
+                        value: completed / local.steps.length,
+                        minHeight: 6,
+                        borderRadius: BorderRadius.circular(4),
+                        semanticsLabel: progressLabel,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+          ],
           PanelGroup(
             children: [
               _folder(FolderKind.runtime, runtime),

@@ -276,6 +276,15 @@ void main() {
         note('cancelledAt', local.failedStep);
         note('cancelError', local.error);
         note('keptAfterCancel', kept);
+        await tester.pump();
+        expect(
+          tester
+              .widget<LinearProgressIndicator>(
+                find.byKey(const ValueKey('local-install-progress')),
+              )
+              .value,
+          kept.length / local.steps.length,
+        );
         await shot('cancelled');
         await tester.ensureVisible(find.byKey(const ValueKey('start-local')));
         await tester.pump(const Duration(milliseconds: 300));
@@ -296,6 +305,24 @@ void main() {
         seconds: 900,
         what: 'install under way',
       );
+      await tester.pump();
+      final progress = find.byKey(const ValueKey('local-install-progress'));
+      final completed = local.steps.where((s) => s.state == 'done').length;
+      expect(
+        tester.widget<LinearProgressIndicator>(progress).value,
+        completed / local.steps.length,
+      );
+      expect(
+        tester.getTopLeft(progress).dy,
+        lessThan(
+          tester.getTopLeft(find.byKey(const ValueKey('folder-runtime'))).dy,
+        ),
+      );
+      note('installationProgress', {
+        'completed': completed,
+        'total': local.steps.length,
+        'value': tester.widget<LinearProgressIndicator>(progress).value,
+      });
       await shot('installing');
       await until(
         () =>

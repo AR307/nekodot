@@ -909,3 +909,11 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 产物位于D:/nekodot-app/dist/native：nekodot_0.3.0_x64-setup.exe、nekodot_0.3.0+6_android-arm64.apk、nekodot_0.3.0+6_linux-x64.deb。版本仍为候选0.3.0+6，未发布或更新正式服。
 - Mac没有设备，未构建DMG、未验系统授权；Ubuntu桌面安装和真实工具待设备。不能宣称三平台验收完成。
 - 构建入口：node scripts/build-native.mjs windows|android|macos|linux；在目标桌面系统构建，Android传既有私有signing/Firebase配置。未删除任何用户文件。
+
+
+## 2026-11-04 本地安装顶部进度条
+
+- 本地安装页最上方增加原生线性进度条和中英已完成步骤数，直接读取安装、账号准备、配对及启动的13个实际阶段；不模拟耗时百分比、不改安装流程。
+- Windows当前源码构建原生客户端，复用已安装runtime6并使用全新隔离账号/数据：顶部9/13与实际步骤一致，截图人工检查布局通过；完成安装、上线、真实gpt-6.1-sol文件读取/写入、第二条消息以及停止/重启历史保留，退出后所属进程0。
+- 隔离Relay为127.0.0.1:4459，Hermes v0.22.6；本次不是全量重新下载依赖，也未重复Android/macOS/Linux验收。证据：docs/evidence/local-install-progress-windows.png；私有完整旅程记录在.runtime/local-desktop/progress-20261104-141029/。
+- Flutter analyze无问题、24项辅助测试通过；真实集成旅程增加顶部位置和阶段数断言，取消分支增加保留进度断言但本轮未重跑取消旅程。只做本地提交，不发布、不push，既有安装包未替换。
