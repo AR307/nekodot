@@ -291,13 +291,23 @@ void main() {
         (await client.rpc('files.list', {'botId': bot['botId']}))['files'],
       ).single;
       expect(
-        utf8.decode(await downloadFile(client, file['fileId'] as String)),
+        utf8.decode(
+          await downloadFile(
+            client,
+            file['fileId'] as String,
+            nodeId: client.selectedNodeId!,
+          ),
+        ),
         contains('你好，nekodot'),
       );
       final navigator = Navigator.of(tester.element(find.byType(ChatPage)));
       navigator.push(
         MaterialPageRoute<void>(
-          builder: (_) => FilePage(client: client, file: file),
+          builder: (_) => FilePage(
+            client: client,
+            file: file,
+            nodeId: client.selectedNodeId!,
+          ),
         ),
       );
       await until(

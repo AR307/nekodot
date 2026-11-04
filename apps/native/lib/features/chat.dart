@@ -1205,7 +1205,7 @@ class MessageTile extends StatelessWidget {
             ),
           MessageMarkdown(
             data:
-                '${body['text'] ?? ''}${m['status'] == 'streaming' ? ' •' : ''}',
+                '${readableMessageText('${body['text'] ?? ''}', hasFiles: (body['files'] as List? ?? []).isNotEmpty)}${m['status'] == 'streaming' ? ' •' : ''}',
             color: user ? tone.base : null,
           ),
           if (body['files'] is List)

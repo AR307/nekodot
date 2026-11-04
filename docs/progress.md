@@ -1165,3 +1165,12 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 最终产品 `lib/main.dart` 使用本机 Relay URL 构建 Windows Release，重新打包未签名 NSIS 安装器并实际安装至 `AppData/Local/Programs/nekoDOT`。安装后对 35 个程序文件逐一核对 SHA-256 与 Release 一致，主窗口标题为 nekoDOT 且响应正常；旧 0.1.1 已退出。
 - 桌面 2 个原生入口、开始菜单旧入口与新入口、任务栏固定项共 5 个入口统一经本地启动脚本打开新安装程序，原快捷方式和完整构建均保留备份。浏览器专用 `nekoDOT Local` 继续使用原本地服务入口。
 - 最终改动后相关 5 项 Flutter 辅助测试、认证文件与集成测试的 analyze、格式和 diff 检查通过。真实认证交互使用 Debug 集成测试构建；安装后的 Release 验证覆盖文件一致性、启动路径与窗口响应。本地 SMTP/Mailpit 不代表外网邮箱实际投递；用户稍后填写模型 Key，本次未调用模型、未验证移动设备，未 push 或发布正式服务。
+
+## 2026-11-05 Windows SVG 与附件右侧预览（本地）
+
+- 根因：FilePage 将 image/svg+xml 交给 Image.memory；原始小丑SVG文件完整，包含渐变、滤镜、pattern。新增模块化文件预览/下载/SVG渲染/系统文件动作，Home右侧面板与Bot详情互斥，窄窗口整页；展示源码、缩放、适合窗口、保存、默认应用打开、打开方式、文件夹定位和分享。
+- 下载及元数据固定Node，安全保留外部应用临时副本，Windows经Shell API接收字面路径，不拼接shell；原始附件与消息保留，只在已交付文件时隐藏代码块以外的MEDIA技术行。
+- 初版WebView2 DOM成功但Flutter真实窗口空白；改成隔离浏览器图片文档渲染，再将有界高分辨率PNG合成到Flutter。预览不执行附件脚本、不加载网络/文件资源，原SVG保存及外部打开不变。浏览器预览是静态快照，最长边4096px；源码及外部应用仍提供原始矢量内容。
+- Windows真实集成使用现有本地Relay/Node、Hermes providers.list、用户此前生成的900×1100 SVG：校验原文件下载、解码尺寸、Flutter预览区实际非空像素、右侧聊天并存、源码一致、125%/适合窗口、窄窗口、关闭返回聊天。Windows默认应用调用成功，观察打开方式对话框并取消，未更改默认关联；未选择具体外部应用。右侧与窄窗口截图已人工检查。早期截图与对话框观察辅助脚本失败后已修正并完整重跑通过。
+- 全部37项Flutter辅助测试、analyze通过，最后相关7项再次通过；Windows lib/main.dart Release、未签名NSIS成功。旧worktree客户端正常退出后实际安装至AppData/Local/Programs/nekoDOT，40个文件SHA256与Release一致，5个入口恢复；新程序路径/响应及Relay健康核对通过。保留旧程序、安装器和快捷方式备份。
+- 私有证据位于忽略的.runtime/local-deployment/windows/svg-preview-evidence；操作说明docs/file-preview.md。未新调用模型、未交互验收系统保存/分享/文件夹定位，未验其他平台设备，Web布局未改。无文件删除、凭据提交、push或正式发布。

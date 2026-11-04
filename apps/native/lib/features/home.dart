@@ -16,6 +16,7 @@ import 'pairing.dart';
 import 'local_setup.dart';
 import '../local/runtime.dart';
 import 'node_update.dart';
+import 'files.dart';
 
 class HomePage extends StatefulWidget {
   final NekodotClient client;
@@ -28,6 +29,7 @@ class _HomePageState extends State<HomePage> {
   StreamSubscription<Json>? destinations;
   String? conversation;
   Json? details;
+  FileSelection? preview;
   String search = '';
   String? hovered;
   bool searching = false;
@@ -68,6 +70,7 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         conversation = id;
         details = null;
+        preview = null;
       });
     }
   }
@@ -92,6 +95,7 @@ class _HomePageState extends State<HomePage> {
           setState(() {
             conversation = null;
             details = null;
+            preview = null;
           });
           c.selectNode(id);
         }
@@ -295,7 +299,13 @@ class _HomePageState extends State<HomePage> {
     final last = (c.node.messages[id] ?? [])
         .where((x) => x['kind'] == 'text')
         .lastOrNull;
-    final preview = last?['content']['text'] as String?;
+    final body = last?['content'];
+    final preview = body == null
+        ? null
+        : readableMessageText(
+            '${body['text'] ?? ''}',
+            hasFiles: (body['files'] as List? ?? []).isNotEmpty,
+          );
     return MouseRegion(
       onEnter: (_) => setState(() => hovered = id),
       onExit: (_) => setState(() => hovered = null),
@@ -540,6 +550,15 @@ class _HomePageState extends State<HomePage> {
               (x) => x['conversationId'] == conversation,
             );
         final panel = roomy && hasChat ? details : null;
+        final selected = preview?.nodeId == c.selectedNodeId ? preview : null;
+        Widget filePreview(bool embedded) => FilePage(
+          key: ValueKey(selected!.key),
+          client: c,
+          file: selected.file,
+          nodeId: selected.nodeId,
+          embedded: embedded,
+          onClose: () => setState(() => preview = null),
+        );
         return PopScope(
           canPop: !Platform.isAndroid,
           onPopInvokedWithResult: (didPop, result) {
@@ -548,56 +567,78 @@ class _HomePageState extends State<HomePage> {
                   .invokeMethod('background');
             }
           },
-          child: Scaffold(
-            body: narrow
-                ? SafeArea(child: list)
-                : Row(
-                    children: [
-                      SizedBox(
-                        width: 248,
-                        child: Material(color: tone.sidebar, child: list),
-                      ),
-                      const VerticalDivider(width: 1),
-                      Expanded(
-                        child: hasChat
-                            ? ChatPage(
-                                key: ValueKey(
-                                  '${c.selectedNodeId}:$conversation',
-                                ),
-                                client: c,
-                                conversationId: conversation!,
-                                embedded: true,
-                                reserveControls: panel == null,
-                                onDetails: roomy
-                                    ? (bot) => setState(() => details = bot)
-                                    : null,
-                              )
-                            : Stack(
-                                children: const [
-                                  Positioned.fill(child: WindowDrag()),
-                                  Center(
-                                    child: Opacity(
-                                      opacity: .08,
-                                      child: CatAvatar(size: 72),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                      ),
-                      if (panel != null) ...[
-                        const VerticalDivider(width: 1),
+          child: FilePreviewScope(
+            onOpen: (value) => setState(() {
+              preview = value;
+              details = null;
+            }),
+            child: Scaffold(
+              body: selected != null && !roomy
+                  ? filePreview(false)
+                  : narrow
+                  ? SafeArea(child: list)
+                  : Row(
+                      children: [
                         SizedBox(
-                          width: 320,
-                          child: BotDetails(
-                            key: ValueKey(panel['botId']),
-                            client: c,
-                            bot: panel,
-                            onClose: () => setState(() => details = null),
-                          ),
+                          width: 248,
+                          child: Material(color: tone.sidebar, child: list),
                         ),
+                        const VerticalDivider(width: 1),
+                        Expanded(
+                          child: hasChat
+                              ? ChatPage(
+                                  key: ValueKey(
+                                    '${c.selectedNodeId}:$conversation',
+                                  ),
+                                  client: c,
+                                  conversationId: conversation!,
+                                  embedded: true,
+                                  reserveControls:
+                                      panel == null && selected == null,
+                                  onDetails: roomy
+                                      ? (bot) => setState(() {
+                                          details = bot;
+                                          preview = null;
+                                        })
+                                      : null,
+                                )
+                              : Stack(
+                                  children: const [
+                                    Positioned.fill(child: WindowDrag()),
+                                    Center(
+                                      child: Opacity(
+                                        opacity: .08,
+                                        child: CatAvatar(size: 72),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                        if (panel != null) ...[
+                          const VerticalDivider(width: 1),
+                          SizedBox(
+                            width: 320,
+                            child: BotDetails(
+                              key: ValueKey(panel['botId']),
+                              client: c,
+                              bot: panel,
+                              onClose: () => setState(() => details = null),
+                            ),
+                          ),
+                        ],
+                        if (selected != null) ...[
+                          const VerticalDivider(width: 1),
+                          SizedBox(
+                            width: (constraints.maxWidth * .36).clamp(
+                              350.0,
+                              560.0,
+                            ),
+                            child: filePreview(true),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
+                    ),
+            ),
           ),
         );
       },

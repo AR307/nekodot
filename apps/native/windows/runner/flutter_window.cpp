@@ -5,6 +5,7 @@
 #include <flutter/standard_method_codec.h>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "file_actions.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -27,6 +28,7 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  RegisterFileActions(flutter_controller_->engine()->messenger(), GetHandle());
   flutter::MethodChannel<flutter::EncodableValue> updates(
       flutter_controller_->engine()->messenger(), "app.nekodot/updates",
       &flutter::StandardMethodCodec::GetInstance());

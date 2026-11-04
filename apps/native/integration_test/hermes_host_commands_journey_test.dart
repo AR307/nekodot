@@ -172,7 +172,11 @@ void main() {
       'Hermes native backup created',
     );
     final backupId = (backup['content']['files'] as List).single as String;
-    final backupBytes = await downloadFile(c, backupId);
+    final backupBytes = await downloadFile(
+      c,
+      backupId,
+      nodeId: c.selectedNodeId!,
+    );
     expect(backupBytes.take(2), [0x50, 0x4b]);
     debugPrint(
       'QA HOST: official logs, update check and actual ZIP backup downloaded',
@@ -183,7 +187,7 @@ void main() {
         .firstWhere((r) => r['name'] == 'MEMORY.md')['content'];
     final exported = await command('/export', 'Hermes profile exported');
     final fileId = (exported['content']['files'] as List).single as String;
-    final bytes = await downloadFile(c, fileId);
+    final bytes = await downloadFile(c, fileId, nodeId: c.selectedNodeId!);
     expect(bytes.take(2), [0x1f, 0x8b]);
     final card = find.byWidgetPredicate(
       (w) => w is FileCard && w.fileId == fileId,
