@@ -1,3 +1,4 @@
+import { AnimatedList } from '../components/ui/animated-list';
 import {
   useEffect,
   useLayoutEffect,
@@ -475,24 +476,30 @@ export function ChatView({
                 transition={{ duration: reduceMotion ? 0.1 : 0.16, ease }}
               >
                 <span className="mention-heading">{t.mentionMember}</span>
-                {mentionOptions.map((member) => (
-                  <button
-                    key={member.botId}
-                    type="button"
-                    role="option"
-                    aria-selected={member === activeMention}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onMouseMove={() => setMentionIndex(mentionOptions.indexOf(member))}
-                    onClick={() => insertMention(member)}
-                  >
-                    <BotAvatar color={member.avatar.color} shape={member.avatar.shape} size={26} />
-                    <strong>{member.displayName}</strong>
-                    <small>
-                      @{member.handle}
-                      {member.role ? ' · ' + member.role : ''}
-                    </small>
-                  </button>
-                ))}
+                <AnimatedList>
+                  {mentionOptions.map((member) => (
+                    <button
+                      key={member.botId}
+                      type="button"
+                      role="option"
+                      aria-selected={member === activeMention}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onMouseMove={() => setMentionIndex(mentionOptions.indexOf(member))}
+                      onClick={() => insertMention(member)}
+                    >
+                      <BotAvatar
+                        color={member.avatar.color}
+                        shape={member.avatar.shape}
+                        size={26}
+                      />
+                      <strong>{member.displayName}</strong>
+                      <small>
+                        @{member.handle}
+                        {member.role ? ' · ' + member.role : ''}
+                      </small>
+                    </button>
+                  ))}
+                </AnimatedList>
               </motion.div>
             )}
           </AnimatePresence>
@@ -768,7 +775,7 @@ function QuestionCard({
       <strong>{message.content.question}</strong>
       {pending ? (
         <>
-          <div className="approval-actions">
+          <AnimatedList className="approval-actions">
             {message.content.choices.map((choice) => (
               <button
                 type="button"
@@ -788,7 +795,7 @@ function QuestionCard({
                 {choice}
               </button>
             ))}
-          </div>
+          </AnimatedList>
           <textarea
             aria-label={t.questionAnswer}
             value={answer}

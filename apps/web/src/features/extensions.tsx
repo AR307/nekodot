@@ -1,3 +1,4 @@
+import { AnimatedList } from '../components/ui/animated-list';
 import { useCallback, useEffect, useRef, useState, type InputHTMLAttributes } from 'react';
 import {
   transferChunkBytes,
@@ -258,7 +259,7 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
           </button>
         </p>
       )}
-      <div className="extension-grid">
+      <AnimatedList className="extension-grid">
         {!entries ? (
           <SpinnerDots />
         ) : !filtered?.length ? (
@@ -294,7 +295,7 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
             </button>
           ))
         )}
-      </div>
+      </AnimatedList>
       {entry && (
         <div className="dialog-backdrop extension-overlay" onClick={() => setSelected(undefined)}>
           <section
@@ -374,37 +375,39 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
                       t.noExtensionDocument
                     )}
                   </div>
-                  <ul className="extension-files">
+                  <AnimatedList as="ul" className="extension-files">
                     {content.files.map((file) => (
                       <li key={file}>{file}</li>
                     ))}
-                  </ul>
+                  </AnimatedList>
                 </>
               ) : (
                 !contentError && <SpinnerDots />
               )}
               <h3>{t.installedStates}</h3>
-              {activeBots.map((bot) => {
-                const state = entry.states.find((row) => row.botId === bot.botId);
-                return (
-                  <div className="extension-bot-state" key={bot.botId}>
-                    <BotAvatar color={bot.avatar.color} shape={bot.avatar.shape} size={30} />
-                    <div>
-                      <strong>{bot.displayName}</strong>
-                      <small>{state ? state.status : t.notInstalled}</small>
+              <AnimatedList>
+                {activeBots.map((bot) => {
+                  const state = entry.states.find((row) => row.botId === bot.botId);
+                  return (
+                    <div className="extension-bot-state" key={bot.botId}>
+                      <BotAvatar color={bot.avatar.color} shape={bot.avatar.shape} size={30} />
+                      <div>
+                        <strong>{bot.displayName}</strong>
+                        <small>{state ? state.status : t.notInstalled}</small>
+                      </div>
+                      {state?.installed && (
+                        <button
+                          className="text-button"
+                          disabled={!node.online}
+                          onClick={() => void toggle(bot.botId, !state.enabled)}
+                        >
+                          {state.enabled ? t.disableExtension : t.enableExtension}
+                        </button>
+                      )}
                     </div>
-                    {state?.installed && (
-                      <button
-                        className="text-button"
-                        disabled={!node.online}
-                        onClick={() => void toggle(bot.botId, !state.enabled)}
-                      >
-                        {state.enabled ? t.disableExtension : t.enableExtension}
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </AnimatedList>
               {kind === 'plugins' && (
                 <PluginConfiguration
                   entry={entry}
@@ -437,11 +440,11 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
                 <div className="skill-content">
                   <Markdown text={content.content} copyLabel={t.copyText} copiedLabel={t.copied} />
                 </div>
-                <ul className="extension-files">
+                <AnimatedList as="ul" className="extension-files">
                   {content.files.map((file) => (
                     <li key={file}>{file}</li>
                   ))}
-                </ul>
+                </AnimatedList>
               </div>
             </section>
           )}
@@ -473,7 +476,7 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
             <div className="extension-import-body">
               <p className="muted">{t.importHelp}</p>
               <label>{t.selectBots}</label>
-              <div className="bot-install-picker">
+              <AnimatedList className="bot-install-picker">
                 {activeBots.map((bot) => (
                   <label key={bot.botId}>
                     <input
@@ -491,7 +494,7 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
                     {bot.displayName}
                   </label>
                 ))}
-              </div>
+              </AnimatedList>
               <label>
                 {t.gitSource}
                 <input

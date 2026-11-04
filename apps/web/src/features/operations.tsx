@@ -1,3 +1,4 @@
+import { AnimatedList } from '../components/ui/animated-list';
 import { useEffect, useState } from 'react';
 import type { Operation } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
@@ -54,19 +55,23 @@ export function OperationProgress({
         )}
       </strong>
       <p>{operation.detail}</p>
-      {operation.results.map((result) => (
-        <p key={result.botId}>
-          {result.ok ? '✓' : '!'} {result.botId} · {result.detail}
-        </p>
-      ))}
-      {operation.results
-        .filter((result) => result.native)
-        .map((result) => (
-          <details key={result.botId + '-native'}>
-            <summary>{result.botId} · Hermes</summary>
-            <pre className="native-output">{JSON.stringify(result.native, null, 2)}</pre>
-          </details>
+      <AnimatedList>
+        {operation.results.map((result) => (
+          <p key={result.botId}>
+            {result.ok ? '✓' : '!'} {result.botId} · {result.detail}
+          </p>
         ))}
+      </AnimatedList>
+      <AnimatedList>
+        {operation.results
+          .filter((result) => result.native)
+          .map((result) => (
+            <details key={result.botId + '-native'}>
+              <summary>{result.botId} · Hermes</summary>
+              <pre className="native-output">{JSON.stringify(result.native, null, 2)}</pre>
+            </details>
+          ))}
+      </AnimatedList>
       {error && <p className="form-error">{error}</p>}
     </section>
   );

@@ -1,3 +1,4 @@
+import { AnimatedList } from '../components/ui/animated-list';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import type { Attachment, Bot, Operation } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
@@ -164,12 +165,12 @@ export function MessageFiles({ ids, t }: { ids: string[]; t: Texts }) {
       .catch((e: Error) => setError(e.message));
   }, [ids]);
   return (
-    <div className="message-files">
+    <AnimatedList className="message-files">
       {files.map((file) => (
         <FileCard key={file.fileId} file={file} t={t} />
       ))}
       {error && <p className="form-error">{error}</p>}
-    </div>
+    </AnimatedList>
   );
 }
 export function LibraryPanel({
@@ -255,9 +256,11 @@ export function LibraryPanel({
       {!files ? (
         <SpinnerDots />
       ) : files.length ? (
-        files.map((file) => (
-          <FileCard key={file.fileId} file={file} t={t} onSource={() => onSource(file)} />
-        ))
+        <AnimatedList>
+          {files.map((file) => (
+            <FileCard key={file.fileId} file={file} t={t} onSource={() => onSource(file)} />
+          ))}
+        </AnimatedList>
       ) : (
         <p className="empty-state">{t.noFiles}</p>
       )}

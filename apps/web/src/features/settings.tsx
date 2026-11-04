@@ -1,3 +1,4 @@
+import { AnimatedList } from '../components/ui/animated-list';
 import { useState, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 
@@ -88,7 +89,7 @@ export function SettingsPage({
             </button>
           }
         >
-          <div className="node-list">
+          <AnimatedList className="node-list">
             {me?.nodes.map((item) => (
               <div
                 className={`node-row${item.nodeId === selectedNodeId ? ' is-current' : ''}`}
@@ -119,7 +120,7 @@ export function SettingsPage({
                 </button>
               </div>
             ))}
-          </div>
+          </AnimatedList>
           {nodeError && <p className="form-error">{nodeError}</p>}
         </SettingsCard>
         <SettingsCard title={t.appearance} help={t.appearanceHelp}>

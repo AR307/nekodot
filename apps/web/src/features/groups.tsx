@@ -1,3 +1,4 @@
+import { AnimatedList } from '../components/ui/animated-list';
 import { useState, type FormEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { Group } from '@nekodot/protocol';
@@ -136,7 +137,7 @@ export function GroupDialog({
           {t.members} <small>{botIds.length}/6</small>
         </legend>
         <p className="field-hint">{t.groupMemberHint}</p>
-        <div className="member-grid">
+        <AnimatedList className="member-grid">
           {candidates.map((bot) => {
             const selected = botIds.includes(bot.botId);
             return (
@@ -156,7 +157,7 @@ export function GroupDialog({
               </label>
             );
           })}
-        </div>
+        </AnimatedList>
       </fieldset>
       <label className="field">
         {t.leadBot}

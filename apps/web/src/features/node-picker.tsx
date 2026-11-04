@@ -1,3 +1,4 @@
+import { AnimatedList } from '../components/ui/animated-list';
 import { useRef } from 'react';
 import { useAppStore } from '../store';
 import { Icon, StatusDot } from '../ui';
@@ -31,7 +32,7 @@ export function NodePicker({ t, state }: { t: Texts; state: 'ok' | 'connecting' 
         </span>
         <Icon name="chevronDown" />
       </summary>
-      <div className="node-menu" role="menu" aria-label={t.chooseComputer}>
+      <AnimatedList className="node-menu" role="menu" aria-label={t.chooseComputer}>
         {nodes.map((node) => (
           <button
             role="menuitemradio"
@@ -66,7 +67,7 @@ export function NodePicker({ t, state }: { t: Texts; state: 'ok' | 'connecting' 
           </span>
           {t.addComputer}
         </button>
-      </div>
+      </AnimatedList>
     </details>
   );
 }

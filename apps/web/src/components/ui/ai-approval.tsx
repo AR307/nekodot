@@ -1,4 +1,5 @@
 import { type ReactNode, useId, useRef, useState } from 'react';
+import { AnimatedList } from './animated-list';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Icon, SpinnerDots } from '../../ui';
 import '../../styles/ai-approval.css';
@@ -93,22 +94,14 @@ export default function AIApproval({
               {chosen?.detail && <small>{chosen.detail}</small>}
             </motion.div>
           ) : (
-            <motion.div
-              className="ai-approval-options"
-              key="options"
-              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
-              transition={{ duration: reduceMotion ? 0 : 0.16 }}
-            >
-              {options.map((option, index) => (
+            <AnimatedList className="ai-approval-options" key="options">
+              {options.map((option) => (
                 <motion.button
                   className={`ai-approval-option${option.destructive ? ' is-destructive' : ''}`}
                   key={option.id}
                   type="button"
                   aria-label={option.label}
                   disabled={disabled || Boolean(busyId)}
-                  initial={reduceMotion ? false : { opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={reduceMotion ? { duration: 0 } : { ...spring, delay: index * 0.03 }}
                   whileTap={reduceMotion ? undefined : { scale: 0.99 }}
                   onClick={() => void decide(option)}
                 >
@@ -117,7 +110,7 @@ export default function AIApproval({
                   {busyId === option.id && <SpinnerDots />}
                 </motion.button>
               ))}
-            </motion.div>
+            </AnimatedList>
           )}
         </AnimatePresence>
       </div>

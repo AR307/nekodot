@@ -1,3 +1,4 @@
+import { AnimatedList } from '../components/ui/animated-list';
 import { useCallback, useEffect, useState } from 'react';
 import type { Attachment, Bot, MemoryDocument, Operation, RpcResult } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
@@ -138,73 +139,77 @@ function BotInfo({ bot, t, onEdit }: { bot: Bot; t: Texts; onEdit(): void }) {
         ) : !jobs.length ? (
           <p className="empty-state">{t.noScheduledTasks}</p>
         ) : (
-          jobs.map((job) => {
-            const schedule = job.schedule as
-              { display?: string; run_at?: string; timezone?: string } | undefined;
-            const stamp = String(job.next_run_at ?? job.last_run_at ?? schedule?.run_at ?? '');
-            const zone =
-              job.timezone ?? schedule?.timezone ?? stamp.match(/([+-]\d{2}:\d{2}|Z)$/)?.[0];
-            const fields: [string, unknown][] = [
-              [t.jobSchedule, job.schedule_display ?? schedule?.display],
-              [
-                t.jobTimezone,
-                zone === 'Z'
-                  ? 'UTC'
-                  : zone
-                    ? String(zone).startsWith('+') || String(zone).startsWith('-')
-                      ? 'UTC' + zone
-                      : zone
-                    : '—',
-              ],
-              [t.jobStatus, job.enabled ? t.enabled : t.disabled],
-              [t.jobNextRun, job.next_run_at ?? '—'],
-              [t.jobLastRun, job.last_run_at ?? '—'],
-              [t.jobLastResult, job.last_status ?? '—'],
-            ];
-            return (
-              <article className="native-card" key={String(job.id ?? job.job_id)}>
-                <strong>{String(job.name ?? job.prompt ?? job.id)}</strong>
-                {Boolean(job.name) && typeof job.prompt === 'string' && (
-                  <p className="preserve-lines">{job.prompt}</p>
-                )}
-                <dl>
-                  {fields.map(([label, value]) => (
-                    <div key={String(label)}>
-                      <dt>{label}</dt>
-                      <dd>{String(value ?? '—')}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <button className="text-button" onClick={() => void history(job)}>
-                  {t.executionHistory}
-                </button>
-              </article>
-            );
-          })
+          <AnimatedList>
+            {jobs.map((job) => {
+              const schedule = job.schedule as
+                { display?: string; run_at?: string; timezone?: string } | undefined;
+              const stamp = String(job.next_run_at ?? job.last_run_at ?? schedule?.run_at ?? '');
+              const zone =
+                job.timezone ?? schedule?.timezone ?? stamp.match(/([+-]\d{2}:\d{2}|Z)$/)?.[0];
+              const fields: [string, unknown][] = [
+                [t.jobSchedule, job.schedule_display ?? schedule?.display],
+                [
+                  t.jobTimezone,
+                  zone === 'Z'
+                    ? 'UTC'
+                    : zone
+                      ? String(zone).startsWith('+') || String(zone).startsWith('-')
+                        ? 'UTC' + zone
+                        : zone
+                      : '—',
+                ],
+                [t.jobStatus, job.enabled ? t.enabled : t.disabled],
+                [t.jobNextRun, job.next_run_at ?? '—'],
+                [t.jobLastRun, job.last_run_at ?? '—'],
+                [t.jobLastResult, job.last_status ?? '—'],
+              ];
+              return (
+                <article className="native-card" key={String(job.id ?? job.job_id)}>
+                  <strong>{String(job.name ?? job.prompt ?? job.id)}</strong>
+                  {Boolean(job.name) && typeof job.prompt === 'string' && (
+                    <p className="preserve-lines">{job.prompt}</p>
+                  )}
+                  <dl>
+                    {fields.map(([label, value]) => (
+                      <div key={String(label)}>
+                        <dt>{label}</dt>
+                        <dd>{String(value ?? '—')}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <button className="text-button" onClick={() => void history(job)}>
+                    {t.executionHistory}
+                  </button>
+                </article>
+              );
+            })}
+          </AnimatedList>
         )}
       </section>
       {runs && (
         <section className="detail-section">
           <h3>{t.executionHistory}</h3>
           {runs.length ? (
-            runs.map((run, i) => {
-              const started = run.started_at ?? run.created_at;
-              return (
-                <article className="native-card" key={String(run.id ?? i)}>
-                  <strong>
-                    {String(run.end_reason ?? (run.is_active ? t.operationRunning : t.completed))}
-                  </strong>
-                  {started !== undefined && (
-                    <p className="muted">
-                      {new Date(
-                        typeof started === 'number' ? started * 1000 : String(started),
-                      ).toLocaleString()}
-                    </p>
-                  )}
-                  <p className="preserve-lines">{String(run.preview ?? run.title ?? '')}</p>
-                </article>
-              );
-            })
+            <AnimatedList>
+              {runs.map((run, i) => {
+                const started = run.started_at ?? run.created_at;
+                return (
+                  <article className="native-card" key={String(run.id ?? i)}>
+                    <strong>
+                      {String(run.end_reason ?? (run.is_active ? t.operationRunning : t.completed))}
+                    </strong>
+                    {started !== undefined && (
+                      <p className="muted">
+                        {new Date(
+                          typeof started === 'number' ? started * 1000 : String(started),
+                        ).toLocaleString()}
+                      </p>
+                    )}
+                    <p className="preserve-lines">{String(run.preview ?? run.title ?? '')}</p>
+                  </article>
+                );
+              })}
+            </AnimatedList>
           ) : (
             <p className="muted">{t.noResults}</p>
           )}

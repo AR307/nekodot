@@ -1,3 +1,4 @@
+import { AnimatedList } from '../components/ui/animated-list';
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { fetchMe, relayRequest } from '../api';
@@ -282,13 +283,15 @@ export function PairScreen({
         {me?.nodes.length ? (
           <section className="paired-nodes" aria-label={t.nodesTitle}>
             <h2>{t.nodesTitle}</h2>
-            {me.nodes.map((node) => (
-              <div className="paired-node" key={node.nodeId}>
-                <StatusDot state={node.online ? 'ok' : 'offline'} />
-                <span>{node.name}</span>
-                <small>{node.online ? t.connected : t.offline}</small>
-              </div>
-            ))}
+            <AnimatedList>
+              {me.nodes.map((node) => (
+                <div className="paired-node" key={node.nodeId}>
+                  <StatusDot state={node.online ? 'ok' : 'offline'} />
+                  <span>{node.name}</span>
+                  <small>{node.online ? t.connected : t.offline}</small>
+                </div>
+              ))}
+            </AnimatedList>
           </section>
         ) : null}
         {error && (

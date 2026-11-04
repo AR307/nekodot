@@ -1,8 +1,9 @@
+import { AnimatedList } from '../components/ui/animated-list';
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { Bot, Conversation, Group, Message } from '@nekodot/protocol';
 import { selectNodeData, useAppStore, type ActivityState } from '../store';
-import { BotAvatar, GroupDots, Icon, Kbd, SpinnerDots, Wordmark, ease } from '../ui';
+import { BotAvatar, GroupDots, Icon, Kbd, SpinnerDots, Wordmark } from '../ui';
 import { GooeyNav } from '../components/ui/gooey-nav';
 import { avatarColors, fill, listTime, type Texts } from '../shared';
 import { NodePicker } from './node-picker';
@@ -114,8 +115,8 @@ export function TeamSidebar({
               <Icon name="plus" />
             </button>
           </div>
-          <div className="bot-list">
-            {activeBots.map((bot, index) => {
+          <AnimatedList className="bot-list">
+            {activeBots.map((bot) => {
               const chat = node.conversations.find(
                 (entry) => entry.kind === 'dm' && entry.botId === bot.botId,
               );
@@ -125,7 +126,6 @@ export function TeamSidebar({
                   key={bot.botId}
                   t={t}
                   bot={bot}
-                  index={index}
                   active={chat.conversationId === highlight}
                   messages={node.messages[chat.conversationId] ?? []}
                   activity={node.activity[chat.conversationId]}
@@ -144,7 +144,7 @@ export function TeamSidebar({
                 </button>
               </div>
             )}
-          </div>
+          </AnimatedList>
         </section>
         <section className="list-section" aria-label={t.groups}>
           <div className="bot-list-heading group-list-heading">
@@ -160,8 +160,8 @@ export function TeamSidebar({
               <Icon name="plus" />
             </button>
           </div>
-          <div className="bot-list group-list">
-            {node.groups.map((group, index) => {
+          <AnimatedList className="bot-list group-list">
+            {node.groups.map((group) => {
               const chat = node.conversations.find(
                 (entry) => entry.kind === 'group' && entry.groupId === group.groupId,
               );
@@ -172,7 +172,6 @@ export function TeamSidebar({
                   t={t}
                   group={group}
                   bots={node.bots}
-                  index={index}
                   active={chat.conversationId === highlight}
                   messages={node.messages[chat.conversationId] ?? []}
                   activity={node.activity[chat.conversationId]}
@@ -181,7 +180,7 @@ export function TeamSidebar({
               );
             })}
             {!node.groups.length && <p className="empty-group-copy">{t.noGroups}</p>}
-          </div>
+          </AnimatedList>
         </section>
       </div>
       <footer className="sidebar-footer">
@@ -224,15 +223,6 @@ function previewText(message: Message) {
   return message.content.command ?? message.content.prompt;
 }
 
-function useRowMotion(index: number) {
-  const reduceMotion = useReducedMotion();
-  return {
-    initial: reduceMotion ? false : { opacity: 0, y: 6 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.26, ease, delay: Math.min(index, 8) * 0.03 },
-  } as const;
-}
-
 function RowHighlight() {
   const reduceMotion = useReducedMotion();
   return (
@@ -247,7 +237,6 @@ function RowHighlight() {
 function BotRow({
   t,
   bot,
-  index,
   active,
   messages,
   activity,
@@ -256,14 +245,12 @@ function BotRow({
 }: {
   t: Texts;
   bot: Bot;
-  index: number;
   active: boolean;
   messages: Message[];
   activity?: ActivityState;
   busyIn?: Group;
   onClick(): void;
 }) {
-  const rowMotion = useRowMotion(index);
   const state = activity?.state ?? 'idle';
   const last = previewMessage(messages);
   const working = state === 'thinking' || state === 'tool' || Boolean(busyIn);
@@ -276,12 +263,11 @@ function BotRow({
           ? t.thinking
           : t.lastMessage;
   return (
-    <motion.button
+    <button
       className={`bot-row${active ? ' active' : ''}`}
       aria-current={active ? 'true' : undefined}
       style={{ '--bot': bot.avatar.color } as CSSProperties}
       onClick={onClick}
-      {...rowMotion}
     >
       {active && <RowHighlight />}
       <span className="avatar-wrap">
@@ -302,7 +288,7 @@ function BotRow({
           <small>{status}</small>
         </span>
       </span>
-    </motion.button>
+    </button>
   );
 }
 
@@ -310,7 +296,6 @@ function GroupRow({
   t,
   group,
   bots,
-  index,
   active,
   messages,
   activity,
@@ -319,13 +304,11 @@ function GroupRow({
   t: Texts;
   group: Group;
   bots: Bot[];
-  index: number;
   active: boolean;
   messages: Message[];
   activity?: ActivityState;
   onClick(): void;
 }) {
-  const rowMotion = useRowMotion(index + 4);
   const members = group.botIds
     .map((botId) => bots.find((bot) => bot.botId === botId))
     .filter((bot) => bot !== undefined);
@@ -341,12 +324,11 @@ function GroupRow({
         ? (author ? author.displayName + t.previewSeparator : '') + previewText(last)
         : t.groupChat;
   return (
-    <motion.button
+    <button
       className={`bot-row group-row${active ? ' active' : ''}`}
       aria-current={active ? 'true' : undefined}
       style={speaker ? ({ '--bot': speaker.avatar.color } as CSSProperties) : undefined}
       onClick={onClick}
-      {...rowMotion}
     >
       {active && <RowHighlight />}
       <GroupDots colors={members.map((member) => member.avatar.color)} />
@@ -364,7 +346,7 @@ function GroupRow({
           <small>{status}</small>
         </span>
       </span>
-    </motion.button>
+    </button>
   );
 }
 
@@ -407,9 +389,9 @@ function NewMenu({
       </AnimatePresence>
       <AnimatePresence>
         {open && (
-          <motion.div className="fab-menu" role="menu" aria-label={t.newMenu}>
-            {items.map((item, index) => (
-              <motion.button
+          <AnimatedList className="fab-menu" role="menu" aria-label={t.newMenu}>
+            {items.map((item) => (
+              <button
                 key={item.label}
                 role="menuitem"
                 disabled={item.disabled}
@@ -417,27 +399,14 @@ function NewMenu({
                   setOpen(false);
                   item.run();
                 }}
-                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.98 }}
-                transition={
-                  reduceMotion
-                    ? { duration: 0.1 }
-                    : {
-                        type: 'spring',
-                        stiffness: 520,
-                        damping: 34,
-                        delay: (items.length - 1 - index) * 0.04,
-                      }
-                }
               >
                 <span>{item.label}</span>
                 <span className="fab-menu-icon">
                   <Icon name={item.icon} />
                 </span>
-              </motion.button>
+              </button>
             ))}
-          </motion.div>
+          </AnimatedList>
         )}
       </AnimatePresence>
       <motion.button
