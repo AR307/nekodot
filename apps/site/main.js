@@ -231,7 +231,7 @@ const en = {
     'Model requests go to the provider you choose. nekodot is not offline and not end-to-end encrypted.',
   startTitle: 'Three steps<br />to your first chat.',
   downloadNote:
-    '0.3.0 is a very early development build and may have lots of bugs. Windows 10 / 11 x64; the installer is not publisher-signed. Android 10+ arm64; the APK is signed. Android acceptance has been confirmed by the user; see release notes for remaining platform limitations.',
+    '0.3.1 official release. Windows 10 / 11 x64; the installer is not publisher-signed. Android 10+ arm64; the APK is signed. Windows local runtime and Android emulator journeys have been verified; see release notes for physical-device and platform limitations.',
   s1Title: 'Install the app, sign up by email',
   s1Body: 'The app includes its interface and connects over HTTPS.',
   s2Title: 'Pair your server',
@@ -295,7 +295,7 @@ const currentTheme = () => root.dataset.theme ?? (systemDark.matches ? 'dark' : 
 function applyTheme() {
   const theme = currentTheme();
   document.querySelectorAll('img[data-shot]').forEach((image) => {
-    const next = `assets/shots/${image.dataset.shot}-${theme}.webp?v=0.3.0`;
+    const next = `assets/shots/${image.dataset.shot}-${theme}.webp?v=0.3.1`;
     if (!image.src.endsWith(next)) image.src = next;
   });
   document.querySelector('meta[name="theme-color"]').content =

@@ -16,7 +16,7 @@
 <p align="center">
   <a href="https://github.com/AR307/nekodot/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AR307/nekodot/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Node 24 LTS" src="https://img.shields.io/badge/node-24%20LTS-000000">
-  <a href="https://github.com/AR307/nekodot/releases/tag/v0.3.0"><img alt="Release v0.3.0" src="docs/assets/release-0.3.0.svg"></a>
+  <a href="https://github.com/AR307/nekodot/releases/tag/v0.3.1"><img alt="Release v0.3.1" src="docs/assets/release-0.3.1.svg"></a>
 </p>
 
 <p align="center">
@@ -38,7 +38,7 @@
 <p align="center"><sub>两位 Bot 在群里接力整理周报：一位起草，再交给另一位核对数据来源。截图使用演示数据。</sub></p>
 
 > [!NOTE]
-> **0.3.0 正式版**采用 Flutter 原生客户端（`apps/native`）。[更新说明](docs/releases/v0.3.0.md)记录原生会话、指令、例行任务及 Session 切换。截图使用演示数据。
+> **0.3.1 正式版**采用 Flutter 原生客户端（`apps/native`）。[更新说明](docs/releases/v0.3.1.md)记录本机运行、保密交付、应用更新与安装进度。截图使用演示数据。
 
 ## 为什么是 nekodot
 
@@ -151,7 +151,7 @@ App 本身不运行 Hermes。完整的模型密钥只保存在节点上，界面
 ## 快速开始
 
 > [!NOTE]
-> 当前正式版本为 **0.3.0**。Android 验收由用户确认完成；本轮发布结果及其余验收边界见更新说明。
+> 当前正式版本为 **0.3.1**。Windows 本机运行和固定 Android 模拟器完成真实模型验收；本轮真机及 macOS/Linux 桌面验收边界见更新说明。
 
 ### 用 App
 
