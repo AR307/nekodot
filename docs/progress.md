@@ -1054,3 +1054,7 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 修正：欢迎回合期间的发送先等待该欢迎的受理，再以原生 `prompt.submit` `queued` 跟在欢迎之后作为用户自己的回合（复用 `/queue` 路径），欢迎回复保持完整；同一 `clientMsgId` 在等待期间重发共享同一结果。普通运行中的发送仍走 steer，群聊未改动。
 - 验证：新增辅助测试（受理前发送与重发 → 欢迎先提交、用户消息以 queued 提交一次、无 steer）；Node 29 文件 60 项、TypeScript、ESLint 通过。真实验收：隔离 QA Relay（4459）+ 本次源码 Node bundle，`local_desktop_journey_test.dart` 阶段 `first` 在全新目录 `运行环境4`/`数据4` 运行，发送时欢迎仍在进行（`thinking`/`streaming`），Hermes 记录两个入站回合，真实模型 `read_file`→`write_file` 逐字一致，停止、启动、退出后进程 0 个，全部通过。修正前的中间版本（等待后 steer）在 `运行环境3` 得到 `stale_generation`，已舍弃。
 - 未验：Android 端在欢迎期间发送；macOS/Linux。
+
+## 2026-11-04 / 模块五补充：本机桌面操作真实运行
+
+- 关闭时 Bot 无桌面工具并如实回复，三次一致；开启后因同一运行内第二条消息未送达（与欢迎回复期间消息丢失同类，已交修复会话），尚未完成真实记事本输入、保存与停止验证。新增可原样重跑的 `local_desktop_control_test.dart`。
