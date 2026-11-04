@@ -331,7 +331,7 @@ export class Routines {
     if (!row.granted || !row.enabled)
       throw new NodeFault(
         'forbidden',
-        'Open the routine in nekodot and approve secure credential delivery first',
+        'Open the routine in nekoDOT and approve secure credential delivery first',
       );
     const url = this.view(row).url;
     if (!url.startsWith('https://'))

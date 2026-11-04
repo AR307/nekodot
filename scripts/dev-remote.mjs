@@ -57,10 +57,10 @@ await new Promise((resolve, reject) => {
       const response = await fetch(relayUrl + '/health', { signal: AbortSignal.timeout(2000) });
       const status = await response.json();
       if (response.ok && status.service === 'nekodot-relay' && status.status === 'ok') resolve();
-      else reject(new Error('Local port 4329 is in use by a service that is not nekodot Relay.'));
+      else reject(new Error('Local port 4329 is in use by a service that is not nekoDOT Relay.'));
     } catch {
       reject(
-        new Error('Local port 4329 is in use and no healthy nekodot Relay tunnel is available.'),
+        new Error('Local port 4329 is in use and no healthy nekoDOT Relay tunnel is available.'),
       );
     }
   });
@@ -157,7 +157,7 @@ const health = setInterval(async () => {
   }
 }, 1000);
 if (ownsTunnel) startTunnel();
-else console.log('Reusing the existing local nekodot Relay tunnel.');
+else console.log('Reusing the existing local nekoDOT Relay tunnel.');
 startWeb();
 process.on('SIGINT', () => shutdown());
 process.on('SIGTERM', () => shutdown());

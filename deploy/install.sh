@@ -251,7 +251,7 @@ EOF
   chmod 700 "$home/bin/nekodot-relay-tunnel"
   cat > "$unit_dir/nekodot-relay-tunnel.service" <<EOF
 [Unit]
-Description=nekodot Relay SSH tunnel
+Description=nekoDOT Relay SSH tunnel
 After=network-online.target
 
 [Service]
@@ -267,7 +267,7 @@ Requires=nekodot-relay-tunnel.service'
 fi
 cat > "$unit_dir/nekodot-node.service" <<EOF
 [Unit]
-Description=nekodot node
+Description=nekoDOT node
 $node_dependencies
 
 [Service]

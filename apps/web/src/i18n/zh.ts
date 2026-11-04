@@ -20,7 +20,7 @@ const zh = {
   botQuestionLine: '{name} 正在等待你的回答',
   ...clientZh,
   ...screenZh,
-  appName: 'nekodot',
+  appName: 'nekoDOT',
   waitingQuestion: '等待回答',
   questionAnswer: '补充回答',
   submitAnswer: '提交回答',

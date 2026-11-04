@@ -2,6 +2,12 @@
 
 面向参与开发的人。产品介绍见 [README](../README.md)，Relay 镜像、节点安装器与系统服务见 [部署文档](../deploy/README.md)。
 
+## 产品名称
+
+对外显示名统一为 `nekoDOT`（大小写固定），窗口、托盘、通知、邮件、官网和安装包元信息保持一致。Windows 可执行文件是 `nekoDOT.exe`；macOS 应用是 `nekoDOT.app`，Linux 桌面入口显示 `nekoDOT`。
+
+域名 `nekodot.com`、GitHub 仓库地址、`@nekodot/*` 包名、Flutter/Cargo 内部包名、`app.nekodot.client` 应用 ID、`NEKODOT_*` 环境变量、已有数据目录/存储键及 Hermes 插件/管理标记继续使用原技术标识。公开下载路由也保留原路径。改显示名无需迁移已有账号、节点或历史数据；历史验收记录及截图不随品牌文字修改。
+
 ## 环境
 
 - **Node 24 LTS**：节点和 Relay 依赖 `node:sqlite`，不要用 Node 22 及更早版本运行。
@@ -59,7 +65,7 @@ pnpm dev:remote --ssh <your-ssh-alias>
 ## 节点数据
 
 - 节点数据默认在 `~/.nekodot`，可用 `NEKODOT_HOME` 指定其他目录。Hermes home、各 Bot 的 profile、SQLite、节点凭证和日志都在其中。
-- nekodot 使用独立的 Hermes home，不影响你自己的 `~/.hermes`；Hermes gateway 只监听 `127.0.0.1:18642`。
+- nekoDOT 使用独立的 Hermes home，不影响你自己的 `~/.hermes`；Hermes gateway 只监听 `127.0.0.1:18642`。
 - 完整的提供方密钥只写入 Hermes 托管的 `.env`，网页与节点数据库只保留后四位。
 - 根目录的 `.env.example` 仅供真实 Hermes spike 脚本使用；产品的提供方在网页中配置。
 

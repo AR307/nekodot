@@ -1,7 +1,7 @@
 [package]
 name = "nekodot-client"
 version = "0.1.1"
-description = "nekodot remote Hermes client"
+description = "nekoDOT remote Hermes client"
 license = "MIT"
 edition = "2024"
 rust-version = "1.90"

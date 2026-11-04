@@ -133,7 +133,7 @@ async function main() {
         if (process.env.NOTIFY_SOCKET)
           execFile(
             'systemd-notify',
-            ['--ready', '--status=Connected to nekodot Relay'],
+            ['--ready', '--status=Connected to nekoDOT Relay'],
             (error) => {
               if (error) log.error('Could not notify systemd that the node is ready');
             },

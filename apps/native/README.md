@@ -1,4 +1,4 @@
-# nekodot native · 0.2.0 development
+# nekoDOT native · 0.2.0 development
 
 Windows / Android 的 Flutter 客户端。界面由 Flutter 绘制，屏幕通过
 `vnc-rs → flutter_rust_bridge → ui.Image` 解码与显示，不包含 WebView。

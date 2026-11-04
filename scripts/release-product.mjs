@@ -17,10 +17,10 @@ const image = option('image');
 if (!image || !/^nekodot-relay:[a-zA-Z0-9_.-]+$/.test(image))
   throw new Error('Pass --image nekodot-relay:<tag> and --relay <docker save .tar>');
 const inputs = {
-  windows: option('windows') ?? join(root, 'dist/native/nekodot_' + version + '_x64-setup.exe'),
+  windows: option('windows') ?? join(root, 'dist/native/nekoDOT_' + version + '_x64-setup.exe'),
   android:
     option('android') ??
-    join(root, 'dist/native/nekodot_' + version + '+' + number + '_android-arm64.apk'),
+    join(root, 'dist/native/nekoDOT_' + version + '+' + number + '_android-arm64.apk'),
   relay: option('relay'),
   ...(option('macos') ? { macos: option('macos') } : {}),
   ...(option('linux') ? { linux: option('linux') } : {}),

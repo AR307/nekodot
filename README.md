@@ -1,11 +1,11 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/nekodot-mark-dark.svg">
-    <img src="docs/assets/nekodot-mark.svg" alt="nekodot" width="72" height="72">
+    <img src="docs/assets/nekodot-mark.svg" alt="nekoDOT" width="72" height="72">
   </picture>
 </p>
 
-<h1 align="center">nekodot</h1>
+<h1 align="center">nekoDOT</h1>
 
 <p align="center">
   <strong>把你的 AI 小队，带到自己的电脑上。</strong><br>
@@ -23,7 +23,7 @@
   <a href="https://nekodot.com">官网</a> ·
   <a href="https://nekodot.com/#start">下载</a> ·
   <a href="LICENSE">MIT License</a><br>
-  <a href="#为什么是-nekodot">为什么是 nekodot</a> ·
+  <a href="#为什么是-nekodot">为什么是 nekoDOT</a> ·
   <a href="#功能">功能</a> ·
   <a href="#工作原理">工作原理</a> ·
   <a href="#快速开始">快速开始</a> ·
@@ -32,7 +32,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="apps/site/assets/shots/desk-group-dark.webp">
-  <img src="apps/site/assets/shots/desk-group-light.webp" alt="nekodot Windows 客户端：Bot 列表与群聊接力">
+  <img src="apps/site/assets/shots/desk-group-light.webp" alt="nekoDOT Windows 客户端：Bot 列表与群聊接力">
 </picture>
 
 <p align="center"><sub>两位 Bot 在群里接力整理周报：一位起草，再交给另一位核对数据来源。截图使用演示数据。</sub></p>
@@ -40,12 +40,12 @@
 > [!NOTE]
 > **0.3.1 正式版**采用 Flutter 原生客户端（`apps/native`）。[更新说明](docs/releases/v0.3.1.md)记录本机运行、保密交付、应用更新与安装进度。截图使用演示数据。
 
-## 为什么是 nekodot
+## 为什么是 nekoDOT
 
 - **模型由你决定。** 用账号授权登录，或添加自定义 API。多个来源可以并存，每个 Bot 单独选来源和模型。
 - **数据留在你的机器上。** 聊天记录、Bot 配置和完整密钥都保存在你自己的电脑或服务器。电脑只主动向外连接，不需要开放任何端口。
 - **不用碰配置文件。** 复制一行命令接入电脑，之后的模型、Bot、技能和插件都在 App 里完成；节点自己更新。
-- **不重新发明 agent。** 每个 Bot 就是一个原生 Hermes profile，记忆、技能和工具循环都由 Hermes 完成。nekodot 专注于易用的界面、多端连接和多 Bot 协作。
+- **不重新发明 agent。** 每个 Bot 就是一个原生 Hermes profile，记忆、技能和工具循环都由 Hermes 完成。nekoDOT 专注于易用的界面、多端连接和多 Bot 协作。
 
 ## 功能
 
@@ -144,9 +144,9 @@ App（Windows / Android）或网页
 | Node           | 聊天历史、运行记录、Bot 配置与交付文件。                  |
 | Hermes profile | 该 Bot 的原生会话、记忆、技能、插件，以及托管的模型密钥。 |
 
-App 本身不运行 Hermes。完整的模型密钥只保存在节点上，界面里永远只显示后四位。nekodot 不修改 Hermes，只通过官方 CLI 与 API 集成，Hermes 升级不需要改动 nekodot。
+App 本身不运行 Hermes。完整的模型密钥只保存在节点上，界面里永远只显示后四位。nekoDOT 不修改 Hermes，只通过官方 CLI 与 API 集成，Hermes 升级不需要改动 nekoDOT。
 
-请注意：模型请求会发往你配置的模型服务商。nekodot 让数据留在你自己的机器上，但它不是离线运行，也没有端到端加密。
+请注意：模型请求会发往你配置的模型服务商。nekoDOT 让数据留在你自己的机器上，但它不是离线运行，也没有端到端加密。
 
 ## 快速开始
 

@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pythonBridgeCall } from '../bridge';
 
-const plugin = String.raw`"""nekodot UI/transport adapter. All tasks execute in native Hermes."""
+const plugin = String.raw`"""nekoDOT UI/transport adapter. All tasks execute in native Hermes."""
 import base64
 import json
 import socket
@@ -19,7 +19,7 @@ def _call(action, **params):
     settings = load_config().get("plugins", {}).get("entries", {}).get("nekodot-routines", {})
     path = settings.get("socket")
     if not path:
-        raise RuntimeError("nekodot routine bridge is not configured")
+        raise RuntimeError("nekoDOT routine bridge is not configured")
     result = _bridge_call(path, {"action": action, "botId": _home().name, **params}, 120)
     if not result.get("ok"):
         raise RuntimeError(result.get("error", "Routine operation failed"))
@@ -124,20 +124,20 @@ def _status(raw_args):
 
 
 def register(ctx):
-    ctx.register_cli_command("routine", "Manage nekodot routines and send approved webhook events", _setup, _command)
+    ctx.register_cli_command("routine", "Manage nekoDOT routines and send approved webhook events", _setup, _command)
     ctx.register_command("nekodot-routine-status", _status, "Read native routine execution records")
 `;
 
 const skill = `---
 name: nekodot-routines
-description: Create webhook routines and attach webhook triggers to scheduled jobs in nekodot.
+description: Create webhook routines and attach webhook triggers to scheduled jobs in nekoDOT.
 ---
-# nekodot routines
+# nekoDOT routines
 Use the native terminal tool to run \`hermes routine\` with your current profile.
 - Create: \`hermes routine create --name "Title" --description "Purpose" --prompt "Fixed task. External event: {__raw__}"\`.
 - To add a webhook to an existing native scheduled job, also pass \`--cron-job JOB_ID\`. Do not create a second scheduled job.
 - List/get/update use \`hermes routine list\`, \`hermes routine get ID\`, and \`hermes routine update ID ...\`.
-- After creation, ask the user to open the routine card/details in nekodot and approve secure credential delivery. Never ask them to paste a secret into chat or scripts. The entry remains disabled until approved.
+- After creation, ask the user to open the routine card/details in nekoDOT and approve secure credential delivery. Never ask them to paste a secret into chat or scripts. The entry remains disabled until approved.
 - Once approved, scripts use \`hermes routine send ID --request-id STABLE_EVENT_ID --payload '{"message":"event"}'\`. This helper calls the actual public HTTPS URL without printing or embedding its secret. New events need new IDs; retries reuse the original ID.
 - Each webhook runs as a separate native background task; it does not steer the private conversation. Native cron/webhook permissions still apply. Do not promise terminal access that native webhook mode does not grant.
 - Never print credentials, read the credential store, enable a route without the user, or claim a 202 receipt means task completion. A test must check the resulting routine execution.
@@ -149,7 +149,7 @@ export async function installRoutinePlugin(home: string) {
   await mkdir(directory, { recursive: true, mode: 0o700 });
   await writeFile(
     join(directory, 'plugin.yaml'),
-    'name: nekodot-routines\nversion: 0.1.0\ndescription: nekodot native routine UI and transport bridge\n',
+    'name: nekodot-routines\nversion: 0.1.0\ndescription: nekoDOT native routine UI and transport bridge\n',
   );
   await writeFile(join(directory, '__init__.py'), plugin);
   const skills = join(home, 'skills', 'nekodot-routines');

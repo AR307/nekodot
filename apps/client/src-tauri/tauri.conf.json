@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "nekodot",
+  "productName": "nekoDOT",
   "version": "0.1.1",
   "identifier": "app.nekodot.client",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "nekodot",
+        "title": "nekoDOT",
         "label": "main",
         "width": 1180,
         "height": 800,

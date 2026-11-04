@@ -207,7 +207,7 @@ class _RoutinePageState extends State<RoutinePage> {
     final input = TextEditingController(
       text: const JsonEncoder.withIndent('  ').convert({
         'event_type': (routine['events'] as List).firstOrNull ?? 'test',
-        'message': 'nekodot routine test',
+        'message': 'nekoDOT routine test',
       }),
     );
     final payload = await showDialog<String>(

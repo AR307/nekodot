@@ -1,4 +1,4 @@
-# nekodot
+# nekoDOT
 
 面向非技术用户的多智能体产品。React 网页及 Windows / Android 客户端通过 Relay 连接 Node，
 Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前只连接远程服务器，不运行本地 Hermes。
@@ -11,7 +11,7 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - apps/site：双语静态官网，无构建步骤。
 - apps/relay：连接与路由入口。
 - apps/node：本机代理与 Hermes 集成。
-- 每个 Bot 对应独立 Hermes profile；单 agent 的模型、上下文、记忆、技能和工具循环直接采用 Hermes 原生实现。nekodot 只处理产品状态与群聊接力路由。
+- 每个 Bot 对应独立 Hermes profile；单 agent 的模型、上下文、记忆、技能和工具循环直接采用 Hermes 原生实现。nekoDOT 只处理产品状态与群聊接力路由。
 - packages/protocol：Zod 边界协议及 TypeScript 类型。
 - packages/tauri-plugin-nekodot：Android FCM、生命周期、返回键与文件分享桥接。
 - packages/fake-hermes：仅测试使用的真实事件回放服务。
@@ -19,6 +19,13 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - docs/references、design：完整技术及视觉原件。
 
 ## 更新记录
+
+### 2026-11-04 / 产品名统一为 nekoDOT
+
+- 原有 Flutter 客户端、Tauri 宿主、Web、官网、托盘、通知、验证码邮件与面向用户的 Node 文案统一显示 `nekoDOT`。Windows 可执行文件为 `nekoDOT.exe`，各平台宿主和打包入口同步调整。
+- 保留域名、仓库地址、包名、应用 ID、存储键、环境变量及 Hermes 集成标识；现有账号、节点身份和数据不迁移。历史验收记录和截图保留原貌。
+- 本机 Windows Release 和未签名 NSIS 安装包构建通过；Flutter analyze、TypeScript、Web/服务端构建、相关 ESLint/Prettier 检查及 9 项现有辅助测试通过。本地网页真实账号仍显示节点已同步，产品标题与标识正确。
+- 本地快捷方式及运行副本同步更新。本轮未验 Windows 原生登录/模型回复，Android、macOS、Linux 仅更新源码和打包配置，未重建验收；未 push 或发布正式站点。
 
 ### 2026-10-29 / 官网
 

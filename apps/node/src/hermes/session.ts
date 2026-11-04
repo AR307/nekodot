@@ -40,7 +40,7 @@ export async function openNativeSession(
     : await gateway.rpc<NativeSessionSnapshot>('session.create', {
         profile: botId,
         source: 'gui',
-        title: 'Nekodot ' + conversationId,
+        title: 'nekoDOT ' + conversationId,
         hidden: true,
         follow_profile_config: true,
         request_id: 'nekodot:' + botId + ':' + conversationId,

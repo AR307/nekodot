@@ -38,7 +38,7 @@ export class Notifications {
           }[signal.kind];
     const value: TaskNotification = {
       ...signal,
-      displayName: name ?? 'nekodot',
+      displayName: name ?? 'nekoDOT',
       preview: plain.length > 800 ? plain.slice(0, 800) + '…' : plain,
     };
     this.database.db

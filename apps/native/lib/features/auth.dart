@@ -133,7 +133,7 @@ class _AuthPageState extends State<AuthPage> {
                     const Center(child: CatAvatar(size: 56)),
                     const SizedBox(height: 10),
                     Text(
-                      'nekodot',
+                      'nekoDOT',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),

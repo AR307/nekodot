@@ -106,7 +106,7 @@ class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: widget.client,
     builder: (_, child) => MaterialApp(
-      title: 'nekodot',
+      title: 'nekoDOT',
       navigatorKey: navigation,
       navigatorObservers: [nativeRoutes],
       debugShowCheckedModeBanner: false,

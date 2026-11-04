@@ -40,7 +40,7 @@ def _bridge_call(path, request, timeout):
             while not response.endswith(b"\n"):
                 chunk = pipe.read(65536)
                 if not chunk:
-                    raise RuntimeError("nekodot bridge disconnected")
+                    raise RuntimeError("nekoDOT bridge disconnected")
                 response += chunk
         return json.loads(response)
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
@@ -51,7 +51,7 @@ def _bridge_call(path, request, timeout):
         while not response.endswith(b"\n"):
             chunk = client.recv(65536)
             if not chunk:
-                raise RuntimeError("nekodot bridge disconnected")
+                raise RuntimeError("nekoDOT bridge disconnected")
             response += chunk
     return json.loads(response)
 `;

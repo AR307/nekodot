@@ -820,7 +820,7 @@ export class NodeApplication {
     this.publishActivity(run);
     const admission = this.startRun(
       run,
-      'You have just been created as a nekodot Bot. Introduce yourself briefly using your own identity and role, then ask what task the user would like you to work on. Speak directly to the user. Do not claim the user has sent you a message. Do not use tools for this introduction.',
+      'You have just been created as a nekoDOT Bot. Introduce yourself briefly using your own identity and role, then ask what task the user would like you to work on. Speak directly to the user. Do not claim the user has sent you a message. Do not use tools for this introduction.',
     ).finally(() => this.welcomes.delete(run));
     this.welcomes.set(run, admission);
     return message.messageId;

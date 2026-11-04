@@ -186,8 +186,8 @@ class _UpdatesPageState extends State<UpdatesPage> {
             if (permissionNeeded) ...[
               Text(
                 c.tr(
-                  '请允许 nekodot 安装应用，返回后再次点击安装。不会自动开启权限。',
-                  'Allow app installation for nekodot, then return and tap install again. Permission is never enabled automatically.',
+                  '请允许 nekoDOT 安装应用，返回后再次点击安装。不会自动开启权限。',
+                  'Allow app installation for nekoDOT, then return and tap install again. Permission is never enabled automatically.',
                 ),
               ),
               TextButton(

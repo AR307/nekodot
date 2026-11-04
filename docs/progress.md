@@ -1110,3 +1110,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 官网和正式Relay已更新0.3.1/build7，Node按既有空闲机制更新20261104070530并上线；账号、历史、profiles和无关服务保留。
 - 正式HTTPS/WSS真实gpt-6.1-sol回复与Webhook执行/去重通过；官网安装包实际下载正确。详情见docs/release-0.3.1-acceptance.md。
 - GitHub源码/标签/正式Release按用户授权同步。macOS未出包、Linux未完整桌面验收、本轮无Android真机结果；没有把待验项目写成通过。
+
+## 2026-11-04 产品名称统一为 nekoDOT（本地）
+
+- 按用户要求统一现有产品显示名，覆盖 Flutter 各平台、Tauri 宿主、Web、官网、托盘、通知、邮件、Node 用户/模型文案和当前开发说明。Windows 程序为 `nekoDOT.exe`，对应安装器、快捷方式和发布脚本输入同步修改；macOS/Linux/Android 的产品显示及打包配置一并调整。
+- 保留域名、仓库 URL、内部包名、应用 ID、环境变量、存储键、公开下载路由与 Hermes 集成标记，避免破坏账号、既有数据和更新协议。历史记录、参考原件和既有截图不重写。
+- Windows Release 构建通过，程序资源验证 ProductName/FileDescription 为 `nekoDOT`、OriginalFilename 为 `nekoDOT.exe`。旧 CMake 缓存与 EXE 移至本地备份后重建；未删除文件。NSIS 打包脚本补充 `vswhere -products *`，实际识别本机 VS Build Tools，未签名安装器 `dist/native/nekoDOT_0.3.1_x64-setup.exe` 构建通过并核对产品信息。
+- 验证：TypeScript typecheck、Web/Node/Relay 构建、Flutter analyze、相关 ESLint/Prettier 检查和 5 个测试文件的 9 项现有测试通过。真实本地 Relay 重启后健康；agent-browser 核对网页标题、侧栏/导航名称以及原账号节点“已同步”，截图保存于 Git 忽略的本地部署目录。
+- 本地运行副本与桌面快捷方式已更新，账号、节点 ID、数据目录保留。本轮未重新交互验收 Windows 原生登录、托盘或模型回复；用户选择稍后自行配置 API Key。Android/macOS/Linux/Tauri 仅改源码与配置，未出新包或做设备验收。未 push、未更新正式站点或发布版本。

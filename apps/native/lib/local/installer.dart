@@ -54,7 +54,7 @@ class InstallFailure implements Exception {
   String toString() => '$step: $detail';
 }
 
-/// Environment for anything nekodot starts: the user's own Hermes and uv settings never leak in.
+/// Environment for anything nekoDOT starts: the user's own Hermes and uv settings never leak in.
 Map<String, String> isolatedEnvironment(Map<String, String> extra) => {
   for (final entry in Platform.environment.entries)
     if (!RegExp(

@@ -42,12 +42,12 @@ pub fn run() {
                     tray::TrayIconBuilder,
                 };
                 let show =
-                    MenuItem::with_id(app, "show", "打开 nekodot / Open", true, None::<&str>)?;
+                    MenuItem::with_id(app, "show", "打开 nekoDOT / Open", true, None::<&str>)?;
                 let quit = MenuItem::with_id(app, "quit", "退出应用 / Quit", true, None::<&str>)?;
                 let menu = Menu::with_items(app, &[&show, &quit])?;
                 TrayIconBuilder::new()
                     .icon(app.default_window_icon().expect("application icon").clone())
-                    .tooltip("nekodot")
+                    .tooltip("nekoDOT")
                     .menu(&menu)
                     .on_menu_event(|app, event| match event.id.as_ref() {
                         "show" => {

@@ -1,4 +1,4 @@
-// nekodot site: avatars, language and theme switching, the feature stage and the live chat replay.
+// nekoDOT site: avatars, language and theme switching, the feature stage and the live chat replay.
 const root = document.documentElement;
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -161,7 +161,7 @@ const en = {
     'One bot, one specialty. Chat one-on-one, or bring them into a group and let them hand work to each other. They run on your own machine, so your data and keys stay with you.',
   downloadWindows: 'Download for Windows',
   downloadAndroid: 'Download for Android',
-  altHero: 'nekodot on Windows: two bots relaying a weekly report in a group',
+  altHero: 'nekoDOT on Windows: two bots relaying a weekly report in a group',
   demoTitle: 'Not just answers,<br />but what it is doing.',
   demoTabs: 'Demo scenes',
   botYan: 'Scout',
@@ -174,8 +174,8 @@ const en = {
   composer: 'Message',
   duoWindows: 'Pure black and white. Only your bots have color.',
   duoAndroid: 'Frosted glass and a floating dock, for one hand.',
-  altDm: 'nekodot on Windows: tool steps and an approval card',
-  altPhone: 'nekodot on Android: bots and groups',
+  altDm: 'nekoDOT on Windows: tool steps and an approval card',
+  altPhone: 'nekoDOT on Android: bots and groups',
   teamTitle: '8 faces,<br />16 colors.',
   teamBody:
     'Give it a name and one line about what it does. Every bot is its own Hermes profile, and it says hello once created.',
@@ -228,7 +228,7 @@ const en = {
   fact1: 'Full keys live only on your node; the app shows the last four characters.',
   fact2: 'Hermes stays unmodified, integrated only through its official CLI and API.',
   fact3:
-    'Model requests go to the provider you choose. nekodot is not offline and not end-to-end encrypted.',
+    'Model requests go to the provider you choose. nekoDOT is not offline and not end-to-end encrypted.',
   startTitle: 'Three steps<br />to your first chat.',
   downloadNote:
     '0.3.1 official release. Windows 10 / 11 x64; the installer is not publisher-signed. Android 10+ arm64; the APK is signed. Windows local runtime and Android emulator journeys have been verified; see release notes for physical-device and platform limitations.',
@@ -258,7 +258,7 @@ document.querySelectorAll('[data-i18n-aria]').forEach((node) => {
 });
 const titles = {
   zh: document.title,
-  en: 'nekodot · Your AI team, on your own computer',
+  en: 'nekoDOT · Your AI team, on your own computer',
 };
 
 let lang =

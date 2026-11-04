@@ -1,4 +1,4 @@
-# nekodot 官网
+# nekoDOT 官网
 
 正式地址：<https://nekodot.com>。源码及版本下载：<https://github.com/AR307/nekodot>。
 

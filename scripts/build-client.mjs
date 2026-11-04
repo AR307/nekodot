@@ -106,7 +106,7 @@ if (!values.debug) {
     platform === 'windows'
       ? join(
           root,
-          `apps/client/src-tauri/target/release/bundle/nsis/nekodot_${version}_x64-setup.exe`,
+          `apps/client/src-tauri/target/release/bundle/nsis/nekoDOT_${version}_x64-setup.exe`,
         )
       : join(
           root,

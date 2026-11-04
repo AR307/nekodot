@@ -1,5 +1,5 @@
 [Unit]
-Description=nekodot product Node and native Hermes services
+Description=nekoDOT product Node and native Hermes services
 After=network-online.target docker.service
 Wants=network-online.target
 

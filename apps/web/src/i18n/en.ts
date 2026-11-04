@@ -21,7 +21,7 @@ const en = {
   botQuestionLine: '{name} is waiting for your answer',
   ...screenEn,
   ...clientEn,
-  appName: 'nekodot',
+  appName: 'nekoDOT',
   waitingQuestion: 'Waiting for your answer',
   questionAnswer: 'Your answer',
   submitAnswer: 'Submit answer',

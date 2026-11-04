@@ -108,7 +108,7 @@ export function TeamSidebar({
           <span>{t.searchJump}</span>
           <Kbd>{modKey} K</Kbd>
         </button>
-        <Segmented id="app-view" label="nekodot" value={view} options={views} onChange={onView} />
+        <Segmented id="app-view" label="nekoDOT" value={view} options={views} onChange={onView} />
       </div>
       <div
         className="sidebar-conversations"

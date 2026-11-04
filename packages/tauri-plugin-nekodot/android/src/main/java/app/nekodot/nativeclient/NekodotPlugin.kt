@@ -33,7 +33,7 @@ class NekodotPlugin(private val activity: Activity) : Plugin(activity) {
         instance = this
         active = true
         (activity.getSystemService(Activity.NOTIFICATION_SERVICE) as NotificationManager)
-            .createNotificationChannel(NotificationChannel("nekodot_tasks", "nekodot tasks", NotificationManager.IMPORTANCE_DEFAULT))
+            .createNotificationChannel(NotificationChannel("nekodot_tasks", "nekoDOT tasks", NotificationManager.IMPORTANCE_DEFAULT))
         (activity as AppCompatActivity).onBackPressedDispatcher.addCallback(activity, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() { trigger("back", JSObject()) }
         })

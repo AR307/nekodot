@@ -17,7 +17,7 @@ export function useMediaQuery(query: string) {
 
 export function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
-    <span className="wordmark" aria-label="nekodot">
+    <span className="wordmark" aria-label="nekoDOT">
       <svg className="brand-cat" viewBox="0 0 40 40" aria-hidden="true">
         <polygon points="7,15 10,3 18,10" />
         <polygon points="33,15 30,3 22,10" />
@@ -27,7 +27,7 @@ export function Wordmark({ compact = false }: { compact?: boolean }) {
           <ellipse cx="25" cy="23" rx="2" ry="2.6" />
         </g>
       </svg>
-      {!compact && <span>nekodot</span>}
+      {!compact && <span>nekoDOT</span>}
     </span>
   );
 }

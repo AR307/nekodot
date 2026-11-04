@@ -69,8 +69,8 @@ export class EmailVerification {
       await this.transport.sendMail({
         from: this.smtp.from,
         to: email,
-        subject: 'nekodot · 邮箱验证码 / Email verification',
-        text: `你的 nekodot 验证码是 ${code}，10 分钟内有效。请勿分享。\nYour nekodot code is ${code}. It expires in 10 minutes. Do not share it.\n\n如果这不是你的操作，请忽略此邮件。\nIf you did not request this, ignore this email.`,
+        subject: 'nekoDOT · 邮箱验证码 / Email verification',
+        text: `你的 nekoDOT 验证码是 ${code}，10 分钟内有效。请勿分享。\nYour nekoDOT code is ${code}. It expires in 10 minutes. Do not share it.\n\n如果这不是你的操作，请忽略此邮件。\nIf you did not request this, ignore this email.`,
       });
     } catch {
       this.database.db
