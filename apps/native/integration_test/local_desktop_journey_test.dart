@@ -398,6 +398,14 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 500));
     await shot('composer');
+    // A fresh Bot is usually still introducing itself here; the send must steer that run.
+    final welcome = (client.node.messages[conversationId] ?? [])
+        .where((m) => m['content']['welcome'] == true)
+        .lastOrNull;
+    note('sentDuringWelcome', {
+      'activity': client.node.activities[conversationId]?['state'],
+      'welcome': welcome?['status'],
+    });
     await tester.tap(find.byTooltip('发送').hitTestable().last);
     await until(
       () => (client.node.messages[conversationId] ?? []).any(

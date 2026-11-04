@@ -50,10 +50,10 @@
 - **孙进程持有输出管道**：进程结束后先回收整棵进程树再读取剩余输出，避免遗留进程让读取永远不结束。
 - **空白 commentary 气泡**：工具开始时空的文本段被保存为 commentary，聊天显示空气泡（截图可见，为修正前）；聊天列表不再显示空白 commentary，存储不变。
 - 旅程脚本本身的问题（Windows 无驱动截图通道、过渡动画中点击、账号文件解析）已在测试中修正，不计为产品问题。
+- **欢迎回复进行中发送的消息未送达**：新 Bot 的 gateway 冷启动期间欢迎回合还没有 Hermes 受理号，Node 以英文“The current run is starting”拒绝，消息未保存（草稿保留）。仅等待受理后 steer 也不对：Hermes 受理后异步认领，立即 steer 得到 `stale_generation`（真实复现一次）。现在欢迎回合期间的发送先等欢迎被受理，再作为原生排队输入跟在欢迎之后执行，显示“已排队”→“队列任务”；同一草稿重发共享等待、不重复送达（仅辅助测试覆盖）；普通运行中的发送仍为 steer。全新目录（`运行环境4`/`数据4`）真实旅程：欢迎尚未开始流式输出时发送，Hermes 依次记录两个入站回合，真实模型 `read_file`→`write_file`，文件逐字一致，节点库中欢迎、用户消息与回复各自归属正确，停止/启动/退出均通过。截图：[发送时](evidence/local-desktop-welcome-send-composer.png)、[结果](evidence/local-desktop-welcome-send-chat.png)；机器结果：[local-desktop-welcome-send.json](evidence/local-desktop-welcome-send.json)。
 
 ## 待处理的发现
 
-- **欢迎回复进行中发送的消息未送达**：两次全新安装旅程中，Bot 刚创建、欢迎回复仍在进行时从输入框发送，该消息既未保存也未到达 Hermes；欢迎结束后再发送均正常（三轮）。与本机运行无关，属于欢迎回合期间 steer 的既有路径，需单独排查是否给出提示并保留草稿。
 - 取消原因原先直接显示内部代码 `cancelled`，已改为本地化文字（截图为修正前）。
 
 ## 未验或仍待验

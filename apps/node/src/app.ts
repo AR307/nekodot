@@ -203,6 +203,9 @@ export class NodeApplication {
   private readonly textProgress = new Map<string, { persistedAt: number; length: number }>();
   private readonly streamingTexts = new Map<string, string>();
   private readonly appliedSeq = new Map<string, number>();
+  /** Introductions Hermes has not admitted yet; a send queues behind one only once it is admitted. */
+  private readonly welcomes = new Map<RunRecord, Promise<void>>();
+  private readonly welcomeSends = new Map<string, Promise<{ messageId: string }>>();
 
   get idle() {
     return (
@@ -815,10 +818,11 @@ export class NodeApplication {
     this.activeRuns.set(conversationId, run);
     this.database.putMessage(message, {}, run);
     this.publishActivity(run);
-    void this.startRun(
+    const admission = this.startRun(
       run,
       'You have just been created as a nekodot Bot. Introduce yourself briefly using your own identity and role, then ask what task the user would like you to work on. Speak directly to the user. Do not claim the user has sent you a message. Do not use tools for this introduction.',
-    );
+    ).finally(() => this.welcomes.delete(run));
+    this.welcomes.set(run, admission);
     return message.messageId;
   }
 
@@ -920,11 +924,12 @@ export class NodeApplication {
   }
 
   private async queueInput(
-    params: RpcParams<'commands.execute'>,
+    params: Pick<RpcParams<'commands.execute'>, 'conversationId' | 'botId' | 'clientMsgId'>,
     text: string,
     replacesAdmissionId?: string,
   ) {
-    if (this.database.byClient(params.clientMsgId)) return;
+    const duplicate = this.database.byClient(params.clientMsgId);
+    if (duplicate) return { messageId: duplicate.messageId };
     if (this.database.runs().some((run) => run.botId === params.botId && run.groupId))
       throw new NodeFault(
         'conflict',
@@ -952,12 +957,13 @@ export class NodeApplication {
     };
     this.database.putMessage(message, { clientMsgId: params.clientMsgId }, run);
     await this.startRun(run, text);
+    return { messageId: message.messageId };
   }
 
   private async sendMessage(
     params: RpcParams<'messages.send'>,
     command?: { botId: string; input: string; modelOverride?: RunRecord['modelOverride'] },
-  ) {
+  ): Promise<{ messageId: string }> {
     const duplicate = this.database.byClient(params.clientMsgId);
     if (duplicate) return { messageId: duplicate.messageId };
     const conversation = this.database.conversation(params.conversationId);
@@ -1018,6 +1024,17 @@ export class NodeApplication {
     };
 
     if (active) {
+      // A new Bot's gateway may still be starting; a resend of the same draft shares the wait.
+      const welcome = this.welcomes.get(active);
+      if (welcome) {
+        const waiting =
+          this.welcomeSends.get(params.clientMsgId) ??
+          welcome
+            .finally(() => this.welcomeSends.delete(params.clientMsgId))
+            .then(() => this.sendMessage(params, command));
+        this.welcomeSends.set(params.clientMsgId, waiting);
+        return waiting;
+      }
       this.activeRuns.set(active.conversationId, active);
       if (active.state === 'unknown')
         throw new NodeFault(
@@ -1031,6 +1048,8 @@ export class NodeApplication {
         );
       if (!active.runId || !active.sessionId || active.executionGeneration === undefined)
         throw new NodeFault('conflict', 'The current run is starting. Try again shortly.');
+      // An introduction is not a task to correct: the user's message is its own turn after it.
+      if (active.welcome) return this.queueInput({ ...params, botId: bot.botId }, params.text);
       const accepted = await this.hermes.gateway(bot.botId).rpc<{
         status: 'queued' | 'redirected' | 'rejected';
         execution_generation: number;
@@ -1058,7 +1077,6 @@ export class NodeApplication {
       );
       active.textMessageId = undefined;
       active.inputMessageId = userMessage.messageId;
-      active.welcome = undefined;
       active.state = 'thinking';
       this.database.saveRun(active);
       this.publishActivity(active);

@@ -119,3 +119,104 @@ it('A new profile introduces itself once, survives restart, and only explicitly 
     await fake.close();
   }
 });
+
+it('A message sent during the introduction is queued behind it once, even before Hermes admits it', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'nekodot-welcome-queue-'));
+  const key = 'welcome-queue-test-only';
+  const fake = await startFakeHermes({
+    fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
+    profiles: ['default'],
+    apiKey: key,
+    allowProfileCreate: true,
+    eventDelayMs: 10,
+  });
+  const base = recordedManagementRuntime(fake.url, key, home, fake.pluginCatalog);
+  // A new Bot's gateway is cold: hold the introduction before Hermes admits it.
+  let admit!: () => void;
+  const admission = new Promise<void>((resolve) => (admit = resolve));
+  const submits: Record<string, unknown>[] = [];
+  const runtime: HermesRuntime = {
+    ...base,
+    start: async () => {},
+    close: async () => {},
+    approvalMode: async () => 'manual',
+    configureBot: async (bot) => {
+      await fetch(fake.url + '/test/profiles', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: bot.botId }),
+      });
+    },
+    gateway: (profile) => {
+      const gateway = base.gateway(profile);
+      return Object.assign(Object.create(gateway) as typeof gateway, {
+        rpc: (async (method, params, timeoutMs) => {
+          if (method === 'prompt.submit') {
+            await admission;
+            submits.push(params);
+          }
+          return gateway.rpc(method, params, timeoutMs);
+        }) as typeof gateway.rpc,
+      });
+    },
+  };
+  const app = new NodeApplication(home, runtime);
+  try {
+    await app.handle({
+      method: 'providers.set',
+      params: {
+        kind: 'custom',
+        name: 'Journey API',
+        baseUrl: 'https://example.test/v1',
+        apiKey: 'recorded-test-only',
+      },
+    });
+    const created = (await app.handle({
+      method: 'bots.create',
+      params: {
+        sourceId: (await app.providers.list()).sources[0]!.sourceId,
+        displayName: 'Maple',
+        handle: 'maple',
+        role: 'Helpful assistant',
+        model: 'recorded-model',
+        avatar: { shape: 'dot', color: '#E8603C' },
+      },
+    })) as RpcResult<'bots.create'>;
+    const conversationId = created.conversation.conversationId;
+    const params = {
+      conversationId,
+      text: 'hello, please read my notes first.',
+      clientMsgId: 'early',
+    };
+    const sent = app.handle({ method: 'messages.send', params });
+    // The client resends the same draft after its request timed out.
+    const resent = app.handle({ method: 'messages.send', params });
+    await delay(50);
+    expect(app.database.runs()[0]?.runId).toBeUndefined();
+    expect(app.database.byClient('early')).toBeUndefined();
+    admit();
+    const [first, second] = (await Promise.all([sent, resent])) as { messageId: string }[];
+    expect(second).toEqual(first);
+
+    const deadline = Date.now() + 8000;
+    while (app.database.runs().length && Date.now() < deadline) await delay(10);
+    expect(app.database.runs()).toHaveLength(0);
+    const history = app.database.messages(conversationId);
+    expect(history[0]).toMatchObject({ status: 'done', content: { welcome: true } });
+    expect(history.filter((m) => m.author.type === 'user')).toMatchObject([
+      { messageId: first!.messageId, content: { text: params.text, queue: 'running' } },
+    ]);
+    // The introduction is submitted first; the user's message is a native queued prompt after it.
+    expect(submits).toMatchObject([
+      { text: expect.stringContaining('You have just been created') },
+      { text: params.text, input_id: first!.messageId, queued: true },
+    ]);
+    expect(submits[0]).not.toHaveProperty('queued');
+    expect(fake.inspectRuns()).toHaveLength(2);
+    expect(fake.inspectRuns().every((run) => !run.steers.length)).toBe(true);
+  } finally {
+    runtime.management.close();
+    await app.close();
+    await fake.close();
+  }
+});

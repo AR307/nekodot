@@ -1,0 +1,22 @@
+{
+  "phase": "first",
+  "started": "2026-11-04T12:14:37.175016",
+  "signedIn": "2026-11-04T12:14:44.030474",
+  "installMinutes": 5.9,
+  "nodeId": "ffdc32fb-9313-404a-9f8a-fb1730245b86",
+  "pairedPlatform": "win32",
+  "sourceConfigured": true,
+  "botId": "nk-3nv3mq",
+  "historyBefore": 0,
+  "sentDuringWelcome": {
+    "activity": "thinking",
+    "welcome": "streaming"
+  },
+  "approvals": 0,
+  "tools": ["read_file:done", "write_file:done"],
+  "fileWritten": true,
+  "processesAfterStop": "0",
+  "restartKeepsHistory": true,
+  "restartAddsNothing": true,
+  "finished": "2026-11-04T12:22:30.185605"
+}
