@@ -2,6 +2,7 @@ import { it, expect } from 'vitest';
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createRelay } from './server';
+import product from '../../../package.json';
 
 it('serves versions and downloads without an account-level server update action', async () => {
   await mkdir('.runtime/product-updates', { recursive: true });
@@ -18,7 +19,7 @@ it('serves versions and downloads without an account-level server update action'
   const url = await relay.app.listen({ host: '127.0.0.1', port: 0 });
   try {
     expect(await (await fetch(url + '/api/releases')).json()).toMatchObject({
-      relay: { version: '0.3.0' },
+      relay: { version: product.version },
       latest: null,
     });
     const bytes = Buffer.from('real transfer boundary bytes');
