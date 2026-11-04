@@ -299,7 +299,7 @@ const en = {
     'nekodot is open source under the MIT license. Every bot is a native Hermes Agent: memory, skills and tool calls are all handled by Hermes. nekodot does not modify Hermes; it adds the app, the connection and the teamwork between bots.',
   openP1:
     'Bring your own model: sign in with an account or add a custom API, and give each bot a different one',
-  openP2: 'Hermes’s 900-plus settings come with plain names and notes, sorted by what they are for',
+  openP2: 'Hermes’s own settings can all be changed in the app, no config files to edit',
   openP3: 'Want to run the whole service yourself? The steps are on GitHub',
   startTitle: 'Three steps to start',
   downloadNote:
@@ -371,7 +371,7 @@ const currentTheme = () => root.dataset.theme ?? (systemDark.matches ? 'dark' : 
 function applyTheme() {
   const theme = currentTheme();
   document.querySelectorAll('img[data-shot]').forEach((image) => {
-    const next = `assets/shots/${image.dataset.shot}-${theme}.webp?v=0.3.1`;
+    const next = `assets/shots/${image.dataset.shot}-${theme}.webp?v=0.3.1-20261105`;
     if (!image.src.endsWith(next)) image.src = next;
   });
   document.querySelector('meta[name="theme-color"]').content =
