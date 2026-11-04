@@ -23,6 +23,8 @@ String uid() {
 
 class NodeData {
   List<Json> bots = [], groups = [], conversations = [];
+  /// What the node can do: host (server/desktop), Bot screens and desktop control.
+  Json capabilities = {};
   final Map<String, List<Json>> messages = {};
   final Map<String, Json> activities = {}, screens = {};
   int seq = 0;
@@ -33,6 +35,7 @@ class NodeData {
     groups = objects(data['groups']);
     conversations = objects(data['conversations']);
     seq = data['headSeq'] as int;
+    capabilities = object(data['node'] ?? {});
   }
 }
 

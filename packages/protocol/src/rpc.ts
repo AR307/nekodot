@@ -38,6 +38,23 @@ import {
 } from './capabilities';
 const empty = z.strictObject({});
 const botTarget = { botId: botSchema.shape.botId };
+/** Hermes `computer_use` readiness on the computer a desktop-hosted node runs on. */
+export const desktopControlSchema = z.strictObject({
+  platformSupported: z.boolean(),
+  installed: z.boolean(),
+  ready: z.boolean().nullable(),
+  canGrant: z.boolean(),
+  detail: z.string(),
+});
+export const nodeCapabilitiesSchema = z.strictObject({
+  platform: z.string().min(1),
+  /** Hermes-owned independent Bot screens (Linux servers). */
+  computerUse: z.boolean(),
+  /** Where the node runs: a server, or the desktop client on the user's own computer. */
+  host: z.enum(['server', 'desktop']),
+  /** Operating this computer's real desktop; null on servers. */
+  desktopControl: desktopControlSchema.nullable(),
+});
 const groupCreate = z
   .strictObject(groupFields)
   .refine((g) => g.botIds.includes(g.leadBotId), 'Lead must be a member');
@@ -348,7 +365,7 @@ export const rpcContracts = {
       groups: z.array(groupSchema),
       conversations: z.array(conversationSchema),
       headSeq: seqSchema,
-      node: z.strictObject({ platform: z.string().min(1), computerUse: z.boolean() }),
+      node: nodeCapabilitiesSchema,
     }),
   },
   'sync.since': {
@@ -453,6 +470,11 @@ export const rpcContracts = {
   'screen.status': {
     params: z.strictObject(botTarget),
     result: screenStatusSchema,
+  },
+  'desktop.status': { params: empty, result: nodeCapabilitiesSchema },
+  'bots.desktopControl': {
+    params: z.strictObject({ ...botTarget, enabled: z.boolean().optional() }),
+    result: z.strictObject({ enabled: z.boolean() }),
   },
   'screen.start': { params: z.strictObject(botTarget), result: operationSchema },
   'screen.stop': {

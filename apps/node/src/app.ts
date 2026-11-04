@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { BotSecrets } from './secrets';
-import { platform } from 'node:os';
 import type {
   LiveEvent,
   Message,
@@ -24,6 +23,7 @@ import { BotManagement } from './bot-management';
 import { FileLibrary } from './files';
 import { Extensions } from './extensions';
 import { BotScreens } from './screens';
+import { DesktopControl } from './desktop-control';
 import { Notifications } from './notifications';
 import { SharedUserMemory } from './user-memory';
 import { BotCommands } from './commands';
@@ -187,6 +187,7 @@ export class NodeApplication {
   readonly files: FileLibrary;
   readonly extensions: Extensions;
   readonly screens: BotScreens;
+  readonly desktopControl: DesktopControl;
   readonly notifications: Notifications;
   readonly userMemory: SharedUserMemory;
   readonly commands: BotCommands;
@@ -343,6 +344,7 @@ export class NodeApplication {
     this.files = new FileLibrary(this.database, hermes, this.operations);
     this.extensions = new Extensions(this.database, this.bots, hermes, this.operations);
     this.screens = new BotScreens(hermes, this.bots, this.operations, desktop);
+    this.desktopControl = new DesktopControl(hermes, this.bots, desktop, this.screens.available);
     this.screens.onStatus = (status) => this.onLive({ kind: 'screen', status });
     this.database.onEvent = (event) => this.onEvent(event);
   }
@@ -443,6 +445,10 @@ export class NodeApplication {
         return this.nativeExtras.subscription(request.params.botId);
       case 'screen.status':
         return this.screens.status(request.params.botId);
+      case 'desktop.status':
+        return this.desktopControl.refresh();
+      case 'bots.desktopControl':
+        return this.desktopControl.bot(request.params.botId, request.params.enabled);
       case 'screen.start':
         return this.screens.start(request.params.botId);
       case 'screen.stop':
@@ -523,7 +529,7 @@ export class NodeApplication {
           groups: this.database.groups(),
           conversations: this.database.conversations(),
           headSeq: this.database.head(),
-          node: { platform: platform(), computerUse: this.screens.available },
+          node: this.desktopControl.capabilities(),
         } satisfies RpcResult<'sync.snapshot'>;
       case 'sync.since':
         this.activities();
@@ -578,6 +584,8 @@ export class NodeApplication {
           fields,
           archiveFileId ? this.files.profileArchive(archiveFileId) : undefined,
         );
+        // Driving the user's own desktop is opt-in per Bot (Bot details), not Hermes' default.
+        if (this.desktop) await this.desktopControl.bot(created.bot.botId, false);
         this.startWelcome(created.bot.botId, created.conversation.conversationId);
         return created;
       }
@@ -653,6 +661,10 @@ export class NodeApplication {
 
   async resume() {
     await this.secrets.recover();
+    if (this.desktop)
+      void this.desktopControl.refresh().catch(() => {
+        // The snapshot keeps the last known readiness; desktop.status retries on request.
+      });
     for (const run of this.database.runs()) {
       const conversationId = run.groupId
         ? (this.database

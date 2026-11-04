@@ -13,6 +13,7 @@ import 'model_info.dart';
 import 'routines.dart';
 import 'user_memory.dart';
 import 'sessions.dart';
+import 'desktop_control.dart';
 import 'secrets.dart';
 
 class BotDetails extends StatelessWidget {
@@ -113,6 +114,12 @@ class BotDetails extends StatelessWidget {
                       BotSecretsPage(client: c, botId: '${bot['botId']}'),
                     ),
                   ),
+                  if (c.node.capabilities['host'] == 'desktop')
+                    DesktopControlTile(
+                      key: ValueKey('desktop-${bot['botId']}'),
+                      client: c,
+                      botId: '${bot['botId']}',
+                    ),
                   RoutineList(client: c, routines: routines, reload: reload),
                 ],
               );

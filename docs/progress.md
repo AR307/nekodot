@@ -1036,3 +1036,9 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 强制结束客户端 0.9 秒内所属 6 个进程全部回收；Relay 重启后节点自动重连；固定 Android 模拟器访问本机节点完成真实流式回复；退出后 Relay 显示离线。
 - 修正：Windows 阶段输出改为 UTF-8；进程结束先回收进程树再读取输出；聊天不显示空白 commentary。POSIX `products` 包装脚本已写好，未在 macOS/Linux 运行。
 - 未验：全新 Windows 用户账户、断网与取消重试、UTF-8 修正后的 GUI 全新安装、Android 真机。详见 docs/local-desktop-acceptance.md。
+
+## 2026-11-04 / 模块五：本机桌面操作能力
+
+- 协议：`sync.snapshot` 与新 `desktop.status` 返回 `host`（server/desktop）、`computerUse`（Bot 独立屏幕）与 `desktopControl`（computer_use 安装、就绪、可授权、说明）；新 `bots.desktopControl` 读取或切换 Bot 的原生 `computer_use` 工具集，均经 Hermes 官方 REST。
+- 这台电脑上新建 Bot 默认关闭桌面操作；Bot 详情新增“操作这台电脑”开关并显示就绪情况；macOS 授权只在这台电脑上由客户端调用官方 `computer-use permissions grant`。
+- 真实 Windows 节点验证能力返回与开关读写（Hermes CLI 读回）；新增 1 项 widget 测试。尚未让真实模型实际操作桌面。

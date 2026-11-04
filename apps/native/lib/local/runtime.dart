@@ -323,6 +323,22 @@ class LocalRuntime extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// macOS: asks the system to grant cua-driver Accessibility and Screen Recording. Runs only
+  /// here on the computer itself, never on behalf of a remote client. Returns an error or ''.
+  Future<String> grantDesktopControl() async {
+    if (location == null || userId == null) return '';
+    final result = await runOwned(
+      location!.launcher,
+      ['computer-use', 'permissions', 'grant'],
+      workingDirectory: _home,
+      environment: isolatedEnvironment({
+        'HERMES_HOME': joinPath(_home, 'hermes'),
+        'HERMES_RUNTIME_DIR': location!.tools,
+      }),
+    );
+    return result.code == 0 ? '' : result.output;
+  }
+
   /// Graceful stop through the Node's stdin; the owned job reaps anything left after a minute.
   Future<void> stop() async {
     _installer?.cancel();
