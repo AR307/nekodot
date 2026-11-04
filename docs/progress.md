@@ -1103,3 +1103,10 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 ## 2026-11-04 发布版本检查修正
 
 - 独立构建发现Relay下载测试写死0.3.0，改为读取产品版本，实际HTTP版本与package.json保持一致；不是放宽运行校验。
+
+## 2026-11-04 0.3.1 正式发布
+
+- Windows/Android release及Relay镜像已构建；Android沿用签名、versionCode2007。独立服务端检查69项测试、Flutter analyze/24项测试通过。
+- 官网和正式Relay已更新0.3.1/build7，Node按既有空闲机制更新20261104070530并上线；账号、历史、profiles和无关服务保留。
+- 正式HTTPS/WSS真实gpt-6.1-sol回复与Webhook执行/去重通过；官网安装包实际下载正确。详情见docs/release-0.3.1-acceptance.md。
+- GitHub源码/标签/正式Release按用户授权同步。macOS未出包、Linux未完整桌面验收、本轮无Android真机结果；没有把待验项目写成通过。
