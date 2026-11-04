@@ -2,15 +2,9 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { relayRequest } from '../api';
 import { useAppStore } from '../store';
-import { BotAvatar, Icon, SpinnerDots, Wordmark, ease } from '../ui';
-import { avatarColors, type Texts } from '../shared';
-
-const crew = [
-  { color: avatarColors[2]!, size: 76, x: '8%', y: '18%', delay: 0, working: true },
-  { color: avatarColors[0]!, size: 92, x: '46%', y: '4%', delay: 0.6, working: false },
-  { color: avatarColors[1]!, size: 64, x: '74%', y: '40%', delay: 1.2, working: false },
-  { color: avatarColors[3]!, size: 56, x: '30%', y: '58%', delay: 1.8, working: false },
-];
+import { Icon, LoadingText, Wordmark, ease } from '../ui';
+import { type Texts } from '../shared';
+import { AuthFrame } from '../components/ui/auth-page';
 
 export function AuthPage({
   t,
@@ -92,181 +86,152 @@ export function AuthPage({
     }
   }
   return (
-    <main className="auth-layout" lang={language}>
-      <section className="auth-brand-panel">
-        <Wordmark />
-        <div className="auth-crew" aria-hidden="true">
-          {crew.map((member, index) => (
-            <motion.span
-              key={index}
-              className="auth-crew-member"
-              style={{ left: member.x, top: member.y }}
-              initial={reduceMotion ? false : { opacity: 0, scale: 0.6, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{
-                delay: 0.1 + index * 0.08,
-                type: 'spring',
-                stiffness: 260,
-                damping: 18,
-              }}
+    <AuthFrame
+      headline={t.authHeadline}
+      description={t.welcome}
+      note={t.authPoint1}
+      language={language}
+      languageLabel={t.language}
+      onToggleLanguage={onToggleLanguage}
+    >
+      <form className="auth-card" onSubmit={(event) => void submit(event)}>
+        <div className="auth-mobile-brand">
+          <Wordmark />
+        </div>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={mode}
+            className="auth-card-heading"
+            initial={{ opacity: 0, y: reduceMotion ? 0 : 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }}
+            transition={{ duration: 0.16, ease }}
+          >
+            <h2>
+              {mode === 'signup'
+                ? t.signUp
+                : mode === 'verify'
+                  ? t.verifyEmail
+                  : mode === 'reset'
+                    ? t.resetPassword
+                    : t.signIn}
+            </h2>
+            <p className="muted">{t.welcome}</p>
+          </motion.div>
+        </AnimatePresence>
+        <label>
+          {t.email}
+          <input
+            autoComplete="email"
+            type="email"
+            required
+            value={email}
+            placeholder={t.emailPlaceholder}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </label>
+        <label>
+          {t.password}
+          <input
+            autoComplete={
+              mode === 'signup' || mode === 'reset' ? 'new-password' : 'current-password'
+            }
+            type="password"
+            minLength={8}
+            required
+            value={password}
+            placeholder={t.passwordPlaceholder}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </label>
+        {mode !== 'login' && (
+          <label>
+            {t.emailCode}
+            <input
+              aria-label={t.emailCode}
+              autoComplete="one-time-code"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              minLength={6}
+              maxLength={6}
+              required
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+            />
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={sending || seconds > 0 || !email || (mode === 'verify' && !password)}
+              onClick={() => void sendCode()}
             >
-              <span style={{ animationDelay: `${member.delay}s` }}>
-                <BotAvatar color={member.color} size={member.size} working={member.working} />
-              </span>
-            </motion.span>
-          ))}
-        </div>
-        <div className="auth-intro">
-          <h1>{t.authHeadline}</h1>
-          <p>{t.authBody}</p>
-          <ul>
-            {[t.authPoint1, t.authPoint2, t.authPoint3].map((point) => (
-              <li key={point}>
-                <Icon name="check" />
-                {point}
-              </li>
-            ))}
-          </ul>
-          <div className="path-pill">
-            Web <span>→</span> Relay <span>→</span> {t.yourComputer} <span>→</span> Hermes
-          </div>
-        </div>
-      </section>
-      <section className="auth-form-panel">
-        <button className="quiet-button auth-language" type="button" onClick={onToggleLanguage}>
-          <Icon name="globe" />
-          {t.language}
+              {sending ? (
+                <LoadingText action="submitting" />
+              ) : seconds > 0 ? (
+                `${seconds}s`
+              ) : (
+                t.sendCode
+              )}
+            </button>
+          </label>
+        )}
+        {notice && (
+          <p role="status" className="inline-success">
+            {notice}
+          </p>
+        )}
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+        <button className="primary-button full-button" disabled={busy}>
+          {busy ? <LoadingText action="submitting" /> : t.submit}
+          {!busy && <Icon name="arrow" />}
         </button>
-        <form className="auth-card" onSubmit={(event) => void submit(event)}>
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={mode}
-              className="auth-card-heading"
-              initial={{ opacity: 0, y: reduceMotion ? 0 : 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }}
-              transition={{ duration: 0.16, ease }}
-            >
-              <h2>
-                {mode === 'signup'
-                  ? t.signUp
-                  : mode === 'verify'
-                    ? t.verifyEmail
-                    : mode === 'reset'
-                      ? t.resetPassword
-                      : t.signIn}
-              </h2>
-              <p className="muted">{t.welcome}</p>
-            </motion.div>
-          </AnimatePresence>
-          <label>
-            {t.email}
-            <input
-              autoComplete="email"
-              type="email"
-              required
-              value={email}
-              placeholder={t.emailPlaceholder}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </label>
-          <label>
-            {t.password}
-            <input
-              autoComplete={
-                mode === 'signup' || mode === 'reset' ? 'new-password' : 'current-password'
-              }
-              type="password"
-              minLength={8}
-              required
-              value={password}
-              placeholder={t.passwordPlaceholder}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </label>
-          {mode !== 'login' && (
-            <label>
-              {t.emailCode}
-              <input
-                aria-label={t.emailCode}
-                autoComplete="one-time-code"
-                inputMode="numeric"
-                pattern="[0-9]{6}"
-                minLength={6}
-                maxLength={6}
-                required
-                value={code}
-                onChange={(event) => setCode(event.target.value)}
-              />
-              <button
-                type="button"
-                className="secondary-button"
-                disabled={sending || seconds > 0 || !email || (mode === 'verify' && !password)}
-                onClick={() => void sendCode()}
-              >
-                {seconds > 0 ? `${seconds}s` : t.sendCode}
-              </button>
-            </label>
-          )}
-          {notice && (
-            <p role="status" className="inline-success">
-              {notice}
-            </p>
-          )}
-          {error && (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
-          )}
-          <button className="primary-button full-button" disabled={busy}>
-            {busy ? <SpinnerDots /> : t.submit}
-            {!busy && <Icon name="arrow" />}
-          </button>
+        <button
+          className="text-button account-toggle"
+          type="button"
+          onClick={() => {
+            setMode(mode === 'signup' ? 'login' : 'signup');
+            setCode('');
+            setNotice('');
+            setError('');
+          }}
+        >
+          {mode === 'signup' ? t.alreadyAccount : t.newAccount}
+        </button>
+        {mode === 'login' && (
           <button
-            className="text-button account-toggle"
+            className="text-button"
             type="button"
             onClick={() => {
-              setMode(mode === 'signup' ? 'login' : 'signup');
-              setCode('');
-              setNotice('');
+              setMode('reset');
               setError('');
+              setNotice('');
+              setCode('');
             }}
           >
-            {mode === 'signup' ? t.alreadyAccount : t.newAccount}
+            {t.forgotPassword}
           </button>
-          {mode === 'login' && (
-            <button
-              className="text-button"
-              type="button"
-              onClick={() => {
-                setMode('reset');
-                setError('');
-                setNotice('');
-                setCode('');
-              }}
-            >
-              {t.forgotPassword}
-            </button>
-          )}
-          {(mode === 'verify' || mode === 'reset') && (
-            <button
-              className="text-button"
-              type="button"
-              onClick={() => {
-                setMode('login');
-                setError('');
-                setNotice('');
-              }}
-            >
-              {t.signIn}
-            </button>
-          )}
-          <p className="auth-privacy">
-            <Icon name="check" />
-            {t.privateByDesign}
-          </p>
-        </form>
-      </section>
-    </main>
+        )}
+        {(mode === 'verify' || mode === 'reset') && (
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => {
+              setMode('login');
+              setError('');
+              setNotice('');
+            }}
+          >
+            {t.signIn}
+          </button>
+        )}
+        <p className="auth-privacy">
+          <Icon name="check" />
+          {t.privateByDesign}
+        </p>
+      </form>
+    </AuthFrame>
   );
 }

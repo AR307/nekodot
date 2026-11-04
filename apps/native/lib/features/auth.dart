@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/client.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
+import '../ui/auth_frame.dart';
 import 'updates.dart';
 
 class AuthPage extends StatefulWidget {
@@ -122,126 +123,138 @@ class _AuthPageState extends State<AuthPage> {
     body: SafeArea(
       child: Stack(
         children: [
-          Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 320),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+          AuthFrame(
+            zh: c.zh,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Row(
                   children: [
-                    const Center(child: CatAvatar(size: 56)),
-                    const SizedBox(height: 10),
+                    CatAvatar(size: 28),
+                    SizedBox(width: 8),
                     Text(
                       'nekoDOT',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: 24),
-                    TextField(
-                      key: const ValueKey('auth-email'),
-                      controller: email,
-                      keyboardType: TextInputType.emailAddress,
-                      autofillHints: const [AutofillHints.email],
-                      decoration: InputDecoration(
-                        hintText: c.tr('邮箱', 'Email'),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      key: const ValueKey('auth-password'),
-                      controller: password,
-                      obscureText: true,
-                      autofillHints: const [AutofillHints.password],
-                      decoration: InputDecoration(
-                        hintText: c.tr('密码', 'Password'),
-                      ),
-                      onSubmitted: (_) {
-                        if (mode == 'login') submit();
-                      },
-                    ),
-                    if (mode != 'login') ...[
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: code,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                hintText: c.tr('6 位验证码', '6-digit code'),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          OutlinedButton(
-                            onPressed: busy ? null : sendCode,
-                            child: Text(
-                              sent
-                                  ? c.tr('重新发送', 'Resend')
-                                  : c.tr('获取验证码', 'Send code'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    ErrorNotice(error),
-                    if (notice.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10),
-                        child: Text(
-                          notice,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
-                    const SizedBox(height: 12),
-                    FilledButton(
-                      onPressed: busy ? null : submit,
-                      child: busy
-                          ? const Breathing()
-                          : Text(
-                              mode == 'login'
-                                  ? c.tr('登录', 'Sign in')
-                                  : mode == 'reset'
-                                  ? c.tr('更新密码', 'Update password')
-                                  : c.tr('验证并继续', 'Verify & continue'),
-                            ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      children: [
-                        if (DesktopHost.supported)
-                          TextButton(
-                            key: const ValueKey('quit-application'),
-                            onPressed: DesktopHost.quit,
-                            child: Text(c.tr('退出应用', 'Quit application')),
-                          ),
-                        TextButton(
-                          onPressed: () =>
-                              pushPage(context, UpdatesPage(client: c)),
-                          child: Text(c.tr('检查更新', 'Check updates')),
-                        ),
-                        if (mode != 'signup')
-                          TextButton(
-                            onPressed: () => switchTo('signup'),
-                            child: Text(c.tr('创建账号', 'Create account')),
-                          ),
-                        if (mode != 'login')
-                          TextButton(
-                            onPressed: () => switchTo('login'),
-                            child: Text(c.tr('登录', 'Sign in')),
-                          ),
-                        if (mode != 'reset')
-                          TextButton(
-                            onPressed: () => switchTo('reset'),
-                            child: Text(c.tr('忘记密码', 'Forgot password')),
-                          ),
-                      ],
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 24),
+                Text(switch (mode) {
+                  'signup' => c.tr('创建账号', 'Create account'),
+                  'reset' => c.tr('重置密码', 'Reset password'),
+                  'verify' => c.tr('验证邮箱', 'Verify email'),
+                  _ => c.tr('登录', 'Sign in'),
+                }, style: Theme.of(context).textTheme.headlineMedium),
+                const SizedBox(height: 8),
+                Text(
+                  c.tr(
+                    '把你的 AI 小队，带到自己的电脑上。',
+                    'Bring your AI crew to your own computer.',
+                  ),
+                  style: TextStyle(color: context.tone.ink2, height: 1.6),
+                ),
+                const SizedBox(height: 24),
+                TextField(
+                  key: const ValueKey('auth-email'),
+                  controller: email,
+                  keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
+                  decoration: InputDecoration(hintText: c.tr('邮箱', 'Email')),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  key: const ValueKey('auth-password'),
+                  controller: password,
+                  obscureText: true,
+                  autofillHints: const [AutofillHints.password],
+                  decoration: InputDecoration(hintText: c.tr('密码', 'Password')),
+                  onSubmitted: (_) {
+                    if (mode == 'login') submit();
+                  },
+                ),
+                if (mode != 'login') ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: code,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            hintText: c.tr('6 位验证码', '6-digit code'),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: busy ? null : sendCode,
+                        child: Text(
+                          sent
+                              ? c.tr('重新发送', 'Resend')
+                              : c.tr('获取验证码', 'Send code'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                ErrorNotice(error),
+                if (notice.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Text(
+                      notice,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: busy ? null : submit,
+                  child: busy
+                      ? ShiningText(text: c.tr('正在提交…', 'Submitting…'))
+                      : Text(
+                          mode == 'login'
+                              ? c.tr('登录', 'Sign in')
+                              : mode == 'reset'
+                              ? c.tr('更新密码', 'Update password')
+                              : c.tr('验证并继续', 'Verify & continue'),
+                        ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  children: [
+                    if (DesktopHost.supported)
+                      TextButton(
+                        key: const ValueKey('quit-application'),
+                        onPressed: DesktopHost.quit,
+                        child: Text(c.tr('退出应用', 'Quit application')),
+                      ),
+                    TextButton(
+                      onPressed: () =>
+                          pushPage(context, UpdatesPage(client: c)),
+                      child: Text(c.tr('检查更新', 'Check updates')),
+                    ),
+                    if (mode != 'signup')
+                      TextButton(
+                        onPressed: () => switchTo('signup'),
+                        child: Text(c.tr('创建账号', 'Create account')),
+                      ),
+                    if (mode != 'login')
+                      TextButton(
+                        onPressed: () => switchTo('login'),
+                        child: Text(c.tr('登录', 'Sign in')),
+                      ),
+                    if (mode != 'reset')
+                      TextButton(
+                        onPressed: () => switchTo('reset'),
+                        child: Text(c.tr('忘记密码', 'Forgot password')),
+                      ),
+                  ],
+                ),
+              ],
             ),
           ),
           const Positioned(
