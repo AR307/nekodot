@@ -23,6 +23,8 @@ export const productReleaseSchema = z.object({
   artifacts: z.object({
     windows: artifact,
     android: artifact,
+    macos: artifact.optional(),
+    linux: artifact.optional(),
     relay: artifact.extend({ image: z.string().regex(/^nekodot-relay:[a-zA-Z0-9_.-]+$/) }),
   }),
 });
@@ -55,7 +57,7 @@ export function registerReleases(app: FastifyInstance, directory?: string) {
     async (request, reply) => {
       const release = await latest();
       const path = `releases/${request.params.release}/${request.params.name}`;
-      const entry = release && Object.values(release.artifacts).find((item) => item.path === path);
+      const entry = release && Object.values(release.artifacts).find((item) => item?.path === path);
       if (!directory || !entry)
         return reply.code(404).send({ error: { message: 'Release not found' } });
       const file = join(directory, entry.path);

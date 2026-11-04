@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -122,7 +121,7 @@ class SettingsPage extends StatelessWidget {
             title: Text(client.tr('版本与更新', 'Versions & updates')),
             onTap: () => pushPage(context, UpdatesPage(client: client)),
           ),
-          if (Platform.isWindows)
+          if (DesktopHost.supported)
             ListTile(
               key: const ValueKey('quit-application'),
               leading: const Icon(Icons.power_settings_new),

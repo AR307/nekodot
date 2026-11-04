@@ -3,11 +3,20 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../data/client.dart';
 import 'desktop.dart';
 
 const _channel = MethodChannel('app.nekodot/updates');
+String get clientPlatform => Platform.operatingSystem;
+String get packageExtension => switch (clientPlatform) {
+  'windows' => 'exe',
+  'android' => 'apk',
+  'macos' => 'dmg',
+  'linux' => 'deb',
+  _ => throw UnsupportedError('Unsupported client platform'),
+};
 
 class InstalledVersion {
   final String version;
@@ -28,16 +37,11 @@ class ProductRelease {
   final Uri download;
   ProductRelease(Json json, Uri origin)
     : version = json['version'] as String,
-      build =
-          json['artifacts'][Platform.isWindows ? 'windows' : 'android']['build']
-              as int,
+      build = json['artifacts'][clientPlatform]['build'] as int,
       notes = json['notes'] as String,
-      size =
-          (json['artifacts'][Platform.isWindows ? 'windows' : 'android']['size']
-                  as num)
-              .toInt(),
+      size = (json['artifacts'][clientPlatform]['size'] as num).toInt(),
       download = origin.resolve(
-        '/downloads/${json['artifacts'][Platform.isWindows ? 'windows' : 'android']['path']}',
+        '/downloads/${json['artifacts'][clientPlatform]['path']}',
       ) {
     if (json['schema'] != 1 || !RegExp(r'^\d+\.\d+\.\d+$').hasMatch(version)) {
       throw const FormatException('Invalid release metadata');
@@ -70,7 +74,7 @@ Future<File> downloadUpdate(
   final folder = Directory('${directory.path}/updates');
   await folder.create(recursive: true);
   final file = File(
-    '${folder.path}/nekodot-${release.version}-${release.build}.${Platform.isWindows ? 'exe' : 'apk'}',
+    '${folder.path}/nekodot-${release.version}-${release.build}.$packageExtension',
   );
   final client = http.Client();
   final sink = file.openWrite();
@@ -109,9 +113,22 @@ Future<void> openInstallPermission() =>
 
 Future<void> installUpdate(File file) async {
   if (Platform.isWindows) {
-    await Process.start(file.path, [], mode: ProcessStartMode.detached);
-    await DesktopHost.quit();
-  } else {
+    await DesktopHost.quit(
+      afterStop: () async {
+        await Process.start(file.path, [], mode: ProcessStartMode.detached);
+      },
+    );
+  } else if (Platform.isAndroid) {
     await _channel.invokeMethod('install', {'path': file.path});
+  } else {
+    await DesktopHost.quit(
+      afterStop: () async {
+        if (!await launchUrl(file.uri, mode: LaunchMode.externalApplication)) {
+          throw const FileSystemException(
+            'Cannot open the system package installer',
+          );
+        }
+      },
+    );
   }
 }

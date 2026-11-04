@@ -9,10 +9,15 @@ const value = (name) => {
   const index = args.indexOf('--' + name);
   return index < 0 ? undefined : args[index + 1];
 };
-if (!['android', 'windows'].includes(platform))
+if (!['android', 'windows', 'macos', 'linux'].includes(platform))
   throw new Error(
-    'Usage: node scripts/build-native.mjs windows|android [--debug] [--signing <private JSON>] [--firebase <google-services.json>]',
+    'Usage: node scripts/build-native.mjs windows|android|macos|linux [--debug] [--signing <private JSON>] [--firebase <google-services.json>]',
   );
+if (
+  platform !== 'android' &&
+  process.platform !== { windows: 'win32', macos: 'darwin', linux: 'linux' }[platform]
+)
+  throw new Error('Build ' + platform + ' on its own host; cross-compilation is not supported.');
 const env = { ...process.env };
 const debug = args.includes('--debug');
 const targetPlatform = value('target-platform') ?? 'android-arm64';
@@ -49,7 +54,7 @@ const command = [
   'scripts/flutter.mjs',
   'flutter',
   'build',
-  platform === 'android' ? 'apk' : 'windows',
+  platform === 'android' ? 'apk' : platform,
   debug ? '--debug' : '--release',
   `--dart-define=RELAY_URL=${relay}`,
 ];
@@ -66,12 +71,18 @@ child.on('error', (error) => {
 child.on('exit', async (code) => {
   process.exitCode = code ?? 1;
   if (code !== 0 || debug) return;
-  if (platform === 'windows') {
-    const installer = spawn(process.execPath, ['scripts/package-native-windows.mjs'], {
-      cwd: root,
-      env,
-      stdio: 'inherit',
-    });
+  if (platform !== 'android') {
+    const installer = spawn(
+      process.execPath,
+      platform === 'windows'
+        ? ['scripts/package-native-windows.mjs']
+        : ['scripts/package-native-posix.mjs', platform],
+      {
+        cwd: root,
+        env,
+        stdio: 'inherit',
+      },
+    );
     installer.on('error', (error) => {
       console.error(error.message);
       process.exitCode = 1;

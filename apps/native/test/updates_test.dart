@@ -13,7 +13,7 @@ void main() {
       'version': '0.3.10',
       'build': 12,
       'notes': '',
-      'artifacts': {'windows': artifact, 'android': artifact},
+      'artifacts': {clientPlatform: artifact},
     }, Uri.parse('https://nekodot.example'));
     expect(release.newerThan(const InstalledVersion('0.3.9', 99)), isTrue);
     expect(release.newerThan(const InstalledVersion('0.3.10', 11)), isTrue);

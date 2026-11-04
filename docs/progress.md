@@ -1002,9 +1002,9 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 | 2 客户端本机运行模块      | 真实验收通过       | Windows：目录选择、官方阶段安装 6.3 分钟、Job 回收                  |
 | 3 首次使用与生命周期界面  | 真实验收通过       | Windows GUI 首次使用、重新登录自动启动、退出                        |
 | 4 Windows 真实闭环        | 主要旅程通过       | 见 local-desktop-acceptance.md；全新用户账户与真实断网重试待验      |
-| 5 computer_use 与能力信息 | 能力与开关已真实验 | 真实节点 desktop.status 与开关；实际操作桌面待验                    |
-| 6 macOS / Linux 宿主      | 未开始             |                                                                     |
-| 7 发布与交付              | 未开始             |                                                                     |
+| 5 computer_use 与能力信息 | Windows真实旅程通过 | 关闭/开启、记事本输入保存、任务停止；Mac/Linux待验 |
+| 6 macOS / Linux 宿主 | 源码完成、部分构建 | Linux release/DEB通过；Mac未构建，二者真实桌面待验 |
+| 7 发布与交付 | 本地候选已构建，未发布 | Windows EXE、签名Android APK、Linux DEB；Mac DMG待设备 |
 
 ## 2026-11-04 / 模块一：Node 桌面托管
 
@@ -1076,3 +1076,15 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - Android首次尝试发生连接中断，下一次脚本抢在列表渲染前滚动失败；保持失败日志，等待实际列表后重跑通过，不修改消息执行逻辑、不自动重发任务。旅程改用内存测试凭据存储，不清除已安装客户端登录。
 - Windows 最后退出后所属进程0；原生桌面操作的两次成功结果见前节及 local-desktop-handoff.json。启动失败现在立即反馈，不额外等待客户端6分钟。
 - Flutter analyze 无问题，24项 Flutter 辅助测试；Node24全量38文件69项辅助测试、TypeScript与触及文件ESLint通过。不部署、不push；测试值和凭据留在忽略目录。
+
+
+## 2026-11-04 接手补齐：跨平台宿主与候选包
+
+- 增加Flutter macOS/Linux宿主，复用业务界面和Rust桥接；修正Linux实际构建发现的缺少Rust目标，增加Apple Silicon/Linux x64。
+- 本机入口、窗口/托盘、目录导入、系统通知和退出扩展到三个桌面系统；Mac系统退出先停止所属节点，Linux使用GTK单实例；Mac使用原生Keychain，不开启App Store沙箱，不绕过系统权限。
+- 更新按实际OS选择EXE/APK/DMG/DEB，无该平台包时明确提示；仅在用户同意停止本机任务后打开安装器，取消退出不会抢先安装。
+- 构建脚本支持本机Mac/Linux，POSIX不注入Windows SDK路径；增加DMG/DEB打包与Relay可选平台下载。Mac可接现有签名/公证凭据，但未签名不宣称正式发布。
+- 已构建Windows release+未签名NSIS EXE、沿用项目签名的Android arm64 APK，以及WSL Ubuntu24.04的Linux release/DEB。Linux动态库无缺失，包依赖包含GTK和Secret Service；WSLg仅启动冒烟，缺托盘watcher/Secret Service，不能代替Ubuntu桌面验收。
+- 产物位于D:/nekodot-app/dist/native：nekodot_0.3.0_x64-setup.exe、nekodot_0.3.0+6_android-arm64.apk、nekodot_0.3.0+6_linux-x64.deb。版本仍为候选0.3.0+6，未发布或更新正式服。
+- Mac没有设备，未构建DMG、未验系统授权；Ubuntu桌面安装和真实工具待设备。不能宣称三平台验收完成。
+- 构建入口：node scripts/build-native.mjs windows|android|macos|linux；在目标桌面系统构建，Android传既有私有signing/Firebase配置。未删除任何用户文件。

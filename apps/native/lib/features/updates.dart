@@ -39,7 +39,7 @@ class _UpdatesPageState extends State<UpdatesPage> {
       final installed = await InstalledVersion.read();
       if (mounted) setState(() => current = installed);
       final result = await c.request('/releases');
-      final release = result['latest'] == null
+      final release = result['latest']?['artifacts']?[clientPlatform] == null
           ? null
           : ProductRelease(object(result['latest']), c.origin);
       if (mounted) {
@@ -123,8 +123,10 @@ class _UpdatesPageState extends State<UpdatesPage> {
               subtitle: Text(
                 latest == null
                     ? c.tr(
-                        checked ? '尚未发布安装包' : '等待检查',
-                        checked ? 'No release published' : 'Waiting for check',
+                        checked ? '此系统尚未发布安装包' : '等待检查',
+                        checked
+                            ? 'No release for this platform'
+                            : 'Waiting for check',
                       )
                     : '${latest!.version} (${latest!.build})',
               ),

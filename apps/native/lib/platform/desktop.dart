@@ -1,9 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 class DesktopHost with WindowListener {
+  static bool get supported =>
+      Platform.isWindows || Platform.isMacOS || Platform.isLinux;
   static final instance = DesktopHost();
   static TrayIcon? icon;
   // Native handles own the menu callbacks; keep them alive with the tray.
@@ -34,7 +38,9 @@ class DesktopHost with WindowListener {
     windowManager.addListener(instance);
     final tray = TrayIcon.create()!;
     icon = tray;
-    tray.icon = ImageAsset.fromAsset('assets/nekodot.ico');
+    tray.icon = ImageAsset.fromAsset(
+      Platform.isWindows ? 'assets/nekodot.ico' : 'assets/nekodot.png',
+    );
     tray.setTooltip('nekodot');
     final menu = Menu.create()!;
     final show = MenuItem.createWithLabelAndType(
@@ -80,8 +86,9 @@ class DesktopHost with WindowListener {
   /// Stops what this app owns (the local node); returning false keeps the app open.
   static Future<bool> Function()? beforeQuit;
 
-  static Future<void> quit() async {
+  static Future<void> quit({Future<void> Function()? afterStop}) async {
     if (beforeQuit != null && !await beforeQuit!()) return;
+    if (afterStop != null) await afterStop();
     icon?.dispose();
     icon = null;
     _menu?.dispose();

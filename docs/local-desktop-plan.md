@@ -15,8 +15,8 @@
   `cli.expose_on_path: false`。其余阶段原样调用官方脚本。
 - 安装进程设置 `UV_PYTHON_INSTALL_DIR` / `UV_CACHE_DIR` 到运行环境目录，避免 bootstrap Python 落到 uv 默认的用户目录；运行时设置
   `HERMES_GATEWAY_LOCK_DIR` 到账号数据目录。
-- PM 依赖状态按数据根划分；检出位于 `<owner home>/hermes-agent` 时，其他 `HERMES_HOME` 借用 owner 的解释器与依赖（`pm/environments.py`
-  `owning_home_root`）。因此运行环境安装一次，多个账号共用。
+- PM 依赖状态按数据根划分；检出位于 `<owner home>/hermes-agent` 时，其他 `HERMES_HOME` 借用 owner 的检出与工具，但各账号仍需准备独立的Python依赖状态（`pm/environments.py`
+  `owning_home_root`）。因此共享检出与工具安装一次；新账号在account阶段运行官方hermes pm install --extra all，避免gateway首启隐式下载。
 
 ## 目录布局
 
@@ -59,4 +59,4 @@
 ## 验收环境限制
 
 - 当前只有 Windows 真实环境；macOS 与 Ubuntu 桌面未具备前不标记通过。
-- 本机 D 盘剩余约 2.5 GB、C 盘约 27 GB，真实安装验收前需确定使用的磁盘。
+- 2026-11-04安装使用D盘中文目录；收尾时D盘约82GiB、C盘约10GiB可用。旧2.5GB记录已过时。

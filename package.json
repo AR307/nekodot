@@ -18,6 +18,8 @@
     "client:windows": "node scripts/build-client.mjs windows",
     "client:android": "node scripts/build-client.mjs android",
     "native:windows": "node scripts/build-native.mjs windows",
+    "native:macos": "node scripts/build-native.mjs macos",
+    "native:linux": "node scripts/build-native.mjs linux",
     "native:android": "node scripts/build-native.mjs android",
     "native:emulator": "node scripts/android-emulator.mjs",
     "native:analyze": "node scripts/flutter.mjs flutter analyze",

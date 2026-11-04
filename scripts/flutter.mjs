@@ -11,8 +11,12 @@ const env = {
   FLUTTER_SUPPRESS_ANALYTICS: 'true',
   CI: 'true',
   RUSTUP_TOOLCHAIN: process.env.RUSTUP_TOOLCHAIN ?? '1.90.0',
-  JAVA_HOME: process.env.JAVA_HOME ?? 'D:/Android studio/jbr',
-  ANDROID_HOME: process.env.ANDROID_HOME ?? resolve(process.env.LOCALAPPDATA, 'Android/Sdk'),
+  ...(process.platform === 'win32'
+    ? {
+        JAVA_HOME: process.env.JAVA_HOME ?? 'D:/Android studio/jbr',
+        ANDROID_HOME: process.env.ANDROID_HOME ?? resolve(process.env.LOCALAPPDATA, 'Android/Sdk'),
+      }
+    : {}),
   PATH: [resolve(sdk, 'bin'), resolve(sdk, 'bin/cache/dart-sdk/bin'), process.env.PATH].join(
     delimiter,
   ),
@@ -20,7 +24,11 @@ const env = {
 const [tool = 'flutter', ...args] = process.argv.slice(2);
 const command =
   tool === 'bridge'
-    ? resolve(root, '.runtime/side-phase-3/rust-tools/bin/flutter_rust_bridge_codegen.exe')
+    ? resolve(
+        root,
+        '.runtime/side-phase-3/rust-tools/bin',
+        'flutter_rust_bridge_codegen' + (process.platform === 'win32' ? '.exe' : ''),
+      )
     : resolve(sdk, 'bin', process.platform === 'win32' ? `${tool}.bat` : tool);
 const child = spawn(command, args, {
   cwd: resolve(root, 'apps/native'),

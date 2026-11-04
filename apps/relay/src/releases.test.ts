@@ -23,6 +23,8 @@ it('serves versions and downloads without an account-level server update action'
     });
     const bytes = Buffer.from('real transfer boundary bytes');
     await writeFile(join(directory, 'nekodot-windows-x64.exe'), bytes);
+    await writeFile(join(directory, 'nekodot-macos-arm64.dmg'), bytes);
+    await writeFile(join(directory, 'nekodot-linux-x64.deb'), bytes);
     const manifest = {
       schema: 1,
       version: '0.3.1',
@@ -32,6 +34,8 @@ it('serves versions and downloads without an account-level server update action'
       artifacts: {
         windows: { path: 'releases/0.3.1-7/nekodot-windows-x64.exe', size: bytes.length, build: 7 },
         android: { path: 'releases/0.3.1-7/nekodot-android-arm64.apk', size: 1024, build: 2007 },
+        macos: { path: 'releases/0.3.1-7/nekodot-macos-arm64.dmg', size: bytes.length, build: 7 },
+        linux: { path: 'releases/0.3.1-7/nekodot-linux-x64.deb', size: bytes.length, build: 7 },
         relay: {
           path: 'releases/0.3.1-7/nekodot-relay.tar',
           size: 1024,
@@ -46,6 +50,10 @@ it('serves versions and downloads without an account-level server update action'
     expect(await check.json()).toMatchObject({ latest: manifest });
     const download = await fetch(url + '/downloads/' + manifest.artifacts.windows.path);
     expect(Buffer.from(await download.arrayBuffer())).toEqual(bytes);
+    for (const target of ['macos', 'linux'] as const) {
+      const download = await fetch(url + '/downloads/' + manifest.artifacts[target].path);
+      expect(Buffer.from(await download.arrayBuffer())).toEqual(bytes);
+    }
     expect((await fetch(url + '/downloads/releases/0.3.1-7/private.json')).status).toBe(404);
     expect((await fetch(url + '/api/releases/apply', { method: 'POST' })).status).toBe(404);
     await writeFile(join(distribution, 'latest.json'), '{invalid');

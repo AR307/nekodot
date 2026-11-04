@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../data/client.dart';
+import 'desktop.dart';
 
 /// Android delivery is exclusively FCM; Windows uses its live account channel.
 /// Hermes/Node decide when a task is done. This class only displays and opens it.
@@ -29,6 +30,12 @@ class NativeNotifications {
       await local.initialize(
         settings: const InitializationSettings(
           android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          macOS: DarwinInitializationSettings(
+            requestAlertPermission: false,
+            requestBadgePermission: false,
+            requestSoundPermission: false,
+          ),
+          linux: LinuxInitializationSettings(defaultActionName: 'Open nekodot'),
           windows: WindowsInitializationSettings(
             appName: 'nekodot',
             appUserModelId: 'app.nekodot.client',
@@ -72,6 +79,12 @@ class NativeNotifications {
         if (Platform.isAndroid) {
           await Firebase.initializeApp();
           await FirebaseMessaging.instance.requestPermission();
+        } else if (Platform.isMacOS) {
+          await local
+              .resolvePlatformSpecificImplementation<
+                MacOSFlutterLocalNotificationsPlugin
+              >()
+              ?.requestPermissions(alert: true, badge: true, sound: true);
         }
       }
       if (Platform.isAndroid) {
@@ -116,7 +129,7 @@ class NativeNotifications {
           seen.add('${message.data['notificationId']}');
           client.openNotification(message.data);
         }
-      } else if (Platform.isWindows) {
+      } else if (DesktopHost.supported) {
         subscriptions.add(
           client.notifications.stream.listen((signal) {
             unawaited(show(signal));
@@ -204,7 +217,7 @@ class NativeNotifications {
           !seen.add('${signal['notificationId']}')) {
         return;
       }
-      final focused = !Platform.isWindows || await windowManager.isFocused();
+      final focused = !DesktopHost.supported || await windowManager.isFocused();
       if (focused &&
           client.active &&
           client.selectedNodeId == signal['nodeId'] &&

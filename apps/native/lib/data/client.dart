@@ -23,6 +23,7 @@ String uid() {
 
 class NodeData {
   List<Json> bots = [], groups = [], conversations = [];
+
   /// What the node can do: host (server/desktop), Bot screens and desktop control.
   Json capabilities = {};
   final Map<String, List<Json>> messages = {};
@@ -60,7 +61,11 @@ class NekodotClient extends ChangeNotifier {
     FlutterSecureStorage? vault,
   }) : origin = Uri.parse(server),
        transport = transport ?? http.Client(),
-       vault = vault ?? const FlutterSecureStorage();
+       vault =
+           vault ??
+           const FlutterSecureStorage(
+             mOptions: MacOsOptions(usesDataProtectionKeychain: false),
+           );
   String? token, selectedNodeId;
   String? visibleConversation;
   Json? me;

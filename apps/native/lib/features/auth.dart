@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
@@ -213,7 +211,7 @@ class _AuthPageState extends State<AuthPage> {
                     Wrap(
                       alignment: WrapAlignment.center,
                       children: [
-                        if (Platform.isWindows)
+                        if (DesktopHost.supported)
                           TextButton(
                             key: const ValueKey('quit-application'),
                             onPressed: DesktopHost.quit,

@@ -6,6 +6,7 @@ void main(List<String> args) async {
     output.dependencies.addAll([
       input.packageRoot.resolve('rust/Cargo.toml'),
       input.packageRoot.resolve('rust/Cargo.lock'),
+      input.packageRoot.resolve('rust/rust-toolchain.toml'),
     ]);
     await const FlutterRustBridgeNativeAssetsBuilder(cratePath: 'rust')
         .run(input: input, output: output);

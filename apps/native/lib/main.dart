@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,13 +15,13 @@ import 'ui/design.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (Platform.isWindows) {
+  if (DesktopHost.supported) {
     await DesktopHost.initialize();
   } else {
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
   final client = NekodotClient();
-  if (Platform.isWindows) localRuntime = LocalRuntime(client);
+  if (DesktopHost.supported) localRuntime = LocalRuntime(client);
   runApp(NekodotApp(client: client));
 }
 
@@ -79,6 +79,11 @@ class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
   }
 
   @override
+  Future<AppExitResponse> didRequestAppExit() async {
+    return await _stopLocal() ? AppExitResponse.exit : AppExitResponse.cancel;
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       widget.client.resume();
@@ -114,7 +119,7 @@ class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
       },
       builder: (context, child) => AnnotatedRegion(
         value: Theme.of(context).appBarTheme.systemOverlayStyle!,
-        child: Platform.isWindows
+        child: DesktopHost.supported
             ? WindowChrome(child: child!)
             : Ambient(child: child!),
       ),

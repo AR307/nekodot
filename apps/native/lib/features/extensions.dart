@@ -562,7 +562,7 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
         onPressed: busy ? null : () => upload(),
         icon: const Icon(Icons.upload_file_outlined),
       ),
-      if (Platform.isWindows)
+      if (!Platform.isAndroid)
         IconButton(
           tooltip: c.tr('导入完整目录', 'Import folder'),
           onPressed: busy ? null : () => upload(directory: true),

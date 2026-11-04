@@ -22,6 +22,8 @@ const inputs = {
     option('android') ??
     join(root, 'dist/native/nekodot_' + version + '+' + number + '_android-arm64.apk'),
   relay: option('relay'),
+  ...(option('macos') ? { macos: option('macos') } : {}),
+  ...(option('linux') ? { linux: option('linux') } : {}),
 };
 if (!inputs.relay) throw new Error('Missing --relay <docker save .tar>');
 for (const file of Object.values(inputs)) {
@@ -44,6 +46,8 @@ for (const [platform, file] of Object.entries(inputs)) {
     windows: 'nekodot-windows-x64.exe',
     android: 'nekodot-android-arm64.apk',
     relay: 'nekodot-relay.tar',
+    macos: 'nekodot-macos-arm64.dmg',
+    linux: 'nekodot-linux-x64.deb',
   }[platform];
   const path = releasePath + '/' + name;
   await copyFile(file, join(directory, path));

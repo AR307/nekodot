@@ -129,7 +129,7 @@ Future<void> clientCommand(
         ),
       );
     }
-    if (Platform.isWindows) {
+    if (DesktopHost.supported) {
       await DesktopHost.quit();
     } else if (Platform.isAndroid) {
       await const MethodChannel('app.nekodot/lifecycle')

@@ -1,5 +1,5 @@
 name: nekodot_native
-description: 'nekodot native Windows and Android client'
+description: 'nekodot native desktop and Android client'
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -84,6 +84,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/nekodot.ico
+    - assets/nekodot.png
   fonts:
     - family: Nunito
       fonts:
