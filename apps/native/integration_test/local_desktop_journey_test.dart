@@ -66,6 +66,7 @@ const runtimeFolder = String.fromEnvironment('QA_RUNTIME_DIR');
 const dataFolder = String.fromEnvironment('QA_DATA_DIR');
 const workFolder = String.fromEnvironment('QA_WORK_DIR');
 const account = String.fromEnvironment('QA_ACCOUNT');
+
 /// `first` and `retry` start from a new account and empty folders; `retry` cancels mid-install.
 const fresh = phase == 'first' || phase == 'retry';
 const evidenceFolder = String.fromEnvironment('QA_EVIDENCE_DIR');
@@ -94,13 +95,13 @@ void main() {
                 'local-desktop-${DateTime.now().microsecondsSinceEpoch}',
           }
         : {
-            for (final entry
-                in (jsonDecode(await accountFile.readAsString()) as Map)
-                    .entries)
+            for (final entry in (jsonDecode(
+              await accountFile.readAsString(),
+            ) as Map).entries)
               if (entry.value is String) '${entry.key}': entry.value as String,
           };
+    await LocalLocation(runtimeFolder, dataFolder).save();
     if (fresh) {
-      await LocalLocation(runtimeFolder, dataFolder).save();
       await accountFile.writeAsString(jsonEncode(credentials));
     }
     final client = NekodotClient(vault: MemoryVault());
@@ -251,7 +252,9 @@ void main() {
       await shot('installing');
       if (phase == 'retry') {
         await until(
-          () => local.steps.any((s) => s.id == 'python-deps' && s.state == 'running'),
+          () => local.steps.any(
+            (s) => s.id == 'python-deps' && s.state == 'running',
+          ),
           seconds: 900,
           what: 'dependency stage running',
         );
@@ -265,7 +268,10 @@ void main() {
           what: 'cancelled install',
           stopOnFailure: false,
         );
-        final kept = [for (final s in local.steps) if (s.state == 'done') s.id];
+        final kept = [
+          for (final s in local.steps)
+            if (s.state == 'done') s.id,
+        ];
         note('cancelledAt', local.failedStep);
         note('cancelError', local.error);
         note('keptAfterCancel', kept);
@@ -279,7 +285,10 @@ void main() {
           what: 'retry started',
           stopOnFailure: false,
         );
-        note('resumedSkips', [for (final s in local.steps) if (s.state == 'done') s.id]);
+        note('resumedSkips', [
+          for (final s in local.steps)
+            if (s.state == 'done') s.id,
+        ]);
       }
       await until(
         () =>
@@ -383,8 +392,14 @@ void main() {
     await source.writeAsString('第一行：$marker\n第二行：这是用户电脑上的真实文件。\n');
     // Let navigation transitions settle before tapping, then send through the real composer.
     await tester.pump(const Duration(seconds: 3));
-    if (find.byKey(const ValueKey('chat-input')).hitTestable().evaluate().isEmpty) {
-      final row = find.byKey(ValueKey('conversation-$conversationId')).hitTestable();
+    if (find
+        .byKey(const ValueKey('chat-input'))
+        .hitTestable()
+        .evaluate()
+        .isEmpty) {
+      final row = find
+          .byKey(ValueKey('conversation-$conversationId'))
+          .hitTestable();
       await until(() => row.evaluate().isNotEmpty, what: 'conversation row');
       await tester.tap(row);
       await tester.pump(const Duration(seconds: 2));
@@ -409,7 +424,8 @@ void main() {
     await tester.tap(find.byTooltip('发送').hitTestable().last);
     await until(
       () => (client.node.messages[conversationId] ?? []).any(
-        (m) => !before.contains(m['messageId']) && m['author']['type'] == 'user',
+        (m) =>
+            !before.contains(m['messageId']) && m['author']['type'] == 'user',
       ),
       seconds: 30,
       what: 'user message sent',
@@ -448,6 +464,41 @@ void main() {
     final written = await File(target).readAsString();
     note('fileWritten', written.contains(marker));
     expect(written, contains(marker));
+
+    // A second message from the same composer, once the first turn is idle, is its own turn.
+    await until(
+      () => client.node.activities[conversationId]?['state'] == 'idle',
+      what: 'first turn idle',
+    );
+    final second = 'NEKODOT_SECOND_$stamp';
+    final beforeSecond = {
+      for (final m in client.node.messages[conversationId] ?? [])
+        m['messageId'],
+    };
+    await tester.tap(input);
+    await tester.enterText(input, '只回复这一行，不要使用工具：$second');
+    await tester.pump(const Duration(milliseconds: 500));
+    final sendButton = tester.widget<IconButton>(
+      find
+          .byWidgetPredicate((w) => w is IconButton && w.tooltip == '发送')
+          .hitTestable()
+          .last,
+    );
+    note('secondSendEnabled', sendButton.onPressed != null);
+    await tester.tap(find.byTooltip('发送').hitTestable().last);
+    await until(
+      () => (client.node.messages[conversationId] ?? []).any(
+        (m) =>
+            !beforeSecond.contains(m['messageId']) &&
+            m['author']['type'] == 'bot' &&
+            m['kind'] == 'text' &&
+            m['status'] == 'done' &&
+            '${m['content']['text']}'.contains(second),
+      ),
+      seconds: 180,
+      what: 'second message answered',
+    );
+    note('secondAnswered', true);
 
     // Stop and start keep the same node, history and no repeated execution.
     final messages = [
