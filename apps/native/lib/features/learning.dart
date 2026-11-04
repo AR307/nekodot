@@ -120,7 +120,7 @@ class _LearningEntryPageState extends State<LearningEntryPage> {
       builder: (context, snapshot) {
         if (snapshot.hasError) return ErrorNotice('${snapshot.error}');
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: ShiningText());
         }
         return PageList(
           children: [
@@ -148,7 +148,7 @@ class _LearningEntryPageState extends State<LearningEntryPage> {
             else
               MarkdownBody(data: content.text, selectable: true),
             const SizedBox(height: 16),
-            if (saving) const LinearProgressIndicator(),
+            if (saving) ShiningText(text: widget.client.tr('正在保存…', 'Saving…')),
             FilledButton(
               onPressed: saving
                   ? null

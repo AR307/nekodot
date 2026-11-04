@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { relayRequest } from '../api';
 import { useAppStore } from '../store';
 import { AtSign, ArrowRight, KeyRound, LockKeyhole, ShieldCheck } from 'lucide-react';
-import { SpinnerDots, ease } from '../ui';
+import { LoadingText, ease } from '../ui';
 import type { Texts } from '../shared';
 import { AuthPage as AuthLayout } from '../components/ui/auth-page';
 import { Button } from '../components/ui/button';
@@ -202,7 +202,13 @@ export function AuthPage({
                   }
                   onClick={() => void sendCode()}
                 >
-                  {seconds > 0 ? seconds + 's' : t.sendCode}
+                  {sending ? (
+                    <LoadingText action="submitting" />
+                  ) : seconds > 0 ? (
+                    seconds + 's'
+                  ) : (
+                    t.sendCode
+                  )}
                 </Button>
               </div>
             </div>
@@ -220,7 +226,7 @@ export function AuthPage({
         )}
         <Button type="submit" size="lg" className="auth-submit" disabled={busy || sending}>
           {busy ? (
-            <SpinnerDots />
+            <LoadingText action="submitting" />
           ) : (
             <>
               {title}

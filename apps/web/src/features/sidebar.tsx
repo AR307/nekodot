@@ -3,7 +3,7 @@ import { useState, type CSSProperties, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { Bot, Conversation, Group, Message } from '@nekodot/protocol';
 import { selectNodeData, useAppStore, type ActivityState } from '../store';
-import { BotAvatar, GroupDots, Icon, Kbd, SpinnerDots, Wordmark } from '../ui';
+import { BotAvatar, GroupDots, Icon, Kbd, LoadingText, Wordmark } from '../ui';
 import { GooeyNav } from '../components/ui/gooey-nav';
 import { avatarColors, fill, listTime, type Texts } from '../shared';
 import { NodePicker } from './node-picker';
@@ -280,12 +280,8 @@ function BotRow({
         </span>
         {bot.role && <span className="row-role">{bot.role}</span>}
         <span className="row-status">
-          {state === 'waiting_approval' ? (
-            <span className="needs-you">{t.needsYou}</span>
-          ) : (
-            working && <SpinnerDots />
-          )}
-          <small>{status}</small>
+          {state === 'waiting_approval' ? <span className="needs-you">{t.needsYou}</span> : null}
+          <small>{working ? <LoadingText text={status} /> : status}</small>
         </span>
       </span>
     </button>
@@ -338,12 +334,14 @@ function GroupRow({
           {last && <time dateTime={last.createdAt}>{listTime(last.createdAt, t)}</time>}
         </span>
         <span className="row-status">
-          {state === 'waiting_approval' ? (
-            <span className="needs-you">{t.needsYou}</span>
-          ) : (
-            state !== 'idle' && <SpinnerDots />
-          )}
-          <small>{status}</small>
+          {state === 'waiting_approval' ? <span className="needs-you">{t.needsYou}</span> : null}
+          <small>
+            {state !== 'idle' && state !== 'waiting_approval' ? (
+              <LoadingText text={status} />
+            ) : (
+              status
+            )}
+          </small>
         </span>
       </span>
     </button>

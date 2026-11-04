@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import { callNode } from '../relay-connection';
 import { useAppStore } from '../store';
 import type { Texts } from '../shared';
-import { SpinnerDots } from '../ui';
+import { LoadingText } from '../ui';
 
 export function useModelOptions(online: boolean, sourceId: string) {
   const nodeId = useAppStore((state) => state.selectedNodeId);
@@ -67,14 +67,7 @@ export function ModelPicker({
           disabled={disabled || catalog.loading}
           onClick={() => catalog.reload()}
         >
-          {catalog.loading ? (
-            <>
-              <SpinnerDots />
-              {t.loadingModels}
-            </>
-          ) : (
-            t.fetchModels
-          )}
+          {catalog.loading ? <LoadingText text={t.loadingModels} /> : t.fetchModels}
         </button>
       </div>
       {catalog.models.length > 0 && (

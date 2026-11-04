@@ -324,7 +324,7 @@ class _ExtensionPageState extends State<ExtensionPage> {
             ),
             const SizedBox(height: 20),
             if (snapshot.connectionState == ConnectionState.waiting)
-              const Center(child: Breathing()),
+              const Center(child: ShiningText()),
             if (snapshot.hasError) ...[
               ErrorNotice('${snapshot.error}'),
               Center(
@@ -631,7 +631,7 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
         if (busy)
           const Padding(
             padding: EdgeInsets.all(16),
-            child: Center(child: Breathing()),
+            child: Center(child: ShiningText()),
           ),
         if (operation != null)
           Padding(

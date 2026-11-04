@@ -328,7 +328,7 @@ class _AuthPageState extends State<AuthPage> {
               key: const ValueKey('auth-submit'),
               onPressed: busy ? null : submit,
               child: busy
-                  ? const Breathing()
+                  ? ShiningText(text: c.tr('正在提交…', 'Submitting…'))
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [

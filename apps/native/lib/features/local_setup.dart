@@ -208,7 +208,7 @@ class _LocalSetupPageState extends State<LocalSetupPage> {
     final tone = context.tone;
     final icon = switch (step.state) {
       'done' => Icon(Icons.check, size: 18, color: tone.ink),
-      'running' => const Breathing(size: 8),
+      'running' => const ShiningText(style: TextStyle(fontSize: 11)),
       'failed' => Icon(
         Icons.close,
         size: 18,
@@ -218,7 +218,10 @@ class _LocalSetupPageState extends State<LocalSetupPage> {
     };
     return ListTile(
       dense: true,
-      leading: SizedBox(width: 20, child: Center(child: icon)),
+      leading: SizedBox(
+        width: step.state == 'running' ? 64 : 20,
+        child: Center(child: icon),
+      ),
       title: Text(localStepLabel(c, step.id)),
       subtitle: step.detail.isEmpty || step.state == 'done'
           ? null
@@ -357,7 +360,7 @@ class LocalComputerPanel extends StatelessWidget {
               ListTile(
                 key: const ValueKey('local-status'),
                 leading: local.busy
-                    ? const Breathing(size: 8)
+                    ? const ShiningText(style: TextStyle(fontSize: 11))
                     : StatusDot(on: local.phase == LocalPhase.online),
                 title: Text(c.tr('这台电脑', 'This computer')),
                 subtitle: Text(

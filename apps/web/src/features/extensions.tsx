@@ -10,7 +10,7 @@ import {
 } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
-import { BotAvatar, Icon, SpinnerDots } from '../ui';
+import { BotAvatar, Icon, LoadingText } from '../ui';
 import type { Texts } from '../shared';
 import { OperationProgress } from './operations';
 import { relayUrl } from '../relay-url';
@@ -261,7 +261,7 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
       )}
       <AnimatedList className="extension-grid">
         {!entries ? (
-          <SpinnerDots />
+          <LoadingText />
         ) : !filtered?.length ? (
           <p className="empty-state">{t.noExtensions}</p>
         ) : (
@@ -382,7 +382,7 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
                   </AnimatedList>
                 </>
               ) : (
-                !contentError && <SpinnerDots />
+                !contentError && <LoadingText />
               )}
               <h3>{t.installedStates}</h3>
               <AnimatedList>
@@ -508,7 +508,7 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
                 disabled={busy || !botIds.length || !identifier.trim() || !node.online}
                 onClick={() => void install()}
               >
-                {busy ? <SpinnerDots /> : t.installExtension}
+                {busy ? <LoadingText action="installing" /> : t.installExtension}
               </button>
               <div className="import-local">
                 <button

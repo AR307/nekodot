@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { Group } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
-import { BotAvatar, SpinnerDots } from '../ui';
+import { BotAvatar, LoadingText } from '../ui';
 import type { Texts } from '../shared';
 import { Sheet } from './sheet';
 
@@ -90,14 +90,12 @@ export function GroupDialog({
               {t.cancel}
             </button>
             <button className="primary-button" disabled={disabled}>
-              {busy && <SpinnerDots />}
-              {t.save}
+              {busy ? <LoadingText action="saving" /> : t.save}
             </button>
           </>
         ) : (
           <button className="primary-button full-button" disabled={disabled}>
-            {busy && <SpinnerDots />}
-            {t.createGroup}
+            {busy ? <LoadingText action="creating" /> : t.createGroup}
           </button>
         )
       }

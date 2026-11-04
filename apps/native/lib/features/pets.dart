@@ -86,7 +86,7 @@ class _PetsPageState extends State<PetsPage> {
             ),
             if (error.isNotEmpty) ErrorNotice(error),
             if (busy) ...[
-              const LinearProgressIndicator(),
+              const ShiningText(),
               Text('${operation?['detail']}'),
             ],
             if (data['enabled'] == true)

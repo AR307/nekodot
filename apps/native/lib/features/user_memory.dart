@@ -175,7 +175,7 @@ class _SharedUserMemoryPageState extends State<SharedUserMemoryPage> {
           ],
           if (view == null && error.isEmpty)
             const Center(
-              child: Padding(padding: EdgeInsets.all(16), child: Breathing()),
+              child: Padding(padding: EdgeInsets.all(16), child: ShiningText()),
             ),
           const SizedBox(height: 8),
           LabeledField(
@@ -196,7 +196,9 @@ class _SharedUserMemoryPageState extends State<SharedUserMemoryPage> {
               onPressed: busy || !c.online || view?['connected'] != true
                   ? null
                   : save,
-              child: busy ? const Breathing() : Text(c.tr('保存', 'Save')),
+              child: busy
+                  ? ShiningText(text: c.tr('正在保存…', 'Saving…'))
+                  : Text(c.tr('保存', 'Save')),
             ),
           ),
           ErrorNotice(

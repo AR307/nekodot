@@ -2,7 +2,7 @@ import { AnimatedList } from '../components/ui/animated-list';
 import { useCallback, useEffect, useState } from 'react';
 import type { Attachment, Bot, MemoryDocument, Operation, RpcResult } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
-import { BotAvatar, Icon, SpinnerDots } from '../ui';
+import { BotAvatar, Icon, LoadingText } from '../ui';
 import { GooeyNav } from '../components/ui/gooey-nav';
 import { selectNodeData, useAppStore } from '../store';
 import type { Texts } from '../shared';
@@ -135,7 +135,7 @@ function BotInfo({ bot, t, onEdit }: { bot: Bot; t: Texts; onEdit(): void }) {
           </p>
         )}
         {!jobs ? (
-          <SpinnerDots />
+          <LoadingText />
         ) : !jobs.length ? (
           <p className="empty-state">{t.noScheduledTasks}</p>
         ) : (
@@ -355,12 +355,12 @@ function MemoryPanel({ bot, t }: { bot: Bot; t: Texts }) {
                 disabled={!online || busy || drafts[name] === undefined}
                 onClick={() => void save()}
               >
-                {busy ? <SpinnerDots /> : t.save}
+                {busy ? <LoadingText action="saving" /> : t.save}
               </button>
             </div>
           </>
         ) : (
-          <SpinnerDots />
+          <LoadingText />
         )}
         {error && (
           <p className="form-error" role="alert">

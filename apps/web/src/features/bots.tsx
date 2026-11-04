@@ -4,7 +4,7 @@ import type { ApprovalMode, Bot, Conversation, ProviderSource } from '@nekodot/p
 import { avatarShapes } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
-import { BotAvatar, Icon, SpinnerDots, ease } from '../ui';
+import { BotAvatar, Icon, LoadingText, ease } from '../ui';
 import { avatarColors, fill, type Texts } from '../shared';
 import { ModelPicker, useModelOptions } from './models';
 import { Sheet } from './sheet';
@@ -157,14 +157,18 @@ export function BotDialog({
               {t.cancel}
             </button>
             <button className="primary-button" disabled={disabled}>
-              {busy && <SpinnerDots />}
-              {t.save}
+              {busy ? <LoadingText action="saving" /> : t.save}
             </button>
           </>
         ) : (
           <button className="primary-button full-button" disabled={disabled}>
-            {busy && <SpinnerDots />}
-            {name.trim() ? fill(t.createNamed, { name: name.trim() }) : t.createBot}
+            {busy ? (
+              <LoadingText action="creating" />
+            ) : name.trim() ? (
+              fill(t.createNamed, { name: name.trim() })
+            ) : (
+              t.createBot
+            )}
           </button>
         )
       }

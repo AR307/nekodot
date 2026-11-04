@@ -582,7 +582,7 @@ class _BotEditorState extends State<BotEditor> {
                     ? null
                     : save,
                 child: busy
-                    ? const Breathing(size: 8)
+                    ? ShiningText(text: c.tr('正在保存…', 'Saving…'))
                     : Text(c.tr('保存', 'Save')),
               ),
             ],

@@ -212,7 +212,7 @@ class _SecretCardState extends State<SecretCard>
             if (expanded) ...[
               const SizedBox(height: 10),
               if (data == null && error.isEmpty)
-                const LinearProgressIndicator(),
+                const ShiningText(),
               if (data != null) ...[
                 Text(
                   '${c.tr('接收方：', 'Recipient: ')}${bot?['displayName'] ?? target['botId']}',
@@ -344,7 +344,7 @@ class _SecretCardState extends State<SecretCard>
                     'Node is offline. Submit explicitly after reconnecting.',
                   ),
                 ),
-              if (busy) const LinearProgressIndicator(),
+              if (busy) const ShiningText(),
               if (error.isNotEmpty)
                 Text(
                   error,

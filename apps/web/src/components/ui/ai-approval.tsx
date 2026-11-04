@@ -1,7 +1,7 @@
 import { type ReactNode, useId, useRef, useState } from 'react';
 import { AnimatedList } from './animated-list';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { Icon, SpinnerDots } from '../../ui';
+import { Icon, LoadingText } from '../../ui';
 import '../../styles/ai-approval.css';
 
 const spring = { type: 'spring' as const, bounce: 0.1, duration: 0.25 };
@@ -107,7 +107,7 @@ export default function AIApproval({
                 >
                   <span>{option.label}</span>
                   {option.detail && <small>{option.detail}</small>}
-                  {busyId === option.id && <SpinnerDots />}
+                  {busyId === option.id && <LoadingText action="submitting" />}
                 </motion.button>
               ))}
             </AnimatedList>

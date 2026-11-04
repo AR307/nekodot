@@ -370,7 +370,7 @@ class _FilePageState extends State<FilePage> {
                           );
                         }
                         if (!snapshot.hasData) {
-                          return const Center(child: Breathing());
+                          return const Center(child: ShiningText());
                         }
                         return preview(snapshot.data!);
                       },

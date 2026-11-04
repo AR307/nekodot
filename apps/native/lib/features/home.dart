@@ -130,7 +130,10 @@ class _HomePageState extends State<HomePage> {
             if (current != null) ...[
               c.online || c.ready
                   ? StatusDot(on: c.online)
-                  : const Breathing(size: 8),
+                  : ShiningText(
+                      text: c.tr('连接中…', 'Connecting…'),
+                      style: const TextStyle(fontSize: 11),
+                    ),
               const SizedBox(width: 8),
             ],
             Flexible(

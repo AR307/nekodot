@@ -108,7 +108,7 @@ class _BotSessionsPageState extends State<BotSessionsPage> {
               ],
             );
           }
-          if (!snapshot.hasData) return const Center(child: Breathing());
+          if (!snapshot.hasData) return const Center(child: ShiningText());
           final data = snapshot.data!;
           final rows = objects(data['sessions']);
           final current = rows
@@ -123,7 +123,7 @@ class _BotSessionsPageState extends State<BotSessionsPage> {
           );
           return PageList(
             children: [
-              if (busy) const LinearProgressIndicator(),
+              if (busy) const ShiningText(),
               if (error.isNotEmpty) ErrorNotice(error),
               Text(
                 '${bot?['displayName'] ?? 'Bot'} · ${c.tr('独立的 Hermes profile', 'Own Hermes profile')}',
@@ -335,13 +335,13 @@ class _SessionHistoryState extends State<_SessionHistory> {
       builder: (context, snapshot) {
         if (snapshot.hasError) return ErrorNotice('${snapshot.error}');
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: ShiningText());
         }
         final rows = objects(snapshot.data!['messages'])
             .where((row) => row['hidden'] != true);
         return PageList(
           children: [
-            if (busy) const LinearProgressIndicator(),
+            if (busy) const ShiningText(),
             if (error.isNotEmpty) ErrorNotice(error),
             if (rows.isEmpty) Text(widget.client.tr('暂无消息', 'No messages yet')),
             for (final row in rows) ...[

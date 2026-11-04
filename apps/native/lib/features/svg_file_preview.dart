@@ -127,7 +127,7 @@ class SvgFilePreviewState extends State<SvgFilePreview> {
         }
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(
-            child: Breathing(key: ValueKey('svg-preview-loading')),
+            child: ShiningText(key: ValueKey('svg-preview-loading')),
           );
         }
         return Stack(
@@ -180,7 +180,7 @@ class SvgFilePreviewState extends State<SvgFilePreview> {
               const ColoredBox(
                 color: Color(0xfff4f4f4),
                 child: Center(
-                  child: Breathing(key: ValueKey('svg-preview-loading')),
+                  child: ShiningText(key: ValueKey('svg-preview-loading')),
                 ),
               ),
             if (png != null)
@@ -197,7 +197,7 @@ class SvgFilePreviewState extends State<SvgFilePreview> {
                         fit: BoxFit.contain,
                         frameBuilder: (_, child, frame, synchronous) =>
                             frame == null
-                            ? const Breathing(
+                            ? const ShiningText(
                                 key: ValueKey('svg-preview-loading'),
                               )
                             : KeyedSubtree(

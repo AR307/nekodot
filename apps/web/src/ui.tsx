@@ -1,6 +1,8 @@
 import type { avatarShapes } from '@nekodot/protocol';
 import { memo, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useReducedMotion } from 'motion/react';
+import { ShiningText } from './components/ui/shining-text';
+import { useAppStore } from './store';
 
 export const ease = [0.2, 0.8, 0.2, 1] as const;
 
@@ -245,13 +247,27 @@ export function StatusDot({ state }: { state: 'ok' | 'connecting' | 'offline' })
   );
 }
 
-export function SpinnerDots() {
+export function LoadingText({
+  text,
+  action = 'loading',
+}: {
+  text?: string;
+  action?: 'loading' | 'saving' | 'creating' | 'installing' | 'submitting' | 'connecting';
+}) {
+  const language = useAppStore((state) => state.language);
+  const labels = {
+    loading: ['加载中…', 'Loading…'],
+    saving: ['正在保存…', 'Saving…'],
+    creating: ['正在创建…', 'Creating…'],
+    installing: ['正在安装…', 'Installing…'],
+    submitting: ['正在提交…', 'Submitting…'],
+    connecting: ['正在连接…', 'Connecting…'],
+  } as const;
   return (
-    <span className="thinking-dots" aria-hidden="true">
-      <i />
-      <i />
-      <i />
-    </span>
+    <ShiningText
+      className="loading-text"
+      text={text ?? labels[action][language === 'zh' ? 0 : 1]}
+    />
   );
 }
 
