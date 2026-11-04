@@ -66,6 +66,8 @@ const runtimeFolder = String.fromEnvironment('QA_RUNTIME_DIR');
 const dataFolder = String.fromEnvironment('QA_DATA_DIR');
 const workFolder = String.fromEnvironment('QA_WORK_DIR');
 const account = String.fromEnvironment('QA_ACCOUNT');
+/// `first` and `retry` start from a new account and empty folders; `retry` cancels mid-install.
+const fresh = phase == 'first' || phase == 'retry';
 const evidenceFolder = String.fromEnvironment('QA_EVIDENCE_DIR');
 
 void main() {
@@ -84,7 +86,7 @@ void main() {
 
     SharedPreferences.setMockInitialValues({});
     final accountFile = File(account);
-    final credentials = phase == 'first'
+    final credentials = fresh
         ? {
             'email':
                 'local-${DateTime.now().millisecondsSinceEpoch}@example.test',
@@ -97,7 +99,7 @@ void main() {
                     .entries)
               if (entry.value is String) '${entry.key}': entry.value as String,
           };
-    if (phase == 'first') {
+    if (fresh) {
       await LocalLocation(runtimeFolder, dataFolder).save();
       await accountFile.writeAsString(jsonEncode(credentials));
     }
@@ -123,12 +125,13 @@ void main() {
       bool Function() done, {
       int seconds = 120,
       String what = '',
+      bool stopOnFailure = true,
     }) async {
       final end = DateTime.now().add(Duration(seconds: seconds));
       while (!done() && DateTime.now().isBefore(end)) {
         await tester.pump(const Duration(milliseconds: 250));
         await Future<void>.delayed(const Duration(milliseconds: 150));
-        if (local.phase == LocalPhase.failed) break;
+        if (stopOnFailure && local.phase == LocalPhase.failed) break;
       }
       if (!done()) {
         for (final element in find.byType(ErrorNotice).evaluate()) {
@@ -190,7 +193,7 @@ void main() {
       await tester.tap(notice);
       await tester.pump(const Duration(seconds: 1));
     }
-    if (phase == 'first') {
+    if (fresh) {
       await tester.tap(find.widgetWithText(TextButton, '创建账号'));
       await tester.pump(const Duration(milliseconds: 500));
     }
@@ -203,7 +206,7 @@ void main() {
       credentials['password']!,
     );
     await tester.pump(const Duration(milliseconds: 300));
-    if (phase == 'first') {
+    if (fresh) {
       await tester.tap(find.widgetWithText(OutlinedButton, '获取验证码'));
       await until(
         () => find.textContaining('验证码已发出').evaluate().isNotEmpty,
@@ -219,7 +222,7 @@ void main() {
     await until(() => client.ready, what: 'signed in');
     note('signedIn', DateTime.now().toIso8601String());
 
-    if (phase == 'first') {
+    if (fresh) {
       await until(
         () => find.byTooltip('添加电脑').evaluate().isNotEmpty,
         what: 'empty team',
@@ -246,6 +249,38 @@ void main() {
         what: 'install under way',
       );
       await shot('installing');
+      if (phase == 'retry') {
+        await until(
+          () => local.steps.any((s) => s.id == 'python-deps' && s.state == 'running'),
+          seconds: 900,
+          what: 'dependency stage running',
+        );
+        await tester.pump(const Duration(seconds: 20));
+        await tester.ensureVisible(find.byKey(const ValueKey('cancel-local')));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.tap(find.byKey(const ValueKey('cancel-local')));
+        await until(
+          () => local.phase == LocalPhase.failed,
+          seconds: 120,
+          what: 'cancelled install',
+          stopOnFailure: false,
+        );
+        final kept = [for (final s in local.steps) if (s.state == 'done') s.id];
+        note('cancelledAt', local.failedStep);
+        note('cancelError', local.error);
+        note('keptAfterCancel', kept);
+        await shot('cancelled');
+        await tester.ensureVisible(find.byKey(const ValueKey('start-local')));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.tap(find.byKey(const ValueKey('start-local')));
+        await until(
+          () => local.phase != LocalPhase.failed,
+          seconds: 10,
+          what: 'retry started',
+          stopOnFailure: false,
+        );
+        note('resumedSkips', [for (final s in local.steps) if (s.state == 'done') s.id]);
+      }
       await until(
         () =>
             local.phase == LocalPhase.online &&
@@ -329,7 +364,7 @@ void main() {
         m['messageId'],
     ];
     note('historyBefore', history.length);
-    if (phase != 'first') {
+    if (!fresh) {
       final recorded =
           (jsonDecode(await accountFile.readAsString()) as Map)['messages']
               as List?;

@@ -29,7 +29,9 @@
 | Android 访问 | 固定 `NekodotNativePhase3` 模拟器（emulator-5554，经 `adb reverse`）用同一账号登录，选中这台电脑上的节点，打开桌面端创建的会话，真实模型流式回复由本机 Hermes 完成；桌面客户端随后退出，Relay 立即显示该节点离线。不是 Android 真机结果 |
 | 保持在线 | 桌面客户端持续运行 7.7 分钟（Android 访问、Relay 重启期间）始终在线；退出后所属进程 0 个 |
 
-截图：[目录选择](evidence/local-desktop-windows-folders.png)、[安装进度](evidence/local-desktop-windows-installing.png)、[真实工具聊天](evidence/local-desktop-windows-chat.png)；机器结果：[local-desktop-windows.json](evidence/local-desktop-windows.json)。
+| 取消与重试 | 第二套全新目录（`运行环境2`/`数据2`）中，于依赖安装阶段取消：页面显示已取消，保留已完成的 5 个阶段；点重试后跳过这 5 个阶段继续，4.4 分钟上线。UTF-8 修正后 GUI 写出的阶段日志中文路径正确 |
+
+截图：[目录选择](evidence/local-desktop-windows-folders.png)、[安装进度](evidence/local-desktop-windows-installing.png)、[取消后](evidence/local-desktop-windows-cancelled.png)、[真实工具聊天](evidence/local-desktop-windows-chat.png)；机器结果：[local-desktop-windows.json](evidence/local-desktop-windows.json)。
 
 ## 模块五：本机桌面操作能力（真实节点）
 
@@ -49,9 +51,14 @@
 - **空白 commentary 气泡**：工具开始时空的文本段被保存为 commentary，聊天显示空气泡（截图可见，为修正前）；聊天列表不再显示空白 commentary，存储不变。
 - 旅程脚本本身的问题（Windows 无驱动截图通道、过渡动画中点击、账号文件解析）已在测试中修正，不计为产品问题。
 
+## 待处理的发现
+
+- **欢迎回复进行中发送的消息未送达**：两次全新安装旅程中，Bot 刚创建、欢迎回复仍在进行时从输入框发送，该消息既未保存也未到达 Hermes；欢迎结束后再发送均正常（三轮）。与本机运行无关，属于欢迎回合期间 steer 的既有路径，需单独排查是否给出提示并保留草稿。
+- 取消原因原先直接显示内部代码 `cancelled`，已改为本地化文字（截图为修正前）。
+
 ## 未验或仍待验
 
-- 全新 Windows 用户账户、断网重试与中途取消、UTF-8 修正后的 GUI 全新安装。
+- 全新 Windows 用户账户；下载过程中真实断网后的重试。
 - macOS、Ubuntu 桌面：无验收环境，未运行。
 - 本机桌面操作：真实模型在记事本输入、保存、读取，以及权限拒绝与恢复、任务中停止。
 - 本地 Node 自动更新：本次 bundle 为开发构建，不触发更新。

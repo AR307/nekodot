@@ -1001,7 +1001,7 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 | 1 Node 桌面托管           | 真实验收通过       | Windows 原生 Hermes v0.22.6：named pipe、gateway 停止、桌面托管启停 |
 | 2 客户端本机运行模块      | 真实验收通过       | Windows：目录选择、官方阶段安装 6.3 分钟、Job 回收                  |
 | 3 首次使用与生命周期界面  | 真实验收通过       | Windows GUI 首次使用、重新登录自动启动、退出                        |
-| 4 Windows 真实闭环        | 主要旅程通过       | 见 local-desktop-acceptance.md；全新用户账户与断网/取消重试待验     |
+| 4 Windows 真实闭环        | 主要旅程通过       | 见 local-desktop-acceptance.md；全新用户账户与真实断网重试待验      |
 | 5 computer_use 与能力信息 | 能力与开关已真实验 | 真实节点 desktop.status 与开关；实际操作桌面待验                    |
 | 6 macOS / Linux 宿主      | 未开始             |                                                                     |
 | 7 发布与交付              | 未开始             |                                                                     |
@@ -1042,3 +1042,8 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 协议：`sync.snapshot` 与新 `desktop.status` 返回 `host`（server/desktop）、`computerUse`（Bot 独立屏幕）与 `desktopControl`（computer_use 安装、就绪、可授权、说明）；新 `bots.desktopControl` 读取或切换 Bot 的原生 `computer_use` 工具集，均经 Hermes 官方 REST。
 - 这台电脑上新建 Bot 默认关闭桌面操作；Bot 详情新增“操作这台电脑”开关并显示就绪情况；macOS 授权只在这台电脑上由客户端调用官方 `computer-use permissions grant`。
 - 真实 Windows 节点验证能力返回与开关读写（Hermes CLI 读回）；新增 1 项 widget 测试。尚未让真实模型实际操作桌面。
+
+## 2026-11-04 / 模块四补充：取消与重试
+
+- 第二套全新目录中于依赖安装阶段取消，保留已完成阶段；重试跳过它们继续，4.4 分钟上线；UTF-8 修正后 GUI 日志中文路径正确。取消原因改为本地化文字。
+- 发现：Bot 欢迎回复进行中发送的消息未保存也未送达（两次复现），欢迎结束后发送正常；记录为待处理，非本机运行专有。

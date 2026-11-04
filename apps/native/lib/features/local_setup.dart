@@ -40,6 +40,10 @@ String localPhaseLabel(NekodotClient c, LocalPhase phase) => switch (phase) {
   LocalPhase.failed => c.tr('出错', 'Failed'),
 };
 
+/// Install failures carry the real tool output; only the cancel marker needs words.
+String localErrorText(NekodotClient c, String error) =>
+    error == 'cancelled' ? c.tr('已取消，可从中断处继续', 'Cancelled; retry continues from here') : error;
+
 String _gigabytes(int bytes) => (bytes / (1 << 30)).toStringAsFixed(1);
 
 /// Desktop "Add computer": run here, or connect a remote server as before.
@@ -217,7 +221,11 @@ class _LocalSetupPageState extends State<LocalSetupPage> {
       title: Text(localStepLabel(c, step.id)),
       subtitle: step.detail.isEmpty || step.state == 'done'
           ? null
-          : Text(step.detail, maxLines: 2, overflow: TextOverflow.ellipsis),
+          : Text(
+              localErrorText(c, step.detail),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
     );
   }
 
@@ -249,7 +257,7 @@ class _LocalSetupPageState extends State<LocalSetupPage> {
             PanelGroup(children: [for (final step in local.steps) _step(step)]),
           ],
           const SizedBox(height: 16),
-          ErrorNotice(local.error),
+          ErrorNotice(localErrorText(c, local.error)),
           const SizedBox(height: 8),
           if (local.busy)
             OutlinedButton(
