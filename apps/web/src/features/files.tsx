@@ -1,8 +1,9 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Attachment, Bot, Operation } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
-import { Icon, SpinnerDots } from '../ui';
+import { Icon, LoadingText } from '../ui';
 import type { Texts } from '../shared';
 import { relayUrl } from '../relay-url';
 import { OperationProgress } from './operations';
@@ -10,6 +11,106 @@ import { android, saveDownload, shareFile } from '../native';
 const PdfPreview = lazy(() =>
   import('./pdf-preview').then((module) => ({ default: module.PdfPreview })),
 );
+
+export async function uploadChatFile(file: File, conversationId: string, nodeId: string) {
+  const checkNode = () => {
+    if (useAppStore.getState().selectedNodeId !== nodeId)
+      throw new Error('Computer changed. Retry in the original conversation.');
+  };
+  checkNode();
+  const { importId } = await callNode('imports.create', {});
+  for (let offset = 0; offset < file.size || offset === 0; offset += 196608) {
+    checkNode();
+    const url = new URL(relayUrl(`/api/nodes/${encodeURIComponent(nodeId)}/imports/${importId}`));
+    url.search = new URLSearchParams({ path: file.name, offset: String(offset) }).toString();
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        Authorization: 'Bearer ' + useAppStore.getState().token,
+        'Content-Type': 'application/octet-stream',
+      },
+      body: file.slice(offset, offset + 196608),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!response.ok) throw new Error(`Upload HTTP ${response.status}`);
+  }
+  checkNode();
+  return callNode('files.receive', { conversationId, importId, path: file.name });
+}
+
+export function DraftAttachment({
+  file,
+  nodeId,
+  t,
+  disabled,
+  onRemove,
+}: {
+  file: Attachment;
+  nodeId: string;
+  t: Texts;
+  disabled: boolean;
+  onRemove(): void;
+}) {
+  const [image, setImage] = useState('');
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (!file.mime.startsWith('image/')) return;
+    let active = true,
+      url = '';
+    void fetchFile(nodeId, file.fileId)
+      .then((blob) => {
+        if (active) {
+          url = URL.createObjectURL(blob);
+          setImage(url);
+        }
+      })
+      .catch(() => {
+        /* FileCard shows the actual download error when opened. */
+      });
+    return () => {
+      active = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [nodeId, file.fileId, file.mime]);
+  return (
+    <>
+      <span className="prompt-attachment">
+        <button
+          type="button"
+          className="prompt-thumbnail"
+          aria-label={`${t.preview}: ${file.name}`}
+          onClick={() => dialog.current?.showModal()}
+        >
+          {image ? <img src={image} alt={file.name} /> : <Icon name="doc" />}
+        </button>
+        <span title={file.name}>{file.name}</span>
+        <button
+          type="button"
+          disabled={disabled}
+          aria-label={`${t.close}: ${file.name}`}
+          onClick={onRemove}
+        >
+          <Icon name="close" />
+        </button>
+      </span>
+      {createPortal(
+        <dialog className="draft-preview" ref={dialog} aria-label={file.name}>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={t.close}
+            onClick={() => dialog.current?.close()}
+          >
+            <Icon name="close" />
+          </button>
+          {image && <img className="draft-preview-image" src={image} alt={file.name} />}
+          <FileCard file={file} t={t} />
+        </dialog>,
+        document.body,
+      )}
+    </>
+  );
+}
 
 export function readableMessageText(text: string) {
   return text.replace(/(?:^|\n)\s*MEDIA:\s*(?:"[^"]+"|'[^']+'|[^\r\n]+)(?=\r?\n|$)/g, '').trim();
@@ -77,7 +178,7 @@ export function FileCard({ file, t, onSource }: { file: Attachment; t: Texts; on
         </div>
         <div className="file-actions">
           {busy ? (
-            <SpinnerDots />
+            <LoadingText />
           ) : (
             <>
               {canPreview && (
@@ -141,7 +242,7 @@ export function FileCard({ file, t, onSource }: { file: Attachment; t: Texts; on
             {preview.text !== undefined ? (
               <pre>{preview.text}</pre>
             ) : file.mime === 'application/pdf' ? (
-              <Suspense fallback={<SpinnerDots />}>
+              <Suspense fallback={<LoadingText />}>
                 <PdfPreview title={file.name} url={preview.url!} />
               </Suspense>
             ) : file.mime === 'image/svg+xml' ? (
@@ -253,7 +354,7 @@ export function LibraryPanel({
         </p>
       )}
       {!files ? (
-        <SpinnerDots />
+        <LoadingText />
       ) : files.length ? (
         files.map((file) => (
           <FileCard key={file.fileId} file={file} t={t} onSource={() => onSource(file)} />

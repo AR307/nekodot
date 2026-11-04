@@ -9,15 +9,18 @@ import '../data/client.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
 import '../ui/message_markdown.dart';
+import '../ui/prompt_card.dart';
 import '../screen/viewer.dart';
 import 'bot_details.dart';
 import 'bot_editor.dart';
+import 'chat_model_picker.dart';
 import 'files.dart';
 import 'commands.dart';
 import 'client_commands.dart';
 import 'routines.dart';
 import 'secrets.dart';
 import 'sessions.dart';
+import 'voice.dart';
 
 class ChatPage extends StatefulWidget {
   final NekodotClient client;
@@ -304,6 +307,25 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
           if (!mounted) return;
         }
       }
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    }
+  }
+
+  Future<void> selectComposerModel(Json bot) async {
+    final nodeId = c.selectedNodeId;
+    final selected = await pickChatModel(context, c, bot);
+    if (!mounted || selected == null || nodeId != c.selectedNodeId) return;
+    if (selected.isEmpty) {
+      await pushPage(context, BotEditor(client: c, existing: bot));
+      return;
+    }
+    if (selected == bot['model']) return;
+    try {
+      await c.rpc('bots.update', {
+        'botId': bot['botId'],
+        'model': selected,
+      }, nodeId);
     } catch (e) {
       if (mounted) setState(() => error = '$e');
     }
@@ -621,63 +643,99 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                   SizedBox(width: WindowChrome.reserved(context)),
               ],
             );
-      final composerRow = Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          IconButton(
-            tooltip: c.tr('发送文件或图片', 'Attach file or image'),
-            onPressed: !c.online || uploading || sending ? null : attachFile,
-            icon: const Icon(Icons.add_circle_outline),
+      final composerField = CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.enter, control: true): () {
+            if ((!waiting || queueCommand) && c.online) send();
+          },
+        },
+        child: TextField(
+          key: const ValueKey('chat-input'),
+          controller: input,
+          minLines: 1,
+          maxLines: 7,
+          textCapitalization: TextCapitalization.sentences,
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            filled: false,
+            isDense: true,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            // CJK glyphs sit low on the Latin baseline; lift them onto the button's line.
+            contentPadding: const EdgeInsets.symmetric(vertical: 4),
+            hintText: c.tr('发消息', 'Message'),
           ),
-          Expanded(
-            child: CallbackShortcuts(
-              bindings: {
-                const SingleActivator(
-                  LogicalKeyboardKey.enter,
-                  control: true,
-                ): () {
-                  if ((!waiting || queueCommand) && c.online) send();
-                },
-              },
-              child: TextField(
-                key: const ValueKey('chat-input'),
-                controller: input,
-                minLines: 1,
-                maxLines: 7,
-                textCapitalization: TextCapitalization.sentences,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  filled: false,
-                  isDense: true,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  disabledBorder: InputBorder.none,
-                  // CJK glyphs sit low on the Latin baseline; lift them onto the button's line.
-                  contentPadding: EdgeInsets.fromLTRB(
-                    8,
-                    tone.glass ? 11 : 2,
-                    8,
-                    tone.glass ? 15 : 6,
-                  ),
-                  hintText: c.tr('发消息', 'Message'),
-                ),
+        ),
+      );
+      final composerTools = Row(
+        children: [
+          Flexible(
+            child: TextButton.icon(
+              onPressed: bot == null ? null : () => selectComposerModel(bot),
+              icon: const Icon(Icons.keyboard_arrow_down, size: 16),
+              label: Text(
+                '${bot?['model'] ?? c.tr('模型设置', 'Model settings')}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
+          const Spacer(),
+          IconButton(
+            tooltip: c.tr('发送文件或图片', 'Attach file or image'),
+            onPressed: !c.online || uploading || sending ? null : attachFile,
+            icon: const Icon(Icons.add, size: 18),
+          ),
+        ],
+      );
+      final composerAction = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (bot != null && !hasText && !running)
+            IconButton.filled(
+              tooltip: c.tr('语音', 'Voice'),
+              onPressed: !c.online || uploading || sending || waiting
+                  ? null
+                  : () => pushPage(
+                      context,
+                      VoicePage(
+                        client: c,
+                        botId: '${bot['botId']}',
+                        onTranscript: (text) {
+                          input.text =
+                              '${input.text}${input.text.isEmpty ? '' : ' '}$text';
+                          input.selection = TextSelection.collapsed(
+                            offset: input.text.length,
+                          );
+                          setState(() {});
+                        },
+                      ),
+                    ),
+              icon: const Icon(Icons.mic_none),
+              style: IconButton.styleFrom(
+                backgroundColor: tone.ink,
+                foregroundColor: tone.base,
+                minimumSize: const Size.square(32),
+                fixedSize: const Size.square(32),
+                padding: EdgeInsets.zero,
+                iconSize: 17,
+              ),
+            ),
           if (running)
             IconButton.filled(
               tooltip: c.tr('停止', 'Stop'),
               style: IconButton.styleFrom(
-                fixedSize: Size.square(tone.control - 4),
-                minimumSize: Size.square(tone.control - 4),
+                fixedSize: const Size.square(32),
+                minimumSize: const Size.square(32),
                 padding: EdgeInsets.zero,
                 iconSize: tone.icon - 2,
                 tapTargetSize: tone.glass
                     ? MaterialTapTargetSize.padded
                     : MaterialTapTargetSize.shrinkWrap,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(tone.corner - 2),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 backgroundColor: hasText ? tone.raised : tone.ink,
                 foregroundColor: hasText ? tone.ink : tone.base,
@@ -685,20 +743,20 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
               onPressed: c.online ? stop : null,
               icon: const Icon(Icons.stop),
             ),
-          if (!running || hasText) ...[
+          if (hasText || (!running && bot == null)) ...[
             const SizedBox(width: 4),
             IconButton.filled(
               tooltip: c.tr('发送', 'Send'),
               style: IconButton.styleFrom(
-                fixedSize: Size.square(tone.control - 4),
-                minimumSize: Size.square(tone.control - 4),
+                fixedSize: const Size.square(32),
+                minimumSize: const Size.square(32),
                 padding: EdgeInsets.zero,
                 iconSize: tone.icon - 2,
                 tapTargetSize: tone.glass
                     ? MaterialTapTargetSize.padded
                     : MaterialTapTargetSize.shrinkWrap,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(tone.corner - 2),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 backgroundColor: tone.ink,
                 foregroundColor: tone.base,
@@ -715,7 +773,12 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                       !hasText
                   ? null
                   : send,
-              icon: const Icon(Icons.arrow_upward),
+              icon: sending
+                  ? ShiningText(
+                      text: c.tr('发送中', 'Sending'),
+                      style: const TextStyle(fontSize: 10),
+                    )
+                  : const Icon(Icons.arrow_upward),
             ),
           ],
         ],
@@ -732,7 +795,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 children: [
                   if (error.isNotEmpty) ErrorNotice(error),
                   if (uploading) ...[
-                    const LinearProgressIndicator(minHeight: 2),
+                    const ShiningText(),
                     Text(
                       uploadProgress,
                       maxLines: 1,
@@ -745,6 +808,10 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                       children: [
                         for (final file in attached)
                           InputChip(
+                            onPressed: () => pushPage(
+                              context,
+                              FilePage(client: c, file: file),
+                            ),
                             avatar: Icon(
                               '${file['mime']}'.startsWith('image/')
                                   ? Icons.image_outlined
@@ -769,7 +836,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                       padding: const EdgeInsets.all(8),
                       child: Row(
                         children: [
-                          const Breathing(),
+                          const ShiningText(),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -842,23 +909,13 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                         ],
                       ),
                     ),
-                  if (tone.glass)
-                    Panel(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: composerRow,
-                      ),
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: tone.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: tone.line),
-                      ),
-                      child: composerRow,
-                    ),
+                  PromptCard(
+                    field: composerField,
+                    tools: composerTools,
+                    action: composerAction,
+                    hasContent: hasText || uploading,
+                    running: running,
+                  ),
                   if (c.chatDisplay['statusbar'] == true ||
                       c.chatDisplay['battery'] == true)
                     Padding(
@@ -1007,7 +1064,7 @@ class ThinkingRow extends StatelessWidget {
       children: [
         if (bot != null) CatAvatar.of(bot!, size: 24, working: true),
         const SizedBox(width: 10),
-        const ThinkingDots(),
+        const ShiningText(),
       ],
     ),
   );
@@ -1065,7 +1122,7 @@ class _ToolRowState extends State<ToolRow> {
                 Row(
                   children: [
                     running
-                        ? const Breathing(size: 8)
+                        ? const ShiningText(style: TextStyle(fontSize: 11))
                         : StatusDot(color: failed ? tone.danger : tone.ink3),
                     const SizedBox(width: 8),
                     Text(

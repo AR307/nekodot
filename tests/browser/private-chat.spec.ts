@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page, type BrowserContext } from '@playwright/test';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -15,7 +15,7 @@ import type { Bot } from '../../packages/protocol/src/entities';
 import type { NodeCredentials } from '../../apps/node/src/connection';
 import type { ApprovalMode } from '../../packages/protocol/src/entities';
 
-const relayPort = 4319;
+const relayPort = Number(process.env.NEKODOT_BROWSER_RELAY_PORT ?? 4319);
 const relayUrl = `http://127.0.0.1:${relayPort}`;
 const hermesKey = 'playwright-hermes-key';
 test.setTimeout(90000);
@@ -32,7 +32,7 @@ const services: {
   secondConnection?: ReturnType<typeof connectRelay>;
 } = {};
 
-test.beforeAll(async () => {
+test.beforeEach(async () => {
   services.mailbox = await startMailbox();
   services.fake = await startFakeHermes({
     fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
@@ -61,7 +61,7 @@ test.beforeAll(async () => {
   await services.relay.app.listen({ host: '127.0.0.1', port: relayPort });
 });
 
-test.afterAll(async () => {
+test.afterEach(async () => {
   services.connection?.close();
   services.secondConnection?.close();
   if (services.secondApp) await services.secondApp.close();
@@ -69,12 +69,10 @@ test.afterAll(async () => {
   if (services.relay) await services.relay.app.close();
   if (services.fake) await services.fake.close();
   await services.mailbox?.close();
+  for (const key of Object.keys(services)) Reflect.deleteProperty(services, key);
 });
 
-test('a real browser account pairs a node, configures a bot, and runs private chat controls', async ({
-  page,
-  context,
-}) => {
+async function openConfiguredChat(page: Page, context: BrowserContext) {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.goto('/');
 
@@ -152,6 +150,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
       version: 'development',
       credentials: services.credentials!,
       handleRpc: (request) => services.app!.handle(request),
+      handleTransfer: (request) => services.app!.files.transfer(request),
       onReady: () => services.app?.activities(),
     });
     services.app!.onEvent = services.connection.event;
@@ -217,6 +216,64 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await page.getByRole('button', { name: /Mochi/ }).first().click();
   await expect(page.locator('.chat-header')).toContainText('Mochi');
   await expect(page.locator('.welcome-introduction')).not.toBeEmpty();
+  return { bot, connectNode, permissionModes, runtime, userEmail };
+}
+
+test('composer expands, switches real catalog models, uploads a file and fits mobile themes', async ({
+  page,
+  context,
+}) => {
+  await openConfiguredChat(page, context);
+  await expect(page.locator('.run-banner')).toHaveCount(0, { timeout: 10000 });
+  const composer = page.locator('.composer textarea');
+  await composer.focus();
+  await expect(page.locator('.prompt-input')).toHaveClass(/is-expanded/);
+  await page.getByLabel('模型', { exact: true }).click();
+  await page
+    .locator('.prompt-model-menu')
+    .getByRole('button', { name: 'another-model', exact: true })
+    .click();
+  await expect(page.locator('.prompt-model summary')).toContainText('another-model');
+  await page.getByLabel('模型', { exact: true }).click();
+  await page
+    .locator('.prompt-model-menu')
+    .getByRole('button', { name: 'recorded-model', exact: true })
+    .click();
+  await page.locator('.prompt-field input[type=file]').setInputFiles({
+    name: 'composer-upload.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('UI attachment acceptance'),
+  });
+  await expect(page.locator('.prompt-attach')).toBeEnabled();
+  expect(await page.locator('.inline-error').allTextContents()).toEqual([]);
+  await expect(page.locator('.prompt-attachment')).toContainText('composer-upload.txt');
+  await page
+    .locator('.prompt-attachment')
+    .getByRole('button', { name: '关闭: composer-upload.txt', exact: true })
+    .click();
+  await expect(page.locator('.prompt-attachment')).toHaveCount(0);
+  await page.screenshot({ path: '.runtime/chat-expanded-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await composer.focus();
+  await expect(page.locator('.prompt-input')).toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: '.runtime/chat-expanded-phone.png', fullPage: true });
+  await page.evaluate(() => (document.documentElement.dataset.theme = 'dark'));
+  await page.screenshot({ path: '.runtime/chat-expanded-dark.png', fullPage: true });
+  await page.evaluate(() => (document.documentElement.dataset.theme = 'light'));
+  await page.setViewportSize({ width: 1440, height: 900 });
+});
+
+test('a real browser account pairs a node, configures a bot, and runs private chat controls', async ({
+  page,
+  context,
+}) => {
+  const { bot, connectNode, permissionModes, runtime, userEmail } = await openConfiguredChat(
+    page,
+    context,
+  );
+  if (!services.app || !services.nodeHome) throw new Error('Browser test Node was not initialized');
+  const composer = page.locator('.composer textarea');
   await expect(page.locator('.run-banner')).toHaveCount(0, { timeout: 10000 });
   await page.reload();
   await expect(page.locator('.welcome-introduction')).toHaveCount(1);
@@ -228,7 +285,6 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   ).toBe(false);
   await page.screenshot({ path: 'docs/evidence/side-phase3-welcome-edge.png', fullPage: true });
 
-  const composer = page.locator('.composer textarea');
   const originalHandle = services.app.handle.bind(services.app);
   let dropFirstReply = true;
   let sendAttempts = 0;

@@ -337,7 +337,7 @@ class _FilePageState extends State<FilePage> {
                 ),
               ),
             ),
-          if (busy) const LinearProgressIndicator(minHeight: 2),
+          if (busy) const ShiningText(),
           if (error.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -360,7 +360,7 @@ class _FilePageState extends State<FilePage> {
                         return Center(child: ErrorNotice('${snapshot.error}'));
                       }
                       if (!snapshot.hasData) {
-                        return const Center(child: Breathing());
+                        return const Center(child: ShiningText());
                       }
                       final bytes = snapshot.data!,
                           mime = file['mime'] as String;

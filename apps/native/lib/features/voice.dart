@@ -12,7 +12,13 @@ import '../ui/design.dart';
 class VoicePage extends StatefulWidget {
   final NekodotClient client;
   final String botId;
-  const VoicePage({super.key, required this.client, required this.botId});
+  final ValueChanged<String>? onTranscript;
+  const VoicePage({
+    super.key,
+    required this.client,
+    required this.botId,
+    this.onTranscript,
+  });
   @override
   State<VoicePage> createState() => _VoicePageState();
 }
@@ -229,6 +235,11 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
   }
 
   Future<void> send() async {
+    if (widget.onTranscript != null) {
+      widget.onTranscript!(transcript.text.trim());
+      Navigator.pop(context);
+      return;
+    }
     final dm = c.node.conversations.firstWhere(
       (row) => row['kind'] == 'dm' && row['botId'] == widget.botId,
     );
@@ -323,7 +334,7 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
                   : c.tr('录制一句话', 'Record a message'),
             ),
           ),
-          if (busy) const LinearProgressIndicator(),
+          if (busy) const ShiningText(),
           const SizedBox(height: 20),
           TextField(
             controller: transcript,
