@@ -11,6 +11,7 @@ import './styles/sheet.css';
 import './styles/pages.css';
 import './styles/capabilities.css';
 import './styles/screen.css';
+import './styles/shining-text.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

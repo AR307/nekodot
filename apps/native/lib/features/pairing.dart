@@ -94,7 +94,7 @@ class _PairingPageState extends State<PairingPage> {
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               const Spacer(),
-              const Breathing(size: 8),
+              const ShiningText(style: TextStyle(fontSize: 11)),
               const SizedBox(width: 8),
               Text(
                 '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}',
@@ -128,7 +128,7 @@ class _PairingPageState extends State<PairingPage> {
                 children: [
                   Expanded(
                     child: code == null
-                        ? const Breathing()
+                        ? const ShiningText()
                         : SelectableText(
                             code!['installCommand'] as String,
                             style: const TextStyle(

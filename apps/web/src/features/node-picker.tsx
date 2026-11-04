@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useAppStore } from '../store';
-import { Icon, StatusDot } from '../ui';
+import { Icon, LoadingText, StatusDot } from '../ui';
 import type { Texts } from '../shared';
 
 export function NodePicker({ t, state }: { t: Texts; state: 'ok' | 'connecting' | 'offline' }) {
@@ -24,10 +24,10 @@ export function NodePicker({ t, state }: { t: Texts; state: 'ok' | 'connecting' 
       }}
     >
       <summary aria-label={t.chooseNode}>
-        <StatusDot state={state} />
+        {state !== 'connecting' && <StatusDot state={state} />}
         <span className="node-picker-copy">
           <strong>{selected?.name ?? t.chooseComputer}</strong>
-          <small>· {label}</small>
+          <small>· {state === 'connecting' ? <LoadingText text={label} /> : label}</small>
         </span>
         <Icon name="chevronDown" />
       </summary>

@@ -20,6 +20,12 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 
 ## 更新记录
 
+### 2026-11-04 / ShiningText 加载状态
+
+- Web 公共组件新增 `components/ui/shining-text.tsx`，已有 Motion 实现两秒循环扫光；公共加载入口覆盖启动、模型目录、保存、创建、安装、异步页面和侧栏工作状态。
+- Flutter 新增同效果原生组件与语言作用域，替换呼吸点、思考点和不定进度加载；真实下载/安装百分比保留。两端支持深浅主题、减少动画及可读状态文字。
+- 浏览器实际 Relay 等待状态验证扫光连续变化、390px 无溢出及减少动画显示；Web 类型/构建/定向静态检查、Flutter analyze 和 Windows 登录/退出 3 项测试通过。模型与设备链路验证范围见 `docs/ui-shining-text.md`。
+
 ### 2026-11-04 / 产品名统一为 nekoDOT
 
 - 原有 Flutter 客户端、Tauri 宿主、Web、官网、托盘、通知、验证码邮件与面向用户的 Node 文案统一显示 `nekoDOT`。Windows 可执行文件为 `nekoDOT.exe`，各平台宿主和打包入口同步调整。

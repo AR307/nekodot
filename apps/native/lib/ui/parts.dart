@@ -296,46 +296,6 @@ class StatusDot extends StatelessWidget {
   }
 }
 
-/// A dot that breathes while something is under way.
-class Breathing extends StatefulWidget {
-  final double size;
-  const Breathing({super.key, this.size = 10});
-  @override
-  State<Breathing> createState() => _BreathingState();
-}
-
-class _BreathingState extends State<Breathing>
-    with SingleTickerProviderStateMixin {
-  late final controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1100),
-  );
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      controller.value = 1;
-    } else if (!controller.isAnimating) {
-      controller.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => FadeTransition(
-    opacity: Tween<double>(
-      begin: .25,
-      end: 1,
-    ).animate(CurvedAnimation(parent: controller, curve: Curves.easeInOut)),
-    child: StatusDot(size: widget.size),
-  );
-}
-
 /// Relay progress: one dot per turn.
 class ChainDots extends StatelessWidget {
   final int count, max;

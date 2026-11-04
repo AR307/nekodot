@@ -119,12 +119,17 @@ class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
       },
       builder: (context, child) => AnnotatedRegion(
         value: Theme.of(context).appBarTheme.systemOverlayStyle!,
-        child: DesktopHost.supported
-            ? WindowChrome(child: child!)
-            : Ambient(child: child!),
+        child: LoadingTextScope(
+          label: widget.client.tr('加载中…', 'Loading…'),
+          child: DesktopHost.supported
+              ? WindowChrome(child: child!)
+              : Ambient(child: child!),
+        ),
       ),
       home: loading
-          ? const Scaffold(body: Center(child: CatAvatar(size: 56)))
+          ? const Scaffold(
+              body: Center(child: ShiningText(text: 'nekoDOT')),
+            )
           : error.isNotEmpty
           ? Scaffold(
               body: Padding(

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { fetchMe, relayRequest } from '../api';
 import { useAppStore } from '../store';
-import { BotAvatar, Icon, SpinnerDots, StatusDot, ease } from '../ui';
+import { BotAvatar, Icon, LoadingText, StatusDot, ease } from '../ui';
 import { avatarColors, fill, type Texts } from '../shared';
 import { writeClipboard } from '../native';
 
@@ -233,7 +233,7 @@ export function PairScreen({
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.16 }}
             >
-              {expired ? <Icon name="warning" /> : <SpinnerDots />}
+              {expired ? <Icon name="warning" /> : <LoadingText />}
               <div>
                 <strong>{expired ? t.codeExpired : t.waiting}</strong>
                 <small>

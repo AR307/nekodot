@@ -278,7 +278,7 @@ class _RoutinePageState extends State<RoutinePage> {
           ),
         ],
         body: data == null && error.isEmpty
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: ShiningText())
             : PageList(
                 children: [
                   if (!c.online)
@@ -540,7 +540,7 @@ class _RoutinePageState extends State<RoutinePage> {
                         ),
                       ),
                     ],
-                    if (busy) const LinearProgressIndicator(),
+                    if (busy) const ShiningText(),
                     if (receipt.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 12),

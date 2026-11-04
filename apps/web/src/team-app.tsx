@@ -4,7 +4,7 @@ import en from './i18n/en';
 import { fetchMe, relayRequest } from './api';
 import { RelayConnection } from './relay-connection';
 import { useAppStore } from './store';
-import { SpinnerDots, Wordmark } from './ui';
+import { LoadingText, Wordmark } from './ui';
 import type { Texts } from './shared';
 import { AuthPage } from './features/auth';
 import { PairScreen } from './features/pairing';
@@ -110,7 +110,7 @@ export function App() {
             </button>
           </>
         ) : (
-          <SpinnerDots />
+          <LoadingText />
         )}
       </div>
     );

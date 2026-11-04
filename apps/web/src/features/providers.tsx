@@ -3,7 +3,7 @@ import type { ProviderSource, RpcResult } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
 import type { Texts } from '../shared';
-import { SpinnerDots } from '../ui';
+import { LoadingText } from '../ui';
 
 export function ProviderSettings({ t }: { t: Texts }) {
   const node = useAppStore(selectNodeData);
@@ -158,8 +158,7 @@ export function ProviderSettings({ t }: { t: Texts }) {
               </button>
             )}
             <button className="primary-button" disabled={busy || !node.online}>
-              {busy && <SpinnerDots />}
-              {t.saveFetchModels}
+              {busy ? <LoadingText action="saving" /> : t.saveFetchModels}
             </button>
           </div>
           {message && (

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Operation } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
-import { SpinnerDots } from '../ui';
+import { LoadingText } from '../ui';
 import type { Texts } from '../shared';
 
 export function OperationProgress({
@@ -42,9 +42,7 @@ export function OperationProgress({
     <section className={`operation-card operation-${operation.status}`} role="status">
       <strong>
         {operation.status === 'running' ? (
-          <>
-            <SpinnerDots /> {t.operationRunning}
-          </>
+          <LoadingText text={t.operationRunning} />
         ) : operation.status === 'done' ? (
           t.completed
         ) : operation.status === 'interrupted' ? (

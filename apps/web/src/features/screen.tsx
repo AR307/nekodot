@@ -5,7 +5,7 @@ import { relayRequest } from '../api';
 import { relaySocketUrl } from '../relay-url';
 import { callNode } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
-import { BotAvatar, Icon, SpinnerDots, useMediaQuery } from '../ui';
+import { BotAvatar, Icon, LoadingText, useMediaQuery } from '../ui';
 import type { Texts } from '../shared';
 import { OperationProgress } from './operations';
 import { appActive } from '../native';
@@ -145,7 +145,7 @@ export function ScreenPanel({
           <p className="screen-empty">{t.screenSecure}</p>
         ) : !status ? (
           <div className="screen-empty">
-            <SpinnerDots />
+            <LoadingText />
           </div>
         ) : !status.available ? (
           <p className="screen-empty">{t.screenUnsupported}</p>

@@ -132,7 +132,7 @@ class CommandPalette extends StatelessWidget {
                 labelText: client.tr('执行指令的 Bot', 'Run command as'),
               ),
             ),
-          if (loading) const LinearProgressIndicator(minHeight: 2),
+          if (loading) const ShiningText(),
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 230),
             child: ListView(

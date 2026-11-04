@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { USER_MEMORY_SEPARATOR, type UserMemoryView } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
 import type { Texts } from '../shared';
-import { SpinnerDots } from '../ui';
+import { LoadingText } from '../ui';
 
 export function SharedUserMemoryPanel({ t, online }: { t: Texts; online: boolean }) {
   const [data, setData] = useState<UserMemoryView>();
@@ -136,7 +136,7 @@ export function SharedUserMemoryPanel({ t, online }: { t: Texts; online: boolean
               onClick={() => void save()}
             >
               {busy ? (
-                <SpinnerDots />
+                <LoadingText action="saving" />
               ) : imports.length || conflicts.length || !state.initialized ? (
                 t.confirmSharedMemory
               ) : (
@@ -146,7 +146,7 @@ export function SharedUserMemoryPanel({ t, online }: { t: Texts; online: boolean
           </div>
         </>
       ) : (
-        <p>{online ? <SpinnerDots /> : t.offlineCreateHint}</p>
+        <p>{online ? <LoadingText /> : t.offlineCreateHint}</p>
       )}
       {!data?.connected && <p className="muted">{t.memorySyncOffline}</p>}
       {(error || data?.error) && (
