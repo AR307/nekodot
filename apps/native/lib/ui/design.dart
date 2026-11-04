@@ -55,19 +55,28 @@ const _sansFallback = [
   'Noto Sans SC',
 ];
 
-/// Black and white: flat on the desktop, frosted glass on the phone. Bot avatars
+/// Black and white on every device; the phone has larger controls. Bot avatars
 /// are the only hue on screen, so a speaker can be told apart at a glance.
 @immutable
 class Tone extends ThemeExtension<Tone> {
   final Color base, sidebar, surface, ink, ink2, ink3, line;
   final Color bubble, raised, hover, menu, danger;
+
+  /// The chosen pill in a track: lighter than the track on either ground.
+  final Color thumb;
   final bool glass;
 
   /// Control height, control corner and icon size. A desktop is pointer-driven
   /// and dense; a phone keeps Material's 40 dp controls inside 48 dp targets.
   final double control, corner, icon;
-  final Color fillTop, fillBottom, bar, fieldFocus;
-  final List<Color> orbs;
+
+  /// Round icon buttons are smaller than text controls; a phone pads the target.
+  final double button;
+  final Color bar, fieldFocus;
+
+  /// Depth is shadow alone: a resting card, and a lifted one (menus, the
+  /// selected row, the details panel). Dark grounds carry it as a lighter surface.
+  final List<BoxShadow> rest, lift;
   const Tone({
     required this.base,
     required this.sidebar,
@@ -81,15 +90,16 @@ class Tone extends ThemeExtension<Tone> {
     required this.hover,
     required this.menu,
     required this.danger,
+    this.thumb = const Color(0xffffffff),
     this.glass = false,
     this.control = 32,
     this.corner = 8,
     this.icon = 18,
-    this.fillTop = Colors.transparent,
-    this.fillBottom = Colors.transparent,
+    this.button = 28,
     this.bar = Colors.transparent,
     this.fieldFocus = Colors.transparent,
-    this.orbs = const [],
+    this.rest = const [],
+    this.lift = const [],
   });
   static const light = Tone(
     base: Color(0xffffffff),
@@ -104,6 +114,14 @@ class Tone extends ThemeExtension<Tone> {
     hover: Color(0xfff0f0f0),
     menu: Color(0xffffffff),
     danger: Color(0xffc22f2f),
+    rest: [
+      BoxShadow(color: Color(0x0f000000), blurRadius: 3, offset: Offset(0, 1)),
+      BoxShadow(color: Color(0x0d000000), blurRadius: 14, offset: Offset(0, 4)),
+    ],
+    lift: [
+      BoxShadow(color: Color(0x14000000), blurRadius: 4, offset: Offset(0, 1)),
+      BoxShadow(color: Color(0x1f000000), blurRadius: 24, offset: Offset(0, 8)),
+    ],
   );
   static const dark = Tone(
     base: Color(0xff000000),
@@ -118,52 +136,80 @@ class Tone extends ThemeExtension<Tone> {
     hover: Color(0xff1e1e1e),
     menu: Color(0xff1c1c1c),
     danger: Color(0xffff8a80),
+    thumb: Color(0xff3a3a3a),
+    rest: [
+      BoxShadow(color: Color(0x66000000), blurRadius: 14, offset: Offset(0, 4)),
+    ],
+    lift: [
+      BoxShadow(
+        color: Color(0x99000000),
+        blurRadius: 28,
+        offset: Offset(0, 10),
+      ),
+    ],
   );
+  // The phone keeps its larger controls and bars over a plain black or white
+  // ground; cards are opaque, carried by shadow like the desktop's.
   static const glassLight = Tone(
     glass: true,
     control: 40,
     corner: 10,
-    icon: 22,
-    base: Color(0xffe6e6e9),
+    icon: 21,
+    button: 36,
+    base: Color(0xffffffff),
     sidebar: Colors.transparent,
-    surface: Color(0x8cffffff),
-    ink: Color(0xff0b0b0c),
-    ink2: Color(0xa60b0b0c),
-    ink3: Color(0x8c0b0b0c),
-    line: Color(0x140b0b0c),
-    bubble: Color(0x80ffffff),
-    raised: Color(0x0f0b0b0c),
-    hover: Color(0x0d0b0b0c),
-    menu: Color(0xfff6f6f7),
+    surface: Color(0xffffffff),
+    ink: Color(0xff000000),
+    ink2: Color(0xff5c5c5c),
+    ink3: Color(0xff767676),
+    line: Color(0xffe6e6e6),
+    bubble: Color(0xfff2f2f2),
+    raised: Color(0xfff0f0f0),
+    hover: Color(0xfff0f0f0),
+    menu: Color(0xffffffff),
     danger: Color(0xffc22f2f),
-    fillTop: Color(0xbdffffff),
-    fillBottom: Color(0x80ffffff),
-    bar: Color(0x73f4f4f5),
-    fieldFocus: Color(0xd9ffffff),
-    orbs: [Color(0xffffffff), Color(0xffb9b9c1), Color(0xfff8f8fa)],
+    bar: Color(0xebffffff),
+    fieldFocus: Color(0xffffffff),
+    rest: [
+      BoxShadow(color: Color(0x0f000000), blurRadius: 3, offset: Offset(0, 1)),
+      BoxShadow(color: Color(0x0d000000), blurRadius: 14, offset: Offset(0, 4)),
+    ],
+    lift: [
+      BoxShadow(color: Color(0x14000000), blurRadius: 4, offset: Offset(0, 1)),
+      BoxShadow(color: Color(0x1f000000), blurRadius: 24, offset: Offset(0, 8)),
+    ],
   );
   static const glassDark = Tone(
     glass: true,
     control: 40,
     corner: 10,
-    icon: 22,
-    base: Color(0xff08080a),
+    icon: 21,
+    button: 36,
+    base: Color(0xff000000),
     sidebar: Colors.transparent,
-    surface: Color(0x17ffffff),
-    ink: Color(0xfff6f6f7),
-    ink2: Color(0xadf6f6f7),
-    ink3: Color(0x85f6f6f7),
-    line: Color(0x1cffffff),
-    bubble: Color(0x14ffffff),
-    raised: Color(0x14ffffff),
-    hover: Color(0x12ffffff),
-    menu: Color(0xff1b1b1f),
+    surface: Color(0xff161616),
+    ink: Color(0xffffffff),
+    ink2: Color(0xffb0b0b0),
+    ink3: Color(0xff8c8c8c),
+    line: Color(0xff2a2a2a),
+    bubble: Color(0xff1c1c1c),
+    raised: Color(0xff2a2a2a),
+    hover: Color(0xff1e1e1e),
+    menu: Color(0xff1c1c1c),
     danger: Color(0xffff8a80),
-    fillTop: Color(0x1fffffff),
-    fillBottom: Color(0x0dffffff),
-    bar: Color(0x4d101013),
-    fieldFocus: Color(0x2bffffff),
-    orbs: [Color(0xff4c4c56), Color(0xff34343c), Color(0xff2c2c33)],
+    thumb: Color(0xff3a3a3a),
+    bar: Color(0xeb000000),
+    fieldFocus: Color(0xff1c1c1c),
+    rest: [
+      BoxShadow(color: Color(0x66000000), blurRadius: 14, offset: Offset(0, 4)),
+    ],
+    lift: [
+      BoxShadow(
+        color: Color(0x99000000),
+        blurRadius: 28,
+        offset: Offset(0, 10),
+      ),
+    ],
   );
   @override
   Tone copyWith() => this;
@@ -305,10 +351,9 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
           borderRadius: BorderRadius.circular(tone.corner),
           borderSide: BorderSide(color: color),
         );
-  final control = RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(tone.corner),
-  );
-  final buttonSize = Size(0, tone.control);
+  // Text buttons are pills and icon buttons circles; fields keep their corners.
+  const control = StadiumBorder();
+  final buttonSize = Size(0, tone.control - 2);
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
@@ -364,10 +409,10 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
         hoverColor: tone.hover,
         highlightColor: tone.hover,
         visualDensity: VisualDensity.standard,
-        minimumSize: Size.square(tone.control),
+        minimumSize: Size.square(tone.button),
         padding: EdgeInsets.zero,
-        iconSize: tone.icon,
-        shape: frosted ? const CircleBorder() : control,
+        iconSize: tone.icon - 1,
+        shape: const CircleBorder(),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
@@ -410,7 +455,7 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
         disabledForegroundColor: tone.ink3,
         visualDensity: VisualDensity.standard,
         minimumSize: buttonSize,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         textStyle: text.labelLarge,
         shape: control,
       ),
@@ -422,7 +467,7 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
         side: BorderSide(color: tone.line),
         visualDensity: VisualDensity.standard,
         minimumSize: buttonSize,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         textStyle: text.labelLarge,
         shape: control,
       ),
@@ -487,8 +532,9 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       dividerColor: Colors.transparent,
       indicatorSize: TabBarIndicatorSize.tab,
       indicator: ShapeDecoration(
-        color: frosted ? tone.ink : tone.raised,
+        color: frosted ? tone.ink : tone.thumb,
         shape: control,
+        shadows: frosted ? null : tone.rest,
       ),
       labelColor: frosted ? tone.base : tone.ink,
       unselectedLabelColor: tone.ink2,
@@ -500,12 +546,9 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
     popupMenuTheme: PopupMenuThemeData(
       color: tone.menu,
       surfaceTintColor: Colors.transparent,
-      elevation: 8,
-      shadowColor: Colors.black.withValues(alpha: .18),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: tone.line),
-      ),
+      elevation: 10,
+      shadowColor: Colors.black.withValues(alpha: dark ? .6 : .16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       textStyle: text.bodyMedium,
     ),
     tooltipTheme: TooltipThemeData(
@@ -527,7 +570,7 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
     dialogTheme: DialogThemeData(
       backgroundColor: tone.menu,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       titleTextStyle: text.titleLarge,
       contentTextStyle: text.bodyMedium,
     ),

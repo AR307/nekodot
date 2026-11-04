@@ -44,6 +44,8 @@ export const hermesSettingFieldSchema = z.strictObject({
   type: z.string(),
   description: z.string(),
   category: z.string(),
+  /** Where the product shows the setting: a kind on the Bot page, or an app-wide group. */
+  group: z.string(),
   options: z.array(z.json()).optional(),
   clearable: z.boolean().optional(),
   value: z.json(),
@@ -54,6 +56,12 @@ export const hermesSettingFieldSchema = z.strictObject({
 export const hermesSettingsSchema = z.strictObject({
   botId: z.string(),
   scope: z.literal('Hermes profile'),
+  categories: z.array(z.string()),
+  fields: z.array(hermesSettingFieldSchema),
+});
+/** Installation-wide Hermes settings, kept identical on the root and every Bot profile. */
+export const hermesSharedSettingsSchema = z.strictObject({
+  scope: z.literal('All Bot profiles'),
   categories: z.array(z.string()),
   fields: z.array(hermesSettingFieldSchema),
 });

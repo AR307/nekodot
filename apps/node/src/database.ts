@@ -197,6 +197,19 @@ export class NodeDatabase {
       .map((r) => JSON.parse(r.data as string) as Message)
       .reverse();
   }
+  /** The newest text or commentary with words in each conversation. */
+  latestTexts() {
+    const newest = this.db.prepare(
+      `SELECT data FROM messages WHERE conversation_id=?
+        AND json_extract(data,'$.kind') IN ('text','commentary')
+        AND trim(coalesce(json_extract(data,'$.content.text'),''))<>''
+        ORDER BY created_seq DESC LIMIT 1`,
+    );
+    return this.conversations().flatMap((conversation) => {
+      const row = newest.get(conversation.conversationId);
+      return row ? [JSON.parse(row.data as string) as Message] : [];
+    });
+  }
   messagesAfter(conversationId: string, afterSeq: number) {
     return this.db
       .prepare(

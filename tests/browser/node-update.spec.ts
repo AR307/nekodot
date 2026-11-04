@@ -54,6 +54,7 @@ test('Edge shows a copyable legacy command and removes it when the same computer
               bots: [],
               groups: [],
               conversations: [],
+              latest: [],
               headSeq: 0,
             }
           : request.method === 'sync.since'

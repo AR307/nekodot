@@ -199,6 +199,7 @@ void main() {
       final info = await client.rpc('models.info', {'botId': bot['botId']});
       expect(info['configuredContext'], 64000);
       await tap(find.byTooltip('详情'));
+      await tap(find.widgetWithText(Tab, '设置'));
       await until(() => find.text('模型与压缩').evaluate().isNotEmpty);
       await screenshot('native-model-information');
       expect(tester.takeException(), isNull);

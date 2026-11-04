@@ -7,138 +7,202 @@ import 'package:url_launcher/url_launcher.dart';
 import '../data/client.dart';
 import '../local/runtime.dart';
 import '../platform/desktop.dart';
+import 'extensions.dart';
+import 'hermes_settings.dart';
 import 'local_setup.dart';
 import '../ui/design.dart';
 import 'updates.dart';
+import 'user_memory.dart';
 
 class SettingsPage extends StatelessWidget {
   final NekodotClient client;
   const SettingsPage({super.key, required this.client});
+
+  Future<void> signOut(BuildContext context) async {
+    try {
+      await localRuntime?.stop();
+      await client.logout();
+      if (context.mounted) {
+        Navigator.popUntil(context, (route) => route.isFirst);
+      }
+    } catch (e) {
+      if (context.mounted) showNotice(context, '$e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: client,
-    builder: (context, child) => AppPage(
-      title: client.tr('设置', 'Settings'),
-      body: PageList(
-        children: [
-          LocalComputerPanel(client: client),
-          PanelGroup(
-            children: [
-              ListTile(
-                title: Text(client.tr('模型来源', 'Model sources')),
-                onTap: () => pushPage(context, SourcesPage(client: client)),
-              ),
-              ListTile(
-                title: Text(client.tr('通知', 'Notifications')),
-                subtitle: client.notificationError.isEmpty
-                    ? null
-                    : Text(client.notificationError),
-                trailing: StatusDot(
-                  on:
-                      client.notificationError.isEmpty &&
-                      client.notificationStatus.isNotEmpty,
-                ),
-                onTap: () async {
-                  final opened = await FlutterLocalNotificationsPlugin()
-                      .openAppNotificationSettings();
-                  if (opened != true && context.mounted) {
-                    showNotice(
-                      context,
-                      client.tr(
-                        '请在系统设置中开启通知',
-                        'Allow notifications in system settings',
-                      ),
-                    );
-                  }
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          PanelGroup(
-            children: [
-              ListTile(
-                title: Text(client.tr('语言', 'Language')),
-                trailing: Segment<String>(
-                  value: client.language,
-                  options: const {'zh': Text('中'), 'en': Text('EN')},
-                  onChanged: (value) => client.preferences(locale: value),
-                ),
-              ),
-              ListTile(
-                title: Text(client.tr('外观', 'Appearance')),
-                trailing: Segment<String>(
-                  value: client.theme,
-                  options: {
-                    'system': Tooltip(
-                      message: client.tr('跟随系统', 'System'),
-                      child: const Icon(Icons.brightness_auto_outlined),
-                    ),
-                    'light': Tooltip(
-                      message: client.tr('浅色', 'Light'),
-                      child: const Icon(Icons.light_mode_outlined),
-                    ),
-                    'dark': Tooltip(
-                      message: client.tr('深色', 'Dark'),
-                      child: const Icon(Icons.dark_mode_outlined),
-                    ),
-                  },
-                  onChanged: (value) => client.preferences(appearance: value),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          PanelGroup(
-            children: [
-              ListTile(title: Text('${client.me?['user']['email'] ?? ''}')),
-              ListTile(
-                title: Text(client.tr('修改密码', 'Change password')),
-                onTap: () => pushPage(context, PasswordPage(client: client)),
-              ),
-              if (context.tone.glass)
+    builder: (context, child) {
+      final c = client;
+      final tone = context.tone;
+      final email = '${c.me?['user']['email'] ?? ''}';
+      final name = email.split('@').first;
+      Widget link(String key, String title, Widget page) => ListTile(
+        key: ValueKey(key),
+        title: Text(title),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => pushPage(context, page),
+      );
+      return AppPage(
+        title: c.tr('设置', 'Settings'),
+        body: PageList(
+          children: [
+            PanelGroup(
+              children: [
                 ListTile(
-                  title: Text(client.tr('退出账号', 'Sign out')),
+                  leading: Container(
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: tone.ink,
+                    ),
+                    child: Text(
+                      name.isEmpty ? '' : name.characters.first.toUpperCase(),
+                      style: TextStyle(
+                        color: tone.base,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  title: Text(name),
+                  subtitle: Text(email),
+                ),
+                ListTile(
+                  title: Text(c.tr('修改密码', 'Change password')),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => pushPage(context, PasswordPage(client: c)),
+                ),
+                ListTile(
+                  title: Text(c.tr('退出账号', 'Sign out')),
+                  onTap: () => signOut(context),
+                ),
+              ],
+            ),
+            SectionLabel(c.tr('所有 Bot', 'All Bots')),
+            PanelGroup(
+              children: [
+                link(
+                  'settings-sources',
+                  c.tr('模型来源', 'Model sources'),
+                  SourcesPage(client: c),
+                ),
+                link(
+                  'settings-user-memory',
+                  c.tr('关于你', 'About you'),
+                  SharedUserMemoryPage(client: c),
+                ),
+                link(
+                  'settings-extensions',
+                  c.tr('Skills 与插件', 'Skills & plugins'),
+                  ExtensionsPage(client: c, kind: 'skills'),
+                ),
+                if (c.online)
+                  link(
+                    'settings-shared-hermes',
+                    c.tr('共用 Hermes 设置', 'Shared Hermes settings'),
+                    AppPage(
+                      title: c.tr('共用 Hermes 设置', 'Shared Hermes settings'),
+                      body: HermesSettings(client: c),
+                    ),
+                  ),
+              ],
+            ),
+            if (localRuntime?.location != null &&
+                localRuntime?.userId != null) ...[
+              SectionLabel(c.tr('这台电脑', 'This computer')),
+              LocalComputerPanel(client: c),
+            ],
+            SectionLabel(c.tr('应用', 'App')),
+            PanelGroup(
+              children: [
+                ListTile(
+                  title: Text(c.tr('语言', 'Language')),
+                  trailing: Segment<String>(
+                    value: c.language,
+                    options: const {'zh': Text('中'), 'en': Text('EN')},
+                    onChanged: (value) => c.preferences(locale: value),
+                  ),
+                ),
+                ListTile(
+                  title: Text(c.tr('外观', 'Appearance')),
+                  trailing: Segment<String>(
+                    value: c.theme,
+                    options: {
+                      'system': Tooltip(
+                        message: c.tr('跟随系统', 'System'),
+                        child: const Icon(Icons.brightness_auto_outlined),
+                      ),
+                      'light': Tooltip(
+                        message: c.tr('浅色', 'Light'),
+                        child: const Icon(Icons.light_mode_outlined),
+                      ),
+                      'dark': Tooltip(
+                        message: c.tr('深色', 'Dark'),
+                        child: const Icon(Icons.dark_mode_outlined),
+                      ),
+                    },
+                    onChanged: (value) => c.preferences(appearance: value),
+                  ),
+                ),
+                ListTile(
+                  title: Text(c.tr('通知', 'Notifications')),
+                  subtitle: c.notificationError.isEmpty
+                      ? null
+                      : Text(c.notificationError),
+                  trailing: StatusDot(
+                    on:
+                        c.notificationError.isEmpty &&
+                        c.notificationStatus.isNotEmpty,
+                  ),
                   onTap: () async {
-                    try {
-                      await localRuntime?.stop();
-                      await client.logout();
-                      if (context.mounted) {
-                        Navigator.popUntil(context, (route) => route.isFirst);
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        showNotice(context, '$e');
-                      }
+                    final opened = await FlutterLocalNotificationsPlugin()
+                        .openAppNotificationSettings();
+                    if (opened != true && context.mounted) {
+                      showNotice(
+                        context,
+                        c.tr(
+                          '请在系统设置中开启通知',
+                          'Allow notifications in system settings',
+                        ),
+                      );
                     }
                   },
                 ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          ListTile(
-            leading: const Icon(Icons.system_update_outlined),
-            title: Text(client.tr('版本与更新', 'Versions & updates')),
-            onTap: () => pushPage(context, UpdatesPage(client: client)),
-          ),
-          if (DesktopHost.supported)
-            ListTile(
-              key: const ValueKey('quit-application'),
-              leading: const Icon(Icons.power_settings_new),
-              title: Text(client.tr('退出应用', 'Quit application')),
-              subtitle: Text(
-                localRuntime?.running == true
-                    ? client.tr(
-                        '这台电脑上的 Bot 会停止，服务器任务继续运行',
-                        'Bots on this computer stop; server tasks keep running',
-                      )
-                    : client.tr('服务器任务继续运行', 'Server tasks keep running'),
-              ),
-              onTap: DesktopHost.quit,
+                link(
+                  'settings-updates',
+                  c.tr('版本与更新', 'Versions & updates'),
+                  UpdatesPage(client: c),
+                ),
+              ],
             ),
-        ],
-      ),
-    ),
+            if (DesktopHost.supported) ...[
+              const SizedBox(height: 14),
+              PanelGroup(
+                children: [
+                  ListTile(
+                    key: const ValueKey('quit-application'),
+                    title: Text(c.tr('退出应用', 'Quit application')),
+                    subtitle: Text(
+                      localRuntime?.running == true
+                          ? c.tr(
+                              '这台电脑上的 Bot 会停止，服务器任务继续运行',
+                              'Bots on this computer stop; server tasks keep running',
+                            )
+                          : c.tr('服务器任务继续运行', 'Server tasks keep running'),
+                    ),
+                    onTap: DesktopHost.quit,
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      );
+    },
   );
 }
 

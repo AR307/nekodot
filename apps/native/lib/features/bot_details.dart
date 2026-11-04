@@ -9,12 +9,13 @@ import '../screen/viewer.dart';
 import 'bot_editor.dart';
 import 'files.dart';
 import 'hermes_settings.dart';
+import 'learning.dart';
 import 'model_info.dart';
 import 'routines.dart';
-import 'user_memory.dart';
 import 'sessions.dart';
 import 'desktop_control.dart';
 import 'secrets.dart';
+import 'voice.dart';
 
 class BotDetails extends StatelessWidget {
   final NekodotClient client;
@@ -46,10 +47,23 @@ class BotDetails extends StatelessWidget {
       }
       final text = Theme.of(context).textTheme;
       final panel = onClose != null;
+      final botId = '${bot['botId']}';
+      Widget link(
+        String key,
+        IconData icon,
+        String title,
+        Widget Function() page,
+      ) => ListTile(
+        key: ValueKey(key),
+        leading: Icon(icon),
+        title: Text(title),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => pushPage(context, page()),
+      );
       final pages = TabBarView(
         children: [
           AsyncPane(
-            load: () => c.rpc('routines.list', {'botId': bot['botId']}),
+            load: () => c.rpc('routines.list', {'botId': botId}),
             builder: (context, data, reload) {
               final routines = objects(data['routines']);
               return PageList(
@@ -78,94 +92,56 @@ class BotDetails extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                   ],
-                  ListTile(
-                    key: const ValueKey('bot-sessions'),
-                    leading: const Icon(Icons.forum_outlined),
-                    title: Text(c.tr('历史会话', 'Sessions')),
-                    subtitle: Text(
-                      c.tr('查看、新建或切换会话', 'Browse, create or switch sessions'),
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => pushPage(
-                      context,
-                      BotSessionsPage(client: c, botId: '${bot['botId']}'),
-                    ),
-                  ),
-                  ModelInformation(
-                    key: ValueKey('${bot['model']}:${bot['modelSettings']}'),
-                    client: c,
-                    botId: bot['botId'] as String,
-                  ),
-                  ListTile(
-                    key: const ValueKey('bot-secrets'),
-                    leading: const Icon(Icons.lock_outline),
-                    title: Text(c.tr('保密资料', 'Confidential information')),
-                    subtitle: Text(
-                      c.tr(
-                        '仅此 Bot 可复用的已保存资料',
-                        'Saved credentials for this Bot only',
+                  PanelGroup(
+                    children: [
+                      link(
+                        'bot-sessions',
+                        Icons.forum_outlined,
+                        c.tr('历史会话', 'Sessions'),
+                        () => BotSessionsPage(client: c, botId: botId),
                       ),
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => pushPage(
-                      context,
-                      BotSecretsPage(client: c, botId: '${bot['botId']}'),
-                    ),
+                      link(
+                        'bot-learning',
+                        Icons.auto_stories_outlined,
+                        c.tr('学习历程', 'Learning journey'),
+                        () => LearningPage(client: c, botId: botId),
+                      ),
+                    ],
                   ),
-                  if (c.node.capabilities['host'] == 'desktop')
-                    DesktopControlTile(
-                      key: ValueKey('desktop-${bot['botId']}'),
-                      client: c,
-                      botId: '${bot['botId']}',
-                    ),
                   RoutineList(client: c, routines: routines, reload: reload),
                 ],
               );
             },
           ),
           AsyncPane(
-            load: () => c.rpc('memory.get', {'botId': bot['botId']}),
+            load: () => c.rpc('memory.get', {'botId': botId}),
             builder: (context, data, reload) => PageList(
               children: [
                 PanelGroup(
                   children: [
-                    for (final doc in objects(data['documents']))
+                    // What a Bot knows about you is shared, so it lives in app settings.
+                    for (final doc in objects(
+                      data['documents'],
+                    ).where((doc) => doc['name'] != 'USER.md'))
                       ListTile(
                         title: Text('${doc['name']}'),
-                        subtitle:
-                            doc['name'] == 'USER.md' ||
-                                '${doc['content']}'.trim().isEmpty
+                        subtitle: '${doc['content']}'.trim().isEmpty
                             ? null
                             : Text(
                                 '${doc['content']}',
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                        trailing: doc['name'] == 'USER.md'
-                            ? Tooltip(
-                                message: c.tr(
-                                  '同账号所有 Bot 共享',
-                                  'Shared with every Bot on your account',
-                                ),
-                                child: Icon(
-                                  Icons.group_outlined,
-                                  size: 18,
-                                  color: context.tone.ink3,
-                                ),
-                              )
-                            : null,
                         onTap: () async {
                           await pushPage(
                             context,
-                            doc['name'] == 'USER.md'
-                                ? SharedUserMemoryPage(client: c)
-                                : MemoryEditor(
-                                    client: c,
-                                    botId: bot['botId'] as String,
-                                    document: doc,
-                                  ),
+                            MemoryEditor(
+                              client: c,
+                              botId: botId,
+                              document: doc,
+                            ),
                           );
                           reload();
                         },
@@ -179,7 +155,7 @@ class BotDetails extends StatelessWidget {
                     onPressed: () async {
                       await pushPage(
                         context,
-                        RefinePage(client: c, botId: bot['botId'] as String),
+                        RefinePage(client: c, botId: botId),
                       );
                       reload();
                     },
@@ -199,50 +175,81 @@ class BotDetails extends StatelessWidget {
             ),
           ),
           LibraryPage(client: c, bot: bot, embedded: true),
-          HermesSettings(client: c, botId: bot['botId'] as String),
+          HermesSettings(
+            client: c,
+            botId: botId,
+            extras: {
+              'model': [
+                ModelInformation(
+                  key: ValueKey('${bot['model']}:${bot['modelSettings']}'),
+                  client: c,
+                  botId: botId,
+                ),
+              ],
+              'tools': [
+                if (c.node.capabilities['host'] == 'desktop')
+                  DesktopControlTile(
+                    key: ValueKey('desktop-$botId'),
+                    client: c,
+                    botId: botId,
+                  ),
+              ],
+              'security': [
+                link(
+                  'bot-secrets',
+                  Icons.lock_outline,
+                  c.tr('保密资料', 'Confidential information'),
+                  () => BotSecretsPage(client: c, botId: botId),
+                ),
+              ],
+              'voice': [
+                link(
+                  'bot-voice',
+                  Icons.mic_none,
+                  c.tr('语音与唤醒', 'Voice & wake word'),
+                  () => VoicePage(client: c, botId: botId),
+                ),
+              ],
+            },
+          ),
         ],
       );
+      final tabs = [
+        c.tr('详情', 'Details'),
+        c.tr('记忆', 'Memory'),
+        c.tr('资料库', 'Files'),
+        c.tr('设置', 'Settings'),
+      ];
+      final actions = [
+        IconAction(
+          tooltip: c.tr('屏幕', 'Screen'),
+          icon: Icons.desktop_windows_outlined,
+          onPressed: () => pushPage(context, ScreenPage(client: c, bot: bot)),
+        ),
+        const SizedBox(width: 4),
+        IconAction(
+          tooltip: c.tr('编辑', 'Edit'),
+          icon: Icons.edit_outlined,
+          onPressed: () =>
+              pushPage(context, BotEditor(client: c, existing: bot)),
+        ),
+      ];
       if (context.tone.glass && !panel) {
         return DefaultTabController(
           length: 4,
           child: AppPage(
             title: '${bot['displayName']}',
             bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(44),
+              preferredSize: const Size.fromHeight(48),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 320),
-                    child: TabBar(
-                      isScrollable: true,
-                      tabAlignment: TabAlignment.start,
-                      tabs: [
-                        Tab(height: 34, text: c.tr('详情', 'Details')),
-                        Tab(height: 34, text: c.tr('记忆', 'Memory')),
-                        Tab(height: 34, text: c.tr('资料库', 'Files')),
-                        Tab(height: 34, text: c.tr('设置', 'Settings')),
-                      ],
-                    ),
-                  ),
+                  child: DetailTabs(labels: tabs),
                 ),
               ),
             ),
-            actions: [
-              IconAction(
-                tooltip: c.tr('屏幕', 'Screen'),
-                icon: Icons.desktop_windows_outlined,
-                onPressed: () =>
-                    pushPage(context, ScreenPage(client: c, bot: bot)),
-              ),
-              IconAction(
-                tooltip: c.tr('编辑', 'Edit'),
-                icon: Icons.edit_outlined,
-                onPressed: () =>
-                    pushPage(context, BotEditor(client: c, existing: bot)),
-              ),
-            ],
+            actions: actions,
             body: pages,
           ),
         );
@@ -254,19 +261,9 @@ class BotDetails extends StatelessWidget {
             automaticallyImplyLeading: !panel,
             flexibleSpace: const WindowDrag(),
             actions: [
-              IconAction(
-                tooltip: c.tr('屏幕', 'Screen'),
-                icon: Icons.desktop_windows_outlined,
-                onPressed: () =>
-                    pushPage(context, ScreenPage(client: c, bot: bot)),
-              ),
-              IconAction(
-                tooltip: c.tr('编辑', 'Edit'),
-                icon: Icons.edit_outlined,
-                onPressed: () =>
-                    pushPage(context, BotEditor(client: c, existing: bot)),
-              ),
+              ...actions,
               if (panel) ...[
+                const SizedBox(width: 4),
                 IconAction(
                   tooltip: c.tr('关闭', 'Close'),
                   icon: Icons.close,
@@ -288,20 +285,9 @@ class BotDetails extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               Text('@${bot['handle']}', style: text.labelMedium),
-              const SizedBox(height: 10),
-              TabBar(
-                isScrollable: true,
-                tabAlignment: TabAlignment.center,
-                labelPadding: const EdgeInsets.symmetric(horizontal: 10),
-                tabs: [
-                  Tab(height: 28, text: c.tr('详情', 'Details')),
-                  Tab(height: 28, text: c.tr('记忆', 'Memory')),
-                  Tab(height: 28, text: c.tr('资料库', 'Files')),
-                  Tab(height: 28, text: c.tr('设置', 'Settings')),
-                ],
-              ),
-              const SizedBox(height: 4),
-              const Divider(height: 1),
+              const SizedBox(height: 12),
+              DetailTabs(labels: tabs),
+              const SizedBox(height: 6),
               Expanded(child: pages),
             ],
           ),
@@ -309,6 +295,91 @@ class BotDetails extends StatelessWidget {
       );
     },
   );
+}
+
+/// The details tabs as a pill track as wide as its labels; the chosen tab is
+/// a raised pill that glides with the page swipe.
+class DetailTabs extends StatelessWidget {
+  final List<String> labels;
+  const DetailTabs({super.key, required this.labels});
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    final controller = DefaultTabController.of(context);
+    final text = Theme.of(context).textTheme.labelLarge;
+    final height = tone.glass ? 34.0 : 28.0;
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: ShapeDecoration(
+        color: tone.glass ? tone.surface : tone.raised.withValues(alpha: .7),
+        shape: const StadiumBorder(),
+      ),
+      child: AnimatedBuilder(
+        animation: controller.animation!,
+        builder: (context, _) {
+          final at = controller.animation!.value;
+          return IntrinsicWidth(
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: Align(
+                    alignment: Alignment(
+                      labels.length == 1
+                          ? 0
+                          : -1 + 2 * at / (labels.length - 1),
+                      0,
+                    ),
+                    child: FractionallySizedBox(
+                      widthFactor: 1 / labels.length,
+                      heightFactor: 1,
+                      child: DecoratedBox(
+                        decoration: ShapeDecoration(
+                          color: tone.glass ? tone.ink : tone.thumb,
+                          shape: const StadiumBorder(),
+                          shadows: tone.glass ? null : tone.rest,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    for (final (index, label) in labels.indexed)
+                      Expanded(
+                        child: Semantics(
+                          button: true,
+                          selected: controller.index == index,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => controller.animateTo(index),
+                            child: Tab(
+                              height: height,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                ),
+                                child: Text(
+                                  label,
+                                  style: text?.copyWith(
+                                    color: (at - index).abs() < .5
+                                        ? (tone.glass ? tone.base : tone.ink)
+                                        : tone.ink2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
 class MemoryEditor extends StatefulWidget {

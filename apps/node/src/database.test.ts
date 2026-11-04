@@ -89,3 +89,69 @@ it('opens a Phase 1 database without changing DM history and atomically creates 
     upgraded.db.close();
   }
 });
+
+it('reports the newest words of each conversation, past tool steps and empty drafts', async () => {
+  const database = new NodeDatabase(await mkdtemp(join(tmpdir(), 'nekodot-latest-')));
+  const bot: Bot = {
+    botId: 'nk-cccccc',
+    handle: 'writer',
+    displayName: 'Writer',
+    avatar: { shape: 'dot', color: '#E8603C' },
+    role: 'Writing',
+    model: 'test-model',
+    archived: false,
+    createdAt: '2026-11-04T00:00:00.000Z',
+  };
+  try {
+    database.putBot(bot);
+    const talked: Conversation = {
+      conversationId: 'talked',
+      kind: 'dm',
+      botId: bot.botId,
+      createdAt: bot.createdAt,
+    };
+    database.putConversation(talked);
+    database.putBot({ ...bot, botId: 'nk-dddddd', handle: 'reader' });
+    database.putConversation({ ...talked, conversationId: 'silent', botId: 'nk-dddddd' });
+    const base = {
+      conversationId: 'talked',
+      seq: 0,
+      status: 'done' as const,
+      createdAt: bot.createdAt,
+    };
+    const reply: Message = {
+      ...base,
+      messageId: 'reply',
+      kind: 'text',
+      author: { type: 'bot', id: bot.botId },
+      content: { text: 'Here is the summary' },
+    };
+    database.putMessage({
+      ...base,
+      messageId: 'ask',
+      kind: 'text',
+      author: { type: 'user' },
+      content: { text: 'Summarize the report' },
+    });
+    database.putMessage(reply);
+    database.putMessage({
+      ...base,
+      messageId: 'step',
+      kind: 'tool',
+      author: { type: 'bot', id: bot.botId },
+      content: { tool: 'read_file', preview: 'report.md' },
+    });
+    database.putMessage({
+      ...base,
+      messageId: 'draft',
+      kind: 'text',
+      status: 'streaming',
+      author: { type: 'bot', id: bot.botId },
+      content: { text: '  ' },
+    });
+    expect(database.latestTexts()).toEqual([database.message('reply')]);
+    expect(database.message('reply')?.content).toEqual(reply.content);
+  } finally {
+    database.db.close();
+  }
+});

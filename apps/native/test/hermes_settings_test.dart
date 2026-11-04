@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/hermes_zh.dart';
 import 'package:nekodot_native/features/hermes_settings.dart';
 import 'package:nekodot_native/ui/design.dart';
 
@@ -31,6 +32,7 @@ class SettingsClient extends NekodotClient {
             'type': 'number',
             'description': 'Context window override',
             'category': 'general',
+            'group': 'model',
             'value': 8192,
             'sensitive': false,
             'editable': false,
@@ -41,6 +43,7 @@ class SettingsClient extends NekodotClient {
             'type': 'boolean',
             'description': 'Enable native context compression',
             'category': 'compression',
+            'group': 'model',
             'value': compressionEnabled,
             'sensitive': false,
             'editable': true,
@@ -51,6 +54,7 @@ class SettingsClient extends NekodotClient {
             'type': 'string',
             'description': 'Credential managed by Hermes',
             'category': 'security',
+            'group': 'run',
             'value': null,
             'sensitive': true,
             'editable': false,
@@ -91,17 +95,30 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('model_context_length'), findsOneWidget);
-      expect(find.text('agent.api_key'), findsOneWidget);
-      expect(
-        find.textContaining('Change this in Bot model settings'),
-        findsOneWidget,
-      );
-      expect(find.text('configured-secret'), findsNothing);
+      // The page opens on kinds; the settings themselves sit one step in.
+      expect(find.text('Model'), findsOneWidget);
+      expect(find.text('Running'), findsOneWidget);
+      expect(find.text('Voice'), findsNothing);
+      expect(find.text('model_context_length'), findsNothing);
       await expectLater(
         find.byType(Scaffold),
         matchesGoldenFile('goldens/hermes_settings_390.png'),
       );
+      await tester.tap(find.byKey(const ValueKey('settings-group-model')));
+      await tester.pumpAndSettle();
+      expect(find.text('model_context_length'), findsOneWidget);
+      expect(find.text('compression.enabled'), findsOneWidget);
+      expect(find.text('agent.api_key'), findsNothing);
+      expect(
+        find.textContaining('Change this in Bot model settings'),
+        findsOneWidget,
+      );
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'api_key');
+      await tester.pumpAndSettle();
+      expect(find.text('agent.api_key'), findsOneWidget);
+      expect(find.text('configured-secret'), findsNothing);
 
       await tester.enterText(find.byType(TextField), 'compression');
       await tester.pumpAndSettle();
@@ -129,4 +146,39 @@ void main() {
       client.dispose();
     },
   );
+
+  testWidgets('In Chinese a setting leads with its name and keeps its key', (
+    tester,
+  ) async {
+    final client = SettingsClient()..language = 'zh';
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: appTheme(Brightness.light),
+        home: Scaffold(
+          body: HermesSettings(client: client, botId: 'nk-settings'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final (name, note) = hermesSettingZh['compression.enabled']!;
+    // Found by its Chinese name as well as by its key.
+    await tester.enterText(find.byType(TextField), name);
+    await tester.pumpAndSettle();
+    final tile = find.widgetWithText(SwitchListTile, name);
+    expect(tile, findsOneWidget);
+    expect(
+      find.descendant(of: tile, matching: find.textContaining(note)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: tile,
+        matching: find.textContaining('compression.enabled'),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    client.dispose();
+  });
 }

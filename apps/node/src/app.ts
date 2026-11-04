@@ -16,6 +16,7 @@ import { HermesGatewayError, type GatewayFrame } from './hermes/gateway';
 import { NodeFault } from './fault';
 import { BotService } from './bots';
 import { Providers } from './providers';
+import { HermesSettings } from './hermes-settings';
 import { GroupService } from './groups';
 import { groupPrompt, MAX_CHAIN, mentionedBots } from './group-routing';
 import { Operations } from './operations';
@@ -181,6 +182,7 @@ export class NodeApplication {
   readonly database: NodeDatabase;
   readonly bots: BotService;
   readonly providers: Providers;
+  readonly settings: HermesSettings;
   readonly groups: GroupService;
   readonly operations: Operations;
   readonly management: BotManagement;
@@ -285,7 +287,8 @@ export class NodeApplication {
       } else this.consume(run, gateway);
     };
     this.providers = new Providers(hermes, this.database);
-    this.bots = new BotService(this.database, hermes, this.providers);
+    this.settings = new HermesSettings(hermes, this.database);
+    this.bots = new BotService(this.database, hermes, this.providers, this.settings);
     this.groups = new GroupService(this.database);
     this.operations = new Operations(this.database);
     this.commands = new BotCommands(this.database, hermes);
@@ -531,6 +534,7 @@ export class NodeApplication {
           bots: this.database.allBots(),
           groups: this.database.groups(),
           conversations: this.database.conversations(),
+          latest: this.database.latestTexts(),
           headSeq: this.database.head(),
           node: this.desktopControl.capabilities(),
         } satisfies RpcResult<'sync.snapshot'>;
@@ -578,9 +582,13 @@ export class NodeApplication {
       case 'models.info':
         return this.providers.info(request.params.botId);
       case 'hermes.settings.get':
-        return this.providers.settings(request.params.botId);
+        return this.settings.get(request.params.botId);
       case 'hermes.settings.set':
-        return this.providers.setSetting(request.params);
+        return this.settings.set(request.params);
+      case 'hermes.shared.get':
+        return this.settings.shared();
+      case 'hermes.shared.set':
+        return this.settings.setShared(request.params);
       case 'bots.create': {
         const { archiveFileId, ...fields } = request.params;
         const created = await this.bots.create(

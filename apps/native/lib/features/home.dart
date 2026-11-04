@@ -33,6 +33,7 @@ class _HomePageState extends State<HomePage> {
   String search = '';
   String? hovered;
   bool searching = false;
+  final folded = <String>{};
   NekodotClient get c => widget.client;
   @override
   void initState() {
@@ -142,11 +143,14 @@ class _HomePageState extends State<HomePage> {
                     ? c.tr('添加电脑', 'Add computer')
                     : '${current['name']}',
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleMedium,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontSize: context.tone.glass ? 16 : 15,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-            const SizedBox(width: 2),
-            Icon(Icons.expand_more, size: 18, color: context.tone.ink3),
+            const SizedBox(width: 4),
+            Icon(Icons.expand_more, size: 16, color: context.tone.ink3),
           ],
         ),
       ),
@@ -156,46 +160,44 @@ class _HomePageState extends State<HomePage> {
   Widget top() => Stack(
     children: [
       const Positioned.fill(child: WindowDrag()),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 8, 4),
-        child: Row(
-          children: [
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: nodePicker(),
-              ),
-            ),
-            IconAction(
-              tooltip: c.tr('搜索', 'Search'),
-              icon: searching ? Icons.close : Icons.search,
-              onPressed: () => setState(() {
-                searching = !searching;
-                search = '';
-              }),
-            ),
-            PopupMenuButton<String>(
-              tooltip: c.tr('新建', 'Create'),
-              position: PopupMenuPosition.under,
-              icon: const Icon(Icons.add),
-              onSelected: (value) => pushPage(
-                context,
-                BotEditor(client: c, group: value == 'group'),
-              ),
-              itemBuilder: (_) => [
-                PopupMenuItem(
-                  value: 'bot',
-                  child: Text(c.tr('新建 Bot', 'New Bot')),
+      SizedBox(
+        height: 56,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 12, 0),
+          child: Row(
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: nodePicker(),
                 ),
-                PopupMenuItem(
-                  value: 'group',
-                  child: Text(c.tr('新建群组', 'New group')),
-                ),
-              ],
-            ),
-          ],
+              ),
+              IconAction(
+                tooltip: c.tr('搜索', 'Search'),
+                icon: searching ? Icons.close : Icons.search,
+                onPressed: () => setState(() {
+                  searching = !searching;
+                  search = '';
+                }),
+              ),
+              const SizedBox(width: 4),
+              createMenu(),
+            ],
+          ),
         ),
       ),
+    ],
+  );
+
+  Widget createMenu() => PopupMenuButton<String>(
+    tooltip: c.tr('新建', 'Create'),
+    position: PopupMenuPosition.under,
+    icon: const Icon(Icons.add),
+    onSelected: (value) =>
+        pushPage(context, BotEditor(client: c, group: value == 'group')),
+    itemBuilder: (_) => [
+      PopupMenuItem(value: 'bot', child: Text(c.tr('新建 Bot', 'New Bot'))),
+      PopupMenuItem(value: 'group', child: Text(c.tr('新建群组', 'New group'))),
     ],
   );
 
@@ -290,8 +292,49 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// The latest thing said there, as one line; a group names who said it.
+  String? messagePreview(Json value, bool isGroup) {
+    final id = value['conversationId'];
+    final loaded = (c.node.messages[id] ?? [])
+        .where(
+          (x) =>
+              (x['kind'] == 'text' || x['kind'] == 'commentary') &&
+              '${x['content']?['text'] ?? ''}'.trim().isNotEmpty,
+        )
+        .lastOrNull;
+    // Loaded messages are newer than the node's first report once they pass it.
+    final reported = c.node.latest[id];
+    final last =
+        loaded == null ||
+            (reported != null &&
+                (reported['seq'] as int) > (loaded['seq'] as int))
+        ? reported
+        : loaded;
+    if (last == null) return null;
+    final content = object(last['content']);
+    final text =
+        readableMessageText(
+              '${content['text'] ?? ''}',
+              hasFiles: (content['files'] as List? ?? []).isNotEmpty,
+            )
+            .replaceAll(RegExp(r'[*_`#>]+'), '')
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
+    if (!isGroup) return text;
+    final author = object(last['author']);
+    final bot = c.node.bots
+        .where((b) => b['botId'] == author['id'])
+        .firstOrNull;
+    final speaker = author['type'] == 'bot'
+        ? (bot?['displayName'])
+        : c.tr('你', 'You');
+    return speaker == null ? text : c.tr('$speaker：$text', '$speaker: $text');
+  }
+
   Widget row(Json value, bool narrow) {
-    final glass = context.tone.glass;
+    final tone = context.tone;
+    final glass = tone.glass;
+    final text = Theme.of(context).textTheme;
     final isGroup = value['kind'] == 'group';
     final entity = isGroup
         ? c.node.groups.firstWhere((x) => x['groupId'] == value['groupId'])
@@ -299,57 +342,192 @@ class _HomePageState extends State<HomePage> {
     final id = value['conversationId'] as String;
     final state = c.node.activities[id]?['state'];
     final working = state != null && state != 'idle';
-    final last = (c.node.messages[id] ?? [])
-        .where((x) => x['kind'] == 'text')
-        .lastOrNull;
-    final body = last?['content'];
-    final preview = body == null
-        ? null
-        : readableMessageText(
-            '${body['text'] ?? ''}',
-            hasFiles: (body['files'] as List? ?? []).isNotEmpty,
-          );
+    final selected = !narrow && conversation == id;
+    // The selected row lifts off the list; hovering a row only raises it.
+    final raised = selected || (!glass && hovered == id);
+    final note = isGroup
+        ? ''
+        : '${entity['role'] ?? ''}'.split('\n').first.trim();
+    final last = messagePreview(value, isGroup);
+    final size = glass ? 44.0 : 40.0;
+    final still = MediaQuery.disableAnimationsOf(context);
+    final corners = BorderRadius.circular(12);
     return MouseRegion(
       onEnter: (_) => setState(() => hovered = id),
       onExit: (_) => setState(() => hovered = null),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-        child: ListTile(
-          key: ValueKey('conversation-$id'),
-          selected: !narrow && conversation == id,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(context.tone.corner),
+        padding: const EdgeInsets.symmetric(vertical: 1),
+        child: AnimatedContainer(
+          duration: still ? Duration.zero : const Duration(milliseconds: 160),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            color: raised ? tone.surface : tone.surface.withValues(alpha: 0),
+            borderRadius: corners,
+            boxShadow: raised ? (selected ? tone.lift : tone.rest) : const [],
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-          leading: isGroup
-              ? GroupAvatar(
-                  size: glass ? 38 : 30,
-                  working: working,
-                  avatars: [
-                    for (final bot in c.node.bots)
-                      if ((entity['botIds'] as List).contains(bot['botId']))
-                        object(bot['avatar']),
-                  ],
-                )
-              : CatAvatar.of(
-                  entity,
-                  size: glass ? 38 : 30,
-                  working: working,
-                  twitch: hovered == id,
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              key: ValueKey('conversation-$id'),
+              borderRadius: corners,
+              hoverColor: Colors.transparent,
+              highlightColor: tone.hover,
+              onTap: () => open(value, narrow),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
                 ),
-          title: Text(
-            '${entity[isGroup ? 'name' : 'displayName']}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.titleMedium,
+                child: Row(
+                  children: [
+                    if (isGroup)
+                      GroupAvatar(
+                        size: size,
+                        working: working,
+                        avatars: [
+                          for (final bot in c.node.bots)
+                            if ((entity['botIds'] as List).contains(
+                              bot['botId'],
+                            ))
+                              object(bot['avatar']),
+                        ],
+                      )
+                    else
+                      CatAvatar.of(
+                        entity,
+                        size: size,
+                        working: working,
+                        twitch: hovered == id,
+                      ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                flex: 0,
+                                child: Text(
+                                  '${entity[isGroup ? 'name' : 'displayName']}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: text.titleMedium?.copyWith(
+                                    fontSize: glass ? 16 : 15,
+                                  ),
+                                ),
+                              ),
+                              if (note.isNotEmpty) ...[
+                                Container(
+                                  width: 1,
+                                  height: 12,
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  color: tone.line,
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    note,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: text.bodySmall?.copyWith(
+                                      fontSize: 13,
+                                      color: tone.ink3,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (last != null) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              last,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: text.bodySmall?.copyWith(
+                                fontSize: glass ? 14 : 13.5,
+                                color: tone.ink2,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-          subtitle: preview == null
-              ? null
-              : Text(preview, maxLines: 1, overflow: TextOverflow.ellipsis),
-          onTap: () => open(value, narrow),
         ),
       ),
     );
+  }
+
+  /// A titled, foldable run of rows. Searching opens every section.
+  List<Widget> section(
+    String key,
+    String label,
+    List<Json> items,
+    bool narrow,
+  ) {
+    if (items.isEmpty) return const [];
+    final tone = context.tone;
+    final text = Theme.of(context).textTheme;
+    final still = MediaQuery.disableAnimationsOf(context);
+    final open = !folded.contains(key) || search.isNotEmpty;
+    return [
+      InkWell(
+        key: ValueKey('section-$key'),
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => setState(() {
+          if (!folded.remove(key)) folded.add(key);
+        }),
+        child: SizedBox(
+          height: 40,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 10, 0),
+            child: Row(
+              children: [
+                Text(
+                  label,
+                  style: text.titleMedium?.copyWith(
+                    fontSize: tone.glass ? 15 : 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${items.length}',
+                  style: text.bodySmall?.copyWith(
+                    fontSize: 13,
+                    color: tone.ink3,
+                  ),
+                ),
+                const Spacer(),
+                AnimatedRotation(
+                  turns: open ? 0 : .5,
+                  duration: still
+                      ? Duration.zero
+                      : const Duration(milliseconds: 180),
+                  child: Icon(Icons.expand_less, size: 16, color: tone.ink3),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      AnimatedSize(
+        duration: still ? Duration.zero : const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        alignment: Alignment.topCenter,
+        child: open
+            ? Column(children: [for (final value in items) row(value, narrow)])
+            : const SizedBox(width: double.infinity),
+      ),
+    ];
   }
 
   Future<void> signOut() async {
@@ -366,70 +544,88 @@ class _HomePageState extends State<HomePage> {
   Widget bottom(bool narrow) {
     final tone = context.tone;
     final email = '${c.me?['user']['email'] ?? ''}';
+    final name = email.split('@').first;
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
+      child: SizedBox(
+        height: 56,
+        child: Row(
+          children: [
+            Expanded(
               child: PopupMenuButton<String>(
                 tooltip: c.tr('账户', 'Account'),
                 position: PopupMenuPosition.over,
                 onSelected: (value) {
-                  if (value == 'settings') {
+                  if (value == 'extensions') {
+                    narrow
+                        ? pushPage(
+                            context,
+                            ExtensionsPage(client: c, kind: 'skills'),
+                          )
+                        : showExtensionsDialog(context, c);
+                  } else if (value == 'settings') {
                     pushPage(context, SettingsPage(client: c));
                   } else {
                     signOut();
                   }
                 },
                 itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: 'settings',
-                    child: Row(
-                      children: [
-                        const Icon(Icons.settings_outlined, size: 18),
-                        const SizedBox(width: 12),
-                        Text(c.tr('设置', 'Settings')),
-                      ],
+                  for (final (value, icon, label) in [
+                    (
+                      'extensions',
+                      Icons.extension_outlined,
+                      c.tr('Skills 与插件', 'Skills & plugins'),
                     ),
-                  ),
-                  const PopupMenuDivider(),
-                  PopupMenuItem(
-                    value: 'logout',
-                    child: Row(
-                      children: [
-                        const Icon(Icons.logout, size: 18),
-                        const SizedBox(width: 12),
-                        Text(c.tr('退出账号', 'Sign out')),
-                      ],
+                    (
+                      'settings',
+                      Icons.settings_outlined,
+                      c.tr('设置', 'Settings'),
                     ),
-                  ),
+                    ('logout', Icons.logout, c.tr('退出账号', 'Sign out')),
+                  ]) ...[
+                    if (value == 'logout') const PopupMenuDivider(),
+                    PopupMenuItem(
+                      value: value,
+                      child: Row(
+                        children: [
+                          Icon(icon, size: 18),
+                          const SizedBox(width: 12),
+                          Text(label),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
                 child: Padding(
-                  padding: const EdgeInsets.all(4),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 24,
-                        height: 24,
+                        width: 32,
+                        height: 32,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: tone.raised,
+                          color: tone.ink,
                         ),
                         child: Text(
-                          email.isEmpty ? '' : email[0].toUpperCase(),
-                          style: Theme.of(context).textTheme.labelMedium,
+                          name.isEmpty
+                              ? ''
+                              : name.characters.first.toUpperCase(),
+                          style: TextStyle(
+                            color: tone.base,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Flexible(
+                      const SizedBox(width: 12),
+                      Expanded(
                         child: Text(
-                          email.split('@').first,
+                          name,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleMedium,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontSize: 14),
                         ),
                       ),
                     ],
@@ -437,15 +633,14 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-          ),
-          IconAction(
-            tooltip: c.tr('Skills 与插件', 'Skills & plugins'),
-            icon: Icons.grid_view,
-            onPressed: () => narrow
-                ? pushPage(context, ExtensionsPage(client: c, kind: 'skills'))
-                : showExtensionsDialog(context, c),
-          ),
-        ],
+            IconAction(
+              tooltip: c.tr('设置', 'Settings'),
+              icon: Icons.settings_outlined,
+              onPressed: () => pushPage(context, SettingsPage(client: c)),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
       ),
     );
   }
@@ -498,8 +693,18 @@ class _HomePageState extends State<HomePage> {
                 ),
               )
             : ListView(
-                padding: EdgeInsets.only(bottom: tone.glass ? 84 : 8),
-                children: [for (final value in shown) row(value, narrow)],
+                padding: EdgeInsets.fromLTRB(8, 0, 8, tone.glass ? 92 : 8),
+                children: [
+                  ...section('groups', c.tr('群聊', 'Groups'), [
+                    for (final x in shown)
+                      if (x['kind'] == 'group') x,
+                  ], narrow),
+                  const SizedBox(height: 16),
+                  ...section('bots', 'Bot', [
+                    for (final x in shown)
+                      if (x['kind'] == 'dm') x,
+                  ], narrow),
+                ],
               );
         final list = Column(
           children: [
@@ -583,7 +788,7 @@ class _HomePageState extends State<HomePage> {
                   : Row(
                       children: [
                         SizedBox(
-                          width: 248,
+                          width: (constraints.maxWidth * .34).clamp(272, 500),
                           child: Material(color: tone.sidebar, child: list),
                         ),
                         const VerticalDivider(width: 1),
@@ -617,28 +822,24 @@ class _HomePageState extends State<HomePage> {
                                   ],
                                 ),
                         ),
-                        if (panel != null) ...[
-                          const VerticalDivider(width: 1),
-                          SizedBox(
-                            width: 320,
-                            child: BotDetails(
-                              key: ValueKey(panel['botId']),
-                              client: c,
-                              bot: panel,
-                              onClose: () => setState(() => details = null),
-                            ),
-                          ),
-                        ],
-                        if (selected != null) ...[
-                          const VerticalDivider(width: 1),
-                          SizedBox(
-                            width: (constraints.maxWidth * .36).clamp(
-                              350.0,
-                              560.0,
-                            ),
-                            child: filePreview(true),
-                          ),
-                        ],
+                        SidePanel(
+                          width: selected == null
+                              ? 340
+                              : (constraints.maxWidth * .36).clamp(
+                                  350.0,
+                                  560.0,
+                                ),
+                          child: selected != null
+                              ? filePreview(true)
+                              : panel == null
+                              ? null
+                              : BotDetails(
+                                  key: ValueKey(panel['botId']),
+                                  client: c,
+                                  bot: panel,
+                                  onClose: () => setState(() => details = null),
+                                ),
+                        ),
                       ],
                     ),
             ),

@@ -63,12 +63,15 @@ void main() {
         ),
       );
       await tester.pump(const Duration(milliseconds: 600));
-      final id = client.node.conversations.first['conversationId'] as String;
-      await tap(find.byKey(ValueKey('conversation-$id')));
-      await tap(find.byTooltip('详情'));
-      await tap(find.text('记忆').first);
-      await until(() => find.text('USER.md').evaluate().isNotEmpty);
-      await tap(find.text('USER.md'));
+      // What Bots know about you is account-wide, so it lives in app settings.
+      Future<void> openAboutYou() async {
+        await tap(find.byTooltip('设置').first);
+        final row = find.byKey(const ValueKey('settings-user-memory'));
+        await until(() => row.evaluate().isNotEmpty);
+        await tap(row);
+      }
+
+      await openAboutYou();
       final editor = find.byKey(const ValueKey('shared-user-memory-editor'));
       await until(() => editor.evaluate().isNotEmpty);
       expect(
@@ -90,16 +93,8 @@ void main() {
       await until(() => find.text('记忆已保存').evaluate().isNotEmpty);
       await tester.pageBack();
       await until(() => find.byType(SharedUserMemoryPage).evaluate().isEmpty);
-      // Wide windows show details as a side panel beside the chat.
-      final closePanel = find.byTooltip('关闭');
-      if (closePanel.evaluate().isNotEmpty) {
-        await tester.tap(closePanel);
-        await tester.pump(const Duration(milliseconds: 300));
-      } else {
-        await tester.pageBack();
-        await tester.pump(const Duration(milliseconds: 400));
-        await tester.pageBack();
-      }
+      await tester.pageBack();
+      await tester.pump(const Duration(milliseconds: 400));
       await until(() => find.byType(HomePage).evaluate().isNotEmpty);
       final second = objects(client.me?['nodes'])
           .firstWhere((n) => n['name'] == 'Computer B');
@@ -112,14 +107,8 @@ void main() {
             .firstWhere((d) => d['name'] == 'USER.md')['content'],
         document,
       );
-      final secondId =
-          client.node.conversations.first['conversationId'] as String;
       await tester.pump(const Duration(milliseconds: 500));
-      await tap(find.byKey(ValueKey('conversation-$secondId')));
-      await tap(find.byTooltip('详情'));
-      await tap(find.text('记忆').first);
-      await until(() => find.text('USER.md').evaluate().isNotEmpty);
-      await tap(find.text('USER.md'));
+      await openAboutYou();
       await until(() => find.text('保存').evaluate().isNotEmpty);
       await tester.enterText(editor, '$document\n§\nDraft stays on refresh.');
       await tap(find.byTooltip('刷新'));

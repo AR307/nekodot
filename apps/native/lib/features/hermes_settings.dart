@@ -3,12 +3,68 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
+import '../data/hermes_zh.dart';
 import '../ui/design.dart';
 
+/// The kinds a Bot's own settings fall into, in page order; Node assigns each
+/// Hermes setting its kind. Settings about the installation are app-wide.
+const botSettingGroups = [
+  'model',
+  'tools',
+  'memory',
+  'security',
+  'voice',
+  'run',
+  'other',
+];
+const sharedSettingGroups = [
+  'services',
+  'channels',
+  'credentials',
+  'network',
+  'interface',
+  'general',
+];
+
+String settingGroupName(NekodotClient c, String group) => switch (group) {
+  'model' => c.tr('模型', 'Model'),
+  'tools' => c.tr('能力', 'Capabilities'),
+  'memory' => c.tr('记忆与学习', 'Memory & learning'),
+  'security' => c.tr('安全与隐私', 'Security & privacy'),
+  'voice' => c.tr('语音', 'Voice'),
+  'run' => c.tr('运行', 'Running'),
+  'services' => c.tr('模型服务', 'Model services'),
+  'channels' => c.tr('消息平台', 'Messaging platforms'),
+  'credentials' => c.tr('凭据管理', 'Credential managers'),
+  'network' => c.tr('网络与代理', 'Network & proxy'),
+  'interface' => c.tr('Hermes 界面', 'Hermes interface'),
+  'general' => c.tr('通用', 'General'),
+  _ => c.tr('其他', 'Other'),
+};
+
+/// A setting's name and note in the app's language. Hermes writes only the key
+/// and an English note; a key newer than [hermesSettingZh] shows as Hermes wrote it.
+(String, String) settingText(NekodotClient c, Json field) {
+  final key = '${field['key']}';
+  return (c.zh ? hermesSettingZh[key] : null) ??
+      (key, '${field['description']}');
+}
+
+/// Hermes's own settings for one Bot, or with no Bot the ones every Bot on
+/// this computer shares. With no [group] it shows the kinds, each with the
+/// product's own controls for that kind ([extras]) and a way into the rest.
 class HermesSettings extends StatefulWidget {
   final NekodotClient client;
-  final String botId;
-  const HermesSettings({super.key, required this.client, required this.botId});
+  final String? botId;
+  final String? group;
+  final Map<String, List<Widget>> extras;
+  const HermesSettings({
+    super.key,
+    required this.client,
+    this.botId,
+    this.group,
+    this.extras = const {},
+  });
 
   @override
   State<HermesSettings> createState() => _HermesSettingsState();
@@ -17,6 +73,8 @@ class HermesSettings extends StatefulWidget {
 class _HermesSettingsState extends State<HermesSettings> {
   final search = TextEditingController();
   String query = '';
+  NekodotClient get c => widget.client;
+  bool get shared => widget.botId == null;
 
   @override
   void dispose() {
@@ -24,40 +82,46 @@ class _HermesSettingsState extends State<HermesSettings> {
     super.dispose();
   }
 
+  Future<Json> load() => shared
+      ? c.rpc('hermes.shared.get')
+      : c.rpc('hermes.settings.get', {'botId': widget.botId});
+
   @override
   Widget build(BuildContext context) => AsyncPane(
-    load: () =>
-        widget.client.rpc('hermes.settings.get', {'botId': widget.botId}),
+    load: load,
     builder: (context, data, reload) {
-      final all = objects(data['fields']);
+      final text = Theme.of(context).textTheme;
+      String groupOf(Json field) => '${field['group'] ?? 'other'}';
+      final all = objects(data['fields'])
+          .where((f) => widget.group == null || groupOf(f) == widget.group)
+          .toList();
       final filtered = all.where((field) {
-        final text = '${field['key']} ${field['description']}'.toLowerCase();
-        return text.contains(query.toLowerCase());
+        final (name, note) = settingText(c, field);
+        final words = '${field['key']} ${field['description']} $name $note'
+            .toLowerCase();
+        return words.contains(query.toLowerCase());
       }).toList();
       final categories = <String>[
         ...strings(data['categories']),
-        ...filtered
+        ...all
             .map((field) => '${field['category']}')
-            .where(
-              (category) => !strings(data['categories']).contains(category),
-            )
+            .where((name) => !strings(data['categories']).contains(name))
             .toSet(),
       ];
+      final overview = widget.group == null && query.isEmpty;
+      final order = shared ? sharedSettingGroups : botSettingGroups;
       return PageList(
         children: [
           TextField(
             controller: search,
             onChanged: (value) => setState(() => query = value),
             decoration: InputDecoration(
-              hintText: widget.client.tr(
-                '搜索 Hermes 设置',
-                'Search Hermes settings',
-              ),
+              hintText: c.tr('搜索设置', 'Search settings'),
               prefixIcon: const Icon(Icons.search),
               suffixIcon: query.isEmpty
                   ? null
                   : IconButton(
-                      tooltip: widget.client.tr('清除搜索', 'Clear search'),
+                      tooltip: c.tr('清除搜索', 'Clear search'),
                       onPressed: () {
                         search.clear();
                         setState(() => query = '');
@@ -66,95 +130,178 @@ class _HermesSettingsState extends State<HermesSettings> {
                     ),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            widget.client.tr(
-              '由 Hermes 提供 · 作用范围：此 Bot 的 profile',
-              'Provided by Hermes · Scope: this Bot profile',
+          if (overview && shared) ...[
+            // Settings for every Bot have no app items beside them: one card
+            // of kinds.
+            const SizedBox(height: 14),
+            PanelGroup(
+              children: [
+                for (final group in order)
+                  if (all.any((field) => groupOf(field) == group))
+                    groupRow(
+                      context,
+                      group,
+                      all,
+                      categories,
+                      title: settingGroupName(c, group),
+                    ),
+              ],
             ),
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          for (final category in categories)
-            if (filtered.any((field) => field['category'] == category)) ...[
-              SectionLabel(_categoryName(widget.client, category)),
-              PanelGroup(
-                children: [
-                  for (final field in filtered.where(
-                    (field) => field['category'] == category,
-                  ))
-                    if (field['type'] == 'boolean' &&
-                        field['sensitive'] != true)
-                      SwitchListTile.adaptive(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                        ),
-                        title: Text('${field['key']}'),
-                        subtitle: Text(
-                          '${field['description']}',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        value: field['value'] == true,
-                        onChanged: field['editable'] == true
-                            ? (value) => _save(field, value, reload)
-                            : null,
-                      )
-                    else
-                      ListTile(
-                        title: Text('${field['key']}'),
-                        subtitle: Text(
-                          [
-                            '${field['description']}',
-                            _valueLabel(widget.client, field),
-                            if (field['editable'] != true &&
-                                field['sensitive'] != true)
-                              widget.client.tr(
-                                '修改请前往 Bot 模型设置',
-                                'Change this in Bot model settings',
-                              ),
-                          ].join('\n'),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: field['sensitive'] == true
-                            ? const Icon(Icons.lock_outline, size: 18)
-                            : field['editable'] == true
-                            ? const Icon(Icons.chevron_right)
-                            : null,
-                        onTap: field['editable'] != true
-                            ? null
-                            : () => _edit(field, reload),
-                      ),
-                ],
-              ),
-            ],
-          if (filtered.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Center(
-                child: Text(
-                  widget.client.tr('没有匹配的设置', 'No matching settings'),
-                  style: Theme.of(context).textTheme.bodySmall,
+          ] else if (overview) ...[
+            for (final group in order)
+              if ((widget.extras[group] ?? const []).isNotEmpty ||
+                  all.any((field) => groupOf(field) == group)) ...[
+                SectionLabel(settingGroupName(c, group)),
+                PanelGroup(
+                  children: [
+                    ...?widget.extras[group],
+                    if (all.any((field) => groupOf(field) == group))
+                      groupRow(context, group, all, categories),
+                  ],
+                ),
+              ],
+          ] else ...[
+            for (final category in categories)
+              if (filtered.any((field) => field['category'] == category)) ...[
+                SectionLabel(_categoryName(c, category)),
+                PanelGroup(
+                  children: [
+                    for (final field in filtered.where(
+                      (field) => field['category'] == category,
+                    ))
+                      fieldTile(field, reload),
+                  ],
+                ),
+              ],
+            if (filtered.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: Text(
+                    c.tr('没有匹配的设置', 'No matching settings'),
+                    style: text.bodySmall,
+                  ),
                 ),
               ),
-            ),
+          ],
         ],
       );
     },
   );
 
+  /// The way into one kind: what it covers, and how many settings it holds.
+  Widget groupRow(
+    BuildContext context,
+    String group,
+    List<Json> all,
+    List<String> categories, {
+    String? title,
+  }) {
+    final fields = all.where((f) => '${f['group'] ?? 'other'}' == group);
+    final names = [
+      for (final category in categories)
+        if (fields.any((field) => field['category'] == category))
+          _categoryName(c, category),
+    ];
+    return ListTile(
+      key: ValueKey('settings-group-$group'),
+      title: Text(title ?? c.tr('Hermes 设置', 'Hermes settings')),
+      subtitle: Text(
+        names.join(c.tr('、', ', ')),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${fields.length}',
+            style: Theme.of(context).textTheme.labelMedium,
+          ),
+          const SizedBox(width: 4),
+          const Icon(Icons.chevron_right),
+        ],
+      ),
+      onTap: () => pushPage(
+        context,
+        AppPage(
+          title: settingGroupName(c, group),
+          body: HermesSettings(client: c, botId: widget.botId, group: group),
+        ),
+      ),
+    );
+  }
+
+  /// The translated name leads; Hermes's key stays under it, small, so a
+  /// setting can still be matched to Hermes's own documentation.
+  Widget fieldTile(Json field, VoidCallback reload) {
+    final key = '${field['key']}';
+    final (name, note) = settingText(c, field);
+    Widget subtitle(List<String> lines) => Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: lines.join('\n')),
+          if (name != key)
+            TextSpan(
+              text: '\n$key',
+              style: TextStyle(fontSize: 11.5, color: context.tone.ink3),
+            ),
+        ],
+      ),
+      maxLines: lines.length + 2,
+      overflow: TextOverflow.ellipsis,
+    );
+    return field['type'] == 'boolean' && field['sensitive'] != true
+        ? SwitchListTile.adaptive(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+            title: Text(name),
+            subtitle: subtitle([note]),
+            value: field['value'] == true,
+            onChanged: field['editable'] == true
+                ? (value) => _save(field, value, reload)
+                : null,
+          )
+        : ListTile(
+            title: Text(name),
+            subtitle: subtitle([
+              note,
+              _valueLabel(c, field),
+              if (field['editable'] != true && field['sensitive'] != true)
+                c.tr('修改请前往 Bot 模型设置', 'Change this in Bot model settings'),
+            ]),
+            trailing: field['sensitive'] == true
+                ? const Icon(Icons.lock_outline, size: 18)
+                : field['editable'] == true
+                ? const Icon(Icons.chevron_right)
+                : null,
+            onTap: field['editable'] != true
+                ? null
+                : () => _edit(field, reload),
+          );
+  }
+
   Future<void> _save(Json field, Object? value, VoidCallback reload) async {
     try {
-      await widget.client.rpc('hermes.settings.set', {
-        'botId': widget.botId,
-        'key': field['key'],
-        'value': value,
-      });
+      final result = shared
+          ? await c.rpc('hermes.shared.set', {
+              'key': field['key'],
+              'value': value,
+            })
+          : await c.rpc('hermes.settings.set', {
+              'botId': widget.botId,
+              'key': field['key'],
+              'value': value,
+            });
       if (!mounted) return;
       reload();
       showNotice(
         context,
-        widget.client.tr('已保存到 Hermes profile', 'Saved to Hermes profile'),
+        shared
+            ? c.tr(
+                '已应用到这台电脑上的 ${result['profiles']} 个 Hermes profile',
+                'Applied to ${result['profiles']} Hermes profiles on this computer',
+              )
+            : c.tr('已保存到 Hermes profile', 'Saved to Hermes profile'),
       );
     } catch (error) {
       if (mounted) showNotice(context, '$error');
@@ -191,7 +338,7 @@ class _HermesSettingsState extends State<HermesSettings> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, updateDialog) => AlertDialog(
-          title: Text('${field['key']}'),
+          title: Text(settingText(c, field).$1),
           content: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520, maxHeight: 480),
             child: Column(
@@ -226,7 +373,7 @@ class _HermesSettingsState extends State<HermesSettings> {
                           decoration: InputDecoration(
                             helperText: type == 'list' || type == 'object'
                                 ? 'JSON'
-                                : '${field['description']}',
+                                : settingText(c, field).$2,
                           ),
                         ),
                 ),
@@ -247,7 +394,7 @@ class _HermesSettingsState extends State<HermesSettings> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: Text(widget.client.tr('取消', 'Cancel')),
+              child: Text(c.tr('取消', 'Cancel')),
             ),
             FilledButton(
               onPressed: () {
@@ -269,7 +416,7 @@ class _HermesSettingsState extends State<HermesSettings> {
                   updateDialog(() => error = exception.message);
                 }
               },
-              child: Text(widget.client.tr('保存', 'Save')),
+              child: Text(c.tr('保存', 'Save')),
             ),
           ],
         ),
@@ -302,15 +449,53 @@ String _valueLabel(NekodotClient client, Json field) {
 String _categoryName(NekodotClient client, String category) =>
     switch (category) {
       'general' => client.tr('常规', 'General'),
-      'agent' => 'Agent',
+      'agent' => client.tr('智能体', 'Agent'),
       'terminal' => client.tr('终端', 'Terminal'),
       'display' => client.tr('显示', 'Display'),
       'delegation' => client.tr('委派', 'Delegation'),
       'memory' => client.tr('记忆', 'Memory'),
       'compression' => client.tr('上下文压缩', 'Context compression'),
+      'auxiliary' => client.tr('辅助模型', 'Auxiliary models'),
       'security' => client.tr('安全', 'Security'),
       'browser' => client.tr('浏览器', 'Browser'),
-      'voice' || 'tts' || 'stt' => client.tr('语音', 'Voice'),
+      'web' => client.tr('网页', 'Web'),
+      'vision' => client.tr('视觉', 'Vision'),
+      'tools' => client.tr('工具', 'Tools'),
+      'tool_output' => client.tr('工具输出', 'Tool output'),
+      'tool_loop_guardrails' => client.tr('工具循环保护', 'Tool loop guardrails'),
+      'worktrees' => client.tr('工作树', 'Worktrees'),
+      'lsp' => client.tr('代码语言服务', 'Language servers'),
+      'x_search' => client.tr('X 搜索', 'X search'),
+      'moa' => client.tr('多模型协作', 'Mixture of agents'),
+      'loops' => client.tr('循环任务', 'Loops'),
+      'streaming' => client.tr('流式输出', 'Streaming'),
+      'sessions' => client.tr('会话', 'Sessions'),
+      'curator' => client.tr('技能整理', 'Curator'),
+      'bot_desktop' => client.tr('Bot 桌面', 'Bot desktop'),
+      'voice' => client.tr('语音对话', 'Voice chat'),
+      'tts' => client.tr('语音合成', 'Text to speech'),
+      'stt' => client.tr('语音识别', 'Speech to text'),
+      'wake_word' => client.tr('唤醒词', 'Wake word'),
+      'vault' => client.tr('密码库', 'Vault'),
+      'secrets' => client.tr('密钥服务', 'Secret services'),
+      'proxy' => client.tr('代理', 'Proxy'),
+      'openrouter' => 'OpenRouter',
+      'bedrock' => 'Bedrock',
+      'vertex' => 'Vertex',
+      'model_catalog' => client.tr('模型目录', 'Model catalog'),
+      'local_runtime' => client.tr('本地模型', 'Local models'),
+      'gateway' => client.tr('网关', 'Gateway'),
+      'kanban' => client.tr('看板', 'Kanban'),
+      'hosted_rooms' => client.tr('托管房间', 'Hosted rooms'),
+      'webapp' => client.tr('网页应用', 'Web app'),
+      'desktop' => client.tr('桌面应用', 'Desktop app'),
+      'monitoring' => client.tr('监控', 'Monitoring'),
+      'database' => client.tr('数据库', 'Database'),
+      'attachments' => client.tr('附件', 'Attachments'),
       'logging' => client.tr('日志', 'Logging'),
+      'discord' => 'Discord',
+      'slack' => 'Slack',
+      'mattermost' => 'Mattermost',
+      'matrix' => 'Matrix',
       _ => category,
     };

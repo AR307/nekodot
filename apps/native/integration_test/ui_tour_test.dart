@@ -157,7 +157,12 @@ void main() {
           await run(const Duration(milliseconds: 500));
           await tester.tap(find.byTooltip('详情'));
           await shot('$tag-panel');
-          await tester.tap(find.byTooltip('Skills 与插件'));
+          await tester.tap(find.text('设置').last);
+          await shot('$tag-panel-settings');
+          await tester.tap(find.byTooltip('账户'));
+          await run(const Duration(milliseconds: 400));
+          await shot('$tag-account-menu');
+          await tester.tap(find.text('Skills 与插件').last);
           await shot('$tag-dialog');
           navigator.currentState!.pop();
           await run(const Duration(milliseconds: 300));

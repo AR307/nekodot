@@ -83,7 +83,7 @@ async function openConfiguredChat(page: Page, context: BrowserContext) {
   await page.getByRole('button', { name: '发送验证码', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('验证码已发出');
   await page.getByLabel('邮箱验证码', { exact: true }).fill(services.mailbox!.code());
-  await page.getByRole('button', { name: '继续' }).click();
+  await page.getByRole('button', { name: '创建账号', exact: true }).click();
 
   await expect(page.getByRole('heading', { name: '添加电脑' })).toBeVisible();
   await expect(page.locator('.pair-wait')).toContainText(/[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}/);
@@ -404,7 +404,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await expect(page.locator('.tool-card').filter({ hasText: 'terminal' }).last()).toBeVisible({
     timeout: 10000,
   });
-  await page.getByRole('button', { name: /停止/ }).click();
+  await page.locator('.composer').getByRole('button', { name: '停止', exact: true }).click();
   await expect(page.locator('.message-state').filter({ hasText: '已停止' })).toBeVisible({
     timeout: 10000,
   });
@@ -573,7 +573,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await page.getByRole('button', { name: 'Already have an account? Sign in' }).click();
   await page.getByLabel('Email', { exact: true }).fill(userEmail);
   await page.getByLabel('Password', { exact: true }).fill('nekodot-browser-password');
-  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.locator('.team-sidebar')).toBeVisible();
   await expect(page.locator('.node-menu button[role="menuitemradio"]')).toHaveCount(1);
   await expect(page.locator('.bot-row')).toHaveCount(0);
