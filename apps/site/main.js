@@ -139,9 +139,102 @@ function avatar(shape, color, working = false) {
 document.querySelectorAll('[data-avatar]').forEach((node) => {
   node.innerHTML = avatar(node.dataset.avatar, node.dataset.color);
 });
-document.querySelectorAll('.crew > span').forEach((node, index) => {
+
+/* ---------- opening: Bots hop out from behind the window; the name card fills the screen ---------- */
+const intro = document.getElementById('intro');
+const introStage = intro.querySelector('.intro-stage');
+const introWindow = intro.querySelector('.intro-window');
+const introFace = intro.querySelector('.intro-card-face');
+const introBots = [...intro.querySelectorAll('.intro-bots > span')];
+introBots.forEach((node, index) => {
+  node.innerHTML = `<span class="bot-y"><span class="bot-body">${node.innerHTML}</span></span>`;
   node.style.setProperty('--i', index);
 });
+
+// Landing spots are fractions of the window's size, on or just past its edge;
+// each Bot starts hidden behind the window, a little further in. Once the card
+// rises, each settles round the name. All stay inside the stage.
+function placeBots() {
+  const width = introWindow.offsetWidth;
+  const height = introWindow.offsetHeight;
+  const faceWidth = introFace.offsetWidth;
+  const faceHeight = introFace.offsetHeight;
+  intro.style.setProperty('--cw', `${faceWidth}px`);
+  intro.style.setProperty('--ch', `${faceHeight}px`);
+  const roomX = introStage.offsetWidth / 2;
+  const roomY = introStage.offsetHeight / 2;
+  const base = Math.min(112, Math.max(52, width * 0.075));
+  const inside = (value, limit) => Math.max(-limit, Math.min(limit, value));
+  for (const node of introBots) {
+    const [fx, fy, turn, scale] = node.dataset.to.split(',').map(Number);
+    const size = base * scale;
+    const limitX = roomX - size / 2 - 8;
+    const limitY = roomY - size / 2 - 8;
+    const x = inside(fx * width, limitX);
+    const y = inside(fy * height, limitY);
+    // Behind the window: pulled in from the landing spot by more than its size.
+    const reach = Math.hypot(x, y) || 1;
+    const pull = Math.min(1, (size * 1.3) / reach);
+    // Beside the name when there is room; on a narrow screen, a row above it.
+    const roomy = faceWidth / 2 + size * 1.2 < limitX;
+    const side = Math.abs(fy) < 0.3 && roomy;
+    const above = Math.abs(fy) < 0.3 && !roomy;
+    const cx = above
+      ? Math.sign(fx) * faceWidth * 0.24
+      : side
+        ? Math.sign(fx) * (faceWidth / 2 + size * 0.7)
+        : (fx / 0.5) * (faceWidth / 2 - size * 0.2);
+    const cy = above
+      ? -(faceHeight / 2 + size * 1.5)
+      : side
+        ? fy * faceHeight
+        : Math.sign(fy) * (faceHeight / 2 + size * 0.35);
+    const set = (name, value) => node.style.setProperty(name, `${value.toFixed(1)}px`);
+    set('--size', size);
+    set('--x', x);
+    set('--y', y);
+    set('--sx', x * (1 - pull));
+    set('--sy', y * (1 - pull));
+    set('--jump', size * 0.9);
+    set('--cx', inside(cx, limitX));
+    set('--cy', inside(cy, limitY));
+    node.style.setProperty('--r', `${turn}deg`);
+  }
+}
+placeBots();
+window.addEventListener('resize', placeBots, { passive: true });
+// The card's size waits on the web fonts.
+document.fonts?.ready.then(placeBots);
+
+// --p runs from 0 when the stage pins to 1 when it lets go.
+let introFrame = 0;
+function trackIntro() {
+  introFrame = 0;
+  const pinned = document.querySelector('.nav').offsetHeight;
+  const box = intro.getBoundingClientRect();
+  const travel = box.height - introStage.offsetHeight;
+  const progress = travel > 0 ? Math.max(0, Math.min(1, (pinned - box.top) / travel)) : 0;
+  intro.style.setProperty('--p', progress.toFixed(4));
+}
+if (!reduceMotion) {
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (!introFrame) introFrame = requestAnimationFrame(trackIntro);
+    },
+    { passive: true },
+  );
+  trackIntro();
+  window.addEventListener('load', trackIntro);
+  window.addEventListener('resize', trackIntro, { passive: true });
+  // Tabbing into the card brings it fully into view.
+  intro.querySelector('.intro-card').addEventListener('focusin', () => {
+    const travel = intro.offsetHeight - introStage.offsetHeight;
+    const pinned = document.querySelector('.nav').offsetHeight;
+    if (Number(intro.style.getPropertyValue('--p')) < 0.9)
+      window.scrollTo({ top: intro.offsetTop - pinned + travel * 0.92 });
+  });
+}
 
 // Each feature step shows its own picture on narrow screens: a copy of the sticky stage's.
 const stageItems = [...document.querySelectorAll('.stage-item')];
@@ -353,7 +446,7 @@ if (!reduceMotion && window.matchMedia('(pointer: fine)').matches) {
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
-        document.querySelectorAll('.crew .track, .maker-face .track').forEach((track) => {
+        document.querySelectorAll('.intro-bots .track, .maker-face .track').forEach((track) => {
           const box = track.ownerSVGElement.getBoundingClientRect();
           if (box.bottom < 0 || box.top > window.innerHeight) return;
           const dx = event.clientX - (box.left + box.width / 2);

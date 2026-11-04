@@ -955,3 +955,9 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 原来启动后只同步会话列表，消息要打开会话才加载，所以没打开过的会话在列表里没有最新消息。现在 Node 首次同步（sync.snapshot 新增 `latest`）附带每个会话最新一条有文字的消息，客户端单独保存，不预加载整段历史；之后的实时消息照旧更新列表。Windows 与 Android 共用这一逻辑。
 - 真实验收：本机 QA Node 换上新构建（旧包另存为 nekodot-node.cjs.before-latest），Windows 当前源码客户端与 Android 模拟器 NekodotNativePhase3 冷启动后、未打开任何会话前，本机小助手与笔笔两行即显示各自最新消息；两端旅程其余步骤照旧通过。截图：docs/evidence/ui-refresh-windows-home.png、ui-refresh-android-home.png。
 - 新增 Node 用例（跳过工具步骤与空草稿，只取有文字的最新一条）；Node/协议/Relay 62 项、Flutter 25 项辅助测试与 tsc、eslint、analyze 通过。有一轮 Windows 旅程在 Hermes 刚启动时命令面板 90 秒内未加载出命令，重跑正常，未改产品代码。未验：Android 真机、macOS/Linux。只做本地提交，未 push。
+
+## 2026-11-04 官网开场改版
+
+- 首屏改为一段滚动开场：白底上新版 Windows 主界面截图弹出（比原来大，几乎占满一屏），8 个 Bot 依次从截图背后跳出、越过边缘落到截图前面；下滑时截图后退变淡，nekodot 名称卡片浮上来，再放大铺满全屏，Bot 围在名称与下载按钮周围，随后直接接原有的功能讲解。按钮统一为胶囊形。
+- 手机上换成手机主页截图，两侧 Bot 移到名称上方；深色模式跟随系统；减少动态效果时不播放动画，截图与卡片直接上下排列。开场两组截图（desk-group、phone-home，浅色/深色）用 UI 巡览对新界面演示数据重新拍摄，页面下方其余截图仍为旧界面。
+- 在内置浏览器检查 1440×900、755 宽与 375×812 的开场、下滑中段与全屏卡片，浅色与深色，无横向溢出；eslint、prettier 通过。只做本地提交，未部署；正式发布时需按 apps/site/README.md 递增资源版本参数。

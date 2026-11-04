@@ -81,65 +81,76 @@
     </header>
 
     <main>
-      <section class="hero">
-        <div class="container">
-          <h1 data-i18n="heroTitle">把你的 AI 小队，<br />带到自己的电脑上。</h1>
-          <div class="hero-row">
-            <p class="lead" data-i18n="heroLead">
-              一个 Bot
-              一个专长。单独聊，或拉进群里接力。它们跑在你自己的机器上，数据和密钥都在你手里。
-            </p>
-            <div class="downloads" data-downloads>
-              <a
-                class="btn btn-ink"
-                href="/downloads/nekodot-windows-x64.exe"
-                data-platform="windows"
-              >
-                <span data-i18n="downloadWindows">下载 Windows 版</span>
-              </a>
-              <a
-                class="btn btn-line"
-                href="/downloads/nekodot-android-arm64.apk"
-                data-platform="android"
-              >
-                <span data-i18n="downloadAndroid">下载 Android 版</span>
-              </a>
+      <!-- The opening: the app pops up, its Bots hop out from behind it, and
+           scrolling grows the name card to the full screen. -->
+      <section class="intro" id="intro">
+        <div class="intro-stage">
+          <div class="intro-window">
+            <img
+              class="shot only-wide"
+              data-shot="desk-group"
+              src="assets/shots/desk-group-light.webp?v=0.3.1"
+              width="2400"
+              height="1500"
+              alt="nekodot Windows 客户端：两位 Bot 在群里接力整理周报"
+              data-i18n-alt="altHero"
+              fetchpriority="high"
+            />
+            <img
+              class="shot only-narrow"
+              data-shot="phone-home"
+              src="assets/shots/phone-home-light.webp?v=0.3.1"
+              width="780"
+              height="1690"
+              alt="nekodot Android 客户端：Bot 与群聊列表"
+              data-i18n-alt="altPhone"
+            />
+          </div>
+          <div class="intro-bots" aria-hidden="true">
+            <span data-avatar="dot" data-color="#E8603C" data-to="-0.44,-0.5,-12,1"></span>
+            <span data-avatar="ghost" data-color="#19B5C9" data-to="-0.13,-0.53,4,0.78"></span>
+            <span data-avatar="bunny" data-color="#2E8BFF" data-to="0.42,-0.5,10,0.95"></span>
+            <span data-avatar="puppy" data-color="#F2C230" data-to="-0.51,0.06,-6,0.88"></span>
+            <span data-avatar="antenna" data-color="#22C55E" data-to="0.51,-0.02,8,0.92"></span>
+            <span data-avatar="bear" data-color="#B05FD0" data-to="-0.36,0.52,6,0.85"></span>
+            <span data-avatar="flower" data-color="#FF4FA3" data-to="0.06,0.55,-8,0.78"></span>
+            <span data-avatar="mochi" data-color="#2F9E8F" data-to="0.4,0.5,8,0.9"></span>
+          </div>
+          <div class="intro-card">
+            <div class="intro-panel" aria-hidden="true"></div>
+            <div class="intro-card-face">
+              <h1 class="intro-name">
+                <span data-avatar="dot" aria-hidden="true"></span>
+                <span>nekodot</span>
+              </h1>
+              <p class="intro-line" data-i18n="heroTitle">
+                把你的 AI 小队，<br />带到自己的电脑上。
+              </p>
+              <p class="intro-lead" data-i18n="heroLead">
+                一个 Bot
+                一个专长。单独聊，或拉进群里接力。它们跑在你自己的机器上，数据和密钥都在你手里。
+              </p>
+              <div class="downloads" data-downloads>
+                <a
+                  class="btn btn-ink"
+                  href="/downloads/nekodot-windows-x64.exe"
+                  data-platform="windows"
+                >
+                  <span data-i18n="downloadWindows">下载 Windows 版</span>
+                </a>
+                <a
+                  class="btn btn-line"
+                  href="/downloads/nekodot-android-arm64.apk"
+                  data-platform="android"
+                >
+                  <span data-i18n="downloadAndroid">下载 Android 版</span>
+                </a>
+              </div>
             </div>
           </div>
-          <div class="hero-stage">
-            <div class="crew" id="crew" aria-hidden="true">
-              <span data-avatar="dot" data-color="#E8603C"></span>
-              <span data-avatar="bunny" data-color="#2E8BFF"></span>
-              <span data-avatar="puppy" data-color="#F2C230"></span>
-              <span data-avatar="mochi" data-color="#2F9E8F"></span>
-              <span data-avatar="bear" data-color="#B05FD0"></span>
-              <span data-avatar="flower" data-color="#FF4FA3"></span>
-              <span data-avatar="ghost" data-color="#19B5C9"></span>
-              <span data-avatar="antenna" data-color="#22C55E"></span>
-            </div>
-            <div class="window">
-              <img
-                class="shot only-wide"
-                data-shot="desk-group"
-                src="assets/shots/desk-group-light.webp?v=0.3.1"
-                width="2400"
-                height="1500"
-                alt="nekodot Windows 客户端：两位 Bot 在群里接力整理周报"
-                data-i18n-alt="altHero"
-                fetchpriority="high"
-              />
-              <img
-                class="shot only-narrow"
-                data-shot="phone-home"
-                src="assets/shots/phone-home-light.webp?v=0.3.1"
-                width="780"
-                height="1690"
-                alt="nekodot Android 客户端：Bot 与群聊列表"
-                data-i18n-alt="altPhone"
-                loading="lazy"
-              />
-            </div>
-          </div>
+          <span class="intro-hint" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></svg>
+          </span>
         </div>
       </section>
 

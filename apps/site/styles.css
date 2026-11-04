@@ -194,8 +194,8 @@ h3 {
   align-items: center;
   justify-content: center;
   height: 44px;
-  padding-inline: 18px;
-  border-radius: 8px;
+  padding-inline: 20px;
+  border-radius: 999px;
   border: 1px solid transparent;
   font-size: 15px;
   font-weight: 700;
@@ -409,22 +409,8 @@ h3 {
   gap: 2px;
 }
 
-/* hero */
-.hero {
-  padding-top: clamp(36px, 6vw, 72px);
-}
-.hero-row {
-  margin-top: clamp(20px, 2.6vw, 32px);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 20px 48px;
-}
-.lead {
-  font-size: clamp(1.05rem, 1.5vw, 1.25rem);
-  line-height: 1.55;
-}
+/* opening: the app pops up, its Bots hop out from behind it, and scrolling
+   grows the name card into the page itself */
 .downloads {
   display: flex;
   flex-wrap: wrap;
@@ -433,42 +419,238 @@ h3 {
 .downloads[data-primary='android'] [data-platform='android'] {
   order: -1;
 }
-.hero-stage {
+/* Scroll through this track; the stage stays put while it plays. --p runs 0 → 1. */
+.intro {
+  --p: 0;
+  --recede: clamp(0, var(--p) / 0.45, 1);
+  --rise: clamp(0, (var(--p) - 0.18) / 0.34, 1);
+  --fill: clamp(0, (var(--p) - 0.52) / 0.34, 1);
   position: relative;
-  margin-top: clamp(32px, 5vw, 56px);
+  height: 300vh;
+  height: 300svh;
 }
-/* The team sits on the window's top edge, half hidden behind it. */
-.crew {
-  position: relative;
-  z-index: 0;
-  display: flex;
-  justify-content: space-between;
-  padding-inline: clamp(4px, 3vw, 40px);
-  margin-bottom: calc(clamp(38px, 7.4vw, 88px) * -0.24);
+.intro-stage {
+  position: sticky;
+  top: var(--nav);
+  height: calc(100vh - var(--nav));
+  height: calc(100svh - var(--nav));
+  display: grid;
+  place-items: center;
+  overflow: clip;
 }
-.crew > span {
-  width: clamp(38px, 7.4vw, 88px);
-  height: clamp(38px, 7.4vw, 88px);
-  animation: arrive 0.9s var(--ease) both;
-  animation-delay: calc(var(--i) * 45ms);
+.intro-stage > * {
+  grid-area: 1 / 1;
 }
-@keyframes arrive {
+.intro-window {
+  --w: min(1360px, 94vw, (100svh - var(--nav) - 48px) * 1.6);
+  z-index: 2;
+  width: var(--w);
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--bg);
+  box-shadow:
+    0 2px 6px rgb(0 0 0 / 0.06),
+    0 30px 80px -20px rgb(0 0 0 / 0.28);
+  transform: translateY(calc(var(--recede) * -4%)) scale(calc(1 - var(--recede) * 0.14));
+  opacity: calc(1 - var(--recede) * 0.8);
+  filter: blur(calc(var(--recede) * 3px));
+  animation: pop 0.85s cubic-bezier(0.34, 1.4, 0.5, 1) 0.1s backwards;
+}
+@keyframes pop {
   from {
-    transform: translateY(46%);
+    transform: translateY(6%) scale(0.82);
+    opacity: 0;
   }
 }
-.crew .lid {
+/* No z-index here: each Bot stacks against the window and the card itself. */
+.intro-bots {
+  position: relative;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+/* Each Bot waits behind the window, hops up over its edge and lands in front;
+   x and y run on separate curves so the hop arcs. */
+.intro-bots > span {
+  --delay: calc(0.75s + var(--i) * 110ms);
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  top: 0;
+  width: var(--size);
+  height: var(--size);
+  margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
+  /* Round the window first, then round the name as the card rises. */
+  transform: translateX(calc(var(--x) + (var(--cx) - var(--x)) * var(--rise)));
+  animation: hop-x 0.9s cubic-bezier(0.3, 0.6, 0.4, 1) var(--delay) backwards;
+}
+.intro-bots .bot-y {
+  position: absolute;
+  inset: 0;
+  transform: translateY(calc(var(--y) + (var(--cy) - var(--y)) * var(--rise)));
+  animation: hop-y 0.9s linear var(--delay) backwards;
+}
+.intro-bots .bot-body {
+  position: absolute;
+  inset: 0;
+  rotate: var(--r);
+  transform-origin: 50% 100%;
+  animation:
+    land 0.9s linear var(--delay) backwards,
+    drift 4.8s ease-in-out calc(2s + var(--i) * -0.7s) infinite;
+}
+@keyframes hop-x {
+  from {
+    transform: translateX(var(--sx));
+    z-index: 1;
+  }
+  40% {
+    z-index: 1;
+  }
+  41% {
+    z-index: 5;
+  }
+}
+@keyframes hop-y {
+  from {
+    transform: translateY(var(--sy));
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
+  }
+  45% {
+    transform: translateY(calc(var(--y) - var(--jump)));
+    animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+  }
+}
+@keyframes land {
+  from {
+    scale: 0.8;
+    rotate: 0deg;
+  }
+  80% {
+    scale: 1.1 0.86;
+  }
+  90% {
+    scale: 0.96 1.06;
+  }
+}
+@keyframes drift {
+  50% {
+    translate: 0 -7%;
+  }
+}
+.intro-bots .lid {
   animation: blink 7s linear infinite;
-  animation-delay: calc(var(--i) * -0.9s);
+  animation-delay: calc(var(--i, 0) * -0.9s);
 }
-.crew > span:hover .ear {
-  animation: flick 0.45s var(--ease);
+.intro-bots .ear {
+  animation: flick 0.45s var(--ease) calc(var(--delay) + 0.8s) backwards;
 }
-.crew > span:hover .avatar {
-  transform: translateY(-5%);
+/* The name card rises over the receding window, then grows to fill the
+   screen and becomes the page the features continue on. */
+.intro-card {
+  position: relative;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  transform: translateY(calc((1 - var(--rise)) * 34vh)) scale(calc(0.9 + var(--rise) * 0.1));
+  /* Opaque early in the rise, so the faded window never shows through it. */
+  opacity: clamp(0, var(--rise) * 3, 1);
 }
-.crew .avatar {
-  transition: transform 0.3s var(--ease);
+.intro-card > * {
+  grid-area: 1 / 1;
+}
+.intro-panel {
+  width: calc(var(--cw, 0px) + (100% - var(--cw, 0px)) * var(--fill));
+  height: calc(var(--ch, 0px) + (100% - var(--ch, 0px)) * var(--fill));
+  border-radius: calc(28px * (1 - var(--fill)));
+  background: var(--bg);
+  box-shadow:
+    0 2px 8px rgb(0 0 0 / calc(0.06 * (1 - var(--fill)))),
+    0 40px 90px -24px rgb(0 0 0 / calc(0.3 * (1 - var(--fill))));
+}
+.intro-card-face {
+  position: relative;
+  width: min(860px, 88vw);
+  padding: clamp(32px, 5vw, 64px) clamp(24px, 5vw, 64px);
+  text-align: center;
+  pointer-events: auto;
+}
+.intro-name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.22em;
+  font-size: clamp(3rem, 9vw, 7rem);
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+.intro-name [data-avatar] {
+  width: 0.78em;
+  height: 0.78em;
+  color: var(--ink);
+}
+.intro-line {
+  margin-top: clamp(16px, 2.4vw, 26px);
+  font-size: clamp(1.25rem, 2.4vw, 1.9rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+.intro-lead {
+  margin: 14px auto 0;
+  max-width: 30em;
+  color: var(--ink2);
+  font-size: clamp(0.98rem, 1.3vw, 1.08rem);
+}
+.intro-card .downloads {
+  justify-content: center;
+  margin-top: clamp(24px, 3.4vw, 36px);
+}
+.intro-hint {
+  z-index: 6;
+  align-self: end;
+  margin-bottom: 14px;
+  width: 28px;
+  height: 28px;
+  color: var(--ink3);
+  opacity: calc(1 - var(--p) * 12);
+  animation: hint 1.8s ease-in-out 2.4s infinite;
+}
+.intro-hint svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@keyframes hint {
+  50% {
+    translate: 0 6px;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .intro-window {
+    box-shadow:
+      0 0 0 1px var(--line),
+      0 40px 90px -24px rgb(0 0 0 / 0.9);
+  }
+  :root:not([data-theme='light']) .intro-panel {
+    box-shadow: 0 0 0 1px rgb(255 255 255 / calc(0.16 * (1 - var(--fill))));
+  }
+}
+:root[data-theme='dark'] .intro-window {
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 40px 90px -24px rgb(0 0 0 / 0.9);
+}
+:root[data-theme='dark'] .intro-panel {
+  box-shadow: 0 0 0 1px rgb(255 255 255 / calc(0.16 * (1 - var(--fill))));
 }
 .window {
   position: relative;
@@ -1355,8 +1537,9 @@ h3 {
   .only-narrow {
     display: block;
   }
-  .hero-stage .window {
-    height: 520px;
+  .intro-window {
+    --w: min(360px, 80vw, (100svh - var(--nav) - 40px) * 0.46);
+    border-radius: 26px;
   }
   .maker-shapes button {
     width: 40px;
@@ -1465,5 +1648,31 @@ h3 {
   *::after {
     animation: none !important;
     transition: none !important;
+  }
+  /* No choreography: the window, then the card, as plain blocks. */
+  .intro {
+    height: auto;
+  }
+  .intro-stage {
+    position: static;
+    height: auto;
+    display: block;
+    padding-block: 32px 64px;
+  }
+  .intro-window {
+    margin-inline: auto;
+    transform: none;
+    opacity: 1;
+    filter: none;
+  }
+  .intro-bots,
+  .intro-hint,
+  .intro-panel {
+    display: none;
+  }
+  .intro-card {
+    margin: 40px auto 0;
+    transform: none;
+    opacity: 1;
   }
 }
