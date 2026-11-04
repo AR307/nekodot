@@ -19,26 +19,6 @@ function savePreference(key, value) {
 }
 
 /* ---------- avatars: the same 40-unit geometry as the client's painter ---------- */
-const shapes = ['dot', 'bear', 'bunny', 'puppy', 'mochi', 'flower', 'ghost', 'antenna'];
-const colors = [
-  '#E8603C',
-  '#FF3B47',
-  '#FF4FA3',
-  '#B05FD0',
-  '#8B75AF',
-  '#5B7CE6',
-  '#2E8BFF',
-  '#19B5C9',
-  '#2F9E8F',
-  '#22C55E',
-  '#77A979',
-  '#F2C230',
-  '#D9932B',
-  '#A9683A',
-  '#8C8376',
-  '#5A5A60',
-];
-
 function luminance(hex) {
   const channel = (start) => {
     const value = parseInt(hex.slice(start, start + 2), 16) / 255;
@@ -236,104 +216,103 @@ if (!reduceMotion) {
   });
 }
 
-// Each feature step shows its own picture on narrow screens: a copy of the sticky stage's.
-const stageItems = [...document.querySelectorAll('.stage-item')];
-document.querySelectorAll('.step').forEach((step, index) => {
-  step.querySelector('.step-media').appendChild(stageItems[index].cloneNode(true));
-});
-
 /* ---------- language ---------- */
 const en = {
-  navDemo: 'Demo',
-  navFeatures: 'Features',
-  navHow: 'How it works',
+  navTeam: 'Groups',
+  navLocal: 'On your PC',
+  navMore: 'More',
   navStart: 'Get started',
   themeToggle: 'Toggle theme',
-  heroTitle: 'Your AI team,<br />on your own computer.',
+  heroTitle: 'A crew of bots that do the work,<br />on your own computer.',
   heroLead:
-    'One bot, one specialty. Chat one-on-one, or bring them into a group and let them hand work to each other. They run on your own machine, so your data and keys stay with you.',
+    'Research, weekly reports, bookkeeping, web forms: give each job to its own bot. They work with the files and the browser on that computer, and you hand out work, follow along and sign off from your desktop or phone.',
   downloadWindows: 'Download for Windows',
   downloadAndroid: 'Download for Android',
-  altHero: 'nekodot on Windows: two bots relaying a weekly report in a group',
-  demoTitle: 'Not just answers,<br />but what it is doing.',
-  demoTabs: 'Demo scenes',
-  botYan: 'Scout',
-  botPao: 'Errand',
-  groupName: 'Weekly report',
-  sceneDm: 'Tools and approval',
-  sceneGroup: 'Bot relay',
-  sceneAsk: 'Stops to ask you',
-  replay: 'Replay',
-  composer: 'Message',
-  duoWindows: 'Pure black and white. Only your bots have color.',
-  duoAndroid: 'Frosted glass and a floating dock, for one hand.',
-  altDm: 'nekodot on Windows: tool steps and an approval card',
+  altHero: 'nekodot on Windows: two bots handing a weekly report to each other in a group',
   altPhone: 'nekodot on Android: bots and groups',
-  teamTitle: '8 faces,<br />16 colors.',
+  composer: 'Message',
+  teamTitle: 'A few bots in one group,<br />passing the job along',
   teamBody:
-    'Give it a name and one line about what it does. Every bot is its own Hermes profile, and it says hello once created.',
-  makerFace: 'Toggle the working animation',
-  makerShapes: 'Faces',
-  makerColors: 'Colors',
-  f1Title: 'Every bot, its own model',
-  f1Body:
-    'Sign in with an authorized account, or add a custom API. Sources sit side by side, and each bot picks its own source and model.',
-  altSources: 'Model sources: authorized services and custom APIs',
-  f2Title: 'What it remembers, you can edit',
-  f2Body:
-    'Who it is, what it has learned and what it knows about you are native Hermes memory, edited in place. What it knows about you is shared across your account’s computers.',
-  altMemory: 'Editing a bot’s native memory',
-  f3Title: 'One catalog, for any bot',
-  f3Body:
-    'Browse Hermes skills and plugins and read the docs before installing. Toggle and configure per bot, or import from Git, a folder or a ZIP.',
-  altSkills: 'The Skills and plugins catalog',
-  f4Title: 'Open its screen and take over',
-  f4Body:
-    'On Linux servers each bot has its own browser and desktop. Watch by default; for captchas or sign-ins, take control, then hand it back.',
-  smTitle: 'Errand · Screen',
+    'Put two to six bots in a group, each with its own job. Ask Quill for the weekly report; when the draft is done it mentions @scout to check the numbers, and you just read the result. Want something changed halfway? Say so in the group.',
+  teamP1: 'Mention a bot to hand it the work; bots mention each other too',
+  teamP2: 'Only one bot works in a group at a time, so they never collide',
+  teamP3: 'At most 6 hand-offs in a row, then it stops and waits for you',
+  localTitle: 'Installed on your own computer',
+  localBody:
+    'When you add a computer on Windows, choose “This computer” and the app sets up everything it needs. No server to rent. Bots read and write the files on that computer directly.',
+  w1Title: 'Your computer',
+  w1Body: 'Chats, bot settings, delivered files and API keys all live here',
+  w2Title: 'nekodot service',
+  w2Body: 'Handles accounts and passes messages along; chats are not stored',
+  w3Title: 'The app',
+  w3Body: 'Remembers only that you are signed in, and preferences like language',
+  localFine:
+    'Model requests go to the model provider you choose, so nekodot does not run offline and has no end-to-end encryption. To keep bots online around the clock, install them on a Linux server instead.',
+  controlTitle: 'Before it acts,<br />it asks',
+  controlBody:
+    'Before it runs a command or changes a file, it stops and lets you choose: allow once, allow for this session, always allow, or deny. Every tool it used, and how long it took, is listed in the chat.',
+  controlP1: 'Thought of something halfway? Send it, and it carries on with your note',
+  controlP2: 'Going the wrong way? Press stop; in a group, stop them all at once',
+  controlP3: 'When it is unsure, it stops to ask you',
+  phoneTitle: 'Away from your desk,<br />keep an eye on it from your phone',
+  phoneBody:
+    'The Android app connects to the same computer, so chats and progress match on both. When a bot replies, has a question or needs your OK, your phone gets a notification; open it to approve or deny.',
+  botYan: 'Scout',
+  waiting: 'Needs your OK',
+  noticeBody: 'wants to run pip install arxiv on your computer',
+  moreTitle: 'It also does these',
   smControl: 'You are in control',
   smReturn: 'Hand back',
   smLogin: 'Sign in',
-  smCaptcha: 'captcha',
-  smCaption: 'Illustration · install the node with --with-computer',
-  moreTitle: 'And also.',
-  m1Title: 'Add as you go',
-  m1Body: 'Messages sent mid-run join the current turn, so finished work is kept.',
-  m2Title: 'Stop anytime',
-  m2Body: 'One button stops the run; in a group it clears the relay too.',
-  m3Title: 'Group relay',
-  m3Body: '2–6 bots. @ someone to hand off, at most 6 turns per message.',
-  m4Title: 'Pick up where you left',
-  m4Body: 'Lose the network or switch devices; history and progress sync back.',
-  m5Title: 'Library',
-  m5Body: 'Delivered files are kept as copies: preview, download, jump back to the chat.',
-  m6Title: 'Many computers',
-  m6Body: 'One account, several computers, switch anytime.',
-  m7Title: 'Node self-update',
-  m7Body: 'Verifies the signature, switches when idle, rolls back if startup fails.',
-  m8Title: '中文 / English',
-  m8Body: 'Light and dark follow your system, and so does reduced motion.',
-  howTitle: 'Your computer only connects out.<br />Not a single port to open.',
-  n1Body: 'Keeps only sign-in and preferences',
-  n2Body: 'Accounts, pairing and routing; no chat stored',
-  n3Body: 'Your machine: chats, bot settings, delivered files',
-  n4Body: 'One profile per bot: sessions, memory, skills',
-  fact1: 'Full keys live only on your node; the app shows the last four characters.',
-  fact2: 'Hermes stays unmodified, integrated only through its official CLI and API.',
-  fact3:
-    'Model requests go to the provider you choose. nekodot is not offline and not end-to-end encrypted.',
-  startTitle: 'Three steps<br />to your first chat.',
+  c1Title: 'Open its screen and step in',
+  c1Body:
+    'When Errand hits a captcha on a website, it calls you. Open its screen, press “Take over”, fill it in and hand it back.',
+  c1Fine:
+    'Screens are for bots on a Linux server. On Windows you can let one bot control this computer instead; it is off by default.',
+  docTitle: 'Quill · About you',
+  doc1: 'Wants the conclusion first, details after',
+  doc2: 'Weekly reports go to the ops group chat',
+  doc3: 'Numbers to one decimal place',
+  doc4: 'No meetings on Friday afternoons',
+  c2Title: 'What it remembers, you can edit',
+  c2Body:
+    'What it knows about you and what it has learned on the job are plain text you can open and change. What it knows about you syncs to the bots on all your computers.',
+  sk1: 'Search papers by keyword',
+  sk2: 'Read and write sheets, docs and calendars',
+  sk3: 'Split, merge and extract PDFs',
+  skInstalled: 'Installed',
+  skInstall: 'Install',
+  skFor: 'Installed for Scout',
+  c3Title: 'Add a skill, get a new ability',
+  c3Body:
+    'Pick from the Hermes catalog of skills and plugins, read what each does first, then install it. You decide which bot gets it.',
+  secretWhy: 'Quill needs it to chart the weekly report',
+  secretSave: 'Keep for Quill to reuse',
+  secretSend: 'Deliver encrypted',
+  secretDone: 'Delivered, for Quill only',
+  c4Title: 'Passwords go in an encrypted box',
+  c4Body:
+    'When a bot needs an API key or a password, it shows an encrypted input in the chat. Only the bot that asked can use it, and the chat never shows the value.',
+  also: 'Also: scheduled tasks, a library of delivered files, several computers on one account, self-updating nodes, Chinese and English, light and dark.',
+  openTitle: 'Open source,<br />built on <span class="nowrap">Hermes Agent</span>',
+  openBody:
+    'nekodot is open source under the MIT license. Every bot is a native Hermes Agent: memory, skills and tool calls are all handled by Hermes. nekodot does not modify Hermes; it adds the app, the connection and the teamwork between bots.',
+  openP1:
+    'Bring your own model: sign in with an account or add a custom API, and give each bot a different one',
+  openP2: 'Hermes’s 900-plus settings come with plain names and notes, sorted by what they are for',
+  openP3: 'Want to run the whole service yourself? The steps are on GitHub',
+  startTitle: 'Three steps to start',
   downloadNote:
-    '0.3.1 official release. Windows 10 / 11 x64; the installer is not publisher-signed. Android 10+ arm64; the APK is signed. Windows local runtime and Android emulator journeys have been verified; see release notes for physical-device and platform limitations.',
-  s1Title: 'Install the app, sign up by email',
-  s1Body: 'The app includes its interface and connects over HTTPS.',
-  s2Title: 'Pair your server',
+    'Release 0.3.1. Windows 10 / 11 x64; the installer is not yet publisher-signed. Android 10 and later, arm64; the APK is signed. No macOS or Linux desktop installers yet.',
+  s1Title: 'Download the app and sign up with email',
+  s1Body: 'Enter the code we send you, and you are in.',
+  s2Title: 'Pick a computer for your bots',
   s2Body:
-    'Run the one-line command from the app on a Linux x64 server or WSL2. Signing up grants no access to anyone else’s node.',
-  s3Title: 'Add a model, create a bot',
-  s3Body: 'Sign in or add a custom API, then give it a name and one line about what it does.',
+    'On Windows, choose “This computer” and the app sets it up. To keep them online all day, run the one-line command the app gives you on a Linux server.',
+  s3Title: 'Add a model and create your first bot',
+  s3Body: 'Give it a name and one line about its job, and it says hello.',
   footDeploy: 'Self-hosting',
-  footDev: 'Development guide',
+  footDev: 'Development',
   footFine:
     'MIT License. Interface fonts Nunito and JetBrains Mono use the SIL Open Font License 1.1. Screenshots use demo data.',
 };
@@ -351,7 +330,7 @@ document.querySelectorAll('[data-i18n-aria]').forEach((node) => {
 });
 const titles = {
   zh: document.title,
-  en: 'nekodot · Your AI team, on your own computer',
+  en: 'nekodot · A crew of bots that do the work, on your own computer',
 };
 
 let lang =
@@ -372,13 +351,17 @@ function applyLanguage() {
     node.setAttribute('aria-label', t(node.dataset.i18nAria));
   });
   document.getElementById('lang-toggle').textContent = lang === 'zh' ? 'EN' : '中文';
+  // Typed lines reveal one character per step.
+  document.querySelectorAll('.type').forEach((node) => {
+    node.style.setProperty('--n', [...node.textContent.trim()].length);
+  });
 }
 
 document.getElementById('lang-toggle').addEventListener('click', () => {
   lang = lang === 'zh' ? 'en' : 'zh';
   savePreference('nekodot-site-lang', lang);
   applyLanguage();
-  demo.restart();
+  replays.forEach((chat) => chat.restart());
 });
 
 /* ---------- theme ---------- */
@@ -446,7 +429,7 @@ if (!reduceMotion && window.matchMedia('(pointer: fine)').matches) {
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
-        document.querySelectorAll('.intro-bots .track, .maker-face .track').forEach((track) => {
+        document.querySelectorAll('.intro-bots .track').forEach((track) => {
           const box = track.ownerSVGElement.getBoundingClientRect();
           if (box.bottom < 0 || box.top > window.innerHeight) return;
           const dx = event.clientX - (box.left + box.width / 2);
@@ -464,76 +447,7 @@ if (!reduceMotion && window.matchMedia('(pointer: fine)').matches) {
   );
 }
 
-/* ---------- avatar maker ---------- */
-(() => {
-  const face = document.getElementById('maker-face');
-  const shapeRow = document.getElementById('maker-shapes');
-  const colorRow = document.getElementById('maker-colors');
-  let shape = 'dot';
-  let color = '#E8603C';
-  let working = false;
-
-  function render() {
-    face.innerHTML = avatar(shape, color, working);
-    face.setAttribute('aria-pressed', String(working));
-    shapeRow.querySelectorAll('button').forEach((button) => {
-      button.innerHTML = avatar(button.dataset.value, color);
-      button.setAttribute('aria-pressed', String(button.dataset.value === shape));
-    });
-    colorRow.querySelectorAll('button').forEach((button) => {
-      button.setAttribute('aria-pressed', String(button.dataset.value === color));
-    });
-  }
-  for (const value of shapes) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.dataset.value = value;
-    button.setAttribute('aria-label', value);
-    button.addEventListener('click', () => {
-      shape = value;
-      render();
-    });
-    shapeRow.appendChild(button);
-  }
-  for (const value of colors) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.dataset.value = value;
-    button.style.setProperty('--c', value);
-    button.setAttribute('aria-label', value);
-    button.addEventListener('click', () => {
-      color = value;
-      render();
-    });
-    colorRow.appendChild(button);
-  }
-  face.addEventListener('click', () => {
-    working = !working;
-    render();
-  });
-  render();
-})();
-
-/* ---------- feature stage: the step in the middle of the screen owns the window ---------- */
-(() => {
-  const steps = [...document.querySelectorAll('.step')];
-  const items = [...document.querySelectorAll('#stage .stage-item')];
-  const activate = (index) => {
-    steps.forEach((step, i) => step.classList.toggle('is-active', i === index));
-    items.forEach((item, i) => item.classList.toggle('is-active', i === index));
-  };
-  const observer = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries)
-        if (entry.isIntersecting) activate(Number(entry.target.dataset.step));
-    },
-    { rootMargin: '-48% 0px -48% 0px' },
-  );
-  steps.forEach((step) => observer.observe(step));
-  activate(0);
-})();
-
-/* ---------- live chat replay ---------- */
+/* ---------- live chat replays: small working copies of the client's chat ---------- */
 const bots = {
   yan: {
     shape: 'bunny',
@@ -556,6 +470,13 @@ const bots = {
     en: 'Errand',
     handles: { zh: 'paotui', en: 'errand' },
   },
+  zhang: {
+    shape: 'dot',
+    color: '#D9932B',
+    zh: '记账',
+    en: 'Ledger',
+    handles: { zh: 'jizhang', en: 'ledger' },
+  },
 };
 const face = (bot, working = false) => avatar(bot.shape, bot.color, working);
 
@@ -575,6 +496,13 @@ const copy = {
     groupTool: '打开运营看板',
     groupCheck:
       '核对完了：12% 来自运营看板，口径是周活，不是日活。建议改成「周活跃用户增长 12%」。',
+    localAsk: '把 D:\\报销\\10月 里的发票汇总一下，按类别算总数。',
+    localNote: '先看看文件夹里有什么。',
+    localFolder: 'D:\\报销\\10月',
+    localRead: 'D:\\报销\\10月\\发票清单.csv',
+    localWrite: 'D:\\报销\\10月汇总.csv',
+    localAnswer:
+      '汇总好了，一共 14 张，合计 ¥2,386：\n交通 ¥612，餐饮 ¥1,174，办公用品 ¥600。\n表格存在 D:\\报销\\10月汇总.csv。',
     askAsk: '帮我把下个月去成都的机票比个价。',
     askTool: '打开航班搜索',
     askQuestion: '你想哪天出发？',
@@ -603,6 +531,13 @@ const copy = {
     groupTool: 'Opening the ops dashboard',
     groupCheck:
       'Checked: the 12% comes from the dashboard and counts weekly, not daily, actives. Suggest “weekly active users grew 12%”.',
+    localAsk: 'Total up the receipts in D:\\Expenses\\October by category.',
+    localNote: 'Let me see what is in the folder first.',
+    localFolder: 'D:\\Expenses\\October',
+    localRead: 'D:\\Expenses\\October\\receipts.csv',
+    localWrite: 'D:\\Expenses\\October-summary.csv',
+    localAnswer:
+      'Done: 14 receipts, $2,386 in total.\nTransport $612, meals $1,174, office supplies $600.\nSaved to D:\\Expenses\\October-summary.csv.',
     askAsk: 'Compare flights to Chengdu for next month.',
     askTool: 'Opening flight search',
     askQuestion: 'Which day do you want to leave?',
@@ -618,17 +553,18 @@ const copy = {
   },
 };
 
-const demo = (() => {
-  const body = document.getElementById('dw-body');
-  const avatarSlot = document.getElementById('dw-avatar');
-  const name = document.getElementById('dw-name');
-  const status = document.getElementById('dw-status');
-  const send = document.getElementById('dw-send');
-  const tabs = [...document.querySelectorAll('.app-side [data-scene]')];
-  const order = ['dm', 'group', 'ask'];
+/** Plays its scenes in turn while the window is on screen, and stops when it leaves. */
+function replay(root) {
+  const body = root.querySelector('.app-body');
+  const avatarSlot = root.querySelector('.pill-face');
+  const name = root.querySelector('.pill strong');
+  const status = root.querySelector('.pill small');
+  const send = root.querySelector('.app-send');
+  const order = root.dataset.scenes.split(' ');
   let token = 0;
-  let scene = 'dm';
+  let scene = order[0];
   let visible = false;
+  let playing = false;
   let lastBlock = null;
 
   const speed = reduceMotion ? 0.15 : 1;
@@ -769,6 +705,37 @@ const demo = (() => {
     running(false);
   }
 
+  async function playLocal(id) {
+    const c = copy[lang];
+    const bot = bots.zhang;
+    const title = bot[lang];
+    header(face(bot), title);
+    await wait(700, id);
+    user(c.localAsk);
+    running(true);
+    await wait(500, id);
+    header(face(bot, true), title, c.thinking);
+    const thinking = thinkingDots(body);
+    await wait(900, id);
+    thinking.remove();
+    body.appendChild(el(`<div class="m m-bubble">${c.localNote}</div>`));
+    await wait(400, id);
+    header(face(bot, true), title, c.tool);
+    const list = tool(body, 'search_files', c.localFolder);
+    await wait(900, id);
+    toolDone(list, '0.3');
+    const read = tool(body, 'read_file', c.localRead);
+    await wait(1100, id);
+    toolDone(read, '0.4');
+    const write = tool(body, 'write_file', c.localWrite);
+    await wait(1000, id);
+    toolDone(write, '0.2');
+    header(face(bot, true), title, c.thinking);
+    await stream(body, c.localAnswer, id);
+    header(face(bot), title);
+    running(false);
+  }
+
   async function playAsk(id) {
     const c = copy[lang];
     const bot = bots.pao;
@@ -802,46 +769,54 @@ const demo = (() => {
     running(false);
   }
 
-  const players = { dm: playDm, group: playGroup, ask: playAsk };
+  const players = { dm: playDm, group: playGroup, local: playLocal, ask: playAsk };
+  // A scene runs to its end even if the window scrolls away; the next one
+  // starts only while it is on screen.
   async function play() {
     const id = ++token;
+    playing = true;
     body.innerHTML = '';
     lastBlock = null;
     running(false);
-    tabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.scene === scene)));
     try {
       await players[scene](id);
-      await wait(3600, id);
+      await wait(4200, id);
       scene = order[(order.indexOf(scene) + 1) % order.length];
+      playing = false;
       if (visible) void play();
     } catch {
-      // A newer replay or a scene switch cancelled this one.
+      // A newer replay (a language switch) took over.
     }
   }
 
-  tabs.forEach((tab) =>
-    tab.addEventListener('click', () => {
-      scene = tab.dataset.scene;
-      void play();
-    }),
-  );
-  document.getElementById('demo-replay').addEventListener('click', () => void play());
   new IntersectionObserver(
     ([entry]) => {
-      const was = visible;
       visible = entry.isIntersecting;
-      if (visible && !was) void play();
-      if (!visible) token++;
+      if (visible && !playing) void play();
     },
     { threshold: 0.35 },
-  ).observe(document.querySelector('.app'));
+  ).observe(root);
 
   return {
     restart() {
       if (visible) void play();
     },
   };
-})();
+}
+const replays = [...document.querySelectorAll('.chat[data-scenes]')].map(replay);
+
+/* ---------- small illustrations start the first time they come into view ---------- */
+const playObserver = new IntersectionObserver(
+  (entries) => {
+    for (const entry of entries)
+      if (entry.isIntersecting && !reduceMotion) {
+        entry.target.classList.add('is-playing');
+        playObserver.unobserve(entry.target);
+      }
+  },
+  { threshold: 0.4 },
+);
+document.querySelectorAll('.play').forEach((node) => playObserver.observe(node));
 
 applyLanguage();
 applyTheme();
