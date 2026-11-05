@@ -349,8 +349,7 @@ void main() {
     // Ctrl+Enter only starts a new line; Enter while an input method is
     // composing is the input method's; Enter sends.
     final field = tester.widget<TextField>(input).controller!;
-    // At rest the composer is a narrow capsule; typing in it opens it wider,
-    // with the Bot's model under the words.
+    // At rest the composer is a narrow capsule; typing opens it wider.
     final capsule = find.byKey(const ValueKey('composer-card'));
     field.clear();
     FocusManager.instance.primaryFocus?.unfocus();
@@ -364,27 +363,12 @@ void main() {
     expect(openWidth, greaterThan(restWidth));
     expect(openWidth, lessThanOrEqualTo(480));
     note('composerWidths', [restWidth, openWidth]);
-    await tap(find.byKey(const ValueKey('composer-model')));
-    await until(
-      () => find.byKey(const ValueKey('model-settings')).evaluate().isNotEmpty,
-      what: 'model menu',
+    expect(find.byKey(const ValueKey('composer-model')), findsNothing);
+    expect(
+      tester.getCenter(find.byKey(const ValueKey('composer-attach'))).dx,
+      greaterThan(tester.getCenter(capsule).dx),
     );
-    expect(find.byKey(ValueKey('model-${bot['model']}')), findsOneWidget);
-    note('modelMenu', [
-      for (final row
-          in find
-              .byWidgetPredicate(
-                (w) =>
-                    w is PopupMenuItem<String> &&
-                    '${w.key}'.contains("'model-"),
-              )
-              .evaluate())
-        '${row.widget.key}',
-    ]);
-    await shot('composer-model');
-    Navigator.of(tester.element(find.byKey(const ValueKey('model-settings'))))
-        .pop();
-    await settle(400);
+    await shot('composer-actions');
     await tap(input);
     field.value = const TextEditingValue(
       text: '第一行',

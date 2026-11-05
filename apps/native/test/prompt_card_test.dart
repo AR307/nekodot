@@ -7,7 +7,7 @@ import 'package:nekodot_native/ui/prompt_card.dart';
 
 void main() {
   for (final width in [1000.0, 390.0]) {
-    for (final tool in ['Model', 'Attach file']) {
+    for (final tool in ['Attach file']) {
       testWidgets('$tool opens from an empty focused capsule at $width px', (
         tester,
       ) async {
@@ -34,19 +34,10 @@ void main() {
                         field: TextField(focusNode: focus),
                         hasContent: false,
                         running: false,
-                        tools: Row(
-                          children: [
-                            TextButton(
-                              onPressed: () => open('Choose model'),
-                              child: const Text('Model'),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              tooltip: 'Attach file',
-                              onPressed: () => open('Choose file'),
-                              icon: const Icon(Icons.add),
-                            ),
-                          ],
+                        tools: IconButton(
+                          tooltip: 'Attach file',
+                          onPressed: () => open('Choose file'),
+                          icon: const Icon(Icons.add),
                         ),
                         action: IconButton(
                           onPressed: () {},
@@ -62,9 +53,7 @@ void main() {
         );
         await tester.tap(find.byType(TextField));
         await tester.pumpAndSettle();
-        final button = tool == 'Model'
-            ? find.widgetWithText(TextButton, 'Model')
-            : find.byTooltip('Attach file');
+        final button = find.byTooltip('Attach file');
         // Separate mouse down/up with a frame, as a real desktop click does.
         final mouse = await tester.startGesture(
           tester.getCenter(button),
@@ -76,10 +65,7 @@ void main() {
         await mouse.up();
         await tester.pumpAndSettle();
         expect(find.byType(AlertDialog), findsOneWidget);
-        expect(
-          find.text(tool == 'Model' ? 'Choose model' : 'Choose file'),
-          findsOneWidget,
-        );
+        expect(find.text('Choose file'), findsOneWidget);
         await tester.tapAt(const Offset(5, 5));
         await tester.pumpAndSettle();
         await tester.tap(find.byType(TextField));
@@ -114,7 +100,7 @@ void main() {
                 field: TextField(controller: input),
                 hasContent: false,
                 running: false,
-                tools: const Text('Model'),
+                tools: const Icon(Icons.add),
                 action: IconButton(
                   onPressed: () {},
                   icon: const Icon(Icons.mic),

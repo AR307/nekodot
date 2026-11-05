@@ -60,7 +60,7 @@ class _PromptCardState extends State<PromptCard> {
                       padding: EdgeInsets.fromLTRB(
                         16,
                         8,
-                        expanded ? 16 : 52,
+                        expanded ? 16 : 96,
                         8,
                       ),
                       child: widget.field,
@@ -75,7 +75,8 @@ class _PromptCardState extends State<PromptCard> {
                 bottom: 7,
                 child: Row(
                   children: [
-                    if (expanded) Expanded(child: widget.tools),
+                    if (expanded) const Spacer(),
+                    widget.tools,
                     widget.action,
                   ],
                 ),

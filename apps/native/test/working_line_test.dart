@@ -46,7 +46,13 @@ void main() {
       ]),
       'Lumi 正在运行命令 python -c "print(1)"',
     );
-    expect(workingLine(c, 'Lumi', [said('我先读一下首页')]), 'Lumi：我先读一下首页');
+    expect(workingLine(c, 'Lumi', [said('我先读一下首页')]), 'Lumi 正在思考');
+    expect(isProgressMessage(said('好的，我先打开网页，之后告诉你内容。')), isFalse);
+    expect(isProgressMessage(said('正在打开浏览器')), isTrue);
+    final mixed = said('好的，我先计算。\n\n正在运行 Python 计算。');
+    expect(visibleMessageText(mixed), '好的，我先计算。');
+    expect(workingLine(c, 'Lumi', [mixed]), 'Lumi 正在运行 Python 计算');
+    expect(isProgressMessage(mixed), isFalse);
   });
 
   test('English reads as a sentence', () async {
@@ -61,9 +67,6 @@ void main() {
       ]),
       'Lumi is searching the web nekodot',
     );
-    expect(
-      workingLine(c, 'Lumi', [said('Done reading')]),
-      'Lumi: Done reading',
-    );
+    expect(workingLine(c, 'Lumi', [said('Done reading')]), 'Lumi is thinking');
   });
 }

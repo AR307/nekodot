@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../data/client.dart';
 import '../ui/design.dart';
 import 'files.dart';
+import 'model_selection.dart';
 
 class BotEditor extends StatefulWidget {
   final NekodotClient client;
@@ -37,8 +38,6 @@ class _BotEditorState extends State<BotEditor> {
   String? lead, source;
   Json? archive;
   final members = <String>{};
-  List<Json> sources = [];
-  List<String> models = [];
   bool busy = false, permissionsReady = true;
   bool handleEdited = false;
   NekodotClient get c => widget.client;
@@ -63,7 +62,6 @@ class _BotEditorState extends State<BotEditor> {
         loadPermissions();
       }
     }
-    if (!widget.group) loadSources();
   }
 
   Future<void> loadPermissions() async {
@@ -83,39 +81,6 @@ class _BotEditorState extends State<BotEditor> {
     }
   }
 
-  Future<void> loadSources() async {
-    try {
-      final values = objects((await c.rpc('providers.list'))['sources'])
-          .where((source) => source['ready'] == true)
-          .toList();
-      if (!mounted) return;
-      setState(() {
-        sources = values;
-        source ??= values.firstOrNull?['sourceId'] as String?;
-      });
-      if (source != null) await loadModels();
-    } catch (e) {
-      if (mounted) setState(() => error = '$e');
-    }
-  }
-
-  Future<void> loadModels() async {
-    final selected = source;
-    if (selected == null) return;
-    setState(() {
-      models = [];
-      error = '';
-    });
-    try {
-      final values = await c.rpc('models.options', {'sourceId': selected});
-      if (mounted && selected == source) {
-        setState(() => models = (values['models'] as List).cast<String>());
-      }
-    } catch (e) {
-      if (mounted && selected == source) setState(() => error = '$e');
-    }
-  }
-
   Future<void> save() async {
     setState(() {
       busy = true;
@@ -131,6 +96,9 @@ class _BotEditorState extends State<BotEditor> {
           'leadBotId': lead,
         });
       } else {
+        if (source == null || model.text.isEmpty) {
+          throw RelayError(c.tr('请选择模型', 'Choose a model'));
+        }
         if (widget.importProfile && archive == null) {
           throw RelayError(
             c.tr(
@@ -406,44 +374,15 @@ class _BotEditorState extends State<BotEditor> {
               ),
             ),
           ] else ...[
-            LabeledField(
-              label: c.tr('模型来源', 'Model source'),
-              child: MenuSelect<String>(
-                key: const ValueKey('model-source'),
-                value: source,
-                options: [
-                  for (final s in sources)
-                    (s['sourceId'] as String, '${s['name']}'),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    source = value;
-                    model.clear();
-                  });
-                  loadModels();
-                },
-              ),
-            ),
-            gap,
-            Autocomplete<String>(
-              key: ValueKey(source),
-              initialValue: model.value,
-              optionsBuilder: (value) => models.where(
-                (m) => m.toLowerCase().contains(value.text.toLowerCase()),
-              ),
-              onSelected: (value) => model.text = value,
-              optionsViewBuilder: (context, onSelected, options) =>
-                  menuOptions(context, options, onSelected, (m) => m),
-              fieldViewBuilder: (context, controller, focus, submit) =>
-                  LabeledField(
-                    label: c.tr('模型', 'Model'),
-                    child: TextField(
-                      controller: controller,
-                      focusNode: focus,
-                      onChanged: (value) => model.text = value,
-                      decoration: InputDecoration(),
-                    ),
-                  ),
+            ModelSelection(
+              client: c,
+              sourceId: source,
+              model: model.text,
+              enabled: !busy,
+              onChanged: (selected, value) => setState(() {
+                source = selected;
+                model.text = value;
+              }),
             ),
             gap,
             LabeledField(

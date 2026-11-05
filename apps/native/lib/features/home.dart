@@ -349,16 +349,13 @@ class _HomePageState extends State<HomePage> {
         : '${entity['role'] ?? ''}'.split('\n').first.trim();
     final last = preview(value, isGroup);
     final size = glass ? 44.0 : 40.0;
-    final still = MediaQuery.disableAnimationsOf(context);
     final corners = BorderRadius.circular(12);
     return MouseRegion(
       onEnter: (_) => setState(() => hovered = id),
       onExit: (_) => setState(() => hovered = null),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 1),
-        child: AnimatedContainer(
-          duration: still ? Duration.zero : const Duration(milliseconds: 160),
-          curve: Curves.easeOutCubic,
+        child: Container(
           decoration: BoxDecoration(
             color: raised ? tone.surface : tone.surface.withValues(alpha: 0),
             borderRadius: corners,
@@ -407,7 +404,8 @@ class _HomePageState extends State<HomePage> {
                           Row(
                             children: [
                               Flexible(
-                                flex: 0,
+                                flex: 2,
+                                fit: FlexFit.tight,
                                 child: Text(
                                   '${entity[isGroup ? 'name' : 'displayName']}',
                                   maxLines: 1,

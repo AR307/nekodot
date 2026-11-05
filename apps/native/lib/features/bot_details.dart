@@ -94,6 +94,13 @@ class BotDetails extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                   ],
+                  ModelInformation(
+                    key: ValueKey(
+                      '${bot['sourceId']}:${bot['model']}:${bot['modelSettings']}',
+                    ),
+                    client: c,
+                    botId: botId,
+                  ),
                   PanelGroup(
                     children: [
                       link(

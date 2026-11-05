@@ -1,0 +1,110 @@
+{
+  "date": "2026-11-05",
+  "productVersion": "0.3.1+7 local candidate; not published",
+  "hermes": "v0.22.6",
+  "relay": "isolated loopback QA Relay with matching real Node",
+  "windows": {
+    "platform": "windows",
+    "composer": "attachment on right; no model control",
+    "models": ["gpt-6-sol", "gpt-6-astra", "gpt-6.1-terra", "gpt-6-luna", "gpt-6.1-sol"],
+    "nativeModel": {
+      "model": "gpt-6-sol",
+      "configuredContext": 128000
+    },
+    "auxiliaryModel": "gpt-6.1-sol",
+    "commands": ["new", "resume"],
+    "statuses": [
+      "QA Bot 正在思考",
+      "QA Bot 正在运行指定的 Python 命令",
+      "QA Bot 正在创建三分钟后的单次提醒",
+      "QA Bot 正在核对提醒已保存为单次任务"
+    ],
+    "tools": ["terminal", "cronjob_manage", "execute_code"],
+    "acknowledgements": ["好的，我会先运行计算，再安排一次性提醒。"],
+    "routineNotices": ["created", "executed"],
+    "done": true
+  },
+  "android": {
+    "device": "NekodotNativePhase3 / emulator-5554",
+    "physicalDevice": false,
+    "composer": "attachment on right; no model control",
+    "nativeModel": {
+      "model": "gpt-6-sol",
+      "configuredContext": 128000
+    },
+    "auxiliaryModel": "gpt-6.1-sol",
+    "commands": ["new", "resume"],
+    "tools": ["terminal"],
+    "actualTerminalResult": 323,
+    "statuses": ["QA Bot 正在思考", "QA Bot 正在运行 Python 计算"],
+    "acknowledgements": ["好的，我现在执行你指定的命令。"],
+    "done": true
+  },
+  "checks": {
+    "frozenInstall": "passed",
+    "typecheck": "passed",
+    "eslint": "passed",
+    "serviceTests": {
+      "files": 38,
+      "passed": 75
+    },
+    "flutterAnalyze": "passed",
+    "flutterTests": {
+      "passed": 33
+    },
+    "serviceBuild": "passed",
+    "windowsRelease": {
+      "built": true,
+      "authenticodeSigned": false,
+      "bytes": 16152342
+    },
+    "androidArm64Release": {
+      "built": true,
+      "signed": true,
+      "bytes": 35009906
+    },
+    "fullLint": {
+      "passed": false,
+      "reason": "Pre-existing formatting issues in five unrelated files",
+      "paths": [
+        "docs/evidence/product-updates-acceptance.json",
+        "docs/evidence/side-phase5-commands-android.json",
+        "docs/evidence/side-phase5-commands-windows.json",
+        "docs/local-desktop-plan.md",
+        "docs/side-phase5-command-adapters.md"
+      ]
+    }
+  },
+  "recoveredDuringAcceptance": [
+    "One-shot native completion no longer emits a stopped notice",
+    "Mixed commentary keeps acknowledgement while progress stays in working line",
+    "Android test selects a model through search instead of assuming offscreen items are mounted"
+  ],
+  "notRevalidated": [
+    "Android physical device",
+    "macOS / Linux",
+    "second provider source",
+    "delegation actual model call",
+    "TTS/MoA dedicated model catalogs",
+    "full public webhook lifecycle after UI changes",
+    "full dark / English / reduced-motion journey",
+    "mobile long-press copy"
+  ],
+  "screenshots": [
+    "ui-refinement-windows-narrow-sidebar.png",
+    "ui-refinement-windows-model-catalog.png",
+    "ui-refinement-windows-model-details.png",
+    "ui-refinement-windows-auxiliary-model.png",
+    "ui-refinement-windows-command-notice.png",
+    "ui-refinement-windows-working.png",
+    "ui-refinement-windows-chat-result.png",
+    "ui-refinement-windows-copy-hover.png",
+    "ui-refinement-windows-routine-executed.png",
+    "ui-refinement-android-model-catalog.png",
+    "ui-refinement-android-model-details.png",
+    "ui-refinement-android-auxiliary-model.png",
+    "ui-refinement-android-command-notice.png",
+    "ui-refinement-android-working.png",
+    "ui-refinement-android-chat-result.png"
+  ]
+}

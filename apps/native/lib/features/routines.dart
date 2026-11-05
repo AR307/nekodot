@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../data/client.dart';
 import '../ui/design.dart';
+import '../ui/chat_notice.dart';
 
 String triggerLabel(NekodotClient c, Json routine) =>
     switch (routine['trigger']) {
@@ -94,51 +95,29 @@ class RoutineCard extends StatelessWidget {
   /// One quiet line: what happened and to which routine; it opens the routine.
   @override
   Widget build(BuildContext context) {
-    final tone = context.tone;
-    final text = Theme.of(context).textTheme.bodySmall;
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
+    final action = content['card'] == 'credentials'
+        ? client.tr('已保密交付', 'Delivered securely')
+        : switch (content['action']) {
+            'updated' => client.tr('已修改', 'Updated'),
+            'enabled' => client.tr('已启用', 'Enabled'),
+            'stopped' => client.tr('已停止', 'Stopped'),
+            'started' => client.tr('正在执行', 'Running'),
+            'executed' => client.tr('已执行', 'Executed'),
+            'failed' => client.tr('执行失败', 'Failed'),
+            _ => client.tr('已创建', 'Created'),
+          };
+    return ChatNotice(
+      text: '$action ${content['name']}',
+      icon: content['card'] == 'credentials'
+          ? Icons.lock_outline
+          : Icons.schedule,
       onTap: () => pushPage(
         context,
         RoutinePage(
           client: client,
           botId: '${content['botId']}',
           routineId: '${content['routineId']}',
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              content['card'] == 'credentials'
-                  ? client.tr('已保密交付', 'Delivered securely')
-                  : client.tr('已创建例行任务', 'Routine created'),
-              style: text?.copyWith(color: tone.ink3),
-            ),
-            const SizedBox(width: 8),
-            Icon(
-              content['card'] == 'credentials'
-                  ? Icons.lock_outline
-                  : Icons.schedule,
-              size: 14,
-              color: tone.ink2,
-            ),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                '${content['name']}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: text?.copyWith(
-                  color: tone.ink2,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Icon(Icons.chevron_right, size: 16, color: tone.ink3),
-          ],
+          executionId: content['executionId'] as String?,
         ),
       ),
     );

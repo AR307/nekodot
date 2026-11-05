@@ -50,13 +50,45 @@ String stepLabel(NekodotClient c, Json body) {
 /// A line the Bot wrote, cleaned for one line of status: no markup, no
 /// closing punctuation.
 String? _said(Json m) {
-  if (m['kind'] != 'commentary' && m['kind'] != 'text') return null;
-  final words = firstLine('${m['content']?['text'] ?? ''}')
+  if (!_canContainProgress(m)) return null;
+  final words = '${m['content']?['text'] ?? ''}'
+      .split('\n')
+      .where(_progressLine)
+      .lastOrNull
+      ?.trim()
       .replaceAll(RegExp(r'[*_`#>]+'), '')
       .replaceAll(RegExp(r'[。.：:…!！]+$'), '')
       .trim();
-  return words.isEmpty ? null : words;
+  return words == null || words.isEmpty ? null : words;
 }
+
+bool _canContainProgress(Json message) =>
+    message['kind'] == 'commentary' ||
+    (message['kind'] == 'text' && message['status'] == 'streaming');
+
+bool _progressLine(String line) {
+  final words = line.trim().replaceAll(RegExp(r'^[*_`#>]+\s*'), '');
+  return words.isNotEmpty &&
+      words.length <= 180 &&
+      RegExp(
+        r'^(正在|(?:Reading|Checking|Opening|Searching|Writing|Running|Loading|Preparing|Reviewing|Thinking|Browsing|Updating|Analyzing|Analysing|Organizing|Watching)\b)',
+        caseSensitive: false,
+      ).hasMatch(words);
+}
+
+/// Keep an acknowledgement even when Hermes streams it beside a progress line.
+String visibleMessageText(Json message) {
+  final text = '${message['content']?['text'] ?? ''}';
+  if (!_canContainProgress(message)) return text;
+  return text
+      .split('\n')
+      .where((line) => !_progressLine(line))
+      .join('\n')
+      .trim();
+}
+
+bool isProgressMessage(Json message) =>
+    _said(message) != null && visibleMessageText(message).isEmpty;
 
 /// What the Bot says it is doing in this turn: the newest line it wrote
 /// (one line may announce several steps), else Hermes's own label of the
@@ -179,16 +211,6 @@ class _WorkBlockState extends State<WorkBlock> {
                             key: ValueKey('step-${step['messageId']}'),
                             client: c,
                             message: step,
-                          )
-                        else if ('${step['content']?['text'] ?? ''}'
-                            .trim()
-                            .isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(28, 4, 12, 4),
-                            child: Text(
-                              '${step['content']['text']}'.trim(),
-                              style: text.copyWith(color: tone.ink2),
-                            ),
                           ),
                       const SizedBox(height: 4),
                     ],

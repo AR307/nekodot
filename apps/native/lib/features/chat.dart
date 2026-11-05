@@ -10,10 +10,10 @@ import '../platform/desktop.dart';
 import '../ui/design.dart';
 import '../ui/message_markdown.dart';
 import '../ui/prompt_card.dart';
+import '../ui/chat_notice.dart';
 import '../screen/viewer.dart';
 import 'bot_details.dart';
 import 'bot_editor.dart';
-import 'chat_model_picker.dart';
 import 'files.dart';
 import 'commands.dart';
 import 'client_commands.dart';
@@ -313,25 +313,6 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
     }
   }
 
-  /// Switches the Bot's model from the composer, or opens its model settings.
-  Future<void> pickModel(BuildContext anchor, Json bot) async {
-    final nodeId = c.selectedNodeId;
-    try {
-      final picked = await pickChatModel(anchor, c, bot);
-      if (!mounted || picked == null || nodeId != c.selectedNodeId) return;
-      if (picked.isEmpty) {
-        await pushPage(context, BotEditor(client: c, existing: bot));
-      } else if (picked != bot['model']) {
-        await c.rpc('bots.update', {
-          'botId': bot['botId'],
-          'model': picked,
-        }, nodeId);
-      }
-    } catch (e) {
-      if (mounted) setState(() => error = '$e');
-    }
-  }
-
   Future<void> stop() async {
     try {
       await c.rpc('runs.stop', {'conversationId': id});
@@ -411,11 +392,11 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
             'session',
             'always',
           }.contains(object(m['content'])['choice']);
-      bool step(Json m) =>
-          m['kind'] == 'tool' || m['kind'] == 'commentary' || allowed(m);
+      bool step(Json m) => m['kind'] == 'tool' || allowed(m);
       bool work(List<Json> item) =>
           item.any((m) => m['kind'] == 'tool' || allowed(m));
       for (final m in messages) {
+        if (isProgressMessage(m)) continue;
         final last = items.lastOrNull;
         if (step(m) &&
             last != null &&
@@ -450,7 +431,9 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       final tail = messages.lastOrNull;
       final thinking =
           (state == 'thinking' || state == 'tool') &&
-          tail?['status'] != 'streaming';
+          (tail?['status'] != 'streaming' ||
+              tail?['kind'] == 'tool' ||
+              (tail != null && isProgressMessage(tail)));
       // While it works, the row above the composer says what it is doing.
       final lead = thinking && messages.isNotEmpty ? 1 : 0;
       final status = !c.online
@@ -755,41 +738,11 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
         disabledBackgroundColor: tone.raised,
         disabledForegroundColor: tone.ink3,
       );
-      // Under the words once the capsule opens: the Bot's model, then files.
       final composerTools = Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          if (group == null && bot != null)
-            Flexible(
-              child: Builder(
-                builder: (anchor) => TextButton(
-                  key: const ValueKey('composer-model'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: tone.ink2,
-                    textStyle: const TextStyle(fontSize: 13),
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    minimumSize: const Size(0, 32),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  onPressed: c.online ? () => pickModel(anchor, bot) : null,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          '${bot['model'] ?? c.tr('模型设置', 'Model settings')}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 2),
-                      const Icon(Icons.keyboard_arrow_down, size: 16),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          const Spacer(),
           IconButton(
+            key: const ValueKey('composer-attach'),
             tooltip: c.tr('发送文件或图片', 'Attach file or image'),
             onPressed: !c.online || uploading || sending ? null : attachFile,
             iconSize: 19,
@@ -1181,7 +1134,7 @@ class ThinkingRow extends StatelessWidget {
   );
 }
 
-class MessageTile extends StatelessWidget {
+class MessageTile extends StatefulWidget {
   final NekodotClient client;
   final Json message;
 
@@ -1204,7 +1157,31 @@ class MessageTile extends StatelessWidget {
     required this.onRetry,
   });
   @override
-  Widget build(BuildContext context) {
+  State<MessageTile> createState() => _MessageTileState();
+}
+
+class _MessageTileState extends State<MessageTile> {
+  bool hovered = false, focused = false;
+  NekodotClient get client => widget.client;
+  Json get message => widget.message;
+  Json? get bot => widget.bot;
+  bool get showName => widget.showName;
+  bool get continued => widget.continued;
+  List<Json>? get steps => widget.steps;
+  bool get live => widget.live;
+  bool get working => widget.working;
+  ValueChanged<String> get onRetry => widget.onRetry;
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    onEnter: (_) => setState(() => hovered = true),
+    onExit: (_) => setState(() => hovered = false),
+    child: Focus(
+      canRequestFocus: false,
+      onFocusChange: (value) => setState(() => focused = value),
+      child: content(context),
+    ),
+  );
+  Widget content(BuildContext context) {
     final c = client,
         m = message,
         tone = context.tone,
@@ -1212,36 +1189,63 @@ class MessageTile extends StatelessWidget {
         user = m['author']['type'] == 'user',
         kind = m['kind'];
     if (kind == 'system') {
-      return Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Text(
-              '${body['text']}',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.labelMedium,
+      final raw = '${body['text']}';
+      final command =
+          '${body['command'] ?? (raw.startsWith('/') ? raw.split(RegExp(r'\s')).first : '')}';
+      final label = switch (command) {
+        '/resume' => c.tr('已切换会话', 'Session switched'),
+        '/new' || '/clear' => c.tr('已创建新会话', 'New session created'),
+        '/branch' => c.tr('已创建会话分支', 'Session branched'),
+        '/compress' => c.tr('压缩结果', 'Compression result'),
+        '/undo' => c.tr('已撤回上一轮', 'Last turn undone'),
+        '/save' => c.tr('已保存会话', 'Session saved'),
+        '' => raw,
+        _ => c.tr('已执行 $command', 'Executed $command'),
+      };
+      return Column(
+        children: [
+          ChatNotice(
+            text: label,
+            onTap:
+                command.isEmpty ||
+                    const ['/resume', '/new', '/clear'].contains(command)
+                ? null
+                : () => showDialog<void>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Text(command),
+                      content: SingleChildScrollView(
+                        child: SelectableText(raw),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(c.tr('关闭', 'Close')),
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+          for (final fileId in (body['files'] as List? ?? []))
+            FileCard(
+              client: c,
+              fileId: '$fileId',
+              messageId: '${m['messageId']}',
             ),
-            for (final fileId in (body['files'] as List? ?? []))
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: FileCard(
-                  client: c,
-                  fileId: '$fileId',
-                  messageId: '${m['messageId']}',
-                ),
-              ),
-            if (body['retryText'] != null)
-              TextButton(
-                onPressed: () => onRetry(body['retryText'] as String),
-                child: Text(c.tr('重新编辑', 'Edit & resend')),
-              ),
-          ],
-        ),
+          if (body['retryText'] != null)
+            TextButton(
+              onPressed: () => onRetry(body['retryText'] as String),
+              child: Text(c.tr('重新编辑', 'Edit & resend')),
+            ),
+        ],
       );
+    }
+    if (kind == 'routine') {
+      return RoutineCard(client: c, content: body);
     }
     final text = body['files'] is List && (body['files'] as List).isNotEmpty
             ? withoutDeliveries('${body['text'] ?? ''}')
-            : '${body['text'] ?? ''}',
+            : visibleMessageText(m),
         streaming = m['status'] == 'streaming',
         stopped = m['status'] == 'failed' || m['status'] == 'cancelled';
     // Files stand on their own under the words, never inside the bubble.
@@ -1405,10 +1409,16 @@ class MessageTile extends StatelessWidget {
       );
     }
     final copy = !card && !streaming && text.trim().isNotEmpty
-        ? CopyButton(
-            key: ValueKey('copy-${m['messageId']}'),
-            client: c,
-            text: text,
+        ? Opacity(
+            opacity: hovered || focused ? 1 : 0,
+            child: IgnorePointer(
+              ignoring: !hovered && !focused,
+              child: CopyButton(
+                key: ValueKey('copy-${m['messageId']}'),
+                client: c,
+                text: text,
+              ),
+            ),
           )
         : null;
     final name = showName && !continued && bot != null
