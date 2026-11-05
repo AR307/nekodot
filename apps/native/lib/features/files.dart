@@ -25,6 +25,23 @@ Future<Uint8List> downloadFile(NekodotClient c, String id) async {
   return response.bodyBytes;
 }
 
+// The same references the node turns into files: a MEDIA line, or a link or
+// picture pointing at a path on the Bot's computer.
+final _deliveryLine = RegExp(
+  r'^[ \t]*MEDIA:[^\r\n]*(?:\r?\n)?',
+  multiLine: true,
+);
+final _localReference = RegExp(
+  r'(!?)\[([^\]]*)\]\(<?(?:sandbox:|file://|/|\./|~/|[A-Za-z]:[\/])[^)>]+>?\)',
+);
+
+/// A reply's words without what only delivered its files: those are shown
+/// as files of their own.
+String withoutDeliveries(String text) => text
+    .replaceAll(_deliveryLine, '')
+    .replaceAllMapped(_localReference, (m) => m[1]!.isEmpty ? m[2]! : '')
+    .trim();
+
 String fileSize(num bytes) => bytes < 1024
     ? '$bytes B'
     : bytes < 1048576
@@ -111,18 +128,18 @@ Future<Json?> pickChatFile(
   }, nodeId);
 }
 
+/// A file on its own line in the chat: a picture shows itself, anything else
+/// is its name and size. Either opens the full file.
 class FileCard extends StatefulWidget {
   final NekodotClient client;
   final String fileId, messageId;
   final String? botId;
-  final Color? foreground;
   const FileCard({
     super.key,
     required this.client,
     required this.fileId,
     required this.messageId,
     this.botId,
-    this.foreground,
   });
   @override
   State<FileCard> createState() => _FileCardState();
@@ -130,47 +147,141 @@ class FileCard extends StatefulWidget {
 
 class _FileCardState extends State<FileCard> {
   late final file = widget.client.rpc('files.get', {'fileId': widget.fileId});
+  Future<Uint8List>? picture;
+
+  Future<void> open() async {
+    try {
+      final value = await file;
+      if (mounted) {
+        pushPage(context, FilePage(client: widget.client, file: value));
+      }
+    } catch (e) {
+      if (mounted) showNotice(context, '$e');
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 8),
-    child: FutureBuilder<Json>(
-      future: file,
-      builder: (context, snapshot) => OutlinedButton.icon(
-        style: widget.foreground == null
-            ? null
-            : OutlinedButton.styleFrom(
-                foregroundColor: widget.foreground,
-                side: BorderSide(
-                  color: widget.foreground!.withValues(alpha: .4),
+  Widget build(BuildContext context) => FutureBuilder<Json>(
+    future: file,
+    builder: (context, snapshot) {
+      final value = snapshot.data;
+      if (value != null &&
+          value['available'] == true &&
+          '${value['mime']}'.startsWith('image/')) {
+        picture ??= downloadFile(widget.client, widget.fileId);
+        return FutureBuilder<Uint8List>(
+          future: picture,
+          builder: (context, bytes) => bytes.hasError
+              ? row(value)
+              : image(bytes.data, '${value['name']}'),
+        );
+      }
+      return row(value);
+    },
+  );
+
+  Widget image(Uint8List? bytes, String name) {
+    final tone = context.tone;
+    final placeholder = Container(
+      width: 240,
+      height: 160,
+      decoration: BoxDecoration(
+        color: tone.bubble,
+        borderRadius: BorderRadius.circular(12),
+      ),
+    );
+    // The picture keeps its own proportions and is never shown larger than
+    // its pixels.
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: tone.glass ? double.infinity : 420,
+        maxHeight: 360,
+      ),
+      child: bytes == null
+          ? placeholder
+          : MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: open,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.memory(
+                    bytes,
+                    semanticLabel: name,
+                    frameBuilder: (context, child, frame, sync) =>
+                        frame == null && !sync ? placeholder : child,
+                  ),
                 ),
               ),
-        onPressed: () async {
-          try {
-            final value = await file;
-            if (context.mounted) {
-              pushPage(context, FilePage(client: widget.client, file: value));
-            }
-          } catch (e) {
-            if (context.mounted) {
-              showNotice(context, '$e');
-            }
-          }
-        },
-        icon: Icon(
-          '${snapshot.data?['mime']}'.startsWith('image/')
-              ? Icons.image_outlined
-              : Icons.attach_file,
-          size: 18,
+            ),
+    );
+  }
+
+  Widget row(Json? value) {
+    final tone = context.tone;
+    final text = Theme.of(context).textTheme;
+    final corners = BorderRadius.circular(16);
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 340),
+      child: Material(
+        color: tone.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: corners,
+          side: BorderSide(color: tone.line),
         ),
-        label: Text(
-          snapshot.data?['name'] as String? ??
-              widget.client.tr('附件', 'Attachment'),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: open,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 10, 16, 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: tone.bubble,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    value?['available'] == false
+                        ? Icons.broken_image_outlined
+                        : Icons.description_outlined,
+                    size: 19,
+                    color: tone.ink2,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        value?['name'] as String? ??
+                            widget.client.tr('附件', 'Attachment'),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (value?['size'] is num)
+                        Text(
+                          fileSize(value!['size'] as num),
+                          style: text.labelSmall?.copyWith(color: tone.ink3),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class LibraryPage extends StatefulWidget {

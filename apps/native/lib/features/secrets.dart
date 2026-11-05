@@ -7,16 +7,19 @@ import '../data/secret_crypto.dart';
 import '../ui/design.dart';
 
 String secretState(NekodotClient c, String state) => switch (state) {
-  'pending' => c.tr('等待保密交付', 'Waiting for confidential delivery'),
-  'delivered' => c.tr('已交付 · 等待原生处理', 'Delivered · native processing'),
-  'applied' => c.tr('已完成配置', 'Configuration applied'),
-  'failed' => c.tr('配置或继续任务失败', 'Configuration or continuation failed'),
-  'redelivery' => c.tr('需要重新交付', 'Delivery required again'),
+  'pending' => c.tr('等待提交', 'Waiting'),
+  'delivered' => c.tr('已交付', 'Delivered'),
+  'applied' => c.tr('已完成', 'Done'),
+  'failed' => c.tr('没有成功，请重新提交', 'Did not work, submit again'),
+  'redelivery' => c.tr('需要重新提交', 'Submit again'),
   'cancelled' => c.tr('已取消', 'Cancelled'),
-  'expired' => c.tr('请求已结束', 'Request ended'),
+  'expired' => c.tr('已结束', 'Ended'),
   _ => state,
 };
 
+/// A Bot asking for a key or a password: its name, one field at a time with
+/// its submit, and whether the Bot may reuse it. The value is encrypted here
+/// for the owning node and never shown in the chat.
 class SecretCard extends StatefulWidget {
   final NekodotClient client;
   final Json content;
@@ -29,24 +32,27 @@ class _SecretCardState extends State<SecretCard>
     with WidgetsBindingObserver, RouteAware {
   Json? data;
   String error = '';
-  bool expanded = false, busy = false, save = false;
-  String? savedId;
+  bool busy = false, save = false;
+  int step = 0;
   final fields = <String, TextEditingController>{};
   NekodotClient get c => widget.client;
   Json get target => {
     'botId': widget.content['botId'],
     'requestId': widget.content['requestId'],
   };
+  static bool open(Object? state) =>
+      const ['pending', 'failed', 'redelivery'].contains(state);
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     c.addListener(sync);
+    if (open(widget.content['state'])) unawaited(load());
   }
 
   void sync() {
     final current = data;
-    if (!expanded || current == null) return;
+    if (current == null) return;
     final request = object(current['request']);
     final message = (c.node.messages[request['conversationId']] ?? [])
         .where(
@@ -55,17 +61,15 @@ class _SecretCardState extends State<SecretCard>
               m['content']['requestId'] == target['requestId'],
         )
         .firstOrNull;
-    setState(() {
-      if (message == null) return;
-      final content = object(message['content']);
-      if (!['pending', 'failed', 'redelivery'].contains(content['state'])) {
-        clear();
-      }
-      data = {
+    if (message == null) return;
+    final content = object(message['content']);
+    if (!open(content['state'])) clear();
+    setState(
+      () => data = {
         ...current,
         'request': {...request, ...content},
-      };
-    });
+      },
+    );
   }
 
   @override
@@ -83,15 +87,9 @@ class _SecretCardState extends State<SecretCard>
   @override
   void didUpdateWidget(SecretCard old) {
     super.didUpdateWidget(old);
-    if (widget.content['state'] != old.content['state'] && expanded) {
-      if (![
-        'pending',
-        'failed',
-        'redelivery',
-      ].contains(widget.content['state'])) {
-        clear();
-      }
-      unawaited(load());
+    if (widget.content['state'] != old.content['state']) {
+      if (!open(widget.content['state'])) clear();
+      if (open(widget.content['state']) || data != null) unawaited(load());
     }
   }
 
@@ -100,10 +98,16 @@ class _SecretCardState extends State<SecretCard>
     if (state != AppLifecycleState.resumed) clear();
   }
 
+  void changed() {
+    if (mounted) setState(() {});
+  }
+
+  /// Typed values never outlive the card's moment on screen.
   void clear() {
     for (final field in fields.values) {
       field.clear();
     }
+    if (mounted && step != 0) setState(() => step = 0);
   }
 
   @override
@@ -111,9 +115,11 @@ class _SecretCardState extends State<SecretCard>
     WidgetsBinding.instance.removeObserver(this);
     c.removeListener(sync);
     nativeRoutes.unsubscribe(this);
-    clear();
     for (final field in fields.values) {
-      field.dispose();
+      field
+        ..removeListener(changed)
+        ..clear()
+        ..dispose();
     }
     super.dispose();
   }
@@ -123,7 +129,11 @@ class _SecretCardState extends State<SecretCard>
       final result = await c.rpc('secrets.get', target);
       if (!mounted) return;
       for (final field in objects(object(result['request'])['fields'])) {
-        fields.putIfAbsent('${field['name']}', TextEditingController.new);
+        fields.putIfAbsent(
+          '${field['name']}',
+          // The submit button follows whatever is in the field.
+          () => TextEditingController()..addListener(changed),
+        );
       }
       setState(() {
         data = result;
@@ -134,37 +144,39 @@ class _SecretCardState extends State<SecretCard>
     }
   }
 
-  Future<void> submit({bool cancel = false}) async {
+  /// One field at a time: earlier fields move on, the last one delivers.
+  Future<void> submit({String? savedId}) async {
     if (busy || !c.online) return;
+    final request = object(data!['request']);
+    final definitions = objects(request['fields']);
+    if (savedId == null) {
+      final current = fields['${definitions[step]['name']}']!;
+      if (current.text.isEmpty) return;
+      if (step < definitions.length - 1) {
+        setState(() => step++);
+        return;
+      }
+    }
     setState(() {
       busy = true;
       error = '';
     });
     try {
-      if (cancel) {
-        await c.rpc('secrets.cancel', target);
-      } else {
-        final request = object(data!['request']);
-        final values = {
-          for (final field in objects(request['fields']))
-            '${field['name']}': fields['${field['name']}']!.text,
-        };
-        if (savedId == null && values.values.any((v) => v.isEmpty)) {
-          throw StateError(c.tr('请填写全部字段', 'Fill every requested field'));
-        }
-        final payload = savedId == null
-            ? {
-                'envelope': await encryptSecretDelivery(
-                  nodeId: c.selectedNodeId!,
-                  botId: '${target['botId']}',
-                  requestId: '${target['requestId']}',
-                  publicKey: '${data!['publicKey']}',
-                  fields: values,
-                ),
-              }
-            : {'credentialId': savedId};
-        await c.rpc('secrets.submit', {...target, ...payload, 'save': save});
-      }
+      final payload = savedId != null
+          ? {'credentialId': savedId}
+          : {
+              'envelope': await encryptSecretDelivery(
+                nodeId: c.selectedNodeId!,
+                botId: '${target['botId']}',
+                requestId: '${target['requestId']}',
+                publicKey: '${data!['publicKey']}',
+                fields: {
+                  for (final field in definitions)
+                    '${field['name']}': fields['${field['name']}']!.text,
+                },
+              ),
+            };
+      await c.rpc('secrets.submit', {...target, ...payload, 'save': save});
       clear();
       await load();
     } catch (e) {
@@ -176,183 +188,151 @@ class _SecretCardState extends State<SecretCard>
 
   @override
   Widget build(BuildContext context) {
+    final tone = context.tone;
+    final text = Theme.of(context).textTheme;
     final request = data == null ? widget.content : object(data!['request']);
-    final pending = [
-      'pending',
-      'redelivery',
-      'failed',
-    ].contains(request['state']);
-    final bot = c.node.bots
-        .where((b) => b['botId'] == widget.content['botId'])
-        .firstOrNull;
+    final pending = open(request['state']);
     final definitions = objects(request['fields']);
     final saved = objects(data?['saved']);
-    final destination = object(request['target'] ?? {});
-    return Panel(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
+    final ready = c.online && !busy;
+    final title = Row(
+      children: [
+        Icon(Icons.lock_outline, size: 16, color: tone.ink2),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            '${request['service']}',
+            style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
+    );
+    // Delivered or ended: the name, and how it ended, as an answered question.
+    if (!pending) {
+      final done = const ['delivered', 'applied'].contains(request['state']);
+      return ChatCard(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.lock_outline),
-              title: Text('${request['service']}'),
-              subtitle: Text(
-                '${bot?['displayName'] ?? widget.content['botId']} · ${secretState(c, '${request['state']}')}',
-              ),
-              trailing: Icon(expanded ? Icons.expand_less : Icons.expand_more),
-              onTap: () {
-                clear();
-                setState(() => expanded = !expanded);
-                if (expanded) unawaited(load());
-              },
-            ),
-            Text('${request['purpose']}'),
-            if (expanded) ...[
-              const SizedBox(height: 10),
-              if (data == null && error.isEmpty)
-                const LinearProgressIndicator(),
-              if (data != null) ...[
-                Text(
-                  '${c.tr('接收方：', 'Recipient: ')}${bot?['displayName'] ?? target['botId']}',
+            title,
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  done ? Icons.check : Icons.remove,
+                  size: 16,
+                  color: tone.ink3,
                 ),
-                SelectableText(
-                  '${destination['origin'] ?? destination['path'] ?? ''}',
-                ),
-                Text(
-                  c.tr(
-                    '客户端加密，只有所属 Node 解密。交付成功不代表登录或任务成功。',
-                    'Encrypted on this device for the owning Node. Delivery does not mean login or task success.',
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    secretState(c, '${request['state']}'),
+                    style: text.bodySmall,
                   ),
                 ),
-                const SizedBox(height: 12),
-                if (pending) ...[
-                  if (saved.isNotEmpty)
-                    DropdownButtonFormField<String>(
-                      key: ValueKey(savedId),
-                      isExpanded: true,
-                      initialValue: savedId ?? '',
-                      decoration: InputDecoration(
-                        labelText: c.tr(
-                          '此 Bot 的匹配资料',
-                          'Matching credentials for this Bot',
-                        ),
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: '',
-                          child: Text(c.tr('重新填写', 'Enter new values')),
-                        ),
-                        for (final item in saved)
-                          DropdownMenuItem(
-                            value: '${item['credentialId']}',
-                            child: Text(
-                              '${item['service']} · ${item['lastUsedAt']}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                      ],
-                      onChanged: busy
-                          ? null
-                          : (value) {
-                              clear();
-                              setState(
-                                () => savedId = value == '' ? null : value,
-                              );
-                            },
-                    ),
-                  if (savedId == null)
-                    for (final field in definitions)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: TextField(
-                          key: ValueKey('secret-field-${field['name']}'),
-                          controller: fields['${field['name']}'],
-                          enabled: c.online && !busy,
-                          obscureText:
-                              field['kind'] == 'password' ||
-                              field['kind'] == 'otp',
-                          minLines: field['kind'] == 'private-key' ? 5 : 1,
-                          maxLines: field['kind'] == 'private-key' ? 12 : 1,
-                          autocorrect: false,
-                          enableSuggestions: false,
-                          enableIMEPersonalizedLearning: false,
-                          keyboardType: field['kind'] == 'private-key'
-                              ? TextInputType.multiline
-                              : TextInputType.visiblePassword,
-                          decoration: InputDecoration(
-                            labelText: '${field['label']}',
-                          ),
-                        ),
-                      ),
-                  if (!definitions.any((f) => f['kind'] == 'otp'))
-                    CheckboxListTile(
-                      key: const ValueKey('secret-save'),
-                      value: save,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        c.tr('保存供此 Bot 后续使用', 'Save for this Bot to reuse'),
-                      ),
-                      subtitle: Text(
-                        c.tr(
-                          '仅限同一服务、用途与目标',
-                          'Only this service, purpose and destination',
-                        ),
-                      ),
-                      onChanged: busy
-                          ? null
-                          : (value) => setState(() => save = value ?? false),
-                    ),
-                  Text(
-                    c.tr(
-                      '不保存仍会写入上方确认的配置。目标文件和网站登录状态可能继续保留。一次性验证码不会保存。',
-                      'Not saving still writes the approved configuration. Target files and website sessions may persist. One-time codes are never saved.',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 8,
-                    children: [
-                      FilledButton.icon(
-                        key: const ValueKey('secret-submit'),
-                        onPressed: busy || !c.online ? null : () => submit(),
-                        icon: const Icon(Icons.lock_outline),
-                        label: Text(c.tr('加密交付', 'Deliver encrypted')),
-                      ),
-                      TextButton(
-                        onPressed: busy || !c.online
-                            ? null
-                            : () => submit(cancel: true),
-                        child: Text(c.tr('取消请求', 'Cancel request')),
-                      ),
-                    ],
-                  ),
-                ],
-                if ('${request['result'] ?? ''}'.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text('${request['result']}'),
-                  ),
               ],
-              if (!c.online)
-                Text(
-                  c.tr(
-                    '节点离线，恢复后请手动提交；不会自动发送。',
-                    'Node is offline. Submit explicitly after reconnecting.',
-                  ),
-                ),
-              if (busy) const LinearProgressIndicator(),
-              if (error.isNotEmpty)
-                Text(
-                  error,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-            ],
+            ),
           ],
         ),
+      );
+    }
+    final Json? field = data == null || definitions.isEmpty
+        ? null
+        : definitions[step.clamp(0, definitions.length - 1)];
+    final last = step >= definitions.length - 1;
+    final kind = field?['kind'];
+    return ChatCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          title,
+          const SizedBox(height: 10),
+          if (field == null && error.isEmpty)
+            const LinearProgressIndicator(minHeight: 2),
+          if (field != null) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: ValueKey('secret-field-${field['name']}'),
+                    controller: fields['${field['name']}'],
+                    enabled: ready,
+                    // The next field takes over the typing after the first.
+                    autofocus: step > 0,
+                    obscureText: kind == 'password' || kind == 'otp',
+                    minLines: kind == 'private-key' ? 4 : 1,
+                    maxLines: kind == 'private-key' ? 10 : 1,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    enableIMEPersonalizedLearning: false,
+                    keyboardType: kind == 'private-key'
+                        ? TextInputType.multiline
+                        : TextInputType.visiblePassword,
+                    onSubmitted: (_) => submit(),
+                    decoration: InputDecoration(hintText: '${field['label']}'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  key: ValueKey(last ? 'secret-submit' : 'secret-next'),
+                  style: optionStyle(context),
+                  onPressed:
+                      ready && fields['${field['name']}']!.text.isNotEmpty
+                      ? () => submit()
+                      : null,
+                  child: Text(
+                    last ? c.tr('提交', 'Submit') : c.tr('下一步', 'Next'),
+                  ),
+                ),
+              ],
+            ),
+            if (!definitions.any((f) => f['kind'] == 'otp'))
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: ready ? () => setState(() => save = !save) : null,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Checkbox(
+                        key: const ValueKey('secret-save'),
+                        value: save,
+                        visualDensity: VisualDensity.compact,
+                        onChanged: ready
+                            ? (value) => setState(() => save = value ?? false)
+                            : null,
+                      ),
+                      Text(
+                        c.tr('允许 Bot 复用', 'Let the Bot reuse it'),
+                        style: text.bodySmall,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                  ),
+                ),
+              ),
+            if (saved.isNotEmpty && step == 0)
+              TextButton(
+                key: const ValueKey('secret-saved'),
+                onPressed: ready
+                    ? () => submit(savedId: '${saved.first['credentialId']}')
+                    : null,
+                child: Text(c.tr('用已保存的', 'Use the saved one')),
+              ),
+          ],
+          if (request['state'] != 'pending' &&
+              '${request['result'] ?? ''}'.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '${request['result']}',
+                style: text.bodySmall?.copyWith(color: tone.danger),
+              ),
+            ),
+          ErrorNotice(error),
+        ],
       ),
     );
   }

@@ -11,6 +11,7 @@ import 'bot_details.dart';
 import 'chat.dart';
 import 'bot_editor.dart';
 import 'extensions.dart';
+import 'files.dart';
 import 'settings.dart';
 import 'pairing.dart';
 import 'local_setup.dart';
@@ -32,6 +33,9 @@ class _HomePageState extends State<HomePage> {
   String? hovered;
   bool searching = false;
   final folded = <String>{};
+
+  /// The sidebar's width while it is being dragged; saved when let go.
+  double? dragging;
   NekodotClient get c => widget.client;
   @override
   void initState() {
@@ -186,13 +190,27 @@ class _HomePageState extends State<HomePage> {
     tooltip: c.tr('新建', 'Create'),
     position: PopupMenuPosition.under,
     icon: const Icon(Icons.add),
-    onSelected: (value) =>
-        pushPage(context, BotEditor(client: c, group: value == 'group')),
-    itemBuilder: (_) => [
-      PopupMenuItem(value: 'bot', child: Text(c.tr('新建 Bot', 'New Bot'))),
-      PopupMenuItem(value: 'group', child: Text(c.tr('新建群组', 'New group'))),
-    ],
+    onSelected: create,
+    itemBuilder: (_) => createItems(),
   );
+
+  /// New Bot, new group, and the skills and plugins a Bot can be given.
+  List<PopupMenuEntry<String>> createItems() => [
+    PopupMenuItem(value: 'bot', child: Text(c.tr('新建 Bot', 'New Bot'))),
+    PopupMenuItem(value: 'group', child: Text(c.tr('新建群组', 'New group'))),
+    const PopupMenuDivider(),
+    PopupMenuItem(value: 'plugins', child: Text(c.tr('添加插件', 'Add plugins'))),
+  ];
+
+  void create(String value) {
+    if (value != 'plugins') {
+      pushPage(context, BotEditor(client: c, group: value == 'group'));
+    } else if (MediaQuery.sizeOf(context).width < 840) {
+      pushPage(context, ExtensionsPage(client: c, kind: 'skills'));
+    } else {
+      showExtensionsDialog(context, c);
+    }
+  }
 
   /// Phone header: the mark, the computer, search.
   Widget glassTop() => Padding(
@@ -229,22 +247,6 @@ class _HomePageState extends State<HomePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  tooltip: 'Skills',
-                  onPressed: () => pushPage(
-                    context,
-                    ExtensionsPage(client: c, kind: 'skills'),
-                  ),
-                  icon: const Icon(Icons.auto_awesome_outlined),
-                ),
-                IconButton(
-                  tooltip: c.tr('插件', 'Plugins'),
-                  onPressed: () => pushPage(
-                    context,
-                    ExtensionsPage(client: c, kind: 'plugins'),
-                  ),
-                  icon: const Icon(Icons.extension_outlined),
-                ),
-                IconButton(
                   tooltip: c.tr('设置', 'Settings'),
                   onPressed: () => pushPage(context, SettingsPage(client: c)),
                   icon: const Icon(Icons.tune),
@@ -265,20 +267,8 @@ class _HomePageState extends State<HomePage> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onSelected: (value) => pushPage(
-              context,
-              BotEditor(client: c, group: value == 'group'),
-            ),
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: 'bot',
-                child: Text(c.tr('新建 Bot', 'New Bot')),
-              ),
-              PopupMenuItem(
-                value: 'group',
-                child: Text(c.tr('新建群组', 'New group')),
-              ),
-            ],
+            onSelected: create,
+            itemBuilder: (_) => createItems(),
           ),
         ],
       ),
@@ -304,10 +294,13 @@ class _HomePageState extends State<HomePage> {
         ? reported
         : loaded;
     if (last == null) return null;
-    final text = '${last['content']['text']}'
-        .replaceAll(RegExp(r'[*_`#>]+'), '')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
+    final words = '${last['content']['text']}';
+    final files = last['content']['files'];
+    final text =
+        (files is List && files.isNotEmpty ? withoutDeliveries(words) : words)
+            .replaceAll(RegExp(r'[*_`#>]+'), '')
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
     if (!isGroup) return text;
     final author = object(last['author']);
     final bot = c.node.bots
@@ -544,14 +537,7 @@ class _HomePageState extends State<HomePage> {
                 tooltip: c.tr('账户', 'Account'),
                 position: PopupMenuPosition.over,
                 onSelected: (value) {
-                  if (value == 'extensions') {
-                    narrow
-                        ? pushPage(
-                            context,
-                            ExtensionsPage(client: c, kind: 'skills'),
-                          )
-                        : showExtensionsDialog(context, c);
-                  } else if (value == 'settings') {
+                  if (value == 'settings') {
                     pushPage(context, SettingsPage(client: c));
                   } else {
                     signOut();
@@ -559,11 +545,6 @@ class _HomePageState extends State<HomePage> {
                 },
                 itemBuilder: (_) => [
                   for (final (value, icon, label) in [
-                    (
-                      'extensions',
-                      Icons.extension_outlined,
-                      c.tr('Skills 与插件', 'Skills & plugins'),
-                    ),
                     (
                       'settings',
                       Icons.settings_outlined,
@@ -746,6 +727,12 @@ class _HomePageState extends State<HomePage> {
               (x) => x['conversationId'] == conversation,
             );
         final panel = roomy && hasChat ? details : null;
+        final widest = (constraints.maxWidth - 420).clamp(240.0, 560.0);
+        final sidebar =
+            (dragging ?? c.sidebarWidth ?? constraints.maxWidth * .34).clamp(
+              240.0,
+              widest,
+            );
         return PopScope(
           canPop: !Platform.isAndroid,
           onPopInvokedWithResult: (didPop, result) {
@@ -757,54 +744,112 @@ class _HomePageState extends State<HomePage> {
           child: Scaffold(
             body: narrow
                 ? SafeArea(child: list)
-                : Row(
+                : Stack(
                     children: [
-                      SizedBox(
-                        width: (constraints.maxWidth * .34).clamp(272, 500),
-                        child: Material(color: tone.sidebar, child: list),
-                      ),
-                      const VerticalDivider(width: 1),
-                      Expanded(
-                        child: hasChat
-                            ? ChatPage(
-                                key: ValueKey(
-                                  '${c.selectedNodeId}:$conversation',
-                                ),
-                                client: c,
-                                conversationId: conversation!,
-                                embedded: true,
-                                reserveControls: panel == null,
-                                onDetails: roomy
-                                    ? (bot) => setState(() => details = bot)
-                                    : null,
-                              )
-                            : Stack(
-                                children: const [
-                                  Positioned.fill(child: WindowDrag()),
-                                  Center(
-                                    child: Opacity(
-                                      opacity: .08,
-                                      child: CatAvatar(size: 72),
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: sidebar,
+                            child: Material(color: tone.sidebar, child: list),
+                          ),
+                          const VerticalDivider(width: 1),
+                          Expanded(
+                            child: hasChat
+                                ? ChatPage(
+                                    key: ValueKey(
+                                      '${c.selectedNodeId}:$conversation',
                                     ),
+                                    client: c,
+                                    conversationId: conversation!,
+                                    embedded: true,
+                                    reserveControls: panel == null,
+                                    onDetails: roomy
+                                        ? (bot) => setState(() => details = bot)
+                                        : null,
+                                  )
+                                : Stack(
+                                    children: const [
+                                      Positioned.fill(child: WindowDrag()),
+                                      Center(
+                                        child: Opacity(
+                                          opacity: .08,
+                                          child: CatAvatar(size: 72),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
+                          ),
+                          SidePanel(
+                            child: panel == null
+                                ? null
+                                : BotDetails(
+                                    key: ValueKey(panel['botId']),
+                                    client: c,
+                                    bot: panel,
+                                    onClose: () =>
+                                        setState(() => details = null),
+                                  ),
+                          ),
+                        ],
                       ),
-                      SidePanel(
-                        child: panel == null
-                            ? null
-                            : BotDetails(
-                                key: ValueKey(panel['botId']),
-                                client: c,
-                                bot: panel,
-                                onClose: () => setState(() => details = null),
-                              ),
+                      Positioned(
+                        left: sidebar - 4,
+                        top: 0,
+                        bottom: 0,
+                        width: 9,
+                        child: SplitHandle(
+                          onDrag: (dx) => setState(
+                            () =>
+                                dragging = (sidebar + dx).clamp(240.0, widest),
+                          ),
+                          onEnd: () {
+                            final width = dragging;
+                            setState(() => dragging = null);
+                            if (width != null) c.setSidebarWidth(width);
+                          },
+                        ),
                       ),
                     ],
                   ),
           ),
         );
       },
+    ),
+  );
+}
+
+/// The line between the sidebar and the chat: drag it to resize.
+class SplitHandle extends StatefulWidget {
+  final ValueChanged<double> onDrag;
+  final VoidCallback onEnd;
+  const SplitHandle({super.key, required this.onDrag, required this.onEnd});
+  @override
+  State<SplitHandle> createState() => _SplitHandleState();
+}
+
+class _SplitHandleState extends State<SplitHandle> {
+  bool hovered = false, held = false;
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    cursor: SystemMouseCursors.resizeColumn,
+    onEnter: (_) => setState(() => hovered = true),
+    onExit: (_) => setState(() => hovered = false),
+    child: GestureDetector(
+      key: const ValueKey('sidebar-split'),
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragStart: (_) => setState(() => held = true),
+      onHorizontalDragUpdate: (details) => widget.onDrag(details.delta.dx),
+      onHorizontalDragEnd: (_) {
+        setState(() => held = false);
+        widget.onEnd();
+      },
+      child: Center(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: held || hovered ? 2 : 0,
+          color: context.tone.ink3,
+        ),
+      ),
     ),
   );
 }

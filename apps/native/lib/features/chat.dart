@@ -1140,10 +1140,13 @@ class MessageTile extends StatelessWidget {
               style: Theme.of(context).textTheme.labelMedium,
             ),
             for (final fileId in (body['files'] as List? ?? []))
-              FileCard(
-                client: c,
-                fileId: '$fileId',
-                messageId: '${m['messageId']}',
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: FileCard(
+                  client: c,
+                  fileId: '$fileId',
+                  messageId: '${m['messageId']}',
+                ),
               ),
             if (body['retryText'] != null)
               TextButton(
@@ -1154,7 +1157,33 @@ class MessageTile extends StatelessWidget {
         ),
       );
     }
-    Widget content;
+    final text = body['files'] is List && (body['files'] as List).isNotEmpty
+            ? withoutDeliveries('${body['text'] ?? ''}')
+            : '${body['text'] ?? ''}',
+        streaming = m['status'] == 'streaming',
+        stopped = m['status'] == 'failed' || m['status'] == 'cancelled';
+    // Files stand on their own under the words, never inside the bubble.
+    final attachments = [
+      if (body['files'] is List)
+        for (final fileId in body['files'] as List)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: FileCard(
+              client: c,
+              fileId: '$fileId',
+              botId: user ? null : bot?['botId'] as String?,
+              messageId: m['messageId'] as String,
+            ),
+          ),
+    ];
+    final card = const {
+      'secret',
+      'routine',
+      'tool',
+      'question',
+      'approval',
+    }.contains(kind);
+    Widget? content;
     if (kind == 'secret') {
       content = SecretCard(
         key: ValueKey(m['messageId']),
@@ -1171,89 +1200,84 @@ class MessageTile extends StatelessWidget {
         client: c,
         message: m,
       );
-    } else {
-      content = Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (body['queue'] != null)
-            Text(
-              switch (body['queue']) {
-                'queued' => c.tr(
-                  '已排队 · 当前任务完成后执行',
-                  'Queued · runs after the current turn',
-                ),
-                'running' => c.tr('队列任务', 'Queued task'),
-                'steered' => c.tr('已交给当前任务', 'Sent to the current turn'),
-                _ => c.tr('已取消排队', 'Queue entry cancelled'),
-              },
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: user ? tone.base.withValues(alpha: 0.75) : tone.ink3,
-              ),
-            ),
-          if (body['routine'] != null)
-            TextButton.icon(
-              onPressed: () => pushPage(
-                context,
-                RoutinePage(
-                  client: c,
-                  botId: '${m['author']['id']}',
-                  routineId: '${body['routine']['routineId']}',
-                  executionId: '${body['routine']['executionId']}',
+    } else if (text.trim().isNotEmpty ||
+        streaming ||
+        stopped ||
+        body['queue'] != null ||
+        body['routine'] != null) {
+      content = SelectionArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (body['queue'] != null)
+              Text(
+                switch (body['queue']) {
+                  'queued' => c.tr(
+                    '已排队 · 当前任务完成后执行',
+                    'Queued · runs after the current turn',
+                  ),
+                  'running' => c.tr('队列任务', 'Queued task'),
+                  'steered' => c.tr('已交给当前任务', 'Sent to the current turn'),
+                  _ => c.tr('已取消排队', 'Queue entry cancelled'),
+                },
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: user ? tone.base.withValues(alpha: 0.75) : tone.ink3,
                 ),
               ),
-              icon: const Icon(Icons.webhook, size: 16),
-              label: Text(c.tr('例行任务 · 查看执行', 'Routine · view execution')),
-            ),
-          MessageMarkdown(
-            data:
-                '${body['text'] ?? ''}${m['status'] == 'streaming' ? ' •' : ''}',
-            color: user ? tone.base : null,
-          ),
-          if (body['files'] is List)
-            for (final fileId in body['files'] as List)
-              FileCard(
-                client: c,
-                fileId: '$fileId',
-                botId: bot?['botId'] as String?,
-                messageId: m['messageId'] as String,
-                foreground: user ? tone.base : null,
+            if (body['routine'] != null)
+              TextButton.icon(
+                onPressed: () => pushPage(
+                  context,
+                  RoutinePage(
+                    client: c,
+                    botId: '${m['author']['id']}',
+                    routineId: '${body['routine']['routineId']}',
+                    executionId: '${body['routine']['executionId']}',
+                  ),
+                ),
+                icon: const Icon(Icons.webhook, size: 16),
+                label: Text(c.tr('例行任务 · 查看执行', 'Routine · view execution')),
               ),
-          if (m['status'] == 'failed' || m['status'] == 'cancelled')
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                m['status'] == 'cancelled'
-                    ? c.tr('已停止', 'Stopped')
-                    : body['failureReason'] as String? ??
-                          c.tr('已中断', 'Interrupted'),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: m['status'] == 'cancelled' ? tone.ink3 : tone.danger,
+            MessageMarkdown(
+              data: '$text${streaming ? ' •' : ''}',
+              color: user ? tone.base : null,
+            ),
+            if (stopped)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  m['status'] == 'cancelled'
+                      ? c.tr('已停止', 'Stopped')
+                      : body['failureReason'] as String? ??
+                            c.tr('已中断', 'Interrupted'),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: m['status'] == 'cancelled' ? tone.ink3 : tone.danger,
+                  ),
                 ),
               ),
-            ),
-          if (body['welcome'] == true &&
-              ['failed', 'cancelled'].contains(m['status']))
-            TextButton.icon(
-              onPressed: !c.online
-                  ? null
-                  : () async {
-                      try {
-                        await c.rpc('bots.welcome.retry', {
-                          'messageId': m['messageId'],
-                        });
-                      } catch (e) {
-                        if (context.mounted) {
-                          showNotice(context, '$e');
+            if (body['welcome'] == true && stopped)
+              TextButton.icon(
+                onPressed: !c.online
+                    ? null
+                    : () async {
+                        try {
+                          await c.rpc('bots.welcome.retry', {
+                            'messageId': m['messageId'],
+                          });
+                        } catch (e) {
+                          if (context.mounted) {
+                            showNotice(context, '$e');
+                          }
                         }
-                      }
-                    },
-              icon: const Icon(Icons.refresh),
-              label: Text(c.tr('重试自我介绍', 'Retry introduction')),
-            ),
-        ],
+                      },
+                icon: const Icon(Icons.refresh),
+                label: Text(c.tr('重试自我介绍', 'Retry introduction')),
+              ),
+          ],
+        ),
       );
     }
-    if (c.chatDisplay['timestamps'] == true) {
+    if (content != null && c.chatDisplay['timestamps'] == true) {
       final at = DateTime.parse('${m['createdAt']}').toLocal();
       content = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1275,53 +1299,71 @@ class MessageTile extends StatelessWidget {
         padding: EdgeInsets.only(top: continued || compact ? 3 : 12, left: 56),
         child: Align(
           alignment: Alignment.centerRight,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-            decoration: BoxDecoration(
-              color: tone.ink,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: content,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (content != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: tone.ink,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: content,
+                ),
+              ...attachments,
+            ],
           ),
         ),
       );
     }
+    final copy = !card && !streaming && text.trim().isNotEmpty
+        ? CopyButton(
+            key: ValueKey('copy-${m['messageId']}'),
+            client: c,
+            text: text,
+          )
+        : null;
+    final name = showName && !continued && bot != null
+        ? Padding(
+            padding: EdgeInsets.fromLTRB(tone.glass ? 0 : 2, 0, 0, 4),
+            child: Text(
+              '${bot!['displayName']}',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+          )
+        : null;
+    final avatar = SizedBox(
+      width: 24,
+      child: continued
+          ? null
+          : bot == null
+          ? const CatAvatar(color: '#8C8376', size: 24)
+          : CatAvatar.of(bot!, size: 24, working: working),
+    );
     if (tone.glass) {
       return Padding(
         padding: EdgeInsets.only(top: continued || compact ? 4 : 14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: 24,
-              child: continued
-                  ? null
-                  : bot == null
-                  ? const CatAvatar(color: '#8C8376', size: 24)
-                  : CatAvatar.of(bot!, size: 24, working: working),
-            ),
+            avatar,
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (showName && !continued && bot != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        '${bot!['displayName']}',
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                    ),
-                  content,
-                ],
+                children: [?name, ?content, ...attachments, ?copy],
               ),
             ),
           ],
         ),
       );
     }
-    final bubble = kind == 'tool' || kind == 'question' || kind == 'approval'
+    final bubble = content == null || card
         ? content
         : Container(
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
@@ -1334,18 +1376,14 @@ class MessageTile extends StatelessWidget {
     final column = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (showName && !continued && bot != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(2, 0, 0, 4),
-            child: Text(
-              '${bot!['displayName']}',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
+        ?name,
+        if (bubble != null)
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 620),
+            child: bubble,
           ),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 620),
-          child: bubble,
-        ),
+        ...attachments,
+        ?copy,
       ],
     );
     return Padding(
@@ -1355,18 +1393,52 @@ class MessageTile extends StatelessWidget {
           : Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: 24,
-                  child: continued
-                      ? null
-                      : bot == null
-                      ? const CatAvatar(color: '#8C8376', size: 24)
-                      : CatAvatar.of(bot!, size: 24, working: working),
-                ),
+                avatar,
                 const SizedBox(width: 10),
                 Flexible(child: column),
               ],
             ),
+    );
+  }
+}
+
+/// Copies a message's words; a tick shows it worked.
+class CopyButton extends StatefulWidget {
+  final NekodotClient client;
+  final String text;
+  const CopyButton({super.key, required this.client, required this.text});
+  @override
+  State<CopyButton> createState() => _CopyButtonState();
+}
+
+class _CopyButtonState extends State<CopyButton> {
+  Timer? reset;
+  @override
+  void dispose() {
+    reset?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final done = reset?.isActive ?? false;
+    return IconButton(
+      tooltip: widget.client.tr('复制', 'Copy'),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(width: 28, height: 26),
+      iconSize: 15,
+      color: context.tone.ink3,
+      onPressed: () async {
+        await Clipboard.setData(ClipboardData(text: widget.text));
+        if (!mounted) return;
+        reset?.cancel();
+        setState(() {
+          reset = Timer(const Duration(milliseconds: 1500), () {
+            if (mounted) setState(() {});
+          });
+        });
+      },
+      icon: Icon(done ? Icons.check : Icons.content_copy_outlined),
     );
   }
 }
@@ -1416,10 +1488,15 @@ class _ControlCardState extends State<ControlCard> {
     final c = widget.client,
         m = widget.message,
         tone = context.tone,
+        text = Theme.of(context).textTheme,
         data = object(m['content']),
         question = m['kind'] == 'question',
         pending = m['status'] == 'streaming',
-        multi = data['multiSelect'] == true;
+        multi = data['multiSelect'] == true,
+        open = c.online && !busy,
+            // An interrupted question or approval ends without an answer.
+            answered =
+            data['answer'] ?? data['choice'];
     String label(Object? choice) => switch (choice) {
       'once' => c.tr('允许一次', 'Allow once'),
       'session' => c.tr('本会话允许', 'Allow session'),
@@ -1427,121 +1504,127 @@ class _ControlCardState extends State<ControlCard> {
       'deny' => c.tr('拒绝', 'Deny'),
       _ => '$choice',
     };
-    final option = optionStyle(context);
-    return Panel(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SelectableText('${data[question ? 'question' : 'prompt']}'),
-            if (data['command'] != null)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(top: 10),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: tone.bubble,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: SelectableText(
-                  '${data['command']}',
-                  style: const TextStyle(fontFamily: monoFont, fontSize: 12.5),
-                ),
+    final choices =
+        (data['choices'] as List?) ??
+        (question ? const [] : const ['once', 'deny']);
+    void answerWith() {
+      final typed = answer.text.trim();
+      if (selected.isEmpty && typed.isEmpty) return;
+      respond([...selected, if (typed.isNotEmpty) typed].join('\n'));
+    }
+
+    return ChatCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${data[question ? 'question' : 'prompt']}',
+            style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          if (data['command'] != null)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: tone.bubble,
+                borderRadius: BorderRadius.circular(8),
               ),
-            if (!pending)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Row(
-                  children: [
-                    Icon(Icons.check, size: 16, color: tone.ink3),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        label(data['answer'] ?? data['choice'] ?? m['status']),
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ),
-                  ],
-                ),
+              child: SelectableText(
+                '${data['command']}',
+                style: const TextStyle(fontFamily: monoFont, fontSize: 12.5),
               ),
-            if (pending && question) ...[
-              const SizedBox(height: 4),
-              for (final option in data['choices'] as List? ?? [])
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  title: Text('$option'),
-                  value: selected.contains('$option'),
-                  onChanged: busy
-                      ? null
-                      : (value) => setState(() {
-                          if (!multi) selected.clear();
-                          if (value == true) {
-                            selected.add('$option');
-                          } else {
-                            selected.remove('$option');
-                          }
-                        }),
-                ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: answer,
-                minLines: 1,
-                maxLines: 4,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(hintText: c.tr('回答', 'Answer')),
-              ),
-              const SizedBox(height: 10),
-              FilledButton(
-                style: option,
-                onPressed:
-                    !c.online ||
-                        busy ||
-                        (selected.isEmpty && answer.text.trim().isEmpty)
-                    ? null
-                    : () => respond(
-                        [
-                          ...selected,
-                          if (answer.text.trim().isNotEmpty) answer.text.trim(),
-                        ].join('\n'),
-                      ),
-                child: Text(c.tr('提交', 'Submit')),
-              ),
-            ],
-            if (pending && !question) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
+            ),
+          const SizedBox(height: 8),
+          if (!pending)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Row(
                 children: [
-                  for (final (index, choice)
-                      in (data['choices'] as List? ?? ['once', 'deny']).indexed)
-                    index == 0
-                        ? FilledButton(
-                            style: option,
-                            onPressed: !c.online || busy
-                                ? null
-                                : () => respond('$choice'),
-                            child: Text(label(choice)),
-                          )
-                        : OutlinedButton(
-                            style: option,
-                            onPressed: !c.online || busy
-                                ? null
-                                : () => respond('$choice'),
-                            child: Text(label(choice)),
-                          ),
+                  Icon(
+                    answered == null ? Icons.remove : Icons.check,
+                    size: 16,
+                    color: tone.ink3,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      answered == null
+                          ? c.tr('未回答', 'Not answered')
+                          : label(answered),
+                      style: text.bodySmall,
+                    ),
+                  ),
                 ],
               ),
-            ],
-            ErrorNotice(error),
+            )
+          else ...[
+            for (final (index, choice) in choices.indexed)
+              ChoiceRow(
+                key: ValueKey('choice-${m['messageId']}-$index'),
+                index: index,
+                label: label(choice),
+                selected: selected.contains('$choice'),
+                onTap: !open
+                    ? null
+                    : !question || !multi
+                    ? () {
+                        setState(
+                          () => selected
+                            ..clear()
+                            ..add('$choice'),
+                        );
+                        respond('$choice');
+                      }
+                    : () => setState(() {
+                        if (!selected.remove('$choice')) {
+                          selected.add('$choice');
+                        }
+                      }),
+              ),
+            if (question)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: TextField(
+                  key: ValueKey('answer-${m['messageId']}'),
+                  controller: answer,
+                  enabled: open,
+                  minLines: 1,
+                  maxLines: 4,
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) => answerWith(),
+                  decoration: InputDecoration(
+                    hintText: choices.isEmpty
+                        ? c.tr('回答', 'Answer')
+                        : c.tr('其他回答', 'Something else'),
+                    suffixIcon: multi
+                        ? null
+                        : IconButton(
+                            tooltip: c.tr('提交', 'Submit'),
+                            onPressed: open && answer.text.trim().isNotEmpty
+                                ? answerWith
+                                : null,
+                            icon: const Icon(Icons.arrow_upward, size: 18),
+                          ),
+                  ),
+                ),
+              ),
+            if (question && multi)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: FilledButton(
+                  style: optionStyle(context),
+                  onPressed:
+                      open &&
+                          (selected.isNotEmpty || answer.text.trim().isNotEmpty)
+                      ? answerWith
+                      : null,
+                  child: Text(c.tr('提交', 'Submit')),
+                ),
+              ),
           ],
-        ),
+          ErrorNotice(error),
+        ],
       ),
     );
   }

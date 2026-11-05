@@ -162,7 +162,12 @@ void main() {
           await tester.tap(find.byTooltip('账户'));
           await run(const Duration(milliseconds: 400));
           await shot('$tag-account-menu');
-          await tester.tap(find.text('Skills 与插件').last);
+          navigator.currentState!.pop();
+          await run(const Duration(milliseconds: 300));
+          await tester.tap(find.byTooltip('新建').first);
+          await run(const Duration(milliseconds: 400));
+          await shot('$tag-create-menu');
+          await tester.tap(find.text('添加插件').last);
           await shot('$tag-dialog');
           navigator.currentState!.pop();
           await run(const Duration(milliseconds: 300));

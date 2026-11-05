@@ -27,17 +27,23 @@ class MessageMarkdown extends StatelessWidget {
   final Color? color;
   const MessageMarkdown({super.key, required this.data, this.color});
 
+  /// Plain text inside one selection area, so a drag can run across lines and
+  /// paragraphs; per-paragraph selectable text would stop at each one.
   @override
-  Widget build(BuildContext context) => MarkdownBody(
-    data: data,
-    selectable: true,
-    extensionSet: md.ExtensionSet.gitHubFlavored,
-    inlineSyntaxes: [CjkStrongSyntax()],
-    styleSheet: markdownStyle(context, color: color),
-    onTapLink: (_, href, _) {
-      if (href != null) {
-        launchUrl(Uri.parse(href), mode: LaunchMode.externalApplication);
-      }
-    },
-  );
+  Widget build(BuildContext context) {
+    final body = MarkdownBody(
+      data: data,
+      extensionSet: md.ExtensionSet.gitHubFlavored,
+      inlineSyntaxes: [CjkStrongSyntax()],
+      styleSheet: markdownStyle(context, color: color),
+      onTapLink: (_, href, _) {
+        if (href != null) {
+          launchUrl(Uri.parse(href), mode: LaunchMode.externalApplication);
+        }
+      },
+    );
+    return SelectionContainer.maybeOf(context) == null
+        ? SelectionArea(child: body)
+        : body;
+  }
 }

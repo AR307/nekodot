@@ -74,6 +74,85 @@ class Panel extends StatelessWidget {
   }
 }
 
+/// What a Bot puts in the chat besides words: a question, an approval, a
+/// file. One hairline, no shadow, nothing nested inside.
+class ChatCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  const ChatCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.fromLTRB(16, 14, 16, 12),
+  });
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: tone.surface,
+        border: Border.all(color: tone.line),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// One lettered choice in a question or an approval.
+class ChoiceRow extends StatelessWidget {
+  final int index;
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+  const ChoiceRow({
+    super.key,
+    required this.index,
+    required this.label,
+    this.selected = false,
+    this.onTap,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    final text = Theme.of(context).textTheme;
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: onTap,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: 2,
+          vertical: tone.glass ? 9 : 7,
+        ),
+        child: Row(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              width: 24,
+              height: 24,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: selected ? tone.ink : tone.bubble,
+                border: Border.all(color: selected ? tone.ink : tone.line),
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Text(
+                String.fromCharCode(65 + index % 26),
+                style: text.labelSmall?.copyWith(
+                  color: selected ? tone.base : tone.ink2,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(label, style: text.bodyMedium)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// The small pill for a choice inside a card: approval options, answers.
 ButtonStyle optionStyle(BuildContext context) {
   final glass = context.tone.glass;

@@ -78,6 +78,9 @@ class NekodotClient extends ChangeNotifier {
   String? visibleConversation;
   Json? me;
   String language = 'zh', theme = 'system', error = '';
+
+  /// The desktop sidebar's width once the user has dragged it.
+  double? sidebarWidth;
   final chatDisplay = <String, bool>{
     'focus': false,
     'density': false,
@@ -121,6 +124,7 @@ class NekodotClient extends ChangeNotifier {
       chatDisplay[key] = prefs.getBool('chat-$key') ?? false;
     }
     selectedNodeId = prefs.getString('node');
+    sidebarWidth = prefs.getDouble('sidebar-width');
     token = await vault.read(key: 'nekodot-session');
     if (token != null) await bootstrap();
   }
@@ -237,6 +241,15 @@ class NekodotClient extends ChangeNotifier {
     chatDisplay[key] = enabled;
     await (await SharedPreferences.getInstance()).setBool('chat-$key', enabled);
     notifyListeners();
+  }
+
+  Future<void> setSidebarWidth(double width) async {
+    sidebarWidth = width;
+    notifyListeners();
+    await (await SharedPreferences.getInstance()).setDouble(
+      'sidebar-width',
+      width,
+    );
   }
 
   Future<void> selectNode(String id) async {

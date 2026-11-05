@@ -207,24 +207,20 @@ void main() {
       await until(
         () => client.node.activities[id]?['state'] == 'waiting_question',
       );
-      await tap(find.widgetWithText(CheckboxListTile, 'Amber (Recommended)'));
       await tester.enterText(input, 'Draft survives a pending question');
       await client.connect();
       await until(() => client.online && !client.node.syncing);
       expect(
-        tester
-            .widget<CheckboxListTile>(
-              find.widgetWithText(CheckboxListTile, 'Amber (Recommended)'),
-            )
-            .value,
-        isTrue,
+        find.widgetWithText(ChoiceRow, 'Amber (Recommended)'),
+        findsOneWidget,
       );
       expect(
         tester.widget<TextField>(input).controller!.text,
         'Draft survives a pending question',
       );
       await screenshot('native-product-question');
-      await tap(find.text('提交'));
+      // A single choice answers as soon as it is picked.
+      await tap(find.widgetWithText(ChoiceRow, 'Amber (Recommended)'));
       await until(() => client.node.activities[id]?['state'] == 'idle');
       await tester.enterText(input, '');
 

@@ -91,25 +91,13 @@ class RoutineCard extends StatelessWidget {
   final Json content;
   const RoutineCard({super.key, required this.client, required this.content});
 
+  /// One quiet line: what happened and to which routine; it opens the routine.
   @override
-  Widget build(BuildContext context) => Panel(
-    child: ListTile(
-      leading: Icon(
-        content['card'] == 'credentials' ? Icons.lock_outline : Icons.webhook,
-      ),
-      title: Text('${content['name']}'),
-      subtitle: Text(
-        content['card'] == 'credentials'
-            ? client.tr(
-                '已保密交付 · 脚本使用凭据引用',
-                'Securely delivered · scripts use a credential reference',
-              )
-            : client.tr(
-                '已创建例行任务 · 查看接入详情',
-                'Routine created · open connection details',
-              ),
-      ),
-      trailing: const Icon(Icons.chevron_right),
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    final text = Theme.of(context).textTheme.bodySmall;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
       onTap: () => pushPage(
         context,
         RoutinePage(
@@ -118,8 +106,43 @@ class RoutineCard extends StatelessWidget {
           routineId: '${content['routineId']}',
         ),
       ),
-    ),
-  );
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              content['card'] == 'credentials'
+                  ? client.tr('已保密交付', 'Delivered securely')
+                  : client.tr('已创建例行任务', 'Routine created'),
+              style: text?.copyWith(color: tone.ink3),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              content['card'] == 'credentials'
+                  ? Icons.lock_outline
+                  : Icons.schedule,
+              size: 14,
+              color: tone.ink2,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                '${content['name']}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: text?.copyWith(
+                  color: tone.ink2,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 16, color: tone.ink3),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class RoutinePage extends StatefulWidget {
