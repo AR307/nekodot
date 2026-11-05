@@ -1068,3 +1068,9 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 命令和例行任务改为居中灰字短通知。普通回应仍是聊天，短进度只在闪光状态行；同一 commentary 内混合的回应/进度按行分开。复制图标仅悬停/聚焦显示。没有新增解释性 UI 文案。
 - 本次 Windows 与固定 Android 模拟器通过真实 Node/Relay/Hermes v0.22.6 的模型目录、上下文/辅助模型保存、`/new`/`/resume`、真实 terminal=323 旅程；Windows 原生单次 cron 实际执行，创建/执行提示正确。截图、发现与未验边界见 `docs/ui-refinements-acceptance.md`。
 - Flutter analyze、33 项测试、Windows Release 和 Android arm64 签名 Release 构建通过。Android 真机、跨来源与完整公网 webhook 变化未重新验收；未部署、未 push。现有无关改动和证据保留。
+
+## 2026-11-05 Windows 本机安装长路径修复
+
+- 真实复现账号 PM workspace 的 WinError 3：普通路径复制失败，最长 288 字符。用户授权最小 Hermes 安装补丁，仅复制调用使用既有 long_root；不改 HERMES_HOME、Agent 或账号路径。
+- Flutter 安装器集成幂等补丁并保留原文件；官方依赖、产品、配置、新账号安装与重试通过。Windows 原生候选使用真实 gpt-6.1-sol 完成读写文件、二次对话和重启历史验收。
+- Windows legacy-path 模式下 Hermes 两条测试基线失败、补丁通过；Flutter analyze/33 项测试及 Windows Release 构建通过。详见 docs/windows-long-path-fix.md。仅本地提交，未发布、未 push，用户另一台电脑待复测。

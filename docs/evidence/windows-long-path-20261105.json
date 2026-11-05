@@ -1,0 +1,67 @@
+{
+  "date": "2026-11-05",
+  "hermes": "v0.22.6",
+  "platform": "Windows x64",
+  "installation": {
+    "ordinaryCopy": {
+      "ok": false,
+      "count": 30,
+      "winerror3": true,
+      "longest": 288
+    },
+    "extendedCopy": {
+      "ok": true,
+      "files": 47,
+      "longest": 292
+    },
+    "officialDependencyStage": "passed",
+    "officialProductsStage": "passed",
+    "officialConfigStage": "passed",
+    "officialAccountPmInstall": "passed",
+    "officialAccountPmRetry": "passed"
+  },
+  "native": {
+    "phase": "long-path",
+    "started": "2026-11-05T21:41:15.483241",
+    "signedIn": "2026-11-05T21:41:22.154636",
+    "historyBefore": 50,
+    "historyKept": true,
+    "sameNode": true,
+    "sentDuringWelcome": {
+      "activity": "idle",
+      "welcome": null
+    },
+    "approvals": 0,
+    "tools": ["read_file:done", "write_file:done"],
+    "fileWritten": true,
+    "secondSendEnabled": true,
+    "secondAnswered": true,
+    "processesAfterStop": "0",
+    "restartKeepsHistory": true,
+    "restartAddsNothing": true,
+    "finished": "2026-11-05T21:43:58.758870",
+    "processesAfterQuit": "0"
+  },
+  "boundaries": [
+    "Original affected PC not available",
+    "No production deployment or push",
+    "Desktop permissions UAC not exercised"
+  ],
+  "model": "gpt-6.1-sol",
+  "hermesCopyRegression": {
+    "canonicalRunner": true,
+    "legacyPathMode": true,
+    "base": "2 failures with WinError 3",
+    "patched": "2 passed"
+  },
+  "engineering": {
+    "hermesChecks": "scripts/check --staged --base HEAD: 13 checks passed",
+    "flutterAnalyze": "passed",
+    "flutterTests": 33,
+    "serviceTestFiles": 38,
+    "serviceTests": 75,
+    "typecheck": "passed",
+    "eslint": "passed",
+    "windowsRelease": "built, Authenticode unsigned"
+  }
+}

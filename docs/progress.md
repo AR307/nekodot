@@ -1245,3 +1245,9 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 命令与例行任务居中灰字通知；真实进度仅在闪光行显示，有意义回应保留；复制图标悬停/聚焦出现。未增加解释性 UI 段落。
 - Windows、固定 Android 模拟器真实验收：登录、详情模型目录与上下文 128000、辅助压缩模型 `gpt-6.1-sol` 原生读回、`/new`/`/resume`、terminal 计算 323；Windows 实际 cron 触发与结果通知通过。
 - Flutter analyze/33 项测试、双端 Release 构建通过。详见 `docs/ui-refinements-acceptance.md` 和结构化证据；真机、跨来源、完整公网 webhook 等未验范围明确保留。只做本地提交，不发布、不 push。
+
+## 2026-11-05 Windows 本机安装长路径修复
+
+- 真实复现账号 PM workspace 的 WinError 3：普通路径复制失败，最长 288 字符。用户授权最小 Hermes 安装补丁，仅复制调用使用既有 long_root；不改 HERMES_HOME、Agent 或账号路径。
+- Flutter 安装器集成幂等补丁并保留原文件；官方依赖、产品、配置、新账号安装与重试通过。Windows 原生候选使用真实 gpt-6.1-sol 完成读写文件、二次对话和重启历史验收。
+- Windows legacy-path 模式下 Hermes 两条测试基线失败、补丁通过；Flutter analyze/33 项测试及 Windows Release 构建通过。详见 docs/windows-long-path-fix.md。仅本地提交，未发布、未 push，用户另一台电脑待复测。

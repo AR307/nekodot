@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:cryptography/cryptography.dart';
 import 'package:http/http.dart' as http;
 
+import 'hermes_patch.dart';
 import 'location.dart';
 import 'owned_process.dart';
 import 'system.dart';
@@ -202,6 +203,9 @@ class RuntimeInstaller {
 
   /// Runs one official protocol-1 stage and reads its final JSON frame.
   Future<void> stage(String name, String home) async {
+    if (name == 'python-deps' || name == 'products') {
+      await patchWindowsHermesWorkspace(location);
+    }
     final installer = joinPath(
       _scripts,
       Platform.isWindows ? 'install.ps1' : 'install.sh',
@@ -309,6 +313,7 @@ class RuntimeInstaller {
   }
 
   Future<void> _verify() async {
+    await patchWindowsHermesWorkspace(location);
     if (!await File(location.launcher).exists()) {
       throw InstallFailure(
         'verify',
@@ -327,6 +332,7 @@ class RuntimeInstaller {
   /// Hermes shares its checkout, but each account home owns its PM dependency state.
   /// Prepare it during installation, before the gateway's short health-check window.
   Future<void> prepareAccount(String home) async {
+    await patchWindowsHermesWorkspace(location);
     final log = File(joinPath(location.logs, 'install-account.log'))
         .openWrite(mode: FileMode.append);
     try {
