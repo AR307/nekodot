@@ -53,7 +53,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 40px;
+  min-height: var(--target);
   padding: 0 8px 0 12px;
   border-radius: var(--radius-btn);
   border: 1px solid var(--line);
@@ -124,6 +124,10 @@
 }
 .bot-row:hover {
   background: var(--hover);
+}
+/* Immediate press feedback, including touch screens where hover never fires (E5). */
+.bot-row:active {
+  background: var(--press);
 }
 .bot-row.active:hover {
   background: transparent;
@@ -343,7 +347,7 @@
   font-weight: 800;
 }
 .language-button {
-  min-height: 36px;
+  min-height: var(--target);
   padding: 0 10px;
   gap: 6px;
   font-size: 12px;
@@ -384,7 +388,7 @@
 }
 .node-picker summary {
   list-style: none;
-  min-height: 40px;
+  min-height: var(--target);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -550,6 +554,10 @@
   background: transparent;
   color: var(--ink);
   font-size: 16px;
+}
+/* The palette input is always focused while open; the search bar itself is the indicator. */
+.palette-search input:focus-visible {
+  box-shadow: none;
 }
 .palette-search > .icon {
   width: 18px;

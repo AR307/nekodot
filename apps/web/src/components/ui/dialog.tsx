@@ -105,9 +105,13 @@ export function Dialog({
   useEffect(() => {
     const container = panel.current;
     if (!container) return;
+    // A form starts at its first field; a read-only panel starts at itself, never on an
+    // action button that a stray Enter/Space could trigger.
     const preferred = container.querySelector<HTMLElement>('[data-autofocus], [autofocus]');
-    const first = tabbables(container).find((element) => !element.matches('.dialog-close'));
-    (preferred ?? first ?? container).focus({ preventScroll: true });
+    const field = tabbables(container).find((element) =>
+      element.matches('input, select, textarea, [contenteditable="true"]'),
+    );
+    (preferred ?? field ?? container).focus({ preventScroll: true });
   }, []);
 
   function onKeyDown(event: KeyboardEvent) {

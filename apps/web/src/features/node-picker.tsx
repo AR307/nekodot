@@ -3,6 +3,7 @@ import { useRef } from 'react';
 import { useAppStore } from '../store';
 import { Icon, LoadingText, StatusDot } from '../ui';
 import type { Texts } from '../shared';
+import { moveMenuFocus } from '../components/ui/menu-keys';
 
 export function NodePicker({ t, state }: { t: Texts; state: 'ok' | 'connecting' | 'offline' }) {
   const nodes = useAppStore((store) => store.me?.nodes ?? []);
@@ -21,7 +22,7 @@ export function NodePicker({ t, state }: { t: Texts; state: 'ok' | 'connecting' 
         if (event.key === 'Escape') {
           event.currentTarget.open = false;
           event.currentTarget.querySelector('summary')?.focus();
-        }
+        } else if (event.currentTarget.open) moveMenuFocus(event);
       }}
     >
       <summary>

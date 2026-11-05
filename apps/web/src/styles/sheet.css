@@ -1,3 +1,7 @@
+/* A dialog panel takes focus only as the reading start point; it is not a control. */
+.dialog-layer [role='dialog']:focus {
+  outline: none;
+}
 /* modal sheet: bottom sheet on phones, centred dialog on wider screens */
 .dialog-backdrop {
   position: fixed;

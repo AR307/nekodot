@@ -14,7 +14,7 @@ import { ExtensionsPage } from './extensions';
 import { TeamSidebar, modKey, type AppView } from './sidebar';
 import { CommandPalette, type PaletteItem } from './command-palette';
 import { ScreenPanel } from './screen';
-import { easeCss, ms, tween } from '../motion';
+import { easeCss, ms, shift, tween } from '../motion';
 
 export function TeamPage({ t, onLanguage }: { t: Texts; onLanguage(): void }) {
   const node = useAppStore(selectNodeData);
@@ -271,9 +271,9 @@ export function TeamPage({ t, onLanguage }: { t: Texts; onLanguage(): void }) {
         <motion.div
           key={paneKey}
           className="conversation-pane"
-          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6 }}
+          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: shift[2] }}
           animate={{ opacity: 1, y: 0 }}
-          transition={tween('base', reduceMotion)}
+          transition={tween('panel', reduceMotion)}
         >
           {view !== 'chats' ? (
             <>

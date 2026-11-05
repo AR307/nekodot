@@ -1,5 +1,5 @@
 import { AnimatedList } from '../components/ui/animated-list';
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { Bot, Conversation, Group, Message } from '@nekodot/protocol';
 import { selectNodeData, useAppStore, type ActivityState } from '../store';
@@ -11,6 +11,7 @@ import { readableMessageText } from './files';
 import { plainText } from './markdown';
 import { writeClipboard } from '../native';
 import { springy, tween } from '../motion';
+import { moveMenuFocus } from '../components/ui/menu-keys';
 
 export type AppView = 'chats' | 'skills' | 'plugins';
 export const modKey = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl';
@@ -363,6 +364,12 @@ function NewMenu({
 }) {
   const [open, setOpen] = useState(false);
   const reduceMotion = useReducedMotion();
+  const layer = useRef<HTMLDivElement>(null);
+  // Menu-button pattern: opening moves focus to the first item.
+  useEffect(() => {
+    if (open)
+      layer.current?.querySelector<HTMLElement>('[role="menuitem"]:not(:disabled)')?.focus();
+  }, [open]);
   const items = [
     { label: t.newBot, icon: 'bot' as const, run: onNewBot, disabled: false },
     { label: t.newGroup, icon: 'users' as const, run: onNewGroup, disabled: !canGroup },
@@ -370,8 +377,13 @@ function NewMenu({
   return (
     <div
       className="fab-layer"
+      ref={layer}
       onKeyDown={(event) => {
-        if (event.key === 'Escape') setOpen(false);
+        if (event.key === 'Escape' && open) {
+          setOpen(false);
+          // Return focus to the button that opened the menu.
+          layer.current?.querySelector<HTMLElement>('.fab')?.focus();
+        } else if (open) moveMenuFocus(event);
       }}
     >
       <AnimatePresence>
