@@ -13,10 +13,10 @@ test('the account screen works at desktop, tablet, and phone sizes in both langu
   for (const width of [1440, 768, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await expect(page.getByLabel('邮箱')).toBeVisible();
-    await expect(page.getByRole('button', { name: '继续', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: '登录', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-    await page.screenshot({ path: `docs/evidence/phase1-account-${width}.png`, fullPage: true });
+    await page.screenshot({ path: test.info().outputPath(`account-${width}.png`), fullPage: true });
   }
 });

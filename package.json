@@ -41,6 +41,7 @@
     "node:run": "tsx apps/node/src/index.ts run"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "^10.0.0",
     "@nekodot/fake-hermes": "workspace:*",
     "@playwright/test": "^1.64.1",

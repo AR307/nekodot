@@ -81,7 +81,7 @@ test('Edge manages coexisting sources, selects a source in the Bot form, and sho
     await page.getByRole('button', { name: '已有账号？登录', exact: true }).click();
     await page.getByLabel('邮箱', { exact: true }).fill(email);
     await page.getByLabel('密码', { exact: true }).fill(password);
-    await page.getByRole('button', { name: '继续', exact: true }).click();
+    await page.getByRole('button', { name: '登录', exact: true }).click();
     await expect(page.locator('.node-picker summary')).toContainText('Source journey computer');
     await page.locator('.sidebar-header button[aria-label="设置"]').click();
     await expect(page.getByRole('heading', { name: '授权登录', exact: true })).toBeVisible();
