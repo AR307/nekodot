@@ -40,6 +40,8 @@ test('Edge shows a copyable legacy command and removes it when the same computer
     'Update computer',
   );
   // This UI test uses empty conversation data; real legacy bundles/systemd are tested separately.
+  // A 1.0.0 Node predates host/desktopControl, so the client cannot sync it and must still
+  // show the command; the upgraded Node answers the current protocol.
   const node = (version: string) =>
     connectRelay({
       version,
@@ -47,17 +49,17 @@ test('Edge shows a copyable legacy command and removes it when the same computer
       handleRpc: async (request) =>
         request.method === 'sync.snapshot'
           ? {
-              node: {
-                platform: 'linux',
-                computerUse: false,
-              },
+              node:
+                version === '1.0.0'
+                  ? { platform: 'linux', computerUse: false }
+                  : { platform: 'linux', computerUse: false, host: 'server', desktopControl: null },
               bots: [],
               groups: [],
               conversations: [],
               headSeq: 0,
             }
           : request.method === 'sync.since'
-            ? { events: [], resyncRequired: false }
+            ? { events: [], headSeq: 0, resyncRequired: false }
             : {},
     });
   let connection = node('1.0.0');
@@ -66,7 +68,7 @@ test('Edge shows a copyable legacy command and removes it when the same computer
     await page.getByRole('button', { name: '已有账号？登录', exact: true }).click();
     await page.getByLabel('邮箱', { exact: true }).fill(email);
     await page.getByLabel('密码', { exact: true }).fill(password);
-    await page.getByRole('button', { name: '继续', exact: true }).click();
+    await page.getByRole('button', { name: '登录', exact: true }).click();
     const notice = page.locator('.node-update-notice');
     await expect(notice).toContainText('这台电脑需要更新一次');
     await expect(notice.locator('code')).toHaveText(
@@ -78,6 +80,7 @@ test('Edge shows a copyable legacy command and removes it when the same computer
     connection = node('20261031010000');
     await expect(notice).toHaveCount(0);
     await expect(page.locator('.node-picker summary')).toContainText('Update computer');
+    await expect(page.locator('.node-picker summary')).toContainText('已同步');
   } finally {
     connection.close();
     await relay.app.close();

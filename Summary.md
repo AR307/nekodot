@@ -980,3 +980,9 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 真实 Windows 候选客户端、现有本地 Relay/Node、官方 Hermes providers RPC 与用户此前生成的900×1100小丑SVG完成验收：右侧实际像素非空、源码一致、缩放/适合窗口、窄窗口、关闭保留聊天、默认应用调用及打开方式对话框观察/取消。右侧和窄窗口截图人工检查；未新调用模型。早期仅DOM成功的验收被实际像素断言发现并修正。
 - Flutter analyze、37项辅助测试通过，最终相关7项回归再次通过；Windows Release和未签名NSIS构建成功，安装至 AppData/Local/Programs/nekoDOT，40个文件逐一SHA256核对一致，5个启动入口已恢复本地启动脚本。旧程序/安装器/快捷方式保留备份，旧worktree客户端已正常退出，新安装程序启动响应正常。
 - 证据留在忽略的.runtime/local-deployment/windows/svg-preview-evidence；没有提交凭据、原始聊天或运行目录，没有push/正式发布。未真实操作文件夹定位、系统保存/分享对话框；打开方式未替用户选择应用；Web布局及Android/macOS/Linux设备本轮未验。
+
+## 2026-11-05 Web 旧 Node 更新提示恢复（本地）
+
+- 根因：11-04 起 sync.snapshot 要求 node.host/desktopControl，真实 1.0.0 Node 仍按旧结构回复；Web 拒绝快照后把同步失败写成“离线”，连带覆盖 Relay 在线状态，专为旧 Node 准备的更新命令因此被隐藏。/me 刷新本身正常。
+- Web 区分 Relay 在线与本端同步：同步失败只标记本端不可用；提示按 Relay 在线和 /me 的命令显示。断线时同步清除命令（与 /me 一致），升级后重连不再闪现旧命令。未增加兼容层或更新状态，Flutter 未受影响。
+- 新增 store 单元测试；Edge 旅程修正 11-04 后过时的“登录”按钮，旧版回复真实旧结构、升级后回复当前结构并断言“已同步”，连续 3 次通过。lint、typecheck、Web build 通过；pnpm test 中 apps/node 的 welcome/app 3 项既有失败与本改动无关。未用真实 1.0.0 bundle、官方 Hermes 或真实模型复验，未 push。

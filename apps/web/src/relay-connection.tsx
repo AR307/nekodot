@@ -166,8 +166,7 @@ export function RelayConnection() {
           handleUpdate(update);
         for (const update of buffered.filter((item) => item.type === 'live')) handleUpdate(update);
       } catch {
-        if (activeSocket === currentSocket)
-          useAppStore.getState().setNodeOnline(selectedNodeId, false);
+        if (activeSocket === currentSocket) useAppStore.getState().setNodeUnsynced(selectedNodeId);
       } finally {
         syncing = false;
       }

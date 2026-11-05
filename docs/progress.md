@@ -1174,3 +1174,9 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - Windows真实集成使用现有本地Relay/Node、Hermes providers.list、用户此前生成的900×1100 SVG：校验原文件下载、解码尺寸、Flutter预览区实际非空像素、右侧聊天并存、源码一致、125%/适合窗口、窄窗口、关闭返回聊天。Windows默认应用调用成功，观察打开方式对话框并取消，未更改默认关联；未选择具体外部应用。右侧与窄窗口截图已人工检查。早期截图与对话框观察辅助脚本失败后已修正并完整重跑通过。
 - 全部37项Flutter辅助测试、analyze通过，最后相关7项再次通过；Windows lib/main.dart Release、未签名NSIS成功。旧worktree客户端正常退出后实际安装至AppData/Local/Programs/nekoDOT，40个文件SHA256与Release一致，5个入口恢复；新程序路径/响应及Relay健康核对通过。保留旧程序、安装器和快捷方式备份。
 - 私有证据位于忽略的.runtime/local-deployment/windows/svg-preview-evidence；操作说明docs/file-preview.md。未新调用模型、未交互验收系统保存/分享/文件夹定位，未验其他平台设备，Web布局未改。无文件删除、凭据提交、push或正式发布。
+
+## 2026-11-05 Web 旧 Node 更新提示恢复（本地）
+
+- 根因：tests/browser/node-update.spec.ts 先因 9af9282c0b 后登录提交按钮改为“登录”而卡住；修正后真实失败为 51bfa0a474 给 nodeCapabilitiesSchema 增加 host/desktopControl，1.0.0 Node 的旧快照被 Web 严格校验拒绝，synchronize 失败分支调用 setNodeOnline(false)，同时把 me.nodes[].online 改为 false，提示条件 node.online 失效。探针：给假 Node 补当前字段后原代码即通过。
+- 修复：store 新增 setNodeUnsynced（仅本端同步状态）与 selectUpdateCommand（socketReady + Relay 在线 + /me 命令）；relay-connection 同步失败改用 setNodeUnsynced；sidebar 改用选择器；setNodeOnline(false) 同步清除 updateCommand，与 Relay 断线后 /me 返回一致。
+- 验证：apps/web/src/store.test.ts 3 项；Edge 旅程 3 次连续通过（5.8–8.0s），使用进程内真实 Relay、Web 构建与 Node 连接代码，假 RPC 回复按版本给出旧/新结构。lint、typecheck、Web build 通过；全量 vitest 69/72，失败的 apps/node welcome.test.ts 2 项和 app.test.ts 1 项不引用 Web 代码，单独重跑仍失败，属既有问题。其余旧 E2E（foundation/groups/providers/private-chat）仍使用“继续”登录按钮，本次未改。未做真实 1.0.0 bundle/官方 Hermes/真实模型验收，未 push。
