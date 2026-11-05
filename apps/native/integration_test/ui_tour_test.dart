@@ -194,7 +194,7 @@ void main() {
                       ),
                     for (final color in avatarColors)
                       CatAvatar(color: color, size: 36),
-                    ThinkingRow(bot: bot),
+                    ThinkingRow(client: client, bot: bot),
                   ],
                 ),
               ),

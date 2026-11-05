@@ -11,6 +11,7 @@ export const hermesSseEventSchema = z
     already_streamed: z.boolean().optional(),
     tool: z.string().optional(),
     preview: z.string().optional(),
+    context: z.string().optional(),
     tool_call_id: z.string().optional(),
     duration: z.number().optional(),
     error: z.union([z.boolean(), z.string()]).optional(),

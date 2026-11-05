@@ -290,12 +290,7 @@ void main() {
         utf8.decode(await downloadFile(client, file['fileId'] as String)),
         contains('你好，nekodot'),
       );
-      final navigator = Navigator.of(tester.element(find.byType(ChatPage)));
-      navigator.push(
-        MaterialPageRoute<void>(
-          builder: (_) => FilePage(client: client, file: file),
-        ),
-      );
+      showFileViewer(tester.element(find.byType(ChatPage)), client, file);
       await until(
         () => find.textContaining('你好，nekodot').evaluate().isNotEmpty,
       );
@@ -311,11 +306,11 @@ void main() {
       }
       await tap(
         find.descendant(
-          of: find.byType(FilePage),
-          matching: find.byType(BackButton),
+          of: find.byType(FileViewer),
+          matching: find.byTooltip('关闭'),
         ),
       );
-      await until(() => find.byType(FilePage).evaluate().isEmpty);
+      await until(() => find.byType(FileViewer).evaluate().isEmpty);
       if (!tester.widget<ChatPage>(find.byType(ChatPage)).embedded) {
         await tester.pageBack();
         await tester.pump(const Duration(milliseconds: 400));

@@ -18,6 +18,7 @@ import 'client_commands.dart';
 import 'routines.dart';
 import 'secrets.dart';
 import 'sessions.dart';
+import 'work.dart';
 
 class ChatPage extends StatefulWidget {
   final NekodotClient client;
@@ -376,11 +377,36 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       final memberAvatars = [
         for (final member in members) object(member['avatar']),
       ];
+      // Steps fold together: the tool calls in a row and what the Bot wrote
+      // between them, until it writes its reply or asks you something.
+      final items = <List<Json>>[];
+      bool step(Json m) => m['kind'] == 'tool' || m['kind'] == 'commentary';
+      for (final m in messages) {
+        final last = items.lastOrNull;
+        if (step(m) &&
+            last != null &&
+            step(last.first) &&
+            last.first['author']['id'] == m['author']['id']) {
+          last.add(m);
+        } else {
+          items.add([m]);
+        }
+      }
+      for (var i = items.length - 1; i >= 0; i--) {
+        if (items[i].length > 1 && !items[i].any((m) => m['kind'] == 'tool')) {
+          items.replaceRange(i, i + 1, [
+            for (final m in items[i]) [m],
+          ]);
+        }
+      }
+      bool work(List<Json> item) => item.any((m) => m['kind'] == 'tool');
       final tail = messages.lastOrNull;
       final thinking =
           (state == 'thinking' || state == 'tool') &&
           tail?['status'] != 'streaming';
-      final lead = thinking && messages.isNotEmpty ? 1 : 0;
+      // Working, the last box says what is going on; the row below says it
+      // only before there is a box.
+      final lead = thinking && messages.isNotEmpty && !work(items.last) ? 1 : 0;
       final status = !c.online
           ? c.tr('离线', 'Offline')
           : activity['connection'] == 'reconnecting'
@@ -908,12 +934,12 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 controller: scroll,
                 reverse: true,
                 padding: EdgeInsets.fromLTRB(14, 6, 14, composerHeight + 2),
-                itemCount: messages.length + 1 + lead,
+                itemCount: items.length + 1 + lead,
                 findChildIndexCallback: (key) {
-                  final index = messages.indexWhere(
-                    (message) => ValueKey(message['messageId']) == key,
+                  final index = items.indexWhere(
+                    (item) => ValueKey(item.first['messageId']) == key,
                   );
-                  return index < 0 ? null : messages.length - 1 - index + lead;
+                  return index < 0 ? null : items.length - 1 - index + lead;
                 },
                 itemBuilder: (context, position) {
                   if (position < lead) {
@@ -921,12 +947,12 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                       alignment: Alignment.topCenter,
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 720),
-                        child: ThinkingRow(bot: bot, showName: group != null),
+                        child: ThinkingRow(client: c, bot: bot),
                       ),
                     );
                   }
                   final index = position - lead;
-                  if (index == messages.length) {
+                  if (index == items.length) {
                     return (c.node.messages[id]?.length ?? 0) < 50
                         ? const SizedBox.shrink()
                         : Center(
@@ -946,9 +972,10 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                             ),
                           );
                   }
-                  final at = messages.length - 1 - index,
-                      m = messages[at],
-                      previous = at == 0 ? null : messages[at - 1],
+                  final at = items.length - 1 - index,
+                      item = items[at],
+                      m = item.first,
+                      previous = at == 0 ? null : items[at - 1].last,
                       author = members
                           .where((b) => b['botId'] == m['author']['id'])
                           .firstOrNull;
@@ -960,6 +987,18 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                       child: MessageTile(
                         client: c,
                         message: m,
+                        steps: work(item) ? item : null,
+                        // Still going while only its questions follow it.
+                        live:
+                            working &&
+                            items
+                                .skip(at + 1)
+                                .every(
+                                  (later) => const {
+                                    'approval',
+                                    'question',
+                                  }.contains(later.first['kind']),
+                                ),
                         bot: author,
                         showName: group != null,
                         working: working && index == 0,
@@ -996,11 +1035,11 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   );
 }
 
-/// The working cat and its hopping dots, until the reply starts to stream.
+/// The working cat and what it is doing, until there is a step to show.
 class ThinkingRow extends StatelessWidget {
+  final NekodotClient client;
   final Json? bot;
-  final bool showName;
-  const ThinkingRow({super.key, this.bot, this.showName = false});
+  const ThinkingRow({super.key, required this.client, this.bot});
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: 10),
@@ -1009,105 +1048,24 @@ class ThinkingRow extends StatelessWidget {
       children: [
         if (bot != null) CatAvatar.of(bot!, size: 24, working: true),
         const SizedBox(width: 10),
-        const ThinkingDots(),
+        Text(
+          client.tr('思考中…', 'Thinking…'),
+          key: const ValueKey('thinking-status'),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: context.tone.ink2),
+        ),
       ],
     ),
   );
 }
 
-class ToolRow extends StatefulWidget {
-  final Json message;
-  const ToolRow({super.key, required this.message});
-  @override
-  State<ToolRow> createState() => _ToolRowState();
-}
-
-class _ToolRowState extends State<ToolRow> {
-  bool open = false;
-  @override
-  Widget build(BuildContext context) {
-    final tone = context.tone;
-    final m = widget.message, body = object(m['content']);
-    final running = m['status'] == 'streaming',
-        failed = m['status'] == 'failed' || body['error'] == true;
-    final duration = (body['durationMs'] as num?) ?? 0;
-    final preview = '${body['preview'] ?? ''}'.trim();
-    final detail = [
-      preview,
-      '${body['resultPreview'] ?? ''}'.trim(),
-    ].where((text) => text.isNotEmpty).join('\n');
-    final mono = TextStyle(
-      fontFamily: monoFont,
-      fontSize: 12,
-      color: tone.ink2,
-    );
-    return Material(
-      color: tone.glass ? tone.bubble : Colors.transparent,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(tone.corner),
-        side: tone.glass ? BorderSide(color: tone.line) : BorderSide.none,
-      ),
-      child: InkWell(
-        onTap: detail.isEmpty ? null : () => setState(() => open = !open),
-        child: AnimatedSize(
-          alignment: Alignment.topCenter,
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: tone.glass ? 10 : 4,
-              vertical: tone.glass ? 7 : 3,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    running
-                        ? const Breathing(size: 8)
-                        : StatusDot(color: failed ? tone.danger : tone.ink3),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${body['tool']}',
-                      style: mono.copyWith(color: tone.ink),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        open ? '' : preview.split('\n').first,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: mono.copyWith(color: tone.ink3),
-                      ),
-                    ),
-                    if (!running) ...[
-                      const SizedBox(width: 10),
-                      Text(
-                        '${(duration / 1000).toStringAsFixed(1)}s',
-                        style: mono.copyWith(color: tone.ink3),
-                      ),
-                    ],
-                  ],
-                ),
-                if (open) ...[
-                  const SizedBox(height: 10),
-                  SelectableText(detail, style: mono),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class MessageTile extends StatelessWidget {
   final NekodotClient client;
   final Json message;
+
+  /// The steps folded with this one, and whether the Bot is still on them.
+  final List<Json>? steps;
+  final bool live;
   final Json? bot;
   final bool continued, showName, working;
   final ValueChanged<String> onRetry;
@@ -1115,6 +1073,8 @@ class MessageTile extends StatelessWidget {
     super.key,
     required this.client,
     required this.message,
+    this.steps,
+    this.live = false,
     this.bot,
     this.continued = false,
     this.showName = false,
@@ -1176,13 +1136,9 @@ class MessageTile extends StatelessWidget {
             ),
           ),
     ];
-    final card = const {
-      'secret',
-      'routine',
-      'tool',
-      'question',
-      'approval',
-    }.contains(kind);
+    final card =
+        steps != null ||
+        const {'secret', 'routine', 'question', 'approval'}.contains(kind);
     Widget? content;
     if (kind == 'secret') {
       content = SecretCard(
@@ -1192,8 +1148,13 @@ class MessageTile extends StatelessWidget {
       );
     } else if (kind == 'routine') {
       content = RoutineCard(client: c, content: body);
-    } else if (kind == 'tool') {
-      content = ToolRow(message: m);
+    } else if (steps != null) {
+      content = WorkBlock(
+        key: ValueKey('work-${m['messageId']}'),
+        client: c,
+        steps: steps!,
+        live: live,
+      );
     } else if (kind == 'question' || kind == 'approval') {
       content = ControlCard(
         key: ValueKey(m['messageId']),
@@ -1522,18 +1483,9 @@ class _ControlCardState extends State<ControlCard> {
             style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
           if (data['command'] != null)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(top: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              decoration: BoxDecoration(
-                color: tone.bubble,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SelectableText(
-                '${data['command']}',
-                style: const TextStyle(fontFamily: monoFont, fontSize: 12.5),
-              ),
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: FoldedCommand(command: '${data['command']}'),
             ),
           const SizedBox(height: 8),
           if (!pending)

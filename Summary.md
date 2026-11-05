@@ -986,3 +986,11 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 桌面端侧栏与主栏之间的分界线可以拖动（240 到窗口宽减 420），松手后记住宽度。
 - 真实验收（QA Relay 127.0.0.1:4459、本机 Node、官方 Hermes、真实模型）：新增 integration_test/chat_cards_journey_test.dart。Windows 当前源码客户端：＋菜单打开插件、侧栏拖窄 120 并保存、模型发起 clarify 选择题并一点作答、模型发起保密请求后填入并勾选复用、Bot 读取交付的 env 回复 SECRET_CARD_OK 且聊天记录不含明文、模型生成 notes.txt 与 360×220 PNG 并交付（图片按原尺寸显示、MEDIA 行未显示）、拖选两段并 Ctrl+C、复制图标复制全文均通过；途中 Bot 请求运行 python -c 时审批卡片「允许一次」放行。Android 模拟器 NekodotNativePhase3（节点由新预览版托管）同一旅程（保密请求一步只在 Windows 跑）通过，图片按手机宽度缩放保持比例，长按全选复制通过。截图：docs/evidence/chat-cards-*.png。
 - 已知：跨段拖选复制时两段之间没有换行（Flutter SelectionArea 的拼接方式），复制图标复制的是带分段的原文。现有 product、secrets 旅程按新卡片改了操作方式，本轮未重跑。Flutter 27 项辅助测试与 analyze 通过。未验：Android 真机、macOS/Linux。本地提交，未 push。
+
+## 2026-11-05 工作步骤折叠、状态说明与浮层阅读器
+
+- Bot 干活时调用的工具（以及步骤之间它写的过程说明）合成一个框，默认折叠，放在你的消息下面。框和里面每一步用同样的细线白底、同样的行高与字号；点开逐条列出「读取网页 https://…」「运行命令 python -c …」与用时，再点某一步才显示完整参数和结果。做完后框只剩一行「N 个步骤 · 用时」，有失败会标出。审批卡片里的命令也收成同样材质的一行，点开才看完整命令。
+- 原来工作中的「…」换成正在做什么：Bot 在这一步前自己写了说明，就显示它的原话；没写时显示 Hermes 原生的中文步骤说明（来自 Hermes display.verb 与工具调用的 context，如「正在读取网页 https://nekodot.com…」「正在运行命令 …」）；步骤之间显示「思考中…」。Node 现在把 Hermes tool.start 里的 context 一并存进工具步骤（协议加了可选字段 context），旧步骤没有 context 时只显示动作。
+- 文件与图片不再跳到新页面，直接在当前页面上浮起阅读器：图片可缩放，文本可选中，PDF 照常预览，顶部有分享、保存、关闭；Bot 资料库里的文件同样如此，.tar.gz 仍可「作为新 Bot 导入」。
+- 真实验收（QA Relay 127.0.0.1:4459、本机 Node 换上新构建、官方 Hermes、真实模型）：新增 integration_test/work_steps_journey_test.dart。Windows 当前源码客户端与 Android 模拟器 NekodotNativePhase3（节点由新预览版托管）均通过：聊天里之前的图片和 notes.txt 点开都是浮层、聊天页仍在底下；让 Bot 看 nekodot.com 首页标题并运行 python -c，工作中状态依次为「思考中…」「正在读取网页 https://nekodot.com…」「正在运行命令 python -c "print(6*7)"…」，审批卡片命令默认一行、点开可见全文、「允许一次」放行；完成后框显示「2 个步骤 · 5.9s」且默认折叠，点开两步的说明不再是原始 JSON。截图：docs/evidence/work-steps-*.png。
+- 本轮真实模型没有在步骤前写过程说明，所以只验到 Hermes 步骤说明这一路，Bot 自述那一路未在真实运行中出现。composer、host 命令、product、tool-markdown 旅程按浮层与步骤框改了操作方式，本轮未重跑。Node 相关 6 项与 Flutter 辅助测试、analyze、eslint、prettier 通过。未验：Android 真机、macOS/Linux。本地提交，未 push。

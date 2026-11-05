@@ -97,6 +97,9 @@ export function projectGatewayEvent(run: RunRecord, frame: GatewayFrame): Hermes
             payload.args_text ??
             (payload.args ? JSON.stringify(payload.args, null, 2) : (payload.context ?? '')),
         ),
+        ...(typeof payload.context === 'string' && payload.context.trim()
+          ? { context: payload.context.trim() }
+          : {}),
       };
     case 'tool.complete': {
       const result = payload.result;
@@ -1691,7 +1694,11 @@ export class NodeApplication {
         kind: 'tool',
         status: 'streaming',
         createdAt: now(),
-        content: { tool: event.tool ?? 'tool', preview: event.preview ?? '' },
+        content: {
+          tool: event.tool ?? 'tool',
+          preview: event.preview ?? '',
+          ...(event.context ? { context: event.context } : {}),
+        },
       };
       run.state = 'tool';
       run.lastSeq = event.seq;

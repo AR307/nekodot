@@ -174,16 +174,16 @@ void main() {
         of: find.byWidgetPredicate(
           (w) => w is FileCard && w.fileId == textFileId,
         ),
-        matching: find.byType(OutlinedButton),
+        matching: find.byType(InkWell),
       ),
     );
     await until(
       () =>
-          find.byType(FilePage).evaluate().isNotEmpty &&
+          find.byType(FileViewer).evaluate().isNotEmpty &&
           find.textContaining('NEKODOT_COMPOSER_UI').evaluate().isNotEmpty,
     );
     await shot('composer-native-preview');
-    await tester.pageBack();
+    await tap(find.byTooltip('关闭').last);
     await tester.pump(const Duration(milliseconds: 300));
 
     final previousGroups = client.node.groups.map((g) => g['groupId']).toSet();

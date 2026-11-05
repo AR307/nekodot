@@ -141,6 +141,8 @@ export const messageSchema = z.discriminatedUnion('kind', [
     content: z.strictObject({
       tool: idSchema,
       preview: z.string(),
+      // Hermes's own one-line label of the call: its primary argument.
+      context: z.string().optional(),
       resultPreview: z.string().optional(),
       durationMs: z.number().nonnegative().optional(),
       error: z.boolean().optional(),

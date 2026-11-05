@@ -190,8 +190,8 @@ void main() {
     );
     await until(() => card.evaluate().isNotEmpty);
     await tap(card);
-    await until(() => find.byType(FilePage).evaluate().isNotEmpty);
-    await tap(find.text('Import as a new Bot'));
+    await until(() => find.byType(FileViewer).evaluate().isNotEmpty);
+    await tap(find.byTooltip('Import as a new Bot'));
     await until(() => find.byType(BotEditor).evaluate().isNotEmpty);
     final editorScroll = find
         .descendant(

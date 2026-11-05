@@ -90,3 +90,22 @@ it('accepts a native receipt completion identifying its admission inside the pay
     }),
   ).toMatchObject({ event: 'run.interrupted', run_id: run.runId });
 });
+
+it('keeps Hermes’s one-line label of a step beside its full arguments', () => {
+  expect(
+    projectGatewayEvent(run, {
+      type: 'tool.start',
+      admission_id: run.runId,
+      payload: {
+        tool_id: 'open',
+        name: 'browser_navigate',
+        context: 'https://x.com/nekodot',
+        args: { url: 'https://x.com/nekodot' },
+      },
+    }),
+  ).toMatchObject({
+    tool: 'browser_navigate',
+    context: 'https://x.com/nekodot',
+    preview: JSON.stringify({ url: 'https://x.com/nekodot' }, null, 2),
+  });
+});

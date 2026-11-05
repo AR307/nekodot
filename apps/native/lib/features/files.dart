@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -153,7 +154,7 @@ class _FileCardState extends State<FileCard> {
     try {
       final value = await file;
       if (mounted) {
-        pushPage(context, FilePage(client: widget.client, file: value));
+        showFileViewer(context, widget.client, value);
       }
     } catch (e) {
       if (mounted) showNotice(context, '$e');
@@ -351,10 +352,7 @@ class _LibraryPageState extends State<LibraryPage> {
                     ),
                     title: Text('${file['name']}'),
                     subtitle: Text(fileSize(file['size'] as num)),
-                    onTap: () => pushPage(
-                      context,
-                      FilePage(client: widget.client, file: file),
-                    ),
+                    onTap: () => showFileViewer(context, widget.client, file),
                   ),
               ],
             ),
@@ -364,15 +362,40 @@ class _LibraryPageState extends State<LibraryPage> {
   );
 }
 
-class FilePage extends StatefulWidget {
+/// Opens a file over the page it was tapped on: a floating reader, closed
+/// back to where you were.
+Future<void> showFileViewer(
+  BuildContext context,
+  NekodotClient client,
+  Json file,
+) => showDialog<void>(
+  context: context,
+  builder: (context) {
+    final size = MediaQuery.sizeOf(context);
+    final phone = context.tone.glass;
+    return Dialog(
+      clipBehavior: Clip.antiAlias,
+      insetPadding: phone
+          ? const EdgeInsets.fromLTRB(10, 48, 10, 24)
+          : const EdgeInsets.all(40),
+      child: SizedBox(
+        width: phone ? size.width : math.min(960.0, size.width - 80),
+        height: phone ? size.height * .82 : math.min(780.0, size.height - 80),
+        child: FileViewer(client: client, file: file),
+      ),
+    );
+  },
+);
+
+class FileViewer extends StatefulWidget {
   final NekodotClient client;
   final Json file;
-  const FilePage({super.key, required this.client, required this.file});
+  const FileViewer({super.key, required this.client, required this.file});
   @override
-  State<FilePage> createState() => _FilePageState();
+  State<FileViewer> createState() => _FileViewerState();
 }
 
-class _FilePageState extends State<FilePage> {
+class _FileViewerState extends State<FileViewer> {
   NekodotClient get client => widget.client;
   Json get file => widget.file;
   late final content = downloadFile(client, file['fileId'] as String);
@@ -413,56 +436,89 @@ class _FilePageState extends State<FilePage> {
   }
 
   @override
-  Widget build(BuildContext context) => AppPage(
-    title: '${file['name']}',
-    actions: [
-      IconButton(
-        tooltip: client.tr('分享文件', 'Share file'),
-        onPressed: file['available'] == true && !busy
-            ? () => deliver(share: true)
-            : null,
-        icon: const Icon(Icons.ios_share_outlined),
-      ),
-      IconButton(
-        tooltip: client.tr('保存文件', 'Save file'),
-        icon: const Icon(Icons.download_outlined),
-        onPressed: file['available'] != true || busy
-            ? null
-            : () => deliver(share: false),
-      ),
-    ],
-    body: SafeArea(
-      child: Column(
-        children: [
-          if (RegExp(r'\.(tar\.gz|tgz)$').hasMatch('${file['name']}') &&
-              file['available'] == true)
-            TextButton.icon(
-              icon: const Icon(Icons.person_add_alt_1_outlined),
-              label: Text(client.tr('作为新 Bot 导入', 'Import as a new Bot')),
-              onPressed: () => pushPage(
-                context,
-                BotEditor(
-                  client: client,
-                  importProfile: true,
-                  initialArchive: file,
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    final available = file['available'] == true;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 8, 8, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${file['name']}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
+              if (RegExp(r'\.(tar\.gz|tgz)$').hasMatch('${file['name']}') &&
+                  available)
+                IconButton(
+                  tooltip: client.tr('作为新 Bot 导入', 'Import as a new Bot'),
+                  icon: const Icon(Icons.person_add_alt_1_outlined),
+                  onPressed: () {
+                    final navigator = Navigator.of(context);
+                    navigator.pop();
+                    pushPage(
+                      navigator.context,
+                      BotEditor(
+                        client: client,
+                        importProfile: true,
+                        initialArchive: file,
+                      ),
+                    );
+                  },
+                ),
+              IconButton(
+                tooltip: client.tr('分享文件', 'Share file'),
+                onPressed: available && !busy
+                    ? () => deliver(share: true)
+                    : null,
+                icon: const Icon(Icons.ios_share_outlined),
+              ),
+              IconButton(
+                tooltip: client.tr('保存文件', 'Save file'),
+                onPressed: available && !busy
+                    ? () => deliver(share: false)
+                    : null,
+                icon: const Icon(Icons.download_outlined),
+              ),
+              IconButton(
+                tooltip: client.tr('关闭', 'Close'),
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+        ),
+        if (busy) const LinearProgressIndicator(minHeight: 2),
+        if (error.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ErrorNotice(error),
+          ),
+        if (notice.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Text(
+              notice,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
             ),
-          if (busy) const LinearProgressIndicator(minHeight: 2),
-          if (error.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: ErrorNotice(error),
-            ),
-          if (notice.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Text(notice, style: Theme.of(context).textTheme.bodySmall),
-            ),
-          Expanded(
-            child: file['available'] != true
-                ? const Center(
-                    child: Icon(Icons.broken_image_outlined, size: 48),
+          ),
+        Expanded(
+          child: ColoredBox(
+            color: tone.bubble,
+            child: !available
+                ? Center(
+                    child: Icon(
+                      Icons.broken_image_outlined,
+                      size: 48,
+                      color: tone.ink3,
+                    ),
                   )
                 : FutureBuilder<Uint8List>(
                     future: content,
@@ -477,7 +533,14 @@ class _FilePageState extends State<FilePage> {
                           mime = file['mime'] as String;
                       if (mime.startsWith('image/')) {
                         return InteractiveViewer(
-                          child: Center(child: Image.memory(bytes)),
+                          key: const ValueKey('viewer-image'),
+                          maxScale: 6,
+                          child: Center(
+                            child: Image.memory(
+                              bytes,
+                              semanticLabel: '${file['name']}',
+                            ),
+                          ),
                         );
                       }
                       if (mime == 'application/pdf') {
@@ -488,10 +551,14 @@ class _FilePageState extends State<FilePage> {
                       }
                       if (mime.startsWith('text/') ||
                           mime == 'application/json') {
-                        return SingleChildScrollView(
-                          padding: const EdgeInsets.all(24),
-                          child: SelectableText(
-                            utf8.decode(bytes, allowMalformed: true),
+                        return ColoredBox(
+                          color: tone.surface,
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.all(24),
+                            child: SelectableText(
+                              utf8.decode(bytes, allowMalformed: true),
+                              key: const ValueKey('viewer-text'),
+                            ),
                           ),
                         );
                       }
@@ -499,14 +566,14 @@ class _FilePageState extends State<FilePage> {
                         child: Icon(
                           Icons.description_outlined,
                           size: 48,
-                          color: context.tone.ink3,
+                          color: tone.ink3,
                         ),
                       );
                     },
                   ),
           ),
-        ],
-      ),
-    ),
-  );
+        ),
+      ],
+    );
+  }
 }
