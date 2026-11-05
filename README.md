@@ -177,13 +177,10 @@ pnpm native:analyze && pnpm native:test
 
 ```text
 apps/native            Flutter Windows / Android 产品客户端与原生 RFB 屏幕
-apps/web               React 网页与同步逻辑
-apps/client            旧 Tauri 2 宿主（保留源码，0.3.0 不构建此路径）
 apps/site              双语静态官网
 apps/relay             账号、配对、WebSocket 路由、文件转发与节点发布通知
 apps/node              节点：持久化、Hermes 接入、群聊路由与自动更新
 packages/protocol      共享协议与 Zod schema
-packages/tauri-plugin-nekodot Android FCM、生命周期与文件分享桥接
 packages/fake-hermes   测试专用：回放录制的真实 Hermes 事件
 deploy                 Relay 镜像、节点安装器与系统服务
 design                 原始视觉参考与九块设计画板

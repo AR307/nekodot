@@ -1,3 +1,0 @@
-[default]
-description = "Native client lifecycle, notification routing and user-initiated sharing"
-permissions = ["allow-push-token", "allow-clear-push-token", "allow-focus-conversation", "allow-take-notification", "allow-share-file", "allow-background", "allow-register-listener", "allow-remove-listener"]

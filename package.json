@@ -14,9 +14,7 @@
     "node": ">=24 <25"
   },
   "scripts": {
-    "dev": "pnpm --parallel --filter @nekodot/web --filter @nekodot/relay --filter @nekodot/node dev",
-    "client:windows": "node scripts/build-client.mjs windows",
-    "client:android": "node scripts/build-client.mjs android",
+    "dev": "pnpm --parallel --filter @nekodot/relay --filter @nekodot/node dev",
     "native:windows": "node scripts/build-native.mjs windows",
     "native:macos": "node scripts/build-native.mjs macos",
     "native:linux": "node scripts/build-native.mjs linux",
@@ -24,7 +22,6 @@
     "native:emulator": "node scripts/android-emulator.mjs",
     "native:analyze": "node scripts/flutter.mjs flutter analyze",
     "native:test": "node scripts/flutter.mjs flutter test",
-    "dev:remote": "node scripts/dev-remote.mjs",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit -p tsconfig.json",
@@ -36,33 +33,26 @@
     "spike:build": "esbuild scripts/spike-hermes.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/scripts/spike-hermes.mjs",
     "spike:steer:build": "esbuild scripts/spike-steer.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/scripts/spike-steer.mjs",
     "spike:hermes": "tsx scripts/spike-hermes.ts",
-    "test:e2e": "playwright test",
     "node:pair": "tsx apps/node/src/index.ts pair",
     "node:run": "tsx apps/node/src/index.ts run"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.0",
     "@nekodot/fake-hermes": "workspace:*",
-    "@playwright/test": "^1.64.1",
     "@types/mime-types": "^3.0.1",
     "@types/node": "^24.0.0",
     "@types/nodemailer": "^8.0.2",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
     "@types/smtp-server": "^3.5.13",
     "@types/ws": "^8.18.2",
-    "@vitejs/plugin-react": "^6.1.2",
     "argon2": "^0.45.1",
     "esbuild": "^0.28.2",
     "eslint": "^10.13.0",
-    "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.0.0",
     "prettier": "^3.9.10",
     "smtp-server": "^3.21.3",
     "tsx": "^4.23.15",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.72.1",
-    "vite": "^8.3.5",
     "vitest": "^5.0.5"
   }
 }

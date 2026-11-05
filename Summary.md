@@ -1010,7 +1010,7 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 工作状态：Bot 干活时，输入框上方一直显示一行「头像 + 名字 + 它自己说的正在做什么」，如「本机小助手 正在查看首页并运行计算」，代替原来的「…」。文字取自 Bot 本轮最新写的那句话（一句话可以覆盖几个并行步骤）；Bot 还没开口时用 Hermes 对正在运行步骤的中文说明（「正在运行命令 …」），什么都没有时是「正在思考」。步骤框在干活时只显示「N 个步骤」，不再重复状态。托管 SOUL.md 规则改为：每次调用工具前写一句不带自己名字的短句，中文以「正在」开头（如「正在查看推文」），英文以 -ing 动词开头；已开着的会话需 /new 才会用上新规则。
 - 输入框：回车直接发送，Ctrl+回车换行；输入法正在组字时回车交给输入法，不发送。手机软键盘的回车仍是换行。
 - 菜单：所有弹出菜单和下拉选择统一按参考截图重做：白底圆角 16、细边与柔和阴影，上下各留 6，行高桌面 36 / 手机 44，左侧 17 号线条图标，14 号正文，右侧灰色附加信息或勾，分组细线左右各缩进 16，最小宽 220。账户菜单、「＋」菜单、电脑切换菜单换成这种行；新建 Bot 的模型来源、主答、审批，命令面板的执行 Bot，Hermes 设置里的单选，宠物的图像服务从系统下拉改为同款菜单，下拉宽度与输入框一致；模型名称的联想列表也用同款卡片。
-- 真实验收（QA Relay 127.0.0.1:4459、本机 Node 换上新构建、官方 Hermes、真实模型）：work_steps 旅程扩充并在 Windows 当前源码客户端与 Android 模拟器 NekodotNativePhase3（节点由新测试版托管）均通过。菜单行高实测 36 / 44；Ctrl+回车只插入换行、组字中回车不发送、回车发出任务；新会话后状态行依次为「本机小助手 正在思考」「本机小助手 正在查看首页并运行计算」（Android：「正在读取首页并运行计算」），与 Bot 本轮写的那句一致。截图：docs/evidence/work-steps-*-working.png、work-steps-*-menu-*.png。
+- 真实验收（QA Relay 127.0.0.1:4459、本机 Node 换上新构建、官方 Hermes、真实模型）：work_steps 旅程扩充并在 Windows 当前源码客户端与 Android 模拟器 NekodotNativePhase3（节点由新测试版托管）均通过。菜单行高实测 36 / 44；Ctrl+回车只插入换行、组字中回车不发送、回车发出任务；新会话后状态行依次为「本机小助手 正在思考」「本机小助手 正在查看首页并运行计算」（Android：「正在读取首页并运行计算」），与 Bot 本轮写的那句一致。截图：docs/evidence/work-steps-_-working.png、work-steps-_-menu-*.png。
 - 新增 Flutter 单元测试 working_line_test；Flutter 28 项、Node runtime 6 项测试与 analyze、tsc、prettier 通过。hermes_settings、providers、research_* 旅程已改为找新的菜单选择，本轮未重跑。未验：Android 真机、macOS/Linux、真实输入法组字（用模拟的组字状态验证）。本地提交，未 push。
 
 ## 2026-11-05 合并 PR #1 中不冲突的部分
@@ -1045,3 +1045,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
   - 截图：docs/evidence/work-steps-windows-composer-model.png、work-steps-windows-drawing-chat.png、work-steps-windows-viewer-open-menu.png、work-steps-android-composer-model.png、work-steps-android-drawing-chat.png、work-steps-android-viewer-drawing.png。
 - 模拟器：NekodotNativePhase3 以 GPU 模式启动时连续崩溃（崩溃信息 bad color buffer handle），冷启动也一样。本轮改用 `-gpu swiftshader_indirect` 启动，AVD 配置未改，未 wipe-data。崩溃报告未发送。
 - 未验或已知：两次真实运行都没有触发审批，所以审批卡的「提交中锁定 / 立即定结果 / 失败重试」只在代码和组件层面完成，真实审批未再跑；「用默认应用打开」「打开方式…」只验了菜单出现，没有实际打开外部程序；macOS、Linux 与 Android 真机未验。Flutter 35 项测试与 analyze 通过。本地提交，未 push。
+
+## 2026-11-05 旧 Web / Tauri 客户端回收
+
+- 按用户明确授权，将 apps/web、apps/client、packages/tauri-plugin-nekodot、两个专用构建/开发脚本、tests/browser 和 playwright.config.ts 移入 D:/nekodot-recycle/ui-20261105，清单在同目录 manifest.json；不永久删除。
+- 保留 Flutter、Node、Relay、官网 apps/site、历史证据和用户数据。移除旧客户端专用依赖、别名和 CI 浏览器入口。官网静态服务改为明确的 SITE_DIR；产品 Compose 同步，不保留旧 SPA fallback。未部署到正式服务器。
+- PowerShell 移动旧 node_modules 时跟随了 pnpm junction；协议源码已从回收副本完整恢复（包括本轮修改），依赖重新安装修复。没有丢弃协议修改。
+- pnpm frozen install 与 typecheck 已通过，服务端 38 文件 / 74 测试通过。原生候选 UI 和真实 Hermes 旅程单独记录，不以这些测试代替。

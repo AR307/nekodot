@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      WEB_DIR: /app/site
+      SITE_DIR: /app/site
     ports:
       - '127.0.0.1:4349:4329'
     volumes:

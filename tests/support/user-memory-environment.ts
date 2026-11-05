@@ -19,7 +19,6 @@ export async function userMemoryEnvironment(port = 0) {
     dataDir: join(home, 'relay'),
     jwtSecret: randomUUID(),
     publicUrl: 'http://127.0.0.1',
-    webDirectory: join(process.cwd(), 'apps/web/dist'),
   });
   const url = await relay.app.listen({ host: '127.0.0.1', port });
   const accounts = [];

@@ -1,7 +1,6 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import globals from 'globals';
-import reactHooks from 'eslint-plugin-react-hooks';
 export default tseslint.config(
   {
     ignores: [
@@ -19,10 +18,7 @@ export default tseslint.config(
       'apps/native/build/**',
       'apps/native/.dart_tool/**',
       'apps/native/windows/flutter/ephemeral/**',
-      'apps/client/src-tauri/gen/**',
       'release/**',
-      '**/.tauri/**',
-      'packages/tauri-plugin-nekodot/android/build/**',
     ],
   },
   js.configs.recommended,
@@ -34,10 +30,5 @@ export default tseslint.config(
   {
     files: ['apps/site/**/*.js'],
     languageOptions: { sourceType: 'script', globals: globals.browser },
-  },
-  {
-    files: ['apps/web/src/**/*.{ts,tsx}'],
-    plugins: { 'react-hooks': reactHooks },
-    rules: reactHooks.configs.recommended.rules,
   },
 );
