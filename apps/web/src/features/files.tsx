@@ -1,4 +1,5 @@
 import { AnimatedList } from '../components/ui/animated-list';
+import { Dialog } from '../components/ui/dialog';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Attachment, Bot, Operation } from '@nekodot/protocol';
@@ -222,37 +223,34 @@ export function FileCard({ file, t, onSource }: { file: Attachment; t: Texts; on
         )}
       </article>
       {preview && (
-        <div className="file-preview-backdrop" onClick={() => setPreview(undefined)}>
-          <section
-            className="file-preview"
-            role="dialog"
-            aria-modal="true"
-            aria-label={file.name}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <header>
-              <strong>{file.name}</strong>
-              <button
-                className="icon-button"
-                aria-label={t.close}
-                onClick={() => setPreview(undefined)}
-              >
-                <Icon name="close" />
-              </button>
-            </header>
-            {preview.text !== undefined ? (
-              <pre>{preview.text}</pre>
-            ) : file.mime === 'application/pdf' ? (
-              <Suspense fallback={<LoadingText />}>
-                <PdfPreview title={file.name} url={preview.url!} />
-              </Suspense>
-            ) : file.mime === 'image/svg+xml' ? (
-              <iframe title={file.name} sandbox="" src={preview.url} />
-            ) : (
-              <img alt={file.name} src={preview.url} />
-            )}
-          </section>
-        </div>
+        <Dialog
+          className="file-preview"
+          backdropClassName="file-preview-backdrop"
+          label={file.name}
+          onClose={() => setPreview(undefined)}
+        >
+          <header>
+            <strong>{file.name}</strong>
+            <button
+              className="icon-button dialog-close"
+              aria-label={t.close}
+              onClick={() => setPreview(undefined)}
+            >
+              <Icon name="close" />
+            </button>
+          </header>
+          {preview.text !== undefined ? (
+            <pre tabIndex={0}>{preview.text}</pre>
+          ) : file.mime === 'application/pdf' ? (
+            <Suspense fallback={<LoadingText />}>
+              <PdfPreview title={file.name} url={preview.url!} />
+            </Suspense>
+          ) : file.mime === 'image/svg+xml' ? (
+            <iframe title={file.name} sandbox="" src={preview.url} />
+          ) : (
+            <img alt={file.name} src={preview.url} />
+          )}
+        </Dialog>
       )}
     </>
   );

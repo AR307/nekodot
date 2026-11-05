@@ -3,11 +3,12 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { relayRequest } from '../api';
 import { useAppStore } from '../store';
 import { AtSign, ArrowRight, KeyRound, LockKeyhole, ShieldCheck } from 'lucide-react';
-import { LoadingText, ease } from '../ui';
+import { LoadingText } from '../ui';
 import type { Texts } from '../shared';
 import { AuthPage as AuthLayout } from '../components/ui/auth-page';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { tween } from '../motion';
 
 export function AuthPage({
   t,
@@ -119,7 +120,7 @@ export function AuthPage({
             initial={{ opacity: 0, y: reduceMotion ? 0 : 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }}
-            transition={{ duration: 0.16, ease }}
+            transition={tween('fast', reduceMotion)}
           >
             <h2>{title}</h2>
             <p>{t.welcome}</p>

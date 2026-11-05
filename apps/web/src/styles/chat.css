@@ -32,7 +32,7 @@
   border-radius: 14px;
   background: transparent;
   text-align: left;
-  transition: background-color 160ms var(--ease);
+  transition: background-color var(--dur-fast) var(--ease);
 }
 .chat-title:hover {
   background: var(--hover);
@@ -116,7 +116,7 @@
 }
 .load-earlier {
   align-self: center;
-  min-height: 36px;
+  min-height: var(--target);
   font-size: 13px;
 }
 .load-earlier .icon {
@@ -333,18 +333,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 34px;
+  min-height: var(--target);
   padding: 0 6px 0 12px;
   border-bottom: 1px solid var(--line);
   background: var(--surface-2);
   color: var(--ink-2);
-  font: 600 11px/1 var(--font-mono);
+  font: 600 var(--text-meta)/1 var(--font-mono);
 }
 .md-code figcaption button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-height: 26px;
+  min-height: var(--target);
   padding: 0 8px;
   border-radius: 8px;
   background: transparent;
@@ -382,7 +382,7 @@
   color: var(--accent);
   font-weight: 800;
   font-style: normal;
-  animation: caret-blink 1s steps(1) infinite;
+  animation: caret-blink var(--dur-cycle) steps(1) infinite;
 }
 @keyframes caret-blink {
   50%,
@@ -397,7 +397,7 @@
   border-radius: 999px;
   background: var(--surface-2);
   color: var(--ink-2);
-  font-size: 11px;
+  font-size: var(--text-meta);
   font-style: normal;
   font-weight: 700;
   vertical-align: 1px;
@@ -417,8 +417,8 @@
   opacity: 0;
   transform: translateY(2px);
   transition:
-    opacity 160ms var(--ease),
-    transform 160ms var(--ease);
+    opacity var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
 }
 .message:hover .message-actions,
 .message-actions:focus-within {
@@ -470,8 +470,8 @@
   border-radius: 12px;
   background: var(--surface);
   transition:
-    border-color 200ms var(--ease),
-    box-shadow 200ms var(--ease);
+    border-color var(--dur-base) var(--ease),
+    box-shadow var(--dur-base) var(--ease);
 }
 .tool-card:hover {
   box-shadow: var(--shadow-1);
@@ -567,12 +567,12 @@
   border-radius: 50%;
   border: 2.2px solid var(--line);
   border-top-color: var(--bot, var(--ink-2));
-  animation: spin 0.9s linear infinite;
+  animation: spin var(--dur-cycle) linear infinite;
 }
 .tool-chevron {
   display: flex;
   color: var(--ink-3);
-  transition: transform 200ms var(--ease);
+  transition: transform var(--dur-base) var(--ease);
 }
 .tool-chevron .icon {
   width: 16px;
@@ -593,7 +593,7 @@
 }
 .tool-result-inner > span {
   color: var(--ink-2);
-  font-size: 11px;
+  font-size: var(--text-meta);
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -642,7 +642,7 @@
 .approval-scope-hint {
   flex-basis: 100%;
   color: var(--ink-2);
-  font-size: 11px;
+  font-size: var(--text-meta);
   line-height: 1.5;
 }
 
@@ -689,7 +689,7 @@
   height: 4px;
   border-radius: 2px;
   background: var(--line);
-  transition: background-color 300ms var(--ease);
+  transition: background-color var(--dur-panel) var(--ease);
 }
 .chain-steps i.done {
   background: var(--accent);
@@ -718,7 +718,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 36px;
+  min-height: var(--target);
   padding: 0 14px 0 10px;
   border-radius: 999px;
   border: 1px solid var(--line);
@@ -778,7 +778,7 @@
 }
 .stop-button {
   flex: none;
-  height: 32px;
+  height: var(--target);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -790,8 +790,8 @@
   font-size: 12px;
   font-weight: 800;
   transition:
-    background-color 160ms var(--ease),
-    transform 160ms var(--ease);
+    background-color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
 }
 .stop-button i {
   width: 8px;
@@ -825,7 +825,7 @@
   min-width: 0;
 }
 .inline-error button {
-  min-height: 28px;
+  min-height: var(--target);
   padding: 0 10px;
   border-radius: 8px;
   background: transparent;
@@ -866,8 +866,8 @@
   resize: none;
   box-shadow: var(--shadow-1);
   transition:
-    border-color 160ms var(--ease),
-    box-shadow 160ms var(--ease);
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
 }
 .composer textarea:focus-visible {
   outline: 0;
@@ -886,8 +886,8 @@
   background: var(--ink);
   color: var(--bg);
   transition:
-    background-color 160ms var(--ease),
-    opacity 160ms var(--ease);
+    background-color var(--dur-fast) var(--ease),
+    opacity var(--dur-fast) var(--ease);
 }
 .send-button:disabled {
   opacity: 0.28;
@@ -917,8 +917,8 @@
     0 2px 8px #00000005,
     0 8px 24px #00000004;
   transition:
-    max-width 400ms cubic-bezier(0.175, 0.885, 0.32, 1.275),
-    border-color 160ms;
+    max-width var(--dur-slow) var(--ease-pop),
+    border-color var(--dur-fast);
 }
 .prompt-input.is-expanded {
   max-width: 480px;
@@ -971,9 +971,9 @@
   display: none;
 }
 .prompt-input .send-button {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
+  width: var(--target);
+  height: var(--target);
+  min-width: var(--target);
 }
 .prompt-input .send-button .icon {
   width: 16px;
@@ -985,7 +985,7 @@
   width: 64px;
 }
 .prompt-input .send-button .shining-text {
-  font-size: 10px;
+  font-size: var(--text-meta);
 }
 .prompt-stop {
   width: 10px;
@@ -1002,7 +1002,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 32px;
+  min-height: var(--target);
   padding: 4px 8px;
   border-radius: 16px;
   cursor: pointer;
@@ -1069,8 +1069,8 @@
 .prompt-attach {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: var(--target);
+  height: var(--target);
   flex: none;
   margin-left: auto;
   border-radius: 50%;
@@ -1101,7 +1101,7 @@
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 10px;
-  font-size: 11px;
+  font-size: var(--text-meta);
 }
 .prompt-attachment > span {
   overflow: hidden;
@@ -1116,8 +1116,9 @@
   flex: none;
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: var(--target);
+  height: var(--target);
+  margin: -10px -10px -10px -6px;
   border-radius: 50%;
 }
 .prompt-attachment .prompt-thumbnail {

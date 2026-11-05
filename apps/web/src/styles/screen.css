@@ -26,7 +26,7 @@
   flex-direction: column;
   background: var(--bg);
   color: var(--ink);
-  animation: screen-in-side 280ms var(--ease);
+  animation: screen-in-side var(--dur-panel) var(--ease);
 }
 @keyframes screen-in-side {
   from {
@@ -84,7 +84,7 @@
   inset: 0;
   border-radius: 50%;
   background: var(--accent);
-  animation: status-pulse 1.4s ease-out infinite;
+  animation: status-pulse var(--dur-pulse) var(--ease) infinite;
 }
 .screen-members {
   flex: none;
@@ -108,9 +108,9 @@
   font-size: 13px;
   font-weight: 700;
   transition:
-    background-color 160ms var(--ease),
-    color 160ms var(--ease),
-    border-color 160ms var(--ease);
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
 }
 .screen-members button:hover {
   color: var(--ink);
@@ -175,7 +175,7 @@
   padding: 12px;
   border-radius: 12px;
   background: var(--bg);
-  font: 11px/1.6 var(--font-mono);
+  font: var(--text-meta)/1.6 var(--font-mono);
   text-align: left;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -196,8 +196,8 @@
   background: var(--surface);
   font-size: 13px;
   transition:
-    background-color 240ms var(--ease),
-    color 240ms var(--ease);
+    background-color var(--dur-base) var(--ease),
+    color var(--dur-base) var(--ease);
 }
 .screen-control-bar > span {
   flex: 1;
@@ -245,10 +245,10 @@
   border: 2px solid var(--accent);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 240ms var(--ease);
+  transition: opacity var(--dur-base) var(--ease);
 }
 .screen-viewport.has-control::after {
-  animation: screen-breathe 1.2s ease-in-out infinite;
+  animation: screen-breathe var(--dur-breathe) ease-in-out infinite;
 }
 @keyframes screen-breathe {
   0%,
@@ -312,7 +312,7 @@
   border-right: 1.8px solid var(--ink-2);
   border-bottom: 1.8px solid var(--ink-2);
   transform: rotate(45deg) translateY(-2px);
-  transition: transform 200ms var(--ease);
+  transition: transform var(--dur-base) var(--ease);
 }
 .screen-keyboard[open] summary::after {
   transform: rotate(225deg) translateY(-2px);

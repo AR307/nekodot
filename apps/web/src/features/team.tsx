@@ -5,7 +5,7 @@ import { callNode, loadConversation } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
 import { BotDialog } from './bots';
 import { ChatView } from './chat';
-import { BotAvatar, GroupDots, Icon, Kbd, ease } from '../ui';
+import { BotAvatar, GroupDots, Icon, Kbd } from '../ui';
 import { avatarColors, fill, type Texts } from '../shared';
 import { GroupDialog } from './groups';
 import { GroupChatView } from './group-chat';
@@ -14,6 +14,7 @@ import { ExtensionsPage } from './extensions';
 import { TeamSidebar, modKey, type AppView } from './sidebar';
 import { CommandPalette, type PaletteItem } from './command-palette';
 import { ScreenPanel } from './screen';
+import { easeCss, ms, tween } from '../motion';
 
 export function TeamPage({ t, onLanguage }: { t: Texts; onLanguage(): void }) {
   const node = useAppStore(selectNodeData);
@@ -114,7 +115,7 @@ export function TeamPage({ t, onLanguage }: { t: Texts; onLanguage(): void }) {
             { opacity: 0, transform: `translateX(${mobileChat ? 28 : -12}px)` },
             { opacity: 1, transform: 'none' },
           ],
-      { duration: reduceMotion ? 100 : 280, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' },
+      { duration: ms(reduceMotion ? 'instant' : 'panel'), easing: easeCss },
     );
   }, [mobileChat, reduceMotion]);
 
@@ -272,7 +273,7 @@ export function TeamPage({ t, onLanguage }: { t: Texts; onLanguage(): void }) {
           className="conversation-pane"
           initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reduceMotion ? 0.1 : 0.24, ease }}
+          transition={tween('base', reduceMotion)}
         >
           {view !== 'chats' ? (
             <>

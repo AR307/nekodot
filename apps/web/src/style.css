@@ -16,6 +16,10 @@ body {
 button {
   font: inherit;
 }
+/* Type floor: secondary text never drops below the meta size (design/09-tokens.png). */
+small {
+  font-size: var(--text-meta);
+}
 :where(input, textarea, select) {
   font: inherit;
 }
@@ -68,7 +72,7 @@ summary:focus-visible,
   align-items: center;
   gap: 8px;
   color: var(--accent-text);
-  font-size: 11px;
+  font-size: var(--text-meta);
   letter-spacing: 0.12em;
   font-weight: 800;
 }
@@ -101,11 +105,11 @@ quiet ghost; all press down slightly */
   font-weight: 800;
   white-space: nowrap;
   transition:
-    transform 160ms var(--ease),
-    box-shadow 160ms var(--ease),
-    background-color 160ms var(--ease),
-    border-color 160ms var(--ease),
-    color 160ms var(--ease);
+    transform var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
 }
 .primary-button {
   background: var(--ink);
@@ -152,9 +156,9 @@ quiet ghost; all press down slightly */
   background: transparent;
   color: var(--ink-2);
   transition:
-    transform 160ms var(--ease),
-    background-color 160ms var(--ease),
-    color 160ms var(--ease);
+    transform var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
 }
 .icon-button.bordered {
   background: var(--raised);
@@ -162,8 +166,6 @@ quiet ghost; all press down slightly */
   color: var(--ink);
 }
 .tiny-icon {
-  min-width: 32px;
-  min-height: 32px;
   border-radius: 10px;
 }
 .tiny-icon .icon {
@@ -177,10 +179,16 @@ quiet ghost; all press down slightly */
   color: var(--ink);
 }
 .text-button {
+  min-width: var(--target);
+  min-height: var(--target);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 2px;
   background: transparent;
   color: var(--accent-text);
   font-weight: 700;
-  padding: 10px 0;
 }
 .text-button:hover {
   text-decoration: underline;
@@ -229,7 +237,7 @@ quiet ghost; all press down slightly */
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--ink-2);
-  font: 600 11px/1 var(--font-ui);
+  font: 600 var(--text-meta)/1 var(--font-ui);
   box-shadow: 0 1px 0 var(--line);
 }
 
@@ -251,7 +259,7 @@ connecting spins an amber ring */
 }
 .status-dot i {
   background: var(--ink-3);
-  transition: background-color 240ms var(--ease);
+  transition: background-color var(--dur-base) var(--ease);
 }
 .status-dot.is-ok i {
   background: var(--ok);
@@ -259,7 +267,7 @@ connecting spins an amber ring */
 .status-dot.is-ok::before {
   content: '';
   background: var(--ok);
-  animation: status-pulse 1.4s ease-out infinite;
+  animation: status-pulse var(--dur-pulse) var(--ease) infinite;
 }
 .status-dot.is-connecting i {
   background: var(--warn);
@@ -269,7 +277,7 @@ connecting spins an amber ring */
   inset: -4px;
   border: 1.5px solid transparent;
   border-top-color: var(--warn);
-  animation: spin 1s linear infinite;
+  animation: spin var(--dur-cycle) linear infinite;
 }
 @keyframes status-pulse {
   from {
@@ -303,6 +311,37 @@ connecting spins an amber ring */
   box-sizing: border-box;
 }
 
+/* StateView: loading / empty / error / offline share one layout. */
+.state-view {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-4);
+  color: var(--ink-2);
+  text-align: center;
+  font-size: var(--text-body);
+}
+.state-view strong {
+  color: var(--ink);
+  font-size: var(--text-lead);
+  font-weight: 800;
+}
+.state-view p {
+  max-width: 36ch;
+  margin: 0;
+  text-wrap: pretty;
+}
+.state-view button {
+  margin-top: var(--space-2);
+}
+.state-view.state-error strong {
+  color: var(--danger);
+}
+.state-view.state-compact {
+  padding: var(--space-6) var(--space-4);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-card);
+}
 .boot-screen {
   min-height: 100vh;
   display: grid;
@@ -343,8 +382,8 @@ connecting spins an amber ring */
   font-size: 14px;
   font-weight: 500;
   transition:
-    border-color 160ms var(--ease),
-    box-shadow 160ms var(--ease);
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
 }
 :where(textarea) {
   padding: 12px 14px;
@@ -403,13 +442,13 @@ legend {
   border-radius: 50%;
   background: var(--accent);
   display: block;
-  animation: dot-jump 0.45s ease-in-out infinite alternate;
+  animation: dot-jump var(--dur-slow) ease-in-out infinite alternate;
 }
 .thinking-dots i:nth-child(2) {
-  animation-delay: 0.12s;
+  animation-delay: calc(var(--stagger) * 4);
 }
 .thinking-dots i:nth-child(3) {
-  animation-delay: 0.24s;
+  animation-delay: calc(var(--stagger) * 8);
 }
 @keyframes dot-jump {
   to {
@@ -440,9 +479,9 @@ legend {
   *,
   *::before,
   *::after {
-    animation-duration: 0.12s !important;
+    animation-duration: var(--dur-instant) !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.12s !important;
+    transition-duration: var(--dur-instant) !important;
     scroll-behavior: auto !important;
   }
 }

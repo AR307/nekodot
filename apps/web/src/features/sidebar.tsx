@@ -10,6 +10,7 @@ import { NodePicker } from './node-picker';
 import { readableMessageText } from './files';
 import { plainText } from './markdown';
 import { writeClipboard } from '../native';
+import { springy, tween } from '../motion';
 
 export type AppView = 'chats' | 'skills' | 'plugins';
 export const modKey = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl';
@@ -229,7 +230,7 @@ function RowHighlight() {
     <motion.span
       className="row-highlight"
       layoutId="sidebar-active"
-      transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 42 }}
+      transition={springy(reduceMotion)}
     />
   );
 }
@@ -381,7 +382,7 @@ function NewMenu({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
+            transition={tween('fast', reduceMotion)}
           />
         )}
       </AnimatePresence>
@@ -415,9 +416,7 @@ function NewMenu({
         onClick={() => setOpen(!open)}
         animate={{ rotate: open ? 45 : 0 }}
         whileTap={reduceMotion ? undefined : { scale: 0.92 }}
-        transition={
-          reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 30 }
-        }
+        transition={springy(reduceMotion)}
       >
         <Icon name="plus" />
       </motion.button>

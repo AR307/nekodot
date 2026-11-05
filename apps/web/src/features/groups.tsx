@@ -7,6 +7,7 @@ import { selectNodeData, useAppStore } from '../store';
 import { BotAvatar, LoadingText } from '../ui';
 import type { Texts } from '../shared';
 import { Sheet } from './sheet';
+import { springy } from '../motion';
 
 export function GroupDialog({
   t,
@@ -112,11 +113,7 @@ export function GroupDialog({
                   initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.4 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.4 }}
-                  transition={
-                    reduceMotion
-                      ? { duration: 0.1 }
-                      : { type: 'spring', stiffness: 480, damping: 24 }
-                  }
+                  transition={springy(reduceMotion)}
                 />
               ))
             ) : (

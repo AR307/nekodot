@@ -79,10 +79,10 @@ async function openConfiguredChat(page: Page, context: BrowserContext) {
   await expect(page.getByRole('heading', { name: '创建账号' })).toBeVisible();
   const userEmail = `browser-${randomUUID()}@example.test`;
   await page.getByLabel('邮箱', { exact: true }).fill(userEmail);
-  await page.getByLabel('密码').fill('nekodot-browser-password');
+  await page.getByLabel('密码', { exact: true }).fill('nekodot-browser-password');
   await page.getByRole('button', { name: '发送验证码', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('验证码已发出');
-  await page.getByLabel('邮箱验证码', { exact: true }).fill(services.mailbox!.code());
+  await page.getByLabel('邮箱验证码', { exact: true }).fill(await services.mailbox!.code());
   await page.getByRole('button', { name: '创建账号', exact: true }).click();
 
   await expect(page.getByRole('heading', { name: '添加电脑' })).toBeVisible();
@@ -228,13 +228,13 @@ test('composer expands, switches real catalog models, uploads a file and fits mo
   const composer = page.locator('.composer textarea');
   await composer.focus();
   await expect(page.locator('.prompt-input')).toHaveClass(/is-expanded/);
-  await page.getByLabel('模型', { exact: true }).click();
+  await page.locator('.prompt-model summary').click();
   await page
     .locator('.prompt-model-menu')
     .getByRole('button', { name: 'another-model', exact: true })
     .click();
   await expect(page.locator('.prompt-model summary')).toContainText('another-model');
-  await page.getByLabel('模型', { exact: true }).click();
+  await page.locator('.prompt-model summary').click();
   await page
     .locator('.prompt-model-menu')
     .getByRole('button', { name: 'recorded-model', exact: true })
@@ -545,7 +545,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   });
   await expect(page.locator('.bot-row')).toHaveCount(0);
   await expect(page.locator('.welcome-panel')).toContainText('Create a bot');
-  await page.getByLabel('Computer', { exact: true }).click();
+  await page.locator('.node-picker summary').click();
   await page.getByRole('menuitemradio', { name: /Acceptance computer/ }).click();
   await expect(page.locator('.chat-title')).toContainText('Mochi edited');
   await expect(page.locator('.bot-row')).toHaveCount(1);

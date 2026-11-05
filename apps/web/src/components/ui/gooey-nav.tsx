@@ -5,14 +5,16 @@
  */
 import { useId, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { useMediaQuery } from '../../ui';
+import { ms } from '../../motion';
 import './gooey-nav.css';
 
 type Option<T extends string> = { value: T; label: string; icon?: ReactNode };
 
 const noise = (amount: number) => amount / 2 - Math.random() * amount;
 const particleCount = 12;
-const animationTime = 600;
-const timeVariance = 300;
+/** Particle burst: two sway cycles with ±half a panel step of jitter so the burst feels organic. */
+const animationTime = ms('sway');
+const timeVariance = ms('panel');
 const colors = [1, 2, 3, 1, 2, 3, 1, 4];
 
 function getXY(distance: number, index: number) {

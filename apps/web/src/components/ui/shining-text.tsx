@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore, type ComponentPropsWithoutRef } from 'react';
 import { useAnimate } from 'motion/react';
+import { durations } from '../../motion';
 
 const motionQuery = '(prefers-reduced-motion: reduce)';
 const subscribeMotion = (notify: () => void) => {
@@ -27,7 +28,7 @@ export function ShiningText({ text, className = '', ...props }: ShiningTextProps
     const animation = animate(
       scope.current,
       { backgroundPosition: ['200% 0%', '-200% 0%'] },
-      { repeat: Infinity, duration: 2, ease: 'linear' },
+      { repeat: Infinity, duration: durations.shimmer, ease: 'linear' },
     );
     return () => animation.stop();
   }, [animate, reduceMotion, scope]);

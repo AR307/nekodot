@@ -44,7 +44,7 @@
   gap: 10px;
   padding: 4px 12px 14px;
   border-bottom: 1px solid transparent;
-  transition: border-color 200ms var(--ease);
+  transition: border-color var(--dur-base) var(--ease);
 }
 .sidebar-top.is-scrolled {
   border-bottom-color: var(--line);
@@ -62,10 +62,10 @@
   font-size: 13px;
   text-align: left;
   transition:
-    background-color 160ms var(--ease),
-    border-color 160ms var(--ease),
-    box-shadow 160ms var(--ease),
-    color 160ms var(--ease);
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
 }
 .search-trigger:hover {
   background: var(--raised);
@@ -120,7 +120,7 @@
   background: transparent;
   color: var(--ink);
   text-align: left;
-  transition: background-color 160ms var(--ease);
+  transition: background-color var(--dur-fast) var(--ease);
 }
 .bot-row:hover {
   background: var(--hover);
@@ -165,7 +165,7 @@
 }
 .row-top time {
   flex: none;
-  font-size: 11px;
+  font-size: var(--text-meta);
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
@@ -188,7 +188,7 @@
 }
 .row-status .needs-you {
   height: 18px;
-  font-size: 11px;
+  font-size: var(--text-meta);
 }
 .row-status .thinking-dots i {
   width: 4px;
@@ -243,32 +243,32 @@
   fill: var(--ink);
 }
 .bot-avatar.working .ear-left {
-  animation: ear-left 0.6s ease-in-out infinite alternate;
+  animation: ear-left var(--dur-sway) ease-in-out infinite alternate;
 }
 .bot-avatar.working .ear-right {
-  animation: ear-right 0.6s ease-in-out infinite alternate;
+  animation: ear-right var(--dur-sway) ease-in-out infinite alternate;
 }
 .bot-avatar.working .eyes {
-  animation: eyes 1.6s ease-in-out infinite alternate;
+  animation: eyes var(--dur-scan) ease-in-out infinite alternate;
 }
 .bot-avatar .petals {
   transform-box: view-box;
   transform-origin: 20px 20px;
 }
 .bot-avatar.working .petals {
-  animation: petals 9.6s linear infinite;
+  animation: petals calc(var(--dur-sway) * 16) linear infinite;
 }
 .bot-avatar.working .ghost {
-  animation: ghost 0.6s ease-in-out infinite alternate;
+  animation: ghost var(--dur-sway) ease-in-out infinite alternate;
 }
 .bot-avatar.blinking .eyes {
-  animation: blink 160ms ease-in-out;
+  animation: blink var(--dur-fast) ease-in-out;
 }
 .bot-row:hover .bot-avatar:not(.working) .ear-left {
-  animation: ear-twitch-left 460ms var(--ease);
+  animation: ear-twitch-left var(--dur-slow) var(--ease);
 }
 .bot-row:hover .bot-avatar:not(.working) .ear-right {
-  animation: ear-twitch-right 460ms var(--ease) 60ms;
+  animation: ear-twitch-right var(--dur-slow) var(--ease) calc(var(--stagger) * 2);
 }
 @keyframes petals {
   to {
@@ -310,7 +310,7 @@
   border-radius: 12px;
   text-align: left;
   background: transparent;
-  transition: background-color 160ms var(--ease);
+  transition: background-color var(--dur-fast) var(--ease);
 }
 .profile-button:hover {
   background: var(--hover);
@@ -327,7 +327,7 @@
 .profile-button small {
   display: block;
   color: var(--ink-2);
-  font-size: 11px;
+  font-size: var(--text-meta);
   font-weight: 600;
 }
 .profile-initial {
@@ -371,7 +371,7 @@
   width: 2px;
   background: var(--accent);
   opacity: 0;
-  transition: opacity 160ms var(--ease);
+  transition: opacity var(--dur-fast) var(--ease);
 }
 .sidebar-resizer:hover::after,
 .sidebar-resizer:focus-visible::after {
@@ -393,7 +393,7 @@
   background: var(--raised);
   box-shadow: var(--shadow-1);
   cursor: pointer;
-  transition: box-shadow 160ms var(--ease);
+  transition: box-shadow var(--dur-fast) var(--ease);
 }
 .node-picker summary::-webkit-details-marker {
   display: none;
@@ -406,7 +406,7 @@
   width: 16px;
   height: 16px;
   color: var(--ink-2);
-  transition: transform 200ms var(--ease);
+  transition: transform var(--dur-base) var(--ease);
 }
 .node-picker[open] summary > .icon {
   transform: rotate(180deg);
@@ -447,7 +447,7 @@
   transform-origin: top center;
 }
 .node-picker[open] .node-menu {
-  animation: pop-in 180ms var(--ease);
+  animation: pop-in var(--dur-fast) var(--ease);
 }
 @keyframes pop-in {
   from {
@@ -484,7 +484,7 @@
 }
 .node-menu-copy small {
   color: var(--ink-2);
-  font-size: 11px;
+  font-size: var(--text-meta);
 }
 .node-selected {
   display: flex;
@@ -567,7 +567,7 @@
 .palette-section {
   padding: 12px 10px 6px;
   color: var(--ink-2);
-  font-size: 11px;
+  font-size: var(--text-meta);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -765,8 +765,8 @@
     background: var(--surface);
     border: 1px solid var(--line);
     transition:
-      transform 160ms var(--ease),
-      box-shadow 160ms var(--ease);
+      transform var(--dur-fast) var(--ease),
+      box-shadow var(--dur-fast) var(--ease);
   }
   .bot-row:hover,
   .bot-row.active:hover {

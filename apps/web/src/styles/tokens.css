@@ -8,7 +8,7 @@
   --raised: #fff;
   --ink: #1f1b16;
   --ink-2: #6b645b;
-  --ink-3: #9a9186;
+  --ink-3: #736b61; /* ≥ 4.5:1 on bg, surface, surface-2 */
   --line: #e8e1d6;
   --accent: #e8603c;
   --accent-text: #b4432a;
@@ -29,6 +29,44 @@
   --radius-btn: 12px;
   --radius-panel: 24px;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Motion (design/08-motion.png). src/motion.ts mirrors these; design-system.test.ts checks. */
+  --ease-pop: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-exit: cubic-bezier(0.55, 0, 1, 0.45);
+  --dur-instant: 80ms;
+  --dur-fast: 160ms;
+  --dur-base: 220ms;
+  --dur-panel: 280ms;
+  --dur-slow: 450ms;
+  --dur-sway: 600ms;
+  --dur-cycle: 1000ms;
+  --dur-breathe: 1200ms;
+  --dur-pulse: 1400ms;
+  --dur-scan: 1600ms;
+  --dur-shimmer: 2000ms;
+  --dur-ambient: 20000ms;
+  --shift-1: 4px;
+  --shift-2: 8px;
+  --shift-3: 12px;
+  --stagger: 30ms;
+  /* Layout (design/09-tokens.png): 4px grid, type scale, 44px touch targets. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --text-display: 28px;
+  --text-title: 20px;
+  --text-lead: 16px;
+  --text-body: 14px;
+  --text-meta: 12px;
+  --leading-body: 1.5;
+  --leading-title: 1.25;
+  --target: 44px;
+  --read-width: 760px;
   --font-ui: 'Nunito', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
@@ -41,11 +79,12 @@
   --raised: #332d26;
   --ink: #f3eee6;
   --ink-2: #a69e93;
-  --ink-3: #7a7268;
+  --ink-3: #9c9489;
   --line: #3a342c;
   --accent: #f07a55;
   --accent-text: #f59a7a;
   --accent-soft: #3a2620;
+  --danger: #ec7a63; /* ≥ 4.5:1 on dark bg, surface, surface-2 */
   --bubble-user: #f3eee6;
   --bubble-user-ink: #16130f;
   --hover: rgb(243 238 230 / 6%);
@@ -65,11 +104,12 @@
     --raised: #332d26;
     --ink: #f3eee6;
     --ink-2: #a69e93;
-    --ink-3: #7a7268;
+    --ink-3: #9c9489;
     --line: #3a342c;
     --accent: #f07a55;
     --accent-text: #f59a7a;
     --accent-soft: #3a2620;
+    --danger: #ec7a63; /* ≥ 4.5:1 on dark bg, surface, surface-2 */
     --bubble-user: #f3eee6;
     --bubble-user-ink: #16130f;
     --hover: rgb(243 238 230 / 6%);

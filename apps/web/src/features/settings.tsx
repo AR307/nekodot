@@ -5,11 +5,12 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { fetchMe, relayRequest } from '../api';
 
 import { useAppStore } from '../store';
-import { Icon, StatusDot, ease } from '../ui';
+import { Icon, StatusDot } from '../ui';
 import type { Texts } from '../shared';
 import { ProviderSettings } from './providers';
 import { NotificationSettings } from './notifications';
 import { writeClipboard } from '../native';
+import { springy, tween } from '../motion';
 
 export function SettingsPage({
   t,
@@ -76,7 +77,7 @@ export function SettingsPage({
         className="settings-body"
         initial={reduceMotion ? false : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.32, ease }}
+        transition={tween('panel', reduceMotion)}
       >
         <h1>{t.settingsTitle}</h1>
         <ProviderSettings key={selectedNodeId} t={t} />
@@ -133,12 +134,7 @@ export function SettingsPage({
               onClick={() => setDark(!dark)}
               aria-label={t.toggleTheme}
             >
-              <motion.span
-                layout
-                transition={
-                  reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 600, damping: 34 }
-                }
-              >
+              <motion.span layout transition={springy(reduceMotion)}>
                 <Icon name={dark ? 'moon' : 'sun'} />
               </motion.span>
             </button>
@@ -178,7 +174,7 @@ export function SettingsPage({
             initial={{ opacity: 0, y: 16, x: '-50%' }}
             animate={{ opacity: 1, y: 0, x: '-50%' }}
             exit={{ opacity: 0, y: 12, x: '-50%' }}
-            transition={{ duration: reduceMotion ? 0.1 : 0.22, ease }}
+            transition={tween('base', reduceMotion)}
           >
             <span>
               <strong>

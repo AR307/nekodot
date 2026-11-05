@@ -5,7 +5,6 @@
   display: flex;
   justify-content: flex-end;
   background: var(--scrim);
-  animation: details-fade 200ms var(--ease);
 }
 .bot-details {
   width: min(560px, 100vw);
@@ -15,18 +14,6 @@
   flex-direction: column;
   background: var(--bg);
   box-shadow: var(--shadow-3);
-  animation: details-in 280ms var(--ease);
-}
-@keyframes details-fade {
-  from {
-    opacity: 0;
-  }
-}
-@keyframes details-in {
-  from {
-    transform: translateX(32px);
-    opacity: 0;
-  }
 }
 .details-header {
   flex: none;
@@ -240,6 +227,7 @@
   }
 }
 .extensions-page {
+  container-type: inline-size;
   width: 100%;
   min-width: 0;
   height: 100%;
@@ -313,8 +301,8 @@
   background: var(--surface);
   text-align: left;
   transition:
-    box-shadow 180ms var(--ease),
-    transform 180ms var(--ease);
+    box-shadow var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
 }
 .extension-card:hover {
   box-shadow: var(--shadow-2);
@@ -343,7 +331,7 @@
   display: inline-block;
   border-radius: 6px;
   background: var(--surface-2);
-  font-size: 10px;
+  font-size: var(--text-meta);
   letter-spacing: 0.03em;
   padding: 4px 7px;
   color: var(--ink-2);
@@ -373,7 +361,7 @@
   padding-top: 12px;
   border-top: 1px solid var(--line);
   color: var(--ink-2);
-  font-size: 11px;
+  font-size: var(--text-meta);
   font-weight: 700;
   overflow-wrap: anywhere;
 }
@@ -441,7 +429,7 @@
 }
 .extension-bot-state small {
   color: var(--ink-2);
-  font-size: 11px;
+  font-size: var(--text-meta);
 }
 .extension-bot-state > button {
   margin-left: auto;
@@ -461,9 +449,11 @@
   object-fit: contain;
 }
 .extension-repository {
-  display: block;
+  display: flex;
+  align-items: center;
+  min-height: var(--target);
   overflow-wrap: anywhere;
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 13px;
 }
 .extension-preview {
@@ -482,7 +472,11 @@
   display: flex;
   flex-direction: column;
   background: var(--bg);
-  animation: extension-page-in 180ms ease-out;
+}
+.extension-full-overlay {
+  z-index: 63;
+  padding: 0;
+  background: transparent;
 }
 .extension-full-content > header {
   display: flex;
@@ -505,19 +499,6 @@
 }
 .skill-content code {
   font-family: var(--font-mono);
-}
-@keyframes extension-page-in {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .extension-full-content {
-    animation: none;
-  }
 }
 .plugin-configuration {
   padding-top: 12px;
@@ -613,13 +594,13 @@
   border-radius: 14px;
   border: 1px solid var(--line);
   background: var(--surface);
-  transition: box-shadow 160ms var(--ease);
+  transition: box-shadow var(--dur-fast) var(--ease);
 }
 .file-card:hover {
   box-shadow: var(--shadow-1);
 }
 .file-kind {
-  font: 10px var(--font-mono);
+  font: var(--text-meta) var(--font-mono);
   width: 38px;
   height: 44px;
   display: grid;
@@ -643,7 +624,7 @@
 }
 .file-info small {
   color: var(--ink-2);
-  font-size: 11px;
+  font-size: var(--text-meta);
 }
 .file-actions {
   display: flex;
@@ -733,7 +714,7 @@
     font-size: 28px;
   }
 }
-@media (max-width: 520px) {
+@container (max-width: 520px) {
   .extensions-header {
     flex-wrap: wrap;
   }
@@ -773,10 +754,6 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .details-backdrop,
-  .bot-details {
-    animation: none;
-  }
   .extension-card {
     transition: none;
   }

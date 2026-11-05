@@ -3,9 +3,10 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { fetchMe, relayRequest } from '../api';
 import { useAppStore } from '../store';
-import { BotAvatar, Icon, LoadingText, StatusDot, ease } from '../ui';
+import { BotAvatar, Icon, LoadingText, StatusDot } from '../ui';
 import { avatarColors, fill, type Texts } from '../shared';
 import { writeClipboard } from '../native';
+import { durations, ease, easePop, tween } from '../motion';
 
 const pairingTtlSeconds = 30 * 60;
 
@@ -162,7 +163,7 @@ export function PairScreen({
         className="pair-content"
         initial={reduceMotion ? false : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.32, ease }}
+        transition={tween('panel', reduceMotion)}
       >
         <div className="pair-heading">
           <h1>{t.addComputer}</h1>
@@ -198,13 +199,13 @@ export function PairScreen({
               role="status"
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.2, ease }}
+              transition={tween('base', reduceMotion)}
             >
               <span className="pair-burst">
                 <motion.span
                   initial={{ scale: reduceMotion ? 1 : 0.6 }}
                   animate={{ scale: reduceMotion ? 1 : [0.6, 1.08, 1] }}
-                  transition={{ duration: 0.6, ease: [0.34, 1.4, 0.64, 1] }}
+                  transition={{ duration: durations.sway, ease: easePop }}
                 >
                   <BotAvatar color={avatarColors[1]!} size={56} />
                 </motion.span>
@@ -217,7 +218,7 @@ export function PairScreen({
                         style={{ background: color }}
                         initial={{ x: 0, y: 0, opacity: 1 }}
                         animate={{ x: Math.cos(angle) * 46, y: Math.sin(angle) * 46, opacity: 0 }}
-                        transition={{ duration: 0.6, ease }}
+                        transition={{ duration: durations.sway, ease }}
                       />
                     );
                   })}
@@ -232,7 +233,7 @@ export function PairScreen({
               key="wait"
               className={`pair-wait${expired ? ' is-expired' : ''}`}
               exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.16 }}
+              transition={tween('fast', reduceMotion)}
             >
               {expired ? <Icon name="warning" /> : <LoadingText />}
               <div>

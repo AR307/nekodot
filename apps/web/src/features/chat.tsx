@@ -12,7 +12,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { ApprovalChoice, Bot, Conversation, Group, Message } from '@nekodot/protocol';
 import { callNode, loadConversation } from '../relay-connection';
 import { useAppStore } from '../store';
-import { BotAvatar, GroupDots, Icon, LoadingText, ease, type IconName } from '../ui';
+import { BotAvatar, GroupDots, Icon, LoadingText, type IconName } from '../ui';
 import { fill, type Texts } from '../shared';
 import { DraftAttachment, MessageFiles, readableMessageText, uploadChatFile } from './files';
 import { Markdown, MentionText } from './markdown';
@@ -22,6 +22,7 @@ import AIApproval from '../components/ui/ai-approval';
 import { PromptInput } from '../components/ui/ai-chat-input';
 import { useModelOptions } from './models';
 import { VoiceInput } from './voice-input';
+import { durations, shift, springy, tween } from '../motion';
 
 type Activity = 'thinking' | 'tool' | 'waiting_approval' | 'waiting_question' | 'unknown' | 'idle';
 
@@ -479,7 +480,7 @@ export function ChatView({
               initial={{ opacity: 0, y: 8, x: '-50%' }}
               animate={{ opacity: 1, y: 0, x: '-50%' }}
               exit={{ opacity: 0, y: 8, x: '-50%' }}
-              transition={{ duration: reduceMotion ? 0.1 : 0.2, ease }}
+              transition={tween('base', reduceMotion)}
             >
               <Icon name="arrowDown" />
               {unseen ? fill(t.newMessagesCount, { count: unseen }) : t.jumpLatest}
@@ -493,7 +494,7 @@ export function ChatView({
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: reduceMotion ? 0.1 : 0.22, ease }}
+              transition={tween('base', reduceMotion)}
             >
               <span className="run-banner-copy">
                 {waiting ? (
@@ -560,7 +561,8 @@ export function ChatView({
                 open={modelMenu}
                 onToggle={(event) => setModelMenu(event.currentTarget.open)}
               >
-                <summary aria-label={t.model}>
+                <summary>
+                  <span className="sr-only">{t.model}: </span>
                   <Icon name="bot" />
                   <span>
                     {group ? (zh ? '群聊模型' : 'Group models') : bot.model || t.chooseModel}
@@ -675,7 +677,7 @@ export function ChatView({
                 initial={{ opacity: 0, y: 6, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 4, scale: 0.98 }}
-                transition={{ duration: reduceMotion ? 0.1 : 0.16, ease }}
+                transition={tween('fast', reduceMotion)}
               >
                 <span className="mention-heading">{t.mentionMember}</span>
                 <AnimatedList>
@@ -891,9 +893,9 @@ function Appear({ id, children }: { id: string; children: ReactNode }) {
     <motion.div
       id={id}
       className="appear"
-      initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }}
+      initial={{ opacity: 0, y: reduceMotion ? 0 : shift[2] }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: reduceMotion ? 0.1 : 0.22, ease }}
+      transition={tween('base', reduceMotion)}
     >
       {children}
     </motion.div>
@@ -1100,16 +1102,16 @@ function BotMessage({
         <motion.span
           className="handoff-tag"
           key={member.botId}
-          initial={{ opacity: 0, x: reduceMotion ? 0 : -12 }}
+          initial={{ opacity: 0, x: reduceMotion ? 0 : -shift[3] }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: reduceMotion ? 0.1 : 0.2, ease }}
+          transition={tween('base', reduceMotion)}
         >
           <Icon name="arrow" />
           {t.handoffTo} @{member.handle}
           <motion.span
             className="handoff-avatar"
-            animate={{ y: reduceMotion ? 0 : [0, -4, 0] }}
-            transition={{ duration: reduceMotion ? 0.1 : 0.3, delay: 0.16 }}
+            animate={{ y: reduceMotion ? 0 : [0, -shift[1], 0] }}
+            transition={tween('panel', reduceMotion, durations.fast)}
           >
             <BotAvatar color={member.avatar.color} shape={member.avatar.shape} size={16} />
           </motion.span>
@@ -1201,7 +1203,7 @@ function ToolCard({ t, message }: { t: Texts; message: Extract<Message, { kind: 
                 initial={{ opacity: 0, scale: 0.6 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.6 }}
-                transition={{ duration: 0.15 }}
+                transition={tween('fast', reduceMotion)}
               >
                 {state === 'running' ? (
                   <LoadingText text={label} />
@@ -1225,9 +1227,7 @@ function ToolCard({ t, message }: { t: Texts; message: Extract<Message, { kind: 
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={
-              reduceMotion ? { duration: 0.1 } : { type: 'spring', stiffness: 400, damping: 32 }
-            }
+            transition={springy(reduceMotion)}
           >
             <div className="tool-result-inner">
               <span>{t.toolInput}</span>

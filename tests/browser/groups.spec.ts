@@ -51,10 +51,10 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
   try {
     await page.goto(relayUrl);
     await page.getByLabel('邮箱', { exact: true }).fill(`groups-${randomUUID()}@example.test`);
-    await page.getByLabel('密码').fill('group-browser-password');
+    await page.getByLabel('密码', { exact: true }).fill('group-browser-password');
     await page.getByRole('button', { name: '发送验证码', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('验证码已发出');
-    await page.getByLabel('邮箱验证码', { exact: true }).fill(mailbox.code());
+    await page.getByLabel('邮箱验证码', { exact: true }).fill(await mailbox.code());
     await page.getByRole('button', { name: '创建账号', exact: true }).click();
     await expect(page.locator('.pair-wait')).toContainText(/[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}/);
     const code = (await page.locator('.pair-wait').innerText()).match(
@@ -230,7 +230,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     await expect(page.locator('.chat-status')).toContainText('正在运行工具');
     rejectNextControl = true;
     await send('Keep this run and use the added instruction.');
-    await expect(page.locator('.inline-error')).toContainText('Node request failed');
+    await expect(page.locator('.inline-error')).toContainText('Hermes gateway refused steer');
     await expect(page.locator('.composer textarea')).toHaveValue(
       'Keep this run and use the added instruction.',
     );

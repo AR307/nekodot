@@ -57,12 +57,12 @@
 
 .animated-list > [data-list-state] {
   transition:
-    translate 620ms var(--al-spring) var(--al-delay, 0s),
-    scale 620ms var(--al-spring) var(--al-delay, 0s),
-    opacity 300ms cubic-bezier(0.22, 1, 0.36, 1) var(--al-delay, 0s),
-    background-color 160ms var(--ease),
-    border-color 160ms var(--ease),
-    box-shadow 160ms var(--ease);
+    translate var(--dur-sway) var(--al-spring) var(--al-delay, 0s),
+    scale var(--dur-sway) var(--al-spring) var(--al-delay, 0s),
+    opacity var(--dur-panel) var(--ease) var(--al-delay, 0s),
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
 }
 
 .animated-list > [data-list-state='below'] {
@@ -108,10 +108,10 @@
   opacity: 0;
   z-index: 2;
   transition:
-    translate 620ms var(--al-spring),
-    width 620ms var(--al-spring),
-    height 620ms var(--al-spring),
-    opacity 160ms var(--ease);
+    translate var(--dur-sway) var(--al-spring),
+    width var(--dur-sway) var(--al-spring),
+    height var(--dur-sway) var(--al-spring),
+    opacity var(--dur-fast) var(--ease);
 }
 
 .animated-list[data-list-active]::after {

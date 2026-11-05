@@ -24,7 +24,8 @@ export function NodePicker({ t, state }: { t: Texts; state: 'ok' | 'connecting' 
         }
       }}
     >
-      <summary aria-label={t.chooseNode}>
+      <summary>
+        <span className="sr-only">{t.chooseNode}: </span>
         {state !== 'connecting' && <StatusDot state={state} />}
         <span className="node-picker-copy">
           <strong>{selected?.name ?? t.chooseComputer}</strong>

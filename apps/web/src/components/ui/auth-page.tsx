@@ -3,6 +3,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { ChevronLeft, Globe2 } from 'lucide-react';
 import { Wordmark } from '../../ui';
 import { Button } from './button';
+import { durations } from '../../motion';
 
 export function AuthPage({
   children,
@@ -88,7 +89,7 @@ function FloatingPaths({ position }: { position: number }) {
               reducedMotion
                 ? { duration: 0 }
                 : {
-                    duration: 20 + index * 0.23,
+                    duration: durations.ambient + index * durations.fast,
                     repeat: Infinity,
                     ease: 'linear',
                   }

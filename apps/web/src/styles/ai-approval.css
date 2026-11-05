@@ -1,5 +1,6 @@
 .ai-approval {
   --approval-danger: var(--danger);
+  container-type: inline-size;
   width: 100%;
   min-width: 0;
   padding: 14px;
@@ -60,7 +61,7 @@
   border: 1px solid var(--line);
   background: transparent;
   color: var(--ink);
-  transition: background-color 160ms var(--ease);
+  transition: background-color var(--dur-fast) var(--ease);
 }
 .ai-approval-option:not(:disabled):hover {
   background: var(--hover);
@@ -112,7 +113,7 @@
     --approval-danger: color-mix(in srgb, var(--danger) 72%, var(--ink));
   }
 }
-@media (max-width: 480px) {
+@container (max-width: 480px) {
   .ai-approval-option small,
   .ai-approval-result small {
     flex-basis: 100%;

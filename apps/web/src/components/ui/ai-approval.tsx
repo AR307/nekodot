@@ -3,8 +3,7 @@ import { AnimatedList } from './animated-list';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Icon, LoadingText } from '../../ui';
 import '../../styles/ai-approval.css';
-
-const spring = { type: 'spring' as const, bounce: 0.1, duration: 0.25 };
+import { springy } from '../../motion';
 
 export type AIApprovalOption = {
   id: string;
@@ -45,7 +44,7 @@ export default function AIApproval({
   const chosenId = resolvedId ?? submittedId;
   const chosen = options.find((option) => option.id === chosenId);
   const resolved = Boolean(chosenId || resolvedLabel);
-  const transition = reduceMotion ? { duration: 0 } : spring;
+  const transition = springy(reduceMotion);
 
   async function decide(option: AIApprovalOption) {
     if (disabled || resolved || submitting.current) return;

@@ -1,5 +1,12 @@
 # 开发进度
 
+## 2026-11-05 人体工学验收 W1：动效与排版基础
+
+- 动效/间距/字号/目标尺寸 token 与 `motion.ts` 镜像；`design-system.test.ts` 4 项守卫通过。7 组弹簧收拢为 400/32 与 420/18，`ui.tsx` 不再导出 `ease`。
+- `Dialog`/`StateView` 基础组件；6 个自写弹窗与 `Sheet` 迁移，删除重复关键帧与窗口级 Esc 监听。
+- 录制探针 4 组：弹层焦点、字号、减少动态效果均为 0；P1 剩设置页链接与电脑菜单展开时的目标重叠。E2E：19 通过；`groups`、`private-chat` 修正过期断言后通过；`node-update` 在 W0 同样失败，属既有时序问题。
+- 真实环境复验在后续波次与收尾统一执行。仅本地提交。
+
 ## 2026-11-05 人体工学验收 W0：基线与探针
 
 - 按 `docs/superpowers/specs/2026-11-05-ui-ergonomics-motion-design.md` 建立 11 项可测量准则的自动探针，录制与真实验收共用同一条路线。真实环境为候选 Web 4420 → 真实 Relay 4319、Node「This Windows PC」、官方 Hermes（已授权 ChatGPT 订阅，Bot `@1` 使用 `gpt-6-sol`）。

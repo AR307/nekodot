@@ -1,9 +1,10 @@
 import { AnimatedList } from '../components/ui/animated-list';
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import type { Attachment, Bot, MemoryDocument, Operation, RpcResult } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
 import { BotAvatar, Icon, LoadingText } from '../ui';
 import { GooeyNav } from '../components/ui/gooey-nav';
+import { Dialog } from '../components/ui/dialog';
 import { selectNodeData, useAppStore } from '../store';
 import type { Texts } from '../shared';
 import { OperationProgress } from './operations';
@@ -30,15 +31,14 @@ export function BotDetails({
   const nodeId = useAppStore((state) => state.selectedNodeId);
   const online = useAppStore(selectNodeData).online;
   return (
-    <div className="details-backdrop" onClick={onClose}>
-      <section
-        className="bot-details"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${bot.displayName} · ${t.botDetails}`}
-        onClick={(event) => event.stopPropagation()}
-        key={nodeId}
-      >
+    <Dialog
+      className="bot-details"
+      backdropClassName="details-backdrop"
+      placement="side"
+      label={`${bot.displayName} · ${t.botDetails}`}
+      onClose={onClose}
+    >
+      <Fragment key={nodeId}>
         <header className="details-header">
           <BotAvatar color={bot.avatar.color} shape={bot.avatar.shape} size={48} />
           <div>
@@ -55,7 +55,7 @@ export function BotDetails({
           >
             <Icon name="monitor" />
           </button>
-          <button className="icon-button" onClick={onClose} aria-label={t.close}>
+          <button className="icon-button dialog-close" onClick={onClose} aria-label={t.close}>
             <Icon name="close" />
           </button>
         </header>
@@ -81,8 +81,8 @@ export function BotDetails({
             <LibraryPanel bot={bot} t={t} onSource={onSource} />
           )}
         </div>
-      </section>
-    </div>
+      </Fragment>
+    </Dialog>
   );
 }
 

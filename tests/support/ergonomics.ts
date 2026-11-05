@@ -90,8 +90,39 @@ export async function auditSurface(
   ]);
   for (const selector of options.exclude ?? []) axe = axe.exclude(selector);
   const result = await axe.analyze();
+  // axe cannot see the Gooey Nav pill (a filtered pseudo-element behind the selected label)
+  // and compares the label with the track instead. Measure label against the pill directly.
+  const pillContrast = await page.evaluate(() => {
+    const parse = (value: string) =>
+      value
+        .match(/[\d.]+/g)!
+        .slice(0, 3)
+        .map(Number);
+    const luminance = (rgb: number[]) => {
+      const [r, g, b] = rgb.map((v) => {
+        const c = v / 255;
+        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    };
+    const ratios: Record<string, number> = {};
+    for (const nav of document.querySelectorAll<HTMLElement>('.gooey-nav[data-ready="true"]')) {
+      const label = nav.querySelector('[aria-current="page"]');
+      const effect = nav.querySelector('.gooey-nav__effect');
+      if (!label || !effect) continue;
+      const fg = luminance(parse(getComputedStyle(label).color));
+      const bg = luminance(parse(getComputedStyle(effect, '::after').backgroundColor));
+      ratios[nav.getAttribute('aria-label') ?? ''] =
+        (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+    }
+    return ratios;
+  });
+  const onPill = (target: string) =>
+    /aria-current="page"/.test(target) &&
+    Object.values(pillContrast).every((ratio) => ratio >= 4.5);
   for (const violation of result.violations)
-    for (const node of violation.nodes)
+    for (const node of violation.nodes) {
+      if (violation.id === 'color-contrast' && onPill(node.target.join(' '))) continue;
       findings.push({
         surface,
         rule: `axe ${violation.id}`,
@@ -101,9 +132,11 @@ export async function auditSurface(
             : violation.impact === 'moderate'
               ? 'P2'
               : 'P3',
-        detail: violation.help,
+        // Contrast failures carry the measured ratio and colours; keep them for triage.
+        detail: (violation.id === 'color-contrast' && node.any[0]?.message) || violation.help,
         target: node.target.join(' '),
       });
+    }
   const measured = await page.evaluate(
     ({ minimumTarget, motionTokens }) => {
       const out: { rule: string; severity: string; detail: string; target: string }[] = [];
@@ -182,6 +215,8 @@ export async function auditSurface(
         value.endsWith('ms') ? parseFloat(value) : parseFloat(value) * 1000;
       const offTokens = new Map<string, Set<string>>();
       for (const element of document.querySelectorAll('*')) {
+        // Gooey Nav particles jitter around 2 × sway on purpose (organic burst); accepted.
+        if (element.matches('.gooey-nav__particle, .gooey-nav__point')) continue;
         const style = getComputedStyle(element);
         const values = [
           ...style.transitionDuration.split(','),

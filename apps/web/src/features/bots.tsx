@@ -4,10 +4,11 @@ import type { ApprovalMode, Bot, Conversation, ProviderSource } from '@nekodot/p
 import { avatarShapes } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
-import { BotAvatar, Icon, LoadingText, ease } from '../ui';
+import { BotAvatar, Icon, LoadingText } from '../ui';
 import { avatarColors, fill, type Texts } from '../shared';
 import { ModelPicker, useModelOptions } from './models';
 import { Sheet } from './sheet';
+import { springy, tween } from '../motion';
 
 function handleFromName(name: string) {
   return (
@@ -179,7 +180,7 @@ export function BotDialog({
           className="avatar-stage-pet"
           initial={reduceMotion ? false : { scale: 0.86, rotate: -4 }}
           animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: 'spring', stiffness: 420, damping: 16 }}
+          transition={springy(reduceMotion, 'pop')}
         >
           <BotAvatar color={color} shape={shape} size={88} />
         </motion.span>
@@ -228,12 +229,7 @@ export function BotDialog({
             >
               <span style={{ backgroundColor: swatch }} />
               {swatch === color && (
-                <motion.i
-                  layoutId="swatch-ring"
-                  transition={
-                    reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 34 }
-                  }
-                />
+                <motion.i layoutId="swatch-ring" transition={springy(reduceMotion)} />
               )}
             </button>
           ))}
@@ -315,7 +311,7 @@ export function BotDialog({
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: reduceMotion ? 0.1 : 0.24, ease }}
+              transition={tween('base', reduceMotion)}
             >
               <label className="field advanced-field">
                 {t.contextOverride}

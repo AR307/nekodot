@@ -241,7 +241,8 @@ function CodeBlock({
           {copied ? copiedLabel : copyLabel}
         </button>
       </figcaption>
-      <pre>
+      {/* Focusable so wide code can be scrolled from the keyboard. */}
+      <pre tabIndex={0}>
         <code>{code}</code>
       </pre>
     </figure>

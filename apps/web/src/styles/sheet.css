@@ -70,7 +70,7 @@
   background: transparent;
   color: var(--danger);
   font-weight: 800;
-  transition: background-color 160ms var(--ease);
+  transition: background-color var(--dur-fast) var(--ease);
 }
 .archive-button:not(:disabled):hover {
   background: color-mix(in srgb, var(--danger) 8%, transparent);
@@ -99,7 +99,7 @@
   border-radius: 50%;
   opacity: 0.14;
   filter: blur(26px);
-  transition: background-color 300ms var(--ease);
+  transition: background-color var(--dur-panel) var(--ease);
 }
 .avatar-stage strong {
   position: relative;
@@ -123,7 +123,7 @@
   border-radius: 50%;
   background: transparent;
   border: 2px solid transparent;
-  transition: border-color 160ms var(--ease);
+  transition: border-color var(--dur-fast) var(--ease);
 }
 .avatar-shapes button.selected {
   border-color: var(--ink);
@@ -135,7 +135,7 @@
 }
 .color-swatches button {
   position: relative;
-  height: 40px;
+  height: var(--target);
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -145,7 +145,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  transition: transform 160ms var(--ease);
+  transition: transform var(--dur-fast) var(--ease);
 }
 .color-swatches button:hover span {
   transform: scale(1.08);
@@ -167,7 +167,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 36px;
+  min-height: var(--target);
   padding: 0;
   background: transparent;
   color: var(--ink-2);
@@ -177,7 +177,7 @@
 .advanced-toggle .icon {
   width: 16px;
   height: 16px;
-  transition: transform 200ms var(--ease);
+  transition: transform var(--dur-base) var(--ease);
 }
 .advanced-toggle[aria-expanded='true'] .icon {
   transform: rotate(180deg);
@@ -293,9 +293,9 @@
   background: var(--surface);
   cursor: pointer;
   transition:
-    border-color 160ms var(--ease),
-    box-shadow 160ms var(--ease),
-    transform 160ms var(--ease);
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
 }
 .member-option:hover {
   box-shadow: var(--shadow-1);
@@ -333,7 +333,7 @@
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent-text);
-  font-size: 11px;
+  font-size: var(--text-meta);
   font-style: normal;
   font-weight: 800;
 }
@@ -348,8 +348,8 @@
   background: var(--surface) center / 14px no-repeat;
   cursor: pointer;
   transition:
-    background-color 160ms var(--ease),
-    border-color 160ms var(--ease);
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
 }
 .member-option input:checked {
   border-color: var(--ink);

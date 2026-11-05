@@ -10,7 +10,8 @@
   min-width: 0;
   padding: 4px;
   border-radius: 24px;
-  background: var(--press);
+  /* Lighter than --press so unselected --ink-2 labels keep 4.5:1 (WCAG 1.4.3). */
+  background: var(--hover);
   overflow: clip;
   overflow-clip-margin: 4px;
 }
@@ -57,7 +58,7 @@
   line-height: 1.35;
   overflow-wrap: anywhere;
   cursor: pointer;
-  transition: color 160ms var(--ease);
+  transition: color var(--dur-fast) var(--ease);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -78,6 +79,11 @@
 }
 
 .gooey-nav__link[aria-current='page'] {
+  color: var(--ink);
+}
+
+/* Dark ink only once the accent pill is drawn behind it; before that it would sit on the page. */
+.gooey-nav[data-ready='true'] .gooey-nav__link[aria-current='page'] {
   color: #1f1b16;
 }
 
@@ -91,10 +97,10 @@
   opacity: 0;
   pointer-events: none;
   transition:
-    left 300ms var(--ease),
-    top 300ms var(--ease),
-    width 300ms var(--ease),
-    height 300ms var(--ease);
+    left var(--dur-panel) var(--ease),
+    top var(--dur-panel) var(--ease),
+    width var(--dur-panel) var(--ease),
+    height var(--dur-panel) var(--ease);
 }
 
 .gooey-nav[data-ready='true'] .gooey-nav__effect {
@@ -110,7 +116,7 @@
 }
 
 .gooey-nav__effect.is-animating::after {
-  animation: gooey-nav-pill 300ms var(--ease) both;
+  animation: gooey-nav-pill var(--dur-panel) var(--ease) both;
 }
 
 .gooey-nav__particle,
@@ -148,7 +154,7 @@
   0% {
     transform: rotate(0deg) translate(var(--start-x), var(--start-y));
     opacity: 1;
-    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+    animation-timing-function: var(--ease-exit);
   }
   70% {
     transform: rotate(calc(var(--rotate) * 0.5))
@@ -171,7 +177,7 @@
   0% {
     transform: scale(0);
     opacity: 0;
-    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+    animation-timing-function: var(--ease-exit);
   }
   25% {
     transform: scale(calc(var(--scale) * 0.25));

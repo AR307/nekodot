@@ -194,8 +194,8 @@
   box-shadow: 0 1px 2px rgb(0 0 0 / 2%);
   font-size: 14px;
   transition:
-    border-color 160ms ease,
-    box-shadow 160ms ease;
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
 }
 .auth-layout .ui-input::placeholder {
   color: var(--auth-muted);
@@ -229,15 +229,15 @@
   text-decoration: none;
   white-space: nowrap;
   transition:
-    background-color 160ms ease,
-    transform 160ms ease;
+    background-color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
 }
 .auth-layout .ui-button-default {
   min-height: 46px;
   padding: 0 16px;
 }
 .auth-layout .ui-button-sm {
-  min-height: 36px;
+  min-height: var(--target);
   padding: 0 10px;
   font-size: 13px;
 }
@@ -267,7 +267,7 @@
   color: var(--auth-muted);
 }
 .auth-layout .ui-button-link {
-  min-height: 24px;
+  min-height: var(--target);
   padding: 0;
   white-space: normal;
 }

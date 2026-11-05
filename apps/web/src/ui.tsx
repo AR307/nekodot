@@ -4,8 +4,6 @@ import { useReducedMotion } from 'motion/react';
 import { ShiningText } from './components/ui/shining-text';
 import { useAppStore } from './store';
 
-export const ease = [0.2, 0.8, 0.2, 1] as const;
-
 export function useMediaQuery(query: string) {
   return useSyncExternalStore(
     (notify) => {
