@@ -3,11 +3,13 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/features/bot_editor.dart';
 import 'package:nekodot_native/features/chat.dart';
 import 'package:nekodot_native/features/files.dart';
 import 'package:nekodot_native/features/work.dart';
@@ -184,6 +186,52 @@ void main() {
     note('node', client.selectedNodeId);
     await settle(1500);
 
+    // Every menu and select is the same card: icon, words, row height.
+    final rowHeight = android ? 44.0 : 36.0;
+    double heightOf(String words) => tester
+        .getSize(
+          find
+              .ancestor(
+                of: find.text(words).last,
+                matching: find.byType(InkWell),
+              )
+              .first,
+        )
+        .height;
+    await tap(find.byTooltip('新建').first);
+    await settle(400);
+    expect(heightOf('新建 Bot'), rowHeight);
+    await shot('menu-create');
+    await tap(find.text('新建 Bot').last);
+    await until(
+      () => find.byType(BotEditor).evaluate().isNotEmpty,
+      what: 'Bot editor',
+    );
+    final approval = find.byKey(const ValueKey('approval-mode'));
+    await until(
+      () =>
+          approval.evaluate().isNotEmpty &&
+          tester.widget<MenuSelect<String>>(approval).onChanged != null,
+      what: 'approval select ready',
+    );
+    await tap(approval);
+    await settle(400);
+    expect(heightOf('智能审批'), rowHeight);
+    await shot('menu-select');
+    Navigator.of(tester.element(find.text('智能审批').last)).pop();
+    await settle(400);
+    await tester.pageBack();
+    await settle(600);
+    if (!android) {
+      await tap(find.byTooltip('账户'));
+      await settle(400);
+      expect(heightOf('设置'), rowHeight);
+      await shot('menu-account');
+      Navigator.of(tester.element(find.text('设置').last)).pop();
+      await settle(400);
+    }
+    note('menuRowHeight', rowHeight);
+
     final bot = client.node.bots.first;
     final dm = client.node.conversations.firstWhere(
       (x) => x['kind'] == 'dm' && x['botId'] == bot['botId'],
@@ -296,16 +344,59 @@ void main() {
         '请看一下 https://nekodot.com 首页的大标题写了什么，'
         '再用 terminal 工具（不要用 execute_code）运行 python -c "print(6*7)"。'
         '做完用一句话告诉我标题和计算结果。';
+    // Ctrl+Enter only starts a new line; Enter while an input method is
+    // composing is the input method's; Enter sends.
+    final field = tester.widget<TextField>(input).controller!;
     await tap(input);
-    tester.widget<TextField>(input).controller!.text = task;
-    await tester.pump();
-    await tap(find.byTooltip('发送'));
-    final statuses = <String>[];
-    final status = find.descendant(
-      of: find.byWidgetPredicate((w) => w is WorkBlock && w.live),
-      matching: find.byKey(const ValueKey('work-status')),
+    field.value = const TextEditingValue(
+      text: '第一行',
+      selection: TextSelection.collapsed(offset: 3),
     );
-    final thinking = find.byKey(const ValueKey('thinking-status'));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await settle(300);
+    expect(field.text, '第一行\n');
+    field.value = const TextEditingValue(
+      text: 'zhong',
+      selection: TextSelection.collapsed(offset: 5),
+      composing: TextRange(start: 0, end: 5),
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await settle(1500);
+    expect(field.text, 'zhong');
+    expect(messages().where((m) => !seen.contains(m['messageId'])), isEmpty);
+    field.value = const TextEditingValue(
+      text: task,
+      selection: TextSelection.collapsed(offset: task.length),
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await until(
+      () => messages().any(
+        (m) =>
+            !seen.contains(m['messageId']) &&
+            m['author']['type'] == 'user' &&
+            m['content']['text'] == task,
+      ),
+      what: 'Enter sent the task',
+    );
+    note('keys', 'Enter sends; Ctrl+Enter new line; composing Enter kept');
+
+    // While it works, the row above the composer says, in the Bot's own
+    // words, what it is doing.
+    final name = '${bot['displayName']}';
+    final statuses = <String>[];
+    final row = find.byKey(const ValueKey('thinking-row'));
+    String? rowLine() {
+      final texts = find
+          .descendant(of: row, matching: find.byType(Text))
+          .evaluate();
+      return texts.isEmpty ? null : (texts.last.widget as Text).data;
+    }
+
     var liveShot = false, approvals = 0;
     Json? reply() => messages()
         .where(
@@ -318,29 +409,13 @@ void main() {
         .lastOrNull;
     final end = DateTime.now().add(const Duration(seconds: 420));
     while ((reply() == null || !idle()) && DateTime.now().isBefore(end)) {
-      final working = !idle();
-      final text = !working
-          ? null
-          : status.evaluate().isNotEmpty
-          ? (find
-                        .descendant(
-                          of: status.first,
-                          matching: find.byType(Text),
-                        )
-                        .evaluate()
-                        .first
-                        .widget
-                    as Text)
-                .data
-          : shown(thinking);
-      {
-        if (text != null && statuses.lastOrNull != text) {
-          statuses.add(text);
-          debugPrint('QA status: $text');
-          if (!liveShot && text.startsWith('正在')) {
-            liveShot = true;
-            await shot('working');
-          }
+      final text = idle() ? null : rowLine();
+      if (text != null && statuses.lastOrNull != text) {
+        statuses.add(text);
+        debugPrint('QA status: $text');
+        if (!liveShot && text != '$name 正在思考') {
+          liveShot = true;
+          await shot('working');
         }
       }
       final pending = messages()
@@ -411,11 +486,27 @@ void main() {
       steps.any((s) => '${s['content']['context'] ?? ''}'.isNotEmpty),
       isTrue,
     );
-    // While it worked, the line said what it was doing, not dots.
+    // Every line was the Bot's name and what it was doing, and at least one
+    // was a line the Bot wrote itself.
+    expect(statuses, isNotEmpty);
+    expect(statuses.every((s) => s.startsWith(name)), isTrue);
+    final own = [
+      for (final m in messages().where(
+        (m) => !seen.contains(m['messageId']) && m['kind'] == 'commentary',
+      ))
+        '${m['content']['text']}'
+            .trim()
+            .split('\n')
+            .first
+            .replaceAll(RegExp(r'[*_`#>]+'), '')
+            .replaceAll(RegExp(r'[。.：:…!！]+$'), '')
+            .trim(),
+    ].where((w) => w.isNotEmpty).toList();
+    note('ownLines', own);
     expect(
-      statuses.any((s) => s != '思考中…'),
+      statuses.any((s) => own.any((w) => s.endsWith(w))),
       isTrue,
-      reason: 'a status other than thinking',
+      reason: 'the row showed what the Bot wrote',
     );
     expect(find.byType(ThinkingDots), findsNothing);
 

@@ -411,13 +411,26 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
           ]);
         }
       }
+      // This turn of the working Bot: what it did since your last message.
+      List<Json> currentTurn() {
+        final all = c.node.messages[id] ?? const <Json>[];
+        final start = all.lastIndexWhere((m) => m['author']['type'] == 'user');
+        return all
+            .skip(start + 1)
+            .where(
+              (m) =>
+                  m['author']['type'] == 'bot' &&
+                  (bot == null || m['author']['id'] == bot['botId']),
+            )
+            .toList();
+      }
+
       final tail = messages.lastOrNull;
       final thinking =
           (state == 'thinking' || state == 'tool') &&
           tail?['status'] != 'streaming';
-      // Working, the last box says what is going on; the row below says it
-      // only before there is a box.
-      final lead = thinking && messages.isNotEmpty && !work(items.last) ? 1 : 0;
+      // While it works, the row above the composer says what it is doing.
+      final lead = thinking && messages.isNotEmpty ? 1 : 0;
       final status = !c.online
           ? c.tr('离线', 'Offline')
           : activity['connection'] == 'reconnecting'
@@ -673,14 +686,30 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
             icon: const Icon(Icons.add_circle_outline),
           ),
           Expanded(
-            child: CallbackShortcuts(
-              bindings: {
-                const SingleActivator(
-                  LogicalKeyboardKey.enter,
-                  control: true,
-                ): () {
-                  if ((!waiting || queueCommand) && c.online) send();
-                },
+            child: Focus(
+              canRequestFocus: false,
+              skipTraversal: true,
+              // Enter sends, Ctrl+Enter starts a new line. While an input
+              // method is composing, Enter is its own.
+              onKeyEvent: (node, event) {
+                if (event is KeyUpEvent ||
+                    (event.logicalKey != LogicalKeyboardKey.enter &&
+                        event.logicalKey != LogicalKeyboardKey.numpadEnter)) {
+                  return KeyEventResult.ignored;
+                }
+                final value = input.value;
+                if (value.composing.isValid && !value.composing.isCollapsed) {
+                  return KeyEventResult.ignored;
+                }
+                if (HardwareKeyboard.instance.isControlPressed) {
+                  final at = value.selection.isValid
+                      ? value.selection
+                      : TextSelection.collapsed(offset: value.text.length);
+                  input.value = value.replaced(at, '\n');
+                  return KeyEventResult.handled;
+                }
+                if ((!waiting || queueCommand) && c.online) send();
+                return KeyEventResult.handled;
               },
               child: TextField(
                 key: const ValueKey('chat-input'),
@@ -958,7 +987,15 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                       alignment: Alignment.topCenter,
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 720),
-                        child: ThinkingRow(client: c, bot: bot),
+                        child: ThinkingRow(
+                          key: const ValueKey('thinking-row'),
+                          bot: bot,
+                          line: workingLine(
+                            c,
+                            '${bot?['displayName'] ?? 'Bot'}',
+                            currentTurn(),
+                          ),
+                        ),
                       ),
                     );
                   }
@@ -1046,24 +1083,38 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   );
 }
 
-/// The working cat and what it is doing, until there is a step to show.
+/// Above the composer while a Bot works: its avatar and, in its own words,
+/// what it is doing ("Lumi 正在查看推文").
 class ThinkingRow extends StatelessWidget {
-  final NekodotClient client;
   final Json? bot;
-  const ThinkingRow({super.key, required this.client, this.bot});
+  final String line;
+  const ThinkingRow({super.key, this.bot, required this.line});
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 10),
+    padding: const EdgeInsets.only(top: 12),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         if (bot != null) CatAvatar.of(bot!, size: 24, working: true),
         const SizedBox(width: 10),
-        Text(
-          client.tr('思考中…', 'Thinking…'),
-          key: const ValueKey('thinking-status'),
-          style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(color: context.tone.ink2),
+        Flexible(
+          child: AnimatedSwitcher(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 200),
+            layoutBuilder: (current, previous) => Stack(
+              alignment: Alignment.centerLeft,
+              children: [...previous, ?current],
+            ),
+            child: Text(
+              line,
+              key: ValueKey(line),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: context.tone.ink3),
+            ),
+          ),
         ),
       ],
     ),

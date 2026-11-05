@@ -133,12 +133,13 @@ void main() {
           await fill('@handle', member[1]);
           await until(
             () => find
-                .byType(DropdownButtonFormField<String>)
+                .byType(MenuSelect<String>)
                 .evaluate()
                 .any(
                   (e) =>
-                      (e.widget as DropdownButtonFormField<String>).initialValue
-                          ?.startsWith('custom:') ==
+                      (e.widget as MenuSelect<String>).value?.startsWith(
+                        'custom:',
+                      ) ==
                       true,
                 ),
           );

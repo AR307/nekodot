@@ -1183,3 +1183,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 新建 Bot：颜色与形状选择放大（头像 88，形状 44，颜色点 30）。角色设定从表单移除，新建时角色为空，打开后再和 Bot 说。@handle 收进「高级」，默认与名称相同。
 - 真实验收（QA Relay 127.0.0.1:4459、本机 Node、官方 Hermes、真实模型）：Windows 当前源码客户端，步骤旅程通过，新会话后 Bot 自己的说明显示在状态行（如「我先读取首页，并运行指定的 Python 命令…」），框显示「2 个步骤」，展开后两条说明与步骤各一次。新建 Bot 旅程通过：不填角色、@handle 在高级里自动跟名称、真实 Hermes 欢迎语完成。Android 模拟器 NekodotNativePhase3（节点由测试版托管）步骤旅程通过。截图：docs/evidence/work-steps-windows-approval-folded.png、work-steps-android-done-open.png。
 - 未验或已知：去掉重复显示之后，没有再触发审批，所以「允许后并入框」的最新状态未再跑；上一轮审批允许后框内计数为 3 个步骤，已验证并入。composer、product、tool-markdown、ui_refresh 旅程未重跑（ui_refresh 的设置键已改为 proxy.enabled）。Node 65 项、Flutter 26 项测试，tsc、eslint、prettier、analyze 通过。未验：Android 真机、macOS/Linux。本地提交，未 push。
+
+## 2026-11-05 工作状态行、回车发送与统一菜单样式
+
+- 工作状态：Bot 干活时，输入框上方一直显示一行「头像 + 名字 + 它自己说的正在做什么」，如「本机小助手 正在查看首页并运行计算」，代替原来的「…」。文字取自 Bot 本轮最新写的那句话（一句话可以覆盖几个并行步骤）；Bot 还没开口时用 Hermes 对正在运行步骤的中文说明（「正在运行命令 …」），什么都没有时是「正在思考」。步骤框在干活时只显示「N 个步骤」，不再重复状态。托管 SOUL.md 规则改为：每次调用工具前写一句不带自己名字的短句，中文以「正在」开头（如「正在查看推文」），英文以 -ing 动词开头；已开着的会话需 /new 才会用上新规则。
+- 输入框：回车直接发送，Ctrl+回车换行；输入法正在组字时回车交给输入法，不发送。手机软键盘的回车仍是换行。
+- 菜单：所有弹出菜单和下拉选择统一按参考截图重做：白底圆角 16、细边与柔和阴影，上下各留 6，行高桌面 36 / 手机 44，左侧 17 号线条图标，14 号正文，右侧灰色附加信息或勾，分组细线左右各缩进 16，最小宽 220。账户菜单、「＋」菜单、电脑切换菜单换成这种行；新建 Bot 的模型来源、主答、审批，命令面板的执行 Bot，Hermes 设置里的单选，宠物的图像服务从系统下拉改为同款菜单，下拉宽度与输入框一致；模型名称的联想列表也用同款卡片。
+- 真实验收（QA Relay 127.0.0.1:4459、本机 Node 换上新构建、官方 Hermes、真实模型）：work_steps 旅程扩充并在 Windows 当前源码客户端与 Android 模拟器 NekodotNativePhase3（节点由新测试版托管）均通过。菜单行高实测 36 / 44；Ctrl+回车只插入换行、组字中回车不发送、回车发出任务；新会话后状态行依次为「本机小助手 正在思考」「本机小助手 正在查看首页并运行计算」（Android：「正在读取首页并运行计算」），与 Bot 本轮写的那句一致。截图：docs/evidence/work-steps-*-working.png、work-steps-*-menu-*.png。
+- 新增 Flutter 单元测试 working_line_test；Flutter 28 项、Node runtime 6 项测试与 analyze、tsc、prettier 通过。hermes_settings、providers、research_* 旅程已改为找新的菜单选择，本轮未重跑。未验：Android 真机、macOS/Linux、真实输入法组字（用模拟的组字状态验证）。本地提交，未 push。

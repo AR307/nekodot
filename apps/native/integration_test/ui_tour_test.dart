@@ -194,7 +194,7 @@ void main() {
                       ),
                     for (final color in avatarColors)
                       CatAvatar(color: color, size: 36),
-                    ThinkingRow(client: client, bot: bot),
+                    ThinkingRow(bot: bot, line: '${bot['displayName']} 正在工作'),
                   ],
                 ),
               ),

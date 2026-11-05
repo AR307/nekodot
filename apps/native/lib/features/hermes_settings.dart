@@ -346,15 +346,14 @@ class _HermesSettingsState extends State<HermesSettings> {
               children: [
                 Flexible(
                   child: type == 'select'
-                      ? DropdownButtonFormField<String>(
-                          initialValue: selectedKey,
-                          items: [
+                      ? MenuSelect<String>(
+                          key: const ValueKey('setting-select'),
+                          value: selectedKey,
+                          options: [
                             for (final entry in selected.entries)
-                              DropdownMenuItem(
-                                value: entry.key,
-                                child: Text(
-                                  entry.key == 'clear' ? '—' : '${entry.value}',
-                                ),
+                              (
+                                entry.key,
+                                entry.key == 'clear' ? '—' : '${entry.value}',
                               ),
                           ],
                           onChanged: (key) =>

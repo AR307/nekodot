@@ -101,9 +101,8 @@ it.each(['null', '{}'])(
 describe('nekodot managed SOUL rules', () => {
   const bot = { displayName: '笔笔', handle: 'bibi' } as Bot;
   it('asks every Bot for one short sentence before each step', () => {
-    expect(managedRules(bot)).toContain(
-      'Before each tool call or command, write one short sentence',
-    );
+    expect(managedRules(bot)).toContain('Before each tool call or command, write one short line');
+    expect(managedRules(bot)).toContain('正在查看推文');
   });
   it('replaces only the managed block and keeps what the user wrote', () => {
     const soul = `My own notes.\n\n${managedRules({ ...bot, handle: 'old' } as Bot)}`;

@@ -47,33 +47,47 @@ String stepLabel(NekodotClient c, Json body) {
   return subject.isEmpty || _alone.contains(tool) ? name : '$name $subject';
 }
 
-/// What the Bot is doing now, in its own words when it said them: the first
-/// line of what it wrote before this step. Otherwise Hermes's label of the
-/// running step.
-String workStatus(NekodotClient c, List<Json> steps) {
-  final last = steps.last;
-  String? said(Json m) {
-    if (m['kind'] != 'commentary' && m['kind'] != 'text') return null;
-    final words = firstLine('${m['content']?['text'] ?? ''}')
-        .replaceAll(RegExp(r'[*_`#>]+'), '')
-        .replaceAll(RegExp(r'[。.：:…]+$'), '');
-    if (words.isEmpty) return null;
-    return words.length > 40 ? '${words.substring(0, 40)}…' : '$words…';
-  }
+/// A line the Bot wrote, cleaned for one line of status: no markup, no
+/// closing punctuation.
+String? _said(Json m) {
+  if (m['kind'] != 'commentary' && m['kind'] != 'text') return null;
+  final words = firstLine('${m['content']?['text'] ?? ''}')
+      .replaceAll(RegExp(r'[*_`#>]+'), '')
+      .replaceAll(RegExp(r'[。.：:…!！]+$'), '')
+      .trim();
+  return words.isEmpty ? null : words;
+}
 
-  if (last['kind'] == 'approval') {
-    final command = firstLine('${object(last['content'])['command'] ?? ''}');
-    return c.tr('正在运行命令 $command…', 'Running $command…');
+/// What the Bot says it is doing in this turn: the newest line it wrote
+/// (one line may announce several steps), else Hermes's own label of the
+/// running step. Null before it has done or said anything.
+String? botPhrase(NekodotClient c, List<Json> turn) {
+  for (final m in turn.reversed) {
+    final words = _said(m);
+    if (words != null) return words;
   }
-  if (last['kind'] != 'tool') return said(last) ?? c.tr('思考中…', 'Thinking…');
-  if (last['status'] != 'streaming') return c.tr('思考中…', 'Thinking…');
-  final before = steps.length > 1 ? said(steps[steps.length - 2]) : null;
-  if (before != null) return before;
-  final tool = '${last['content']['tool']}';
-  final label = stepLabel(c, object(last['content']));
+  final running = turn
+      .where((m) => m['kind'] == 'tool' && m['status'] == 'streaming')
+      .lastOrNull;
+  if (running == null) return null;
+  final tool = '${running['content']['tool']}';
+  final label = stepLabel(c, object(running['content']));
   return _verbs.containsKey(tool)
-      ? c.tr('正在$label…', '$label…')
-      : c.tr('正在使用 $tool…', 'Using $tool…');
+      ? c.tr('正在$label', label)
+      : c.tr('正在使用 $tool', 'Using $tool');
+}
+
+/// The line above the composer while a Bot works: its name and what it says
+/// it is doing, e.g. "Lumi 正在查看推文" or "Lumi is checking the tweets".
+String workingLine(NekodotClient c, String name, List<Json> turn) {
+  final phrase = botPhrase(c, turn) ?? c.tr('正在思考', 'Thinking');
+  if (RegExp(r'^[A-Za-z]').hasMatch(phrase)) {
+    final verb = phrase.split(RegExp(r'\s')).first.toLowerCase();
+    return verb.endsWith('ing')
+        ? '$name is ${phrase[0].toLowerCase()}${phrase.substring(1)}'
+        : '$name: $phrase';
+  }
+  return phrase.startsWith('正在') ? '$name $phrase' : '$name：$phrase';
 }
 
 /// Everything a Bot did between your message and its reply, folded under one
@@ -110,13 +124,13 @@ class _WorkBlockState extends State<WorkBlock> {
           (sum, m) => sum + ((m['content']['durationMs'] as num?) ?? 0),
         ) /
         1000;
-    final status = widget.live
-        ? workStatus(c, widget.steps)
-        : [
-            c.tr('${tools.length} 个步骤', '${tools.length} steps'),
-            '${seconds.toStringAsFixed(1)}s',
-            if (failed > 0) c.tr('$failed 个失败', '$failed failed'),
-          ].join(' · ');
+    // What it is doing is said under the box, beside its avatar; the box
+    // only counts.
+    final status = [
+      c.tr('${tools.length} 个步骤', '${tools.length} steps'),
+      if (!widget.live) '${seconds.toStringAsFixed(1)}s',
+      if (failed > 0) c.tr('$failed 个失败', '$failed failed'),
+    ].join(' · ');
     return StepFrame(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

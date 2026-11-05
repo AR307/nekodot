@@ -541,12 +541,17 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       splashFactory: NoSplash.splashFactory,
       overlayColor: const WidgetStatePropertyAll(Colors.transparent),
     ),
+    // Every menu: a white card, a hairline, a soft shadow and round corners.
     popupMenuTheme: PopupMenuThemeData(
       color: tone.menu,
       surfaceTintColor: Colors.transparent,
-      elevation: 10,
-      shadowColor: Colors.black.withValues(alpha: dark ? .6 : .16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 8,
+      shadowColor: Colors.black.withValues(alpha: dark ? .5 : .12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: tone.line),
+      ),
+      menuPadding: const EdgeInsets.symmetric(vertical: 6),
       textStyle: text.bodyMedium,
     ),
     tooltipTheme: TooltipThemeData(

@@ -128,22 +128,14 @@ class CommandPalette extends StatelessWidget {
             ],
           ),
           if (members.length > 1)
-            DropdownButtonFormField<String>(
-              key: ValueKey(botId),
-              initialValue: botId,
-              items: [
+            MenuSelect<String>(
+              value: botId,
+              label: client.tr('执行指令的 Bot', 'Run command as'),
+              options: [
                 for (final bot in members)
-                  DropdownMenuItem(
-                    value: '${bot['botId']}',
-                    child: Text('${bot['displayName']}'),
-                  ),
+                  ('${bot['botId']}', '${bot['displayName']}'),
               ],
-              onChanged: (value) {
-                if (value != null) onBot(value);
-              },
-              decoration: InputDecoration(
-                labelText: client.tr('执行指令的 Bot', 'Run command as'),
-              ),
+              onChanged: onBot,
             ),
           if (loading) const LinearProgressIndicator(minHeight: 2),
           ConstrainedBox(

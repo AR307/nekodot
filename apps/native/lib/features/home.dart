@@ -90,6 +90,7 @@ class _HomePageState extends State<HomePage> {
     return PopupMenuButton<String>(
       tooltip: c.tr('电脑', 'Computer'),
       position: PopupMenuPosition.under,
+      constraints: menuConstraints,
       onSelected: (id) {
         if (id == '') {
           pushPage(context, _addComputer());
@@ -101,27 +102,24 @@ class _HomePageState extends State<HomePage> {
           c.selectNode(id);
         }
       },
-      itemBuilder: (_) => [
+      itemBuilder: (context) => [
         for (final node in nodes)
-          PopupMenuItem(
+          menuItem(
+            context,
             value: node['nodeId'] as String,
-            child: Row(
-              children: [
-                StatusDot(on: node['online'] == true),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '${node['name']}',
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (node['nodeId'] == c.selectedNodeId)
-                  const Icon(Icons.check, size: 18),
-              ],
-            ),
+            leading: StatusDot(on: node['online'] == true, size: 7),
+            label: '${node['name']}',
+            trailing: node['nodeId'] == c.selectedNodeId
+                ? const Icon(Icons.check)
+                : null,
           ),
-        if (nodes.isNotEmpty) const PopupMenuDivider(),
-        PopupMenuItem(value: '', child: Text(c.tr('添加电脑', 'Add computer'))),
+        if (nodes.isNotEmpty) menuDivider,
+        menuItem(
+          context,
+          value: '',
+          icon: Icons.add_to_queue_outlined,
+          label: c.tr('添加电脑', 'Add computer'),
+        ),
       ],
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
@@ -189,37 +187,32 @@ class _HomePageState extends State<HomePage> {
   Widget createMenu() => PopupMenuButton<String>(
     tooltip: c.tr('新建', 'Create'),
     position: PopupMenuPosition.under,
+    constraints: menuConstraints,
     icon: const Icon(Icons.add),
     onSelected: create,
-    itemBuilder: (_) => createItems(),
+    itemBuilder: createItems,
   );
 
   /// New Bot, new group, and the skills and plugins a Bot can be given.
-  List<PopupMenuEntry<String>> createItems() => [
-    PopupMenuItem(
+  List<PopupMenuEntry<String>> createItems(BuildContext context) => [
+    menuItem(
+      context,
       value: 'bot',
-      height: 44,
-      child: MenuRow(
-        icon: Icons.smart_toy_outlined,
-        label: c.tr('新建 Bot', 'New Bot'),
-      ),
+      icon: Icons.smart_toy_outlined,
+      label: c.tr('新建 Bot', 'New Bot'),
     ),
-    PopupMenuItem(
+    menuItem(
+      context,
       value: 'group',
-      height: 44,
-      child: MenuRow(
-        icon: Icons.groups_outlined,
-        label: c.tr('新建群组', 'New group'),
-      ),
+      icon: Icons.groups_outlined,
+      label: c.tr('新建群组', 'New group'),
     ),
-    const PopupMenuDivider(),
-    PopupMenuItem(
+    menuDivider,
+    menuItem(
+      context,
       value: 'plugins',
-      height: 44,
-      child: MenuRow(
-        icon: Icons.extension_outlined,
-        label: c.tr('添加插件', 'Add plugins'),
-      ),
+      icon: Icons.extension_outlined,
+      label: c.tr('添加插件', 'Add plugins'),
     ),
   ];
 
@@ -279,6 +272,7 @@ class _HomePageState extends State<HomePage> {
           PopupMenuButton<String>(
             tooltip: c.tr('新建', 'Create'),
             position: PopupMenuPosition.over,
+            constraints: menuConstraints,
             icon: const Icon(Icons.add),
             iconColor: tone.base,
             style: IconButton.styleFrom(
@@ -289,7 +283,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             onSelected: create,
-            itemBuilder: (_) => createItems(),
+            itemBuilder: createItems,
           ),
         ],
       ),
@@ -557,6 +551,7 @@ class _HomePageState extends State<HomePage> {
               child: PopupMenuButton<String>(
                 tooltip: c.tr('账户', 'Account'),
                 position: PopupMenuPosition.over,
+                constraints: menuConstraints,
                 onSelected: (value) {
                   if (value == 'settings') {
                     pushPage(context, SettingsPage(client: c));
@@ -564,7 +559,7 @@ class _HomePageState extends State<HomePage> {
                     signOut();
                   }
                 },
-                itemBuilder: (_) => [
+                itemBuilder: (context) => [
                   for (final (value, icon, label) in [
                     (
                       'settings',
@@ -573,12 +568,8 @@ class _HomePageState extends State<HomePage> {
                     ),
                     ('logout', Icons.logout, c.tr('退出账号', 'Sign out')),
                   ]) ...[
-                    if (value == 'logout') const PopupMenuDivider(),
-                    PopupMenuItem(
-                      value: value,
-                      height: 44,
-                      child: MenuRow(icon: icon, label: label),
-                    ),
+                    if (value == 'logout') menuDivider,
+                    menuItem(context, value: value, icon: icon, label: label),
                   ],
                 ],
                 child: Padding(

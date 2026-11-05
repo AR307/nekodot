@@ -394,43 +394,27 @@ class _BotEditorState extends State<BotEditor> {
             const SizedBox(height: 14),
             LabeledField(
               label: c.tr('主答', 'Lead'),
-              child: DropdownButtonFormField<String>(
-                key: ValueKey(lead),
-                initialValue: lead,
-                borderRadius: BorderRadius.circular(20),
-                decoration: InputDecoration(),
-                items: c.node.bots
-                    .where((b) => members.contains(b['botId']))
-                    .map(
-                      (b) => DropdownMenuItem(
-                        value: b['botId'] as String,
-                        child: Text('${b['displayName']}'),
-                      ),
-                    )
-                    .toList(),
+              child: MenuSelect<String>(
+                value: lead,
+                options: [
+                  for (final b in c.node.bots.where(
+                    (b) => members.contains(b['botId']),
+                  ))
+                    (b['botId'] as String, '${b['displayName']}'),
+                ],
                 onChanged: (value) => setState(() => lead = value),
               ),
             ),
           ] else ...[
             LabeledField(
               label: c.tr('模型来源', 'Model source'),
-              child: DropdownButtonFormField<String>(
-                key: ValueKey(source),
-                initialValue: source,
-                isExpanded: true,
-                borderRadius: BorderRadius.circular(20),
-                decoration: InputDecoration(),
-                items: sources
-                    .map(
-                      (s) => DropdownMenuItem(
-                        value: s['sourceId'] as String,
-                        child: Text(
-                          '${s['name']}',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    )
-                    .toList(),
+              child: MenuSelect<String>(
+                key: const ValueKey('model-source'),
+                value: source,
+                options: [
+                  for (final s in sources)
+                    (s['sourceId'] as String, '${s['name']}'),
+                ],
                 onChanged: (value) {
                   setState(() {
                     source = value;
@@ -448,6 +432,8 @@ class _BotEditorState extends State<BotEditor> {
                 (m) => m.toLowerCase().contains(value.text.toLowerCase()),
               ),
               onSelected: (value) => model.text = value,
+              optionsViewBuilder: (context, onSelected, options) =>
+                  menuOptions(context, options, onSelected, (m) => m),
               fieldViewBuilder: (context, controller, focus, submit) =>
                   LabeledField(
                     label: c.tr('模型', 'Model'),
@@ -462,27 +448,16 @@ class _BotEditorState extends State<BotEditor> {
             gap,
             LabeledField(
               label: c.tr('审批', 'Approval'),
-              child: DropdownButtonFormField<String>(
-                key: ValueKey('approval-$mode-$permissionsReady'),
-                initialValue: mode,
-                borderRadius: BorderRadius.circular(20),
-                decoration: InputDecoration(),
-                items: [
-                  DropdownMenuItem(
-                    value: 'manual',
-                    child: Text(c.tr('每次询问', 'Ask each time')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'smart',
-                    child: Text(c.tr('智能审批', 'Smart approval')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'off',
-                    child: Text(c.tr('全部允许', 'Allow all')),
-                  ),
+              child: MenuSelect<String>(
+                key: const ValueKey('approval-mode'),
+                value: mode,
+                options: [
+                  ('manual', c.tr('每次询问', 'Ask each time')),
+                  ('smart', c.tr('智能审批', 'Smart approval')),
+                  ('off', c.tr('全部允许', 'Allow all')),
                 ],
                 onChanged: permissionsReady
-                    ? (value) => setState(() => mode = value!)
+                    ? (value) => setState(() => mode = value)
                     : null,
               ),
             ),
