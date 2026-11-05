@@ -69,6 +69,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',
+      syncRules: async () => {},
       configureBot: async (bot, create) => {
         if (create)
           await fetch(fake.url + '/test/profiles', {

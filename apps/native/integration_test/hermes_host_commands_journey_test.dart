@@ -212,11 +212,9 @@ void main() {
 
     final name = 'Imported command QA ${DateTime.now().millisecondsSinceEpoch}';
     await fill('Name', name);
+    await tester.tap(find.text('高级').last);
+    await tester.pump(const Duration(milliseconds: 300));
     await fill('@handle', 'importqa${DateTime.now().millisecondsSinceEpoch}');
-    await fill(
-      'Role',
-      'Isolated profile import acceptance. Keep native learned memories.',
-    );
     await fill('Model', '${bot['model']}');
     final save = find.widgetWithText(FilledButton, 'Save');
     await tester.scrollUntilVisible(save, 180, scrollable: editorScroll);

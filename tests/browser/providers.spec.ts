@@ -56,6 +56,7 @@ test('Edge manages coexisting sources, selects a source in the Bot form, and sho
     start: async () => {},
     close: async () => {},
     approvalMode: async () => 'manual',
+    syncRules: async () => {},
     configureBot: async (bot, create) => {
       if (create)
         await fetch(fake.url + '/test/profiles', {

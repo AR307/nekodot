@@ -196,10 +196,31 @@ class _HomePageState extends State<HomePage> {
 
   /// New Bot, new group, and the skills and plugins a Bot can be given.
   List<PopupMenuEntry<String>> createItems() => [
-    PopupMenuItem(value: 'bot', child: Text(c.tr('新建 Bot', 'New Bot'))),
-    PopupMenuItem(value: 'group', child: Text(c.tr('新建群组', 'New group'))),
+    PopupMenuItem(
+      value: 'bot',
+      height: 44,
+      child: MenuRow(
+        icon: Icons.smart_toy_outlined,
+        label: c.tr('新建 Bot', 'New Bot'),
+      ),
+    ),
+    PopupMenuItem(
+      value: 'group',
+      height: 44,
+      child: MenuRow(
+        icon: Icons.groups_outlined,
+        label: c.tr('新建群组', 'New group'),
+      ),
+    ),
     const PopupMenuDivider(),
-    PopupMenuItem(value: 'plugins', child: Text(c.tr('添加插件', 'Add plugins'))),
+    PopupMenuItem(
+      value: 'plugins',
+      height: 44,
+      child: MenuRow(
+        icon: Icons.extension_outlined,
+        label: c.tr('添加插件', 'Add plugins'),
+      ),
+    ),
   ];
 
   void create(String value) {
@@ -555,13 +576,8 @@ class _HomePageState extends State<HomePage> {
                     if (value == 'logout') const PopupMenuDivider(),
                     PopupMenuItem(
                       value: value,
-                      child: Row(
-                        children: [
-                          Icon(icon, size: 18),
-                          const SizedBox(width: 12),
-                          Text(label),
-                        ],
-                      ),
+                      height: 44,
+                      child: MenuRow(icon: icon, label: label),
                     ),
                   ],
                 ],

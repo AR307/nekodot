@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseEnv } from 'node:util';
 import { parse } from 'yaml';
-import { expect, it } from 'vitest';
-import { ManagedHermes } from './runtime';
+import { describe, expect, it } from 'vitest';
+import { ManagedHermes, managedRules, withManagedRules } from './runtime';
 import type { Bot } from '@nekodot/protocol';
 
 async function existingProfile(config: string) {
@@ -97,3 +97,24 @@ it.each(['null', '{}'])(
     }
   },
 );
+
+describe('nekodot managed SOUL rules', () => {
+  const bot = { displayName: '笔笔', handle: 'bibi' } as Bot;
+  it('asks every Bot for one short sentence before each step', () => {
+    expect(managedRules(bot)).toContain(
+      'Before each tool call or command, write one short sentence',
+    );
+  });
+  it('replaces only the managed block and keeps what the user wrote', () => {
+    const soul = `My own notes.\n\n${managedRules({ ...bot, handle: 'old' } as Bot)}`;
+    const next = withManagedRules(soul, managedRules(bot));
+    expect(next.startsWith('My own notes.')).toBe(true);
+    expect(next.split('<!-- nekodot managed:').length).toBe(2);
+    expect(next).toContain('@bibi');
+  });
+  it('appends the block to a SOUL.md that has none', () => {
+    expect(withManagedRules('Plain soul.\n', managedRules(bot))).toMatch(
+      /^Plain soul\.\n\n<!-- nekodot managed:/,
+    );
+  });
+});

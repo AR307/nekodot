@@ -1291,6 +1291,7 @@ export class NodeApplication {
       this.secrets.attach(run.botId);
       await this.userMemory.sync();
       await this.providers.configureBot(this.bots.get(run.botId));
+      await this.hermes.syncRules(this.bots.get(run.botId));
       const conversationId = run.groupId
         ? this.database
             .conversations()

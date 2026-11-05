@@ -133,6 +133,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
     start: async () => {},
     close: async () => {},
     approvalMode: async (profile) => permissionModes.get(profile) ?? 'manual',
+    syncRules: async () => {},
     configureBot: async (bot: Bot, create: boolean, mode?: ApprovalMode) => {
       if (mode) permissionModes.set(bot.botId, mode);
       if (create && !profiles.has(bot.botId)) {

@@ -24,6 +24,7 @@ it('uploads a user file, sends images natively, and executes a selected group me
     start: async () => {},
     close: async () => {},
     approvalMode: async () => 'manual' as const,
+    syncRules: async () => {},
     configureBot: async (bot: { botId: string }) => {
       await fetch(fake.url + '/test/profiles', {
         method: 'POST',

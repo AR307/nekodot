@@ -99,6 +99,32 @@ class ChatCard extends StatelessWidget {
   }
 }
 
+/// A row of a menu, as the account menu shows them: a leading icon, the words,
+/// and what sits at the end (a chevron when it opens something more).
+class MenuRow extends StatelessWidget {
+  final IconData? icon;
+  final String label;
+  final Widget? trailing;
+  const MenuRow({super.key, this.icon, required this.label, this.trailing});
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    return Row(
+      children: [
+        SizedBox(
+          width: 22,
+          child: icon == null ? null : Icon(icon, size: 20, color: tone.ink2),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ),
+        if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+      ],
+    );
+  }
+}
+
 /// One lettered choice in a question or an approval.
 class ChoiceRow extends StatelessWidget {
   final int index;

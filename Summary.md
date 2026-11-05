@@ -994,3 +994,13 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 文件与图片不再跳到新页面，直接在当前页面上浮起阅读器：图片可缩放，文本可选中，PDF 照常预览，顶部有分享、保存、关闭；Bot 资料库里的文件同样如此，.tar.gz 仍可「作为新 Bot 导入」。
 - 真实验收（QA Relay 127.0.0.1:4459、本机 Node 换上新构建、官方 Hermes、真实模型）：新增 integration_test/work_steps_journey_test.dart。Windows 当前源码客户端与 Android 模拟器 NekodotNativePhase3（节点由新预览版托管）均通过：聊天里之前的图片和 notes.txt 点开都是浮层、聊天页仍在底下；让 Bot 看 nekodot.com 首页标题并运行 python -c，工作中状态依次为「思考中…」「正在读取网页 https://nekodot.com…」「正在运行命令 python -c "print(6*7)"…」，审批卡片命令默认一行、点开可见全文、「允许一次」放行；完成后框显示「2 个步骤 · 5.9s」且默认折叠，点开两步的说明不再是原始 JSON。截图：docs/evidence/work-steps-*.png。
 - 本轮真实模型没有在步骤前写过程说明，所以只验到 Hermes 步骤说明这一路，Bot 自述那一路未在真实运行中出现。composer、host 命令、product、tool-markdown 旅程按浮层与步骤框改了操作方式，本轮未重跑。Node 相关 6 项与 Flutter 辅助测试、analyze、eslint、prettier 通过。未验：Android 真机、macOS/Linux。本地提交，未 push。
+
+## 2026-11-05 审批并入步骤、Bot 每步先说一句、菜单与设置收拾、新建 Bot 表单
+
+- 审批：等待中的命令收成运行命令同款的一行（图标、单行、点开看全文），下面是允许一次、拒绝等按钮。允许后并入步骤框，与其他步骤一样只显示一行，不再单独出现；框内同一命令只显示一次，计数只算工具步骤。
+- Bot 说明：nekodot 托管的 SOUL.md 段新增规则，每次调用工具或命令前，在同一条消息里写一句十五字以内的说明。每轮开始时同步这段（内容不同才写入）。状态行显示 Bot 自己这句话，框里也保留。注意：已经开着的会话沿用创建时的系统提示，新会话才生效；真实验收里先发 /new。
+- 菜单：「＋」菜单和账户菜单改成图二样式，图标加文字，分组用细线隔开。Skills/插件、设置页的分段切换仍是胶囊样式，本次未改。
+- 设置：Node 在 Hermes 设置处剔除本产品用不上的项，读写都拒绝，Hermes 默认值保留。剔除的有：Discord、Telegram、Slack、Matrix、Mattermost、网关、托管房间、Bot 模式、看板；终端界面与桌面、网页应用展示（display、dashboard、human_delay、desktop、webapp、粘贴折叠阈值）；Hermes 自身的更新、诊断、遥测、监控、日志、数据库、运行时、唤醒词、目标、循环、X 搜索、LSP、工作树、钩子自动接受；OpenRouter、Bedrock、Vertex、本地模型。
+- 新建 Bot：颜色与形状选择放大（头像 88，形状 44，颜色点 30）。角色设定从表单移除，新建时角色为空，打开后再和 Bot 说。@handle 收进「高级」，默认与名称相同。
+- 真实验收（QA Relay 127.0.0.1:4459、本机 Node、官方 Hermes、真实模型）：Windows 当前源码客户端，步骤旅程通过，新会话后 Bot 自己的说明显示在状态行（如「我先读取首页，并运行指定的 Python 命令…」），框显示「2 个步骤」，展开后两条说明与步骤各一次。新建 Bot 旅程通过：不填角色、@handle 在高级里自动跟名称、真实 Hermes 欢迎语完成。Android 模拟器 NekodotNativePhase3（节点由测试版托管）步骤旅程通过。截图：docs/evidence/work-steps-windows-approval-folded.png、work-steps-android-done-open.png。
+- 未验或已知：去掉重复显示之后，没有再触发审批，所以「允许后并入框」的最新状态未再跑；上一轮审批允许后框内计数为 3 个步骤，已验证并入。composer、product、tool-markdown、ui_refresh 旅程未重跑（ui_refresh 的设置键已改为 proxy.enabled）。Node 65 项、Flutter 26 项测试，tsc、eslint、prettier、analyze 通过。未验：Android 真机、macOS/Linux。本地提交，未 push。

@@ -24,6 +24,7 @@ it('keeps a queued gateway admission actionable after a replay error and cancels
     ...baseRuntime,
     start: async () => {},
     close: async () => {},
+    syncRules: async () => {},
     configureBot: async () => {},
     approvalMode: async () => 'manual',
     gateway: (profile) => {

@@ -434,7 +434,7 @@ void main() {
     note('sharedSettingCount', sharedKeys.length);
     expect(ownKeys.toSet().intersection(sharedKeys.toSet()), isEmpty);
     expect(ownKeys.any((k) => k.startsWith('logging.')), isFalse);
-    expect(sharedKeys, contains('logging.level'));
+    expect(sharedKeys, contains('proxy.enabled'));
     for (final group in botSettingGroups) {
       if (kinds.containsKey(group)) {
         expect(
@@ -524,17 +524,17 @@ void main() {
       // and a Bot made afterwards starts with it.
       final home = '$dataFolder/accounts/${local!.userId}/hermes';
       final field = objects(shared['fields'])
-          .firstWhere((f) => f['key'] == 'display.compact');
+          .firstWhere((f) => f['key'] == 'proxy.enabled');
       final before = field['value'] == true;
       final search = find.descendant(
         of: find.byType(HermesSettings),
         matching: find.byType(TextField),
       );
-      await tester.enterText(search, 'display.compact');
+      await tester.enterText(search, 'proxy.enabled');
       await settle(500);
       final toggle = find.widgetWithText(
         SwitchListTile,
-        hermesSettingZh['display.compact']!.$1,
+        hermesSettingZh['proxy.enabled']!.$1,
       );
       await until(() => toggle.evaluate().isNotEmpty, what: 'shared field');
       await tap(toggle);
@@ -584,7 +584,7 @@ void main() {
       note('newBotInherits', inherited![madeId]);
       expect(inherited[madeId], !before);
       await client.rpc('hermes.shared.set', {
-        'key': 'display.compact',
+        'key': 'proxy.enabled',
         'value': before,
       });
       final restored = await tester.runAsync(compact);
@@ -595,7 +595,7 @@ void main() {
       await expectLater(
         client.rpc('hermes.settings.set', {
           'botId': botId,
-          'key': 'display.compact',
+          'key': 'proxy.enabled',
           'value': !before,
         }),
         throwsA(anything),

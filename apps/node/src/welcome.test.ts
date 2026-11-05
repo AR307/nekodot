@@ -30,6 +30,7 @@ it('A new profile introduces itself once, survives restart, and only explicitly 
     start: async () => {},
     close: async () => {},
     approvalMode: async () => 'manual',
+    syncRules: async () => {},
     configureBot: async (bot) => {
       await fetch(fake.url + '/test/profiles', {
         method: 'POST',
@@ -140,6 +141,7 @@ it('A message sent during the introduction is queued behind it once, even before
     start: async () => {},
     close: async () => {},
     approvalMode: async () => 'manual',
+    syncRules: async () => {},
     configureBot: async (bot) => {
       await fetch(fake.url + '/test/profiles', {
         method: 'POST',

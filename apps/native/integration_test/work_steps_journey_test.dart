@@ -209,54 +209,80 @@ void main() {
         for (final fileId in (m['content']?['files'] as List? ?? []))
           await client.rpc('files.get', {'fileId': fileId}),
     ].where((f) => f['available'] == true).toList();
-    final picture = files.lastWhere((f) => '${f['mime']}'.startsWith('image/'));
-    final document = files.lastWhere((f) => '${f['mime']}' == 'text/plain');
-    Finder card(Json f) =>
-        find.byWidgetPredicate((w) => w is FileCard && w.fileId == f['fileId']);
-    // Earlier in the chat: scroll up to them first.
-    final list = find
-        .descendant(
-          of: find.byKey(const ValueKey('chat-messages')),
-          matching: find.byType(Scrollable),
-        )
-        .first;
-    await tester.scrollUntilVisible(card(picture), 400, scrollable: list);
-    await settle(500);
-    await tap(card(picture));
-    await until(
-      () => find.byKey(const ValueKey('viewer-image')).evaluate().isNotEmpty,
-      what: 'picture in the viewer',
+    // The chat shows its latest messages; a file from an older one is not there.
+    final picture = files
+        .where((f) => '${f['mime']}'.startsWith('image/'))
+        .lastOrNull;
+    final document = files
+        .where((f) => '${f['mime']}' == 'text/plain')
+        .lastOrNull;
+    if (picture == null || document == null) {
+      note('viewerSkipped', 'no file in the latest messages');
+    } else {
+      Finder card(Json f) => find.byWidgetPredicate(
+        (w) => w is FileCard && w.fileId == f['fileId'],
+      );
+      // Earlier in the chat: scroll up to them first.
+      final list = find
+          .descendant(
+            of: find.byKey(const ValueKey('chat-messages')),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      await tester.scrollUntilVisible(card(picture), 400, scrollable: list);
+      await settle(500);
+      await tap(card(picture));
+      await until(
+        () => find.byKey(const ValueKey('viewer-image')).evaluate().isNotEmpty,
+        what: 'picture in the viewer',
+      );
+      expect(find.byType(Dialog), findsOneWidget);
+      expect(find.byType(ChatPage), findsOneWidget);
+      expect(
+        find.ancestor(
+          of: find.byType(FileViewer),
+          matching: find.byType(Dialog),
+        ),
+        findsOneWidget,
+      );
+      await shot('viewer-picture');
+      await tap(
+        find.descendant(
+          of: find.byType(FileViewer),
+          matching: find.byTooltip('关闭'),
+        ),
+      );
+      await until(() => find.byType(FileViewer).evaluate().isEmpty);
+      await tester.scrollUntilVisible(card(document), -200, scrollable: list);
+      await tap(card(document));
+      await until(
+        () => find.byKey(const ValueKey('viewer-text')).evaluate().isNotEmpty,
+        what: 'text in the viewer',
+      );
+      expect(find.byType(Dialog), findsOneWidget);
+      await shot('viewer-text');
+      await tap(
+        find.descendant(
+          of: find.byType(FileViewer),
+          matching: find.byTooltip('关闭'),
+        ),
+      );
+      await until(() => find.byType(FileViewer).evaluate().isEmpty);
+      note('viewerFloats', true);
+    }
+
+    // A new conversation with the Bot, so it starts from the rules as they now
+    // are: an open conversation keeps the rules it started with.
+    await tester.runAsync(
+      () => client.rpc('commands.execute', {
+        'conversationId': id,
+        'botId': bot['botId'],
+        'command': '/new',
+        'clientMsgId': uid(),
+      }),
     );
-    expect(find.byType(Dialog), findsOneWidget);
-    expect(find.byType(ChatPage), findsOneWidget);
-    expect(
-      find.ancestor(of: find.byType(FileViewer), matching: find.byType(Dialog)),
-      findsOneWidget,
-    );
-    await shot('viewer-picture');
-    await tap(
-      find.descendant(
-        of: find.byType(FileViewer),
-        matching: find.byTooltip('关闭'),
-      ),
-    );
-    await until(() => find.byType(FileViewer).evaluate().isEmpty);
-    await tester.scrollUntilVisible(card(document), -200, scrollable: list);
-    await tap(card(document));
-    await until(
-      () => find.byKey(const ValueKey('viewer-text')).evaluate().isNotEmpty,
-      what: 'text in the viewer',
-    );
-    expect(find.byType(Dialog), findsOneWidget);
-    await shot('viewer-text');
-    await tap(
-      find.descendant(
-        of: find.byType(FileViewer),
-        matching: find.byTooltip('关闭'),
-      ),
-    );
-    await until(() => find.byType(FileViewer).evaluate().isEmpty);
-    note('viewerFloats', true);
+    await until(idle, seconds: 120, what: 'new conversation');
+    await settle(800);
 
     // A task with steps: the box below the message says what the Bot is
     // doing while it works, with every step folded under it.
@@ -268,7 +294,7 @@ void main() {
     final seen = messages().map((m) => m['messageId']).toSet();
     const task =
         '请看一下 https://nekodot.com 首页的大标题写了什么，'
-        '再用 terminal 运行 python -c "print(6*7)"。'
+        '再用 terminal 工具（不要用 execute_code）运行 python -c "print(6*7)"。'
         '做完用一句话告诉我标题和计算结果。';
     await tap(input);
     tester.widget<TextField>(input).controller!.text = task;

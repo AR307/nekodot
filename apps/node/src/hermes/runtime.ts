@@ -21,6 +21,8 @@ export interface HermesRuntime {
     approvalMode?: ApprovalMode,
     previousRole?: string,
   ): Promise<void>;
+  /** Brings the nekodot-managed rules in a Bot's SOUL.md up to date; writes only when they differ. */
+  syncRules(bot: Bot): Promise<void>;
   approvalMode(profile: string): Promise<ApprovalMode>;
   gateway(profile: string): HermesGateway;
   environment(profile: string): Promise<NodeJS.Dict<string>>;
@@ -44,6 +46,18 @@ export interface RuntimeOptions {
   onReady?: () => void;
   onLog?: (line: string) => void;
 }
+/** What nekodot asks of every Bot, kept in SOUL.md between its markers. */
+export function managedRules(bot: Bot) {
+  return `<!-- nekodot managed: do not edit below -->\nYou are "${bot.displayName}", a member of the user's nekodot team. Your handle is @${bot.handle}.\n- Reply in the language the user writes in.\n- Before each tool call or command, write one short sentence in that language saying what you are doing now, for example "Reading the homepage title." Keep it under fifteen words, and write it in the same message as the call.\n- For API keys, passwords, private keys and one-time codes: read the nekodot-secrets skill and request encrypted delivery cards. Never request values in chat or print them. Website logins use this profile's native vault and browser_vault. CAPTCHAs and other human verification require screen takeover. Payments are not supported by confidential delivery.\n- In group chats, keep replies short. To hand work to a teammate, write @their-handle and say exactly what you need.\n- To create webhook routines, read the nekodot-routines skill. Use hermes routine; ask the user to open the task card and approve secure credential delivery. Never request or print the webhook secret in chat.\n<!-- end nekodot managed -->\n`;
+}
+
+/** SOUL.md with its nekodot-managed block replaced, or the block appended when there is none. */
+export function withManagedRules(soul: string, rules: string) {
+  return soul.includes('<!-- nekodot managed:')
+    ? soul.replace(/<!-- nekodot managed:[\s\S]*?<!-- end nekodot managed -->\n?/, rules)
+    : soul.trimEnd() + '\n\n' + rules;
+}
+
 const begin = '# >>> nekodot managed >>>';
 const end = '# <<< nekodot managed <<<';
 
@@ -196,7 +210,7 @@ export class ManagedHermes implements HermesRuntime {
     if (create) await runHermesCli(this.launch, ['profile', 'create', bot.botId, '--no-alias']);
     await this.writeEnv(bot.botId);
     await this.config(bot.botId, approvalMode);
-    const rules = `<!-- nekodot managed: do not edit below -->\nYou are "${bot.displayName}", a member of the user's nekodot team. Your handle is @${bot.handle}.\n- Reply in the language the user writes in.\n- For API keys, passwords, private keys and one-time codes: read the nekodot-secrets skill and request encrypted delivery cards. Never request values in chat or print them. Website logins use this profile's native vault and browser_vault. CAPTCHAs and other human verification require screen takeover. Payments are not supported by confidential delivery.\n- In group chats, keep replies short. To hand work to a teammate, write @their-handle and say exactly what you need.\n- To create webhook routines, read the nekodot-routines skill. Use hermes routine; ask the user to open the task card and approve secure credential delivery. Never request or print the webhook secret in chat.\n<!-- end nekodot managed -->\n`;
+    const rules = managedRules(bot);
     const path = join(this.profileHome(bot.botId), 'SOUL.md');
     let soul = create ? bot.role + '\n\n' : await readFile(path, 'utf8');
     if (!create && previousRole !== undefined) {
@@ -209,11 +223,14 @@ export class ManagedHermes implements HermesRuntime {
         );
       soul = bot.role + soul.slice(previousRole.length);
     }
-    soul = soul.includes('<!-- nekodot managed:')
-      ? soul.replace(/<!-- nekodot managed:[\s\S]*?<!-- end nekodot managed -->\n?/, rules)
-      : soul.trimEnd() + '\n\n' + rules;
-    await writeFile(path, soul);
+    await writeFile(path, withManagedRules(soul, rules));
     await this.waitHealthy(bot.botId);
+  }
+  async syncRules(bot: Bot) {
+    const path = join(this.profileHome(bot.botId), 'SOUL.md');
+    const soul = await readFile(path, 'utf8');
+    const next = withManagedRules(soul, managedRules(bot));
+    if (next !== soul) await writeFile(path, next);
   }
   async approvalMode(profile: string): Promise<ApprovalMode> {
     const output = await runHermesCli(this.launch, [

@@ -98,6 +98,7 @@ const runtime: HermesRuntime = {
     wrappedGateways.add(gateway);
     return gateway;
   },
+  syncRules: async () => {},
   configureBot: async (bot, create, approvalMode) => {
     if (approvalMode) modes.set(bot.botId, approvalMode);
     if (welcome && create && bot.handle === 'retry-intro') failedIntroductions.add(bot.botId);

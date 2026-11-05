@@ -27,7 +27,6 @@ class BotEditor extends StatefulWidget {
 class _BotEditorState extends State<BotEditor> {
   final name = TextEditingController(),
       handle = TextEditingController(),
-      role = TextEditingController(),
       model = TextEditingController(),
       contextLength = TextEditingController();
   // A new Bot starts as a random face, so a team looks varied by default.
@@ -55,7 +54,6 @@ class _BotEditorState extends State<BotEditor> {
         lead = b['leadBotId'] as String;
       } else {
         handle.text = '${b['handle']}';
-        role.text = '${b['role']}';
         model.text = '${b['model']}';
         color = '${b['avatar']['color']}';
         shape = '${b['avatar']['shape']}';
@@ -145,7 +143,8 @@ class _BotEditorState extends State<BotEditor> {
           if (existing != null) 'botId': existing['botId'],
           'displayName': name.text,
           if (existing != null || handleEdited) 'handle': handle.text,
-          'role': role.text,
+          // The role is written in the chat once the Bot is open, not here.
+          if (existing == null) 'role': '',
           'model': model.text.trim(),
           'avatar': {'shape': shape, 'color': color},
           'approvalMode': mode,
@@ -170,7 +169,6 @@ class _BotEditorState extends State<BotEditor> {
   void dispose() {
     name.dispose();
     handle.dispose();
-    role.dispose();
     model.dispose();
     contextLength.dispose();
     super.dispose();
@@ -241,7 +239,7 @@ class _BotEditorState extends State<BotEditor> {
                   key: ValueKey('$shape$color'),
                   color: color,
                   shape: shape,
-                  size: tone.glass ? 72 : 56,
+                  size: tone.glass ? 104 : 88,
                 ),
               ),
             ),
@@ -265,16 +263,16 @@ class _BotEditorState extends State<BotEditor> {
                         _ => c.tr('机器人', 'Robot'),
                       },
                       child: InkResponse(
-                        radius: 24,
+                        radius: 30,
                         onTap: () => setState(() => shape = value),
                         child: Semantics(
                           button: true,
                           selected: value == shape,
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 160),
-                            width: tone.glass ? 40 : 32,
-                            height: tone.glass ? 40 : 32,
-                            padding: const EdgeInsets.all(5),
+                            width: tone.glass ? 52 : 44,
+                            height: tone.glass ? 52 : 44,
+                            padding: const EdgeInsets.all(7),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
@@ -295,7 +293,7 @@ class _BotEditorState extends State<BotEditor> {
             const SizedBox(height: 10),
             Center(
               child: SizedBox(
-                width: (tone.glass ? 34.0 : 26.0) * 8,
+                width: (tone.glass ? 46.0 : 38.0) * 8,
                 child: Wrap(
                   alignment: WrapAlignment.center,
                   spacing: 4,
@@ -310,9 +308,9 @@ class _BotEditorState extends State<BotEditor> {
                           label: value,
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 160),
-                            width: tone.glass ? 30 : 22,
-                            height: tone.glass ? 30 : 22,
-                            padding: const EdgeInsets.all(2.5),
+                            width: tone.glass ? 40 : 30,
+                            height: tone.glass ? 40 : 30,
+                            padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
@@ -415,31 +413,6 @@ class _BotEditorState extends State<BotEditor> {
             ),
           ] else ...[
             LabeledField(
-              label: '@handle',
-              child: TextField(
-                controller: handle,
-                onChanged: (_) => handleEdited = true,
-                decoration: InputDecoration(
-                  helperText: c.tr(
-                    '默认按名称填写，支持中文；也可自己修改 @代号',
-                    'Filled from the name, including Chinese; you can customize the @handle',
-                  ),
-                  helperMaxLines: 3,
-                ),
-              ),
-            ),
-            gap,
-            LabeledField(
-              label: c.tr('角色设定', 'Role'),
-              child: TextField(
-                controller: role,
-                minLines: 3,
-                maxLines: 8,
-                decoration: InputDecoration(),
-              ),
-            ),
-            gap,
-            LabeledField(
               label: c.tr('模型来源', 'Model source'),
               child: DropdownButtonFormField<String>(
                 key: ValueKey(source),
@@ -530,6 +503,21 @@ class _BotEditorState extends State<BotEditor> {
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               children: [
+                LabeledField(
+                  label: '@handle',
+                  child: TextField(
+                    controller: handle,
+                    onChanged: (_) => handleEdited = true,
+                    decoration: InputDecoration(
+                      helperText: c.tr(
+                        '默认与名称相同，支持中文；想换一个写法时再改',
+                        'Same as the name by default, Chinese included; change it only if you want another',
+                      ),
+                      helperMaxLines: 3,
+                    ),
+                  ),
+                ),
+                gap,
                 LabeledField(
                   label: c.tr('上下文覆盖', 'Context override'),
                   child: TextField(

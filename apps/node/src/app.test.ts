@@ -36,6 +36,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',
+      syncRules: async () => {},
       configureBot: async (bot: Bot) => {
         if (!profiles.has(bot.botId)) {
           const response = await fetch(relay.url + '/test/profiles', {
@@ -343,6 +344,7 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',
+      syncRules: async () => {},
       configureBot: async (bot: Bot) => {
         if (profiles.has(bot.botId)) return;
         const response = await fetch(relay.url + '/test/profiles', {

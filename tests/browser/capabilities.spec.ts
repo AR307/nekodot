@@ -35,6 +35,7 @@ test('Bot details, native memory editing, library download, extension catalog an
     start: async () => {},
     close: async () => {},
     approvalMode: async () => 'manual',
+    syncRules: async () => {},
     configureBot: async (bot) => {
       await fetch(fake.url + '/test/profiles', {
         method: 'POST',

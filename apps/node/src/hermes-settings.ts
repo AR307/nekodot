@@ -126,6 +126,50 @@ const botGroup = index(botGroups);
 const sharedGroup = index(sharedGroups);
 const prefix = (key: string) => key.split('.')[0]!;
 const isShared = (key: string) => sharedGroup.has(prefix(key));
+/**
+ * Hermes settings this product does not use: messaging channels it does not run, the terminal and
+ * desktop presentation, Hermes's own updates and diagnostics, and features outside nekodot. They are
+ * hidden from the app and refused on write; Hermes keeps its defaults for them.
+ */
+const unusedPrefixes = new Set([
+  'discord',
+  'telegram',
+  'slack',
+  'matrix',
+  'mattermost',
+  'gateway',
+  'hosted_rooms',
+  'bot_mode',
+  'kanban',
+  'display',
+  'dashboard',
+  'human_delay',
+  'desktop',
+  'webapp',
+  'paste_collapse_threshold',
+  'paste_collapse_threshold_fallback',
+  'paste_collapse_char_threshold',
+  'updates',
+  'doctor',
+  'onboarding',
+  'telemetry',
+  'monitoring',
+  'logging',
+  'database',
+  'runtime',
+  'wake_word',
+  'goals',
+  'loops',
+  'x_search',
+  'lsp',
+  'worktrees',
+  'hooks_auto_accept',
+  'openrouter',
+  'bedrock',
+  'vertex',
+  'local_runtime',
+]);
+const isUnused = (key: string) => unusedPrefixes.has(prefix(key));
 /** Settings Hermes added after this table was written stay with the Bot until classified. */
 const groupOf = (key: string) =>
   sharedGroup.get(prefix(key)) ?? botGroup.get(prefix(key)) ?? 'other';
@@ -161,7 +205,7 @@ export class HermesSettings {
       this.request<Record<string, unknown>>('/api/config?include_defaults=true', profile),
     ]);
     const fields = Object.entries(schema.fields)
-      .filter(([key]) => isShared(key) === shared)
+      .filter(([key]) => isShared(key) === shared && !isUnused(key))
       .map(([key, field]) => {
         const path = key === 'model_context_length' ? [key] : key.split('.');
         const current = path.reduce<unknown>(
@@ -196,7 +240,8 @@ export class HermesSettings {
   private async checked(profile: string, key: string, value: Json) {
     const schema = await this.request<NativeSettingsSchema>('/api/config/schema', profile);
     const field = schema.fields[key];
-    if (!field) throw new NodeFault('not_found', 'Hermes setting is not available');
+    if (!field || isUnused(key))
+      throw new NodeFault('not_found', 'Hermes setting is not available');
     if (sensitiveSettingName.test(key))
       throw new NodeFault('invalid_params', 'Manage credentials in Hermes provider settings');
     if (key === 'model' || key === 'model_context_length')

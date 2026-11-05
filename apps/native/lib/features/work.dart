@@ -35,14 +35,15 @@ const _verbs = {
 /// Verbs that read better alone, as Hermes shows them.
 const _alone = {'skills_list', 'session_search'};
 
-String _line(String text) => text.trim().split('\n').first.trim();
+/// The first line of a text, trimmed: a step's words in one line.
+String firstLine(String text) => text.trim().split('\n').first.trim();
 
 /// One step as Hermes labels it: its verb and the call's main argument.
 String stepLabel(NekodotClient c, Json body) {
   final tool = '${body['tool']}';
   final verb = _verbs[tool];
   final name = verb == null ? tool : c.tr(verb.$1, verb.$2);
-  final subject = _line('${body['context'] ?? ''}');
+  final subject = firstLine('${body['context'] ?? ''}');
   return subject.isEmpty || _alone.contains(tool) ? name : '$name $subject';
 }
 
@@ -53,13 +54,17 @@ String workStatus(NekodotClient c, List<Json> steps) {
   final last = steps.last;
   String? said(Json m) {
     if (m['kind'] != 'commentary' && m['kind'] != 'text') return null;
-    final words = _line('${m['content']?['text'] ?? ''}')
+    final words = firstLine('${m['content']?['text'] ?? ''}')
         .replaceAll(RegExp(r'[*_`#>]+'), '')
         .replaceAll(RegExp(r'[。.：:…]+$'), '');
     if (words.isEmpty) return null;
     return words.length > 40 ? '${words.substring(0, 40)}…' : '$words…';
   }
 
+  if (last['kind'] == 'approval') {
+    final command = firstLine('${object(last['content'])['command'] ?? ''}');
+    return c.tr('正在运行命令 $command…', 'Running $command…');
+  }
   if (last['kind'] != 'tool') return said(last) ?? c.tr('思考中…', 'Thinking…');
   if (last['status'] != 'streaming') return c.tr('思考中…', 'Thinking…');
   final before = steps.length > 1 ? said(steps[steps.length - 2]) : null;
@@ -94,6 +99,8 @@ class _WorkBlockState extends State<WorkBlock> {
     final c = widget.client, tone = context.tone;
     final text = Theme.of(context).textTheme.bodySmall!;
     final tools = widget.steps.where((m) => m['kind'] == 'tool').toList();
+    // An allowed command is the step its tool call runs; it shows only when no call came with it.
+    final hasTool = tools.isNotEmpty;
     final failed = tools
         .where((m) => m['status'] == 'failed' || m['content']['error'] == true)
         .length;
@@ -149,6 +156,12 @@ class _WorkBlockState extends State<WorkBlock> {
                       for (final step in widget.steps)
                         if (step['kind'] == 'tool')
                           StepRow(
+                            key: ValueKey('step-${step['messageId']}'),
+                            client: c,
+                            message: step,
+                          )
+                        else if (step['kind'] == 'approval' && !hasTool)
+                          ApprovalStep(
                             key: ValueKey('step-${step['messageId']}'),
                             client: c,
                             message: step,
@@ -297,53 +310,19 @@ class _StepRowState extends State<StepRow> {
   }
 }
 
-/// A command waiting for your approval: one line in a step frame, opened in
-/// full on a tap.
-class FoldedCommand extends StatefulWidget {
-  final String command;
-  const FoldedCommand({super.key, required this.command});
-  @override
-  State<FoldedCommand> createState() => _FoldedCommandState();
-}
-
-class _FoldedCommandState extends State<FoldedCommand> {
-  bool open = false;
+/// A command you allowed: one line in the box, like any other step.
+class ApprovalStep extends StatelessWidget {
+  final NekodotClient client;
+  final Json message;
+  const ApprovalStep({super.key, required this.client, required this.message});
   @override
   Widget build(BuildContext context) {
     final tone = context.tone;
-    final mono = TextStyle(
-      fontFamily: monoFont,
-      fontSize: 12,
-      color: tone.ink2,
-    );
-    return StepFrame(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          StepLine(
-            key: const ValueKey('command-fold'),
-            leading: Icon(Icons.terminal, size: 14, color: tone.ink3),
-            label: widget.command.trim().split('\n').first,
-            style: mono,
-            trailing: Icon(
-              open ? Icons.expand_less : Icons.expand_more,
-              size: 16,
-              color: tone.ink3,
-            ),
-            onTap: () => setState(() => open = !open),
-          ),
-          if (open)
-            Container(
-              margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: tone.bubble,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SelectableText(widget.command.trim(), style: mono),
-            ),
-        ],
-      ),
+    final command = firstLine('${object(message['content'])['command'] ?? ''}');
+    return StepLine(
+      leading: Icon(Icons.check, size: 14, color: tone.ink3),
+      label: client.tr('运行命令 $command', 'Running $command'),
+      style: TextStyle(fontFamily: monoFont, fontSize: 12, color: tone.ink2),
     );
   }
 }

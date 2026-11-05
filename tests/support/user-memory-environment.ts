@@ -62,6 +62,7 @@ export async function userMemoryEnvironment(port = 0) {
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',
+      syncRules: async () => {},
       configureBot: async (bot, create) => {
         if (create)
           await fetch(fake.url + '/test/profiles', {

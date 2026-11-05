@@ -380,7 +380,19 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       // Steps fold together: the tool calls in a row and what the Bot wrote
       // between them, until it writes its reply or asks you something.
       final items = <List<Json>>[];
-      bool step(Json m) => m['kind'] == 'tool' || m['kind'] == 'commentary';
+      // An approval the user allowed is one of the steps: it runs inside the box.
+      bool allowed(Json m) =>
+          m['kind'] == 'approval' &&
+          m['status'] != 'streaming' &&
+          const {
+            'once',
+            'session',
+            'always',
+          }.contains(object(m['content'])['choice']);
+      bool step(Json m) =>
+          m['kind'] == 'tool' || m['kind'] == 'commentary' || allowed(m);
+      bool work(List<Json> item) =>
+          item.any((m) => m['kind'] == 'tool' || allowed(m));
       for (final m in messages) {
         final last = items.lastOrNull;
         if (step(m) &&
@@ -393,13 +405,12 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
         }
       }
       for (var i = items.length - 1; i >= 0; i--) {
-        if (items[i].length > 1 && !items[i].any((m) => m['kind'] == 'tool')) {
+        if (items[i].length > 1 && !work(items[i])) {
           items.replaceRange(i, i + 1, [
             for (final m in items[i]) [m],
           ]);
         }
       }
-      bool work(List<Json> item) => item.any((m) => m['kind'] == 'tool');
       final tail = messages.lastOrNull;
       final thinking =
           (state == 'thinking' || state == 'tool') &&
@@ -1415,7 +1426,7 @@ class ControlCard extends StatefulWidget {
 class _ControlCardState extends State<ControlCard> {
   final answer = TextEditingController();
   final selected = <String>{};
-  bool busy = false;
+  bool busy = false, unfolded = false;
   String error = '';
   @override
   void dispose() {
@@ -1474,6 +1485,93 @@ class _ControlCardState extends State<ControlCard> {
       respond([...selected, if (typed.isNotEmpty) typed].join('\n'));
     }
 
+    if (!question) {
+      // A command waiting for you sits in the same line as the steps do, with
+      // its choices under it; once it is allowed it joins the steps instead.
+      final command = firstLine(
+        data['command'] == null ? '${data['prompt']}' : '${data['command']}',
+      );
+      final full = data['command'] == null
+          ? '${data['prompt']}'
+          : '${data['command']}';
+      return StepFrame(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            StepLine(
+              key: const ValueKey('command-fold'),
+              leading: pending
+                  ? Icon(Icons.schedule, size: 14, color: tone.ink2)
+                  : Icon(
+                      answered == 'deny' ? Icons.close : Icons.check,
+                      size: 14,
+                      color: tone.ink3,
+                    ),
+              label: pending
+                  ? c.tr('等你确认 · $command', 'Needs your OK · $command')
+                  : '${answered == null ? c.tr('未回答', 'Not answered') : label(answered)} · $command',
+              style: TextStyle(
+                fontFamily: monoFont,
+                fontSize: 12,
+                color: pending ? tone.ink : tone.ink2,
+              ),
+              trailing: Icon(
+                unfolded ? Icons.expand_less : Icons.expand_more,
+                size: 16,
+                color: tone.ink3,
+              ),
+              onTap: () => setState(() => unfolded = !unfolded),
+            ),
+            if (unfolded)
+              Container(
+                margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: tone.bubble,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: SelectableText(
+                  full.trim(),
+                  style: TextStyle(
+                    fontFamily: monoFont,
+                    fontSize: 12,
+                    color: tone.ink2,
+                  ),
+                ),
+              ),
+            if (pending)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final (index, choice) in choices.indexed)
+                      index == 0
+                          ? FilledButton(
+                              key: ValueKey('choice-${m['messageId']}-$index'),
+                              style: optionStyle(context),
+                              onPressed: !open
+                                  ? null
+                                  : () => respond('$choice'),
+                              child: Text(label(choice)),
+                            )
+                          : OutlinedButton(
+                              key: ValueKey('choice-${m['messageId']}-$index'),
+                              style: optionStyle(context),
+                              onPressed: !open
+                                  ? null
+                                  : () => respond('$choice'),
+                              child: Text(label(choice)),
+                            ),
+                  ],
+                ),
+              ),
+            ErrorNotice(error),
+          ],
+        ),
+      );
+    }
     return ChatCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1482,11 +1580,6 @@ class _ControlCardState extends State<ControlCard> {
             '${data[question ? 'question' : 'prompt']}',
             style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
-          if (data['command'] != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: FoldedCommand(command: '${data['command']}'),
-            ),
           const SizedBox(height: 8),
           if (!pending)
             Padding(

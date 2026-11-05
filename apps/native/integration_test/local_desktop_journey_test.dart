@@ -367,7 +367,6 @@ void main() {
       }
 
       await fill('名称', '本机小助手');
-      await fill('角色设定', '在用户自己的 Windows 电脑上帮忙整理文件，回答简洁。');
       await until(
         () => find.widgetWithText(LabeledField, '模型').evaluate().isNotEmpty,
         what: 'model field',

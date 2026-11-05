@@ -137,8 +137,9 @@ void main() {
       await until(() => find.byType(BotEditor).evaluate().isNotEmpty);
       await until(() => find.byType(SnackBar).evaluate().isEmpty);
       await fill('名称', 'Maple');
+      await tester.tap(find.text('高级').last);
+      await tester.pump(const Duration(milliseconds: 300));
       await fill('@handle', 'maple-sources');
-      await fill('角色设定', 'Helpful source specialist');
       final sourceField = find.descendant(
         of: find.widgetWithText(LabeledField, '模型来源'),
         matching: find.byType(DropdownButtonFormField<String>),

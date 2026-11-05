@@ -128,8 +128,9 @@ void main() {
           await tap(find.text('新建 Bot').last);
           await until(() => find.byType(BotEditor).evaluate().isNotEmpty);
           await fill('名称', member[0]);
+          await tester.tap(find.text('高级').last);
+          await tester.pump(const Duration(milliseconds: 300));
           await fill('@handle', member[1]);
-          await fill('角色设定', member[2]);
           await until(
             () => find
                 .byType(DropdownButtonFormField<String>)

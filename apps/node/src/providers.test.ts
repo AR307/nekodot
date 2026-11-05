@@ -23,6 +23,7 @@ it('two custom APIs survive app restart; each profile keeps its selected route a
     start: async () => {},
     close: async () => {},
     approvalMode: async () => 'manual',
+    syncRules: async () => {},
     configureBot: async () => {},
   };
   let app = new NodeApplication(home, runtime);

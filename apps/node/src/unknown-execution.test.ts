@@ -33,6 +33,7 @@ it.each(['dm', 'group'] as const)(
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',
+      syncRules: async () => {},
       configureBot: async () => {},
       gateway: (profile) => {
         const gateway = baseRuntime.gateway(profile);
