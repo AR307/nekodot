@@ -106,6 +106,7 @@ export const messageSchema = z.discriminatedUnion('kind', [
       routineId: z.string(),
       botId: z.string(),
       name: z.string(),
+      trigger: z.enum(['schedule', 'webhook', 'both']).optional(),
       granted: z.boolean(),
       card: z.enum(['task', 'credentials']),
       action: z

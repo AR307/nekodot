@@ -4,6 +4,7 @@ import {
   routineInputSchema,
   routineSchema,
   routineExecutionSchema,
+  cronApprovalPolicySchema,
   routineReceiptSchema,
   routineDeliveryRecordSchema,
 } from './routines';
@@ -214,6 +215,23 @@ export const rpcContracts = {
     params: z.strictObject(botTarget),
     result: z.strictObject({ routines: z.array(routineSchema) }),
   },
+  'routines.approvalPolicy': {
+    params: z.strictObject({
+      ...botTarget,
+      routineId: z.string(),
+      policy: cronApprovalPolicySchema,
+    }),
+    result: cronApprovalPolicySchema,
+  },
+  'routines.approvalRespond': {
+    params: z.strictObject({
+      ...botTarget,
+      executionId: z.string(),
+      promptId: z.string(),
+      choice: z.enum(['once', 'deny']),
+    }),
+    result: empty,
+  },
   'routines.get': {
     params: z.strictObject({ ...botTarget, routineId: idSchema }),
     result: z.strictObject({
@@ -393,6 +411,7 @@ export const rpcContracts = {
       conversationId: idSchema,
       text: z.string(),
       files: z.array(z.uuid()).optional(),
+      routineExecutionId: z.string().min(1).optional(),
       clientMsgId: z.uuidv4(),
     }),
     result: z.strictObject({ messageId: idSchema }),

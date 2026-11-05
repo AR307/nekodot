@@ -96,6 +96,7 @@ class NekodotClient extends ChangeNotifier {
   final nodes = <String, NodeData>{};
   final Map<String, List<Json>> attachmentDrafts = {};
   final drafts = <String, String>{};
+  final routineDrafts = <String, Json>{};
   final _pending = <String, Completer<Json>>{};
   final notifications = StreamController<Json>.broadcast();
   final destinations = StreamController<Json>.broadcast();
@@ -218,6 +219,7 @@ class NekodotClient extends ChangeNotifier {
     me = null;
     nodes.clear();
     drafts.clear();
+    routineDrafts.clear();
     attachmentDrafts.clear();
     selectedNodeId = null;
     ready = false;

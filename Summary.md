@@ -1074,3 +1074,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 真实复现账号 PM workspace 的 WinError 3：普通路径复制失败，最长 288 字符。用户授权最小 Hermes 安装补丁，仅复制调用使用既有 long_root；不改 HERMES_HOME、Agent 或账号路径。
 - Flutter 安装器集成幂等补丁并保留原文件；官方依赖、产品、配置、新账号安装与重试通过。Windows 原生候选使用真实 gpt-6.1-sol 完成读写文件、二次对话和重启历史验收。
 - Windows legacy-path 模式下 Hermes 两条测试基线失败、补丁通过；Flutter analyze/33 项测试及 Windows Release 构建通过。详见 docs/windows-long-path-fix.md。仅本地提交，未发布、未 push，用户另一台电脑待复测。
+
+## 2026-11-06 Cron 结果接续与授权规则
+
+- 普通 cron 结果按原生执行会话去重，未投递到当前聊天时作为后续新回合上下文；用户可从执行详情选择一次结果继续追问。Cron 执行会话只读，不会因追问重跑。
+- 每个定时任务可设置询问/自动允许，并按时区、星期和时间窗口切换；新增任务先暂停，授权规则确认后才恢复。任务卡提供直接配置入口，默认模式为询问，新增时段也默认询问。
+- Cron 执行中的原生授权可显示在 Bot 私聊，并响应同一 admission 的原生审批，不重跑任务。Bot 指引要求创建/修改任务时先让用户确认授权方式。
+- Hermes cron policy、前置拒绝与 approval bridge 测试 7 项通过；nekodot Node 24 全部 38 个测试文件/76 项通过，typecheck、相关 ESLint/Prettier 通过；Flutter analyze 与 33 项测试通过。真实 Windows/Android 客户端和真实模型旅程尚未运行，未部署、未发布。

@@ -1251,3 +1251,10 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 真实复现账号 PM workspace 的 WinError 3：普通路径复制失败，最长 288 字符。用户授权最小 Hermes 安装补丁，仅复制调用使用既有 long_root；不改 HERMES_HOME、Agent 或账号路径。
 - Flutter 安装器集成幂等补丁并保留原文件；官方依赖、产品、配置、新账号安装与重试通过。Windows 原生候选使用真实 gpt-6.1-sol 完成读写文件、二次对话和重启历史验收。
 - Windows legacy-path 模式下 Hermes 两条测试基线失败、补丁通过；Flutter analyze/33 项测试及 Windows Release 构建通过。详见 docs/windows-long-path-fix.md。仅本地提交，未发布、未 push，用户另一台电脑待复测。
+## 2026-11-06 Cron 结果接续与授权规则
+
+- 普通 cron 结果关联至原生执行会话并检查用户所选会话是否已包含结果，避免遗漏或重复注入；用户可从执行详情发起一次明确的新回合来追问。执行会话只读。
+- 定时任务的配置入口直接出现在新建任务卡片；详情页会提示未配置的任务进入授权设置。默认询问，用户可配置自动允许，并按时区、星期及跨午夜时间段切换；新建时段默认询问。Hermes 在规则确认前暂停新任务。
+- cron 回合内出现原生审批时，经对应 Bot 私聊展示并对同一 admission 提交用户选择；不默认拒绝、不停止或重跑任务。Bot 指引要求配置任务时先询问用户的授权偏好。
+- 验证：Hermes `scripts/run_tests.sh tests/tools/test_cron_approval_policy.py tests/cron/test_approval_policy.py tests/gateway/test_cron_approval_bridge.py` 通过 7 项；nekodot Node 24 全部 38 个测试文件/76 项通过，TypeScript typecheck 与相关 ESLint/Prettier 通过；Flutter analyze 和 33 项测试通过。
+- 未验：尚未在实际 Windows 客户端与固定 Android 模拟器执行真实 cron + 真实模型审批/追问旅程；QA Relay health 返回 200，但本轮未部署服务或候选包。Windows/Android 真机未验。

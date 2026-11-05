@@ -179,9 +179,10 @@ class _BotSessionsPageState extends State<BotSessionsPage> {
                   subtitle: Text(
                     '${row['message_count'] ?? 0} ${c.tr('条消息', 'messages')}${row['running'] == true ? ' · ${c.tr('运行中', 'Running')}' : ''}',
                   ),
-                  trailing:
-                      (row['session_id'] ?? row['id']) ==
-                          data['currentSessionId']
+                  trailing: row['source'] == 'cron'
+                      ? Text(c.tr('定时执行', 'Scheduled run'))
+                      : (row['session_id'] ?? row['id']) ==
+                            data['currentSessionId']
                       ? Text(
                           c.tr('当前', 'Current'),
                           style: Theme.of(context).textTheme.labelMedium,
@@ -202,7 +203,7 @@ class _BotSessionsPageState extends State<BotSessionsPage> {
                       : () async {
                           await pushPage(
                             context,
-                            _SessionHistory(
+                            SessionHistoryPage(
                               client: c,
                               botId: widget.botId,
                               row: row,
@@ -265,20 +266,21 @@ class _NewSessionDialogState extends State<_NewSessionDialog> {
   );
 }
 
-class _SessionHistory extends StatefulWidget {
+class SessionHistoryPage extends StatefulWidget {
   final NekodotClient client;
   final String botId;
   final Json row;
-  const _SessionHistory({
+  const SessionHistoryPage({
+    super.key,
     required this.client,
     required this.botId,
     required this.row,
   });
   @override
-  State<_SessionHistory> createState() => _SessionHistoryState();
+  State<SessionHistoryPage> createState() => _SessionHistoryState();
 }
 
-class _SessionHistoryState extends State<_SessionHistory> {
+class _SessionHistoryState extends State<SessionHistoryPage> {
   bool busy = false;
   String error = '';
   String get id => '${widget.row['session_id'] ?? widget.row['id']}';
@@ -325,10 +327,11 @@ class _SessionHistoryState extends State<_SessionHistory> {
   Widget build(BuildContext context) => AppPage(
     title: widget.client.tr('原生会话记录', 'Native transcript'),
     actions: [
-      TextButton(
-        onPressed: busy ? null : resume,
-        child: Text(widget.client.tr('继续此会话', 'Resume here')),
-      ),
+      if (widget.row['source'] != 'cron')
+        TextButton(
+          onPressed: busy ? null : resume,
+          child: Text(widget.client.tr('继续此会话', 'Resume here')),
+        ),
     ],
     body: FutureBuilder<Json>(
       future: history,

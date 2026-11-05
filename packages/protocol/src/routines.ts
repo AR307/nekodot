@@ -23,12 +23,29 @@ export const routineExecutionSchema = z.strictObject({
   executionId: z.string(),
   routineId: z.string(),
   sessionId: z.string(),
+  admissionId: z.string().optional(),
   requestId: z.string().optional(),
-  state: z.enum(['running', 'completed', 'failed', 'cancelled']),
+  state: z.enum(['running', 'waiting_approval', 'completed', 'failed', 'cancelled']),
+  originSessionId: z.string().optional(),
   text: z.string(),
   reason: z.string().optional(),
   updatedAt: z.string(),
 });
+export const cronApprovalPolicySchema = z.strictObject({
+  default: z.enum(['ask', 'approve']),
+  timezone: z.string().min(1),
+  windows: z
+    .array(
+      z.strictObject({
+        start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+        end: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+        days: z.array(z.number().int().min(0).max(6)).min(1),
+        mode: z.enum(['ask', 'approve']),
+      }),
+    )
+    .max(12),
+});
+export type CronApprovalPolicy = z.infer<typeof cronApprovalPolicySchema>;
 export const routineRouteSchema = z.strictObject({
   routineId: z.uuid(),
   botId: z.string(),

@@ -154,6 +154,11 @@ export class BotSessions {
     if (name === '/resume') {
       const { sessions } = await this.list(botId);
       const found = sessions.find((row) => row.session_id === arg || row.id === arg);
+      if (found?.source === 'cron')
+        throw new NodeFault(
+          'invalid_params',
+          'Cron executions are read-only. Continue from the routine result in a regular conversation.',
+        );
       const session = await gateway.rpc<NativeSessionSnapshot>(
         'session.resume',
         found

@@ -110,7 +110,8 @@ def _status(raw_args):
                     text = result.get("final_response") or ""
                     reason = str(result.get("error") or reason)
                 events.append(dict(phase="ended" if terminal else "started", botId=profile,
-                    sessionId=sid, route=route, jobId=job_id, requestId=request_id, text=text,
+                    sessionId=sid, admissionId=admission["admission_id"],
+                    route=route, jobId=job_id, requestId=request_id, text=text,
                     time=row.get("ended_at") or row.get("last_active") or row["started_at"],
                     completed=outcome == "completed", failed=outcome in ("failed", "rejected"),
                     interrupted=outcome in ("interrupted", "cancelled"),
@@ -123,9 +124,48 @@ def _status(raw_args):
     return json.dumps(events, ensure_ascii=False)
 
 
+def _context(raw_args):
+    from hermes_state import SessionDB
+    from hermes_cli.profiles import get_profile_dir
+    params = json.loads(raw_args)
+    db = SessionDB(db_path=get_profile_dir(params["profile"]) / "state.db", read_only=True)
+    try:
+        sid = db.get_compression_tip(params["sessionId"]) or params["sessionId"]
+        messages = db.get_messages_as_conversation(sid, include_ancestors=True)
+        bodies = [str(message.get("content") or "") for message in messages]
+        return json.dumps([result["id"] for result in params["results"]
+            if result["text"] and any(result["text"] in body for body in bodies)])
+    finally:
+        db.close()
+
+
+def _approval_policy(raw_args):
+    from zoneinfo import ZoneInfo
+    from cron.jobs import get_job, resume_job
+    from cron.approval_policy import POLICY_PENDING_REASON
+    from hermes_cli.config import load_config_readonly, save_config
+    params = json.loads(raw_args)
+    job = get_job(params["jobId"])
+    if not job:
+        raise ValueError("Scheduled task not found")
+    policy = params["policy"]
+    ZoneInfo(policy["timezone"])
+    for window in policy["windows"]:
+        if window["start"] == window["end"]:
+            raise ValueError("Approval window must have a duration")
+    approvals = (load_config_readonly().get("approvals") or {}).get("cron_policies") or {}
+    save_config({"approvals": {"cron_policies": {**approvals, job["id"]: policy}}},
+        merge_existing=True)
+    if job.get("paused_reason") == POLICY_PENDING_REASON:
+        resume_job(job["id"])
+    return json.dumps(policy)
+
+
 def register(ctx):
     ctx.register_cli_command("routine", "Manage nekodot routines and send approved webhook events", _setup, _command)
     ctx.register_command("nekodot-routine-status", _status, "Read native routine execution records")
+    ctx.register_command("nekodot-routine-context", _context, "Check routine results already in a conversation")
+    ctx.register_command("nekodot-cron-approval-policy", _approval_policy, "Confirm a scheduled task's approval policy")
 `;
 
 const skill = `---

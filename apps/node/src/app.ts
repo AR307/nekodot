@@ -468,6 +468,19 @@ export class NodeApplication {
         return this.routines.list(request.params.botId);
       case 'routines.get':
         return this.routines.get(request.params.botId, request.params.routineId);
+      case 'routines.approvalPolicy':
+        return this.routines.approvalPolicy(
+          request.params.botId,
+          request.params.routineId,
+          request.params.policy,
+        );
+      case 'routines.approvalRespond':
+        return this.routines.approvalRespond(
+          request.params.botId,
+          request.params.executionId,
+          request.params.promptId,
+          request.params.choice,
+        );
       case 'routines.create':
         return this.routines.create(request.params);
       case 'routines.update':
@@ -1021,11 +1034,26 @@ export class NodeApplication {
         'conflict',
         'Hermes steer accepts text only. Wait for this run to finish or stop it before sending attachments.',
       );
-    if (conversation.kind === 'group') return this.sendGroupMessage(params, conversation, command);
+    if (conversation.kind === 'group') {
+      if (params.routineExecutionId)
+        throw new NodeFault(
+          'invalid_params',
+          'Continue a routine in its Bot private conversation.',
+        );
+      return this.sendGroupMessage(params, conversation, command);
+    }
     const bot = this.bots.get(conversation.botId);
     const active =
       this.activeRuns.get(conversation.conversationId) ??
       this.database.runs().find((run) => run.conversationId === conversation.conversationId);
+    const routine = params.routineExecutionId
+      ? this.routines.execution(bot.botId, params.routineExecutionId)
+      : undefined;
+    if (routine && active)
+      throw new NodeFault(
+        'conflict',
+        'Wait for the current task before discussing a routine result. Your draft is kept.',
+      );
     const userMessage: Message = {
       messageId: randomUUID(),
       conversationId: conversation.conversationId,
@@ -1034,7 +1062,18 @@ export class NodeApplication {
       kind: 'text',
       status: 'done',
       createdAt: now(),
-      content: { text: params.text },
+      content: {
+        text: params.text,
+        ...(routine
+          ? {
+              routine: {
+                routineId: routine.routineId,
+                executionId: routine.executionId,
+                sessionId: routine.sessionId,
+              },
+            }
+          : {}),
+      },
     };
 
     if (active) {
@@ -1310,9 +1349,6 @@ export class NodeApplication {
             )
             .flatMap((message) => (message.kind === 'text' ? (message.content.files ?? []) : []))
         : (this.database.message(run.inputMessageId) as TextMessage | undefined)?.content.files;
-      const routineContext = run.welcome
-        ? { text: '', until: undefined }
-        : this.routines.context(run.botId);
       const gateway = this.hermes.gateway(run.botId);
       const snapshot = await openNativeSession(
         this.database,
@@ -1320,6 +1356,15 @@ export class NodeApplication {
         run.botId,
         conversationId,
       );
+      const inputMessage = this.database.message(run.inputMessageId);
+      const routineContext =
+        run.welcome || run.groupId
+          ? { text: '', until: undefined, key: '' }
+          : await this.routines.context(
+              run.botId,
+              snapshot.stored_session_id,
+              inputMessage?.kind === 'text' ? inputMessage.content.routine?.executionId : undefined,
+            );
       run.sessionId = snapshot.session_id;
       run.storedSessionId = snapshot.stored_session_id;
       run.replayEpoch = snapshot.replay_epoch;
@@ -1347,8 +1392,7 @@ export class NodeApplication {
       run.runId = admission.admission_id;
       run.executionGeneration = admission.execution_generation ?? snapshot.execution_generation;
       run.state = 'thinking';
-      if (routineContext.until)
-        this.database.setSetting('routine-context:' + run.botId, routineContext.until);
+      if (routineContext.until) this.database.setSetting(routineContext.key, routineContext.until);
       if (this.database.message(run.inputMessageId))
         this.database.setMessageRun(run.inputMessageId, admission.admission_id);
       this.database.saveRun(run);

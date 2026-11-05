@@ -63,6 +63,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   NekodotClient get c => widget.client;
   String get id => widget.conversationId;
   String get draftKey => '${c.selectedNodeId}:$id';
+  Json? get routineDraft => c.routineDrafts[draftKey];
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -134,11 +135,12 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
     }
     final key = draftKey, nodeId = c.selectedNodeId;
     final files = attached.map((file) => '${file['fileId']}').toList();
+    final routineId = routineDraft?['executionId'];
     setState(() {
       sending = true;
       error = '';
     });
-    final fingerprint = '$text|${files.join(',')}';
+    final fingerprint = '$text|${files.join(',')}|$routineId';
     if (pendingText != fingerprint) {
       pendingText = fingerprint;
       pendingId = uid();
@@ -153,10 +155,14 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
           command ? 'command' : 'text': text,
           'clientMsgId': pendingId,
           if (!command && files.isNotEmpty) 'files': files,
+          if (!command && routineId != null) 'routineExecutionId': routineId,
         },
         nodeId,
       );
       if (!command) {
+        if (c.routineDrafts[key]?['executionId'] == routineId) {
+          c.routineDrafts.remove(key);
+        }
         c.attachmentDrafts[key]?.removeWhere(
           (file) => files.contains(file['fileId']),
         );
@@ -822,6 +828,21 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (error.isNotEmpty) ErrorNotice(error),
+                  if (routineDraft != null)
+                    InputChip(
+                      key: const ValueKey('routine-followup-chip'),
+                      avatar: const Icon(Icons.schedule, size: 16),
+                      label: Text(
+                        '${routineDraft!['name']}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onDeleted: sending
+                          ? null
+                          : () => setState(
+                              () => c.routineDrafts.remove(draftKey),
+                            ),
+                    ),
                   if (uploading) ...[
                     const LinearProgressIndicator(minHeight: 2),
                     Text(
@@ -1566,13 +1587,27 @@ class _ControlCardState extends State<ControlCard> {
       error = '';
     });
     final question = widget.message['kind'] == 'question';
+    final routine = '${widget.message['messageId']}'.startsWith(
+      'routine-approval:',
+    );
     try {
       await widget.client.rpc(
-        question ? 'questions.respond' : 'approvals.respond',
-        {
-          'messageId': widget.message['messageId'],
-          question ? 'answer' : 'choice': value,
-        },
+        routine
+            ? 'routines.approvalRespond'
+            : question
+            ? 'questions.respond'
+            : 'approvals.respond',
+        routine
+            ? {
+                'botId': object(widget.message['content'])['botId'],
+                'executionId': object(widget.message['content'])['runId'],
+                'promptId': object(widget.message['content'])['requestId'],
+                'choice': value,
+              }
+            : {
+                'messageId': widget.message['messageId'],
+                question ? 'answer' : 'choice': value,
+              },
       );
       if (mounted) setState(() => sent = value);
     } catch (e) {
