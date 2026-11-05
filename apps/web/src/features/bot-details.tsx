@@ -1,7 +1,9 @@
+import { AnimatedList } from '../components/ui/animated-list';
 import { useCallback, useEffect, useState } from 'react';
 import type { Attachment, Bot, MemoryDocument, Operation, RpcResult } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
-import { BotAvatar, Icon, Segmented, SpinnerDots } from '../ui';
+import { BotAvatar, Icon, LoadingText } from '../ui';
+import { GooeyNav } from '../components/ui/gooey-nav';
 import { selectNodeData, useAppStore } from '../store';
 import type { Texts } from '../shared';
 import { OperationProgress } from './operations';
@@ -58,8 +60,7 @@ export function BotDetails({
           </button>
         </header>
         <div className="details-tabs">
-          <Segmented<typeof tab>
-            id="details-tab"
+          <GooeyNav<typeof tab>
             label={t.botDetails}
             value={tab}
             onChange={setTab}
@@ -134,77 +135,81 @@ function BotInfo({ bot, t, onEdit }: { bot: Bot; t: Texts; onEdit(): void }) {
           </p>
         )}
         {!jobs ? (
-          <SpinnerDots />
+          <LoadingText />
         ) : !jobs.length ? (
           <p className="empty-state">{t.noScheduledTasks}</p>
         ) : (
-          jobs.map((job) => {
-            const schedule = job.schedule as
-              { display?: string; run_at?: string; timezone?: string } | undefined;
-            const stamp = String(job.next_run_at ?? job.last_run_at ?? schedule?.run_at ?? '');
-            const zone =
-              job.timezone ?? schedule?.timezone ?? stamp.match(/([+-]\d{2}:\d{2}|Z)$/)?.[0];
-            const fields: [string, unknown][] = [
-              [t.jobSchedule, job.schedule_display ?? schedule?.display],
-              [
-                t.jobTimezone,
-                zone === 'Z'
-                  ? 'UTC'
-                  : zone
-                    ? String(zone).startsWith('+') || String(zone).startsWith('-')
-                      ? 'UTC' + zone
-                      : zone
-                    : '—',
-              ],
-              [t.jobStatus, job.enabled ? t.enabled : t.disabled],
-              [t.jobNextRun, job.next_run_at ?? '—'],
-              [t.jobLastRun, job.last_run_at ?? '—'],
-              [t.jobLastResult, job.last_status ?? '—'],
-            ];
-            return (
-              <article className="native-card" key={String(job.id ?? job.job_id)}>
-                <strong>{String(job.name ?? job.prompt ?? job.id)}</strong>
-                {Boolean(job.name) && typeof job.prompt === 'string' && (
-                  <p className="preserve-lines">{job.prompt}</p>
-                )}
-                <dl>
-                  {fields.map(([label, value]) => (
-                    <div key={String(label)}>
-                      <dt>{label}</dt>
-                      <dd>{String(value ?? '—')}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <button className="text-button" onClick={() => void history(job)}>
-                  {t.executionHistory}
-                </button>
-              </article>
-            );
-          })
+          <AnimatedList>
+            {jobs.map((job) => {
+              const schedule = job.schedule as
+                { display?: string; run_at?: string; timezone?: string } | undefined;
+              const stamp = String(job.next_run_at ?? job.last_run_at ?? schedule?.run_at ?? '');
+              const zone =
+                job.timezone ?? schedule?.timezone ?? stamp.match(/([+-]\d{2}:\d{2}|Z)$/)?.[0];
+              const fields: [string, unknown][] = [
+                [t.jobSchedule, job.schedule_display ?? schedule?.display],
+                [
+                  t.jobTimezone,
+                  zone === 'Z'
+                    ? 'UTC'
+                    : zone
+                      ? String(zone).startsWith('+') || String(zone).startsWith('-')
+                        ? 'UTC' + zone
+                        : zone
+                      : '—',
+                ],
+                [t.jobStatus, job.enabled ? t.enabled : t.disabled],
+                [t.jobNextRun, job.next_run_at ?? '—'],
+                [t.jobLastRun, job.last_run_at ?? '—'],
+                [t.jobLastResult, job.last_status ?? '—'],
+              ];
+              return (
+                <article className="native-card" key={String(job.id ?? job.job_id)}>
+                  <strong>{String(job.name ?? job.prompt ?? job.id)}</strong>
+                  {Boolean(job.name) && typeof job.prompt === 'string' && (
+                    <p className="preserve-lines">{job.prompt}</p>
+                  )}
+                  <dl>
+                    {fields.map(([label, value]) => (
+                      <div key={String(label)}>
+                        <dt>{label}</dt>
+                        <dd>{String(value ?? '—')}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <button className="text-button" onClick={() => void history(job)}>
+                    {t.executionHistory}
+                  </button>
+                </article>
+              );
+            })}
+          </AnimatedList>
         )}
       </section>
       {runs && (
         <section className="detail-section">
           <h3>{t.executionHistory}</h3>
           {runs.length ? (
-            runs.map((run, i) => {
-              const started = run.started_at ?? run.created_at;
-              return (
-                <article className="native-card" key={String(run.id ?? i)}>
-                  <strong>
-                    {String(run.end_reason ?? (run.is_active ? t.operationRunning : t.completed))}
-                  </strong>
-                  {started !== undefined && (
-                    <p className="muted">
-                      {new Date(
-                        typeof started === 'number' ? started * 1000 : String(started),
-                      ).toLocaleString()}
-                    </p>
-                  )}
-                  <p className="preserve-lines">{String(run.preview ?? run.title ?? '')}</p>
-                </article>
-              );
-            })
+            <AnimatedList>
+              {runs.map((run, i) => {
+                const started = run.started_at ?? run.created_at;
+                return (
+                  <article className="native-card" key={String(run.id ?? i)}>
+                    <strong>
+                      {String(run.end_reason ?? (run.is_active ? t.operationRunning : t.completed))}
+                    </strong>
+                    {started !== undefined && (
+                      <p className="muted">
+                        {new Date(
+                          typeof started === 'number' ? started * 1000 : String(started),
+                        ).toLocaleString()}
+                      </p>
+                    )}
+                    <p className="preserve-lines">{String(run.preview ?? run.title ?? '')}</p>
+                  </article>
+                );
+              })}
+            </AnimatedList>
           ) : (
             <p className="muted">{t.noResults}</p>
           )}
@@ -306,17 +311,16 @@ function MemoryPanel({ bot, t }: { bot: Bot; t: Texts }) {
       <section className="detail-section">
         <h3>{t.nativeMemory}</h3>
         <p className="muted">{t.memoryTiming}</p>
-        <div className="document-tabs">
-          {(['SOUL.md', 'MEMORY.md', 'USER.md'] as const).map((doc) => (
-            <button
-              key={doc}
-              className={name === doc ? 'selected' : ''}
-              onClick={() => setName(doc)}
-            >
-              {doc}
-            </button>
-          ))}
-        </div>
+        <GooeyNav<MemoryDocument>
+          className="document-tabs"
+          label={t.nativeMemory}
+          value={name}
+          onChange={setName}
+          options={(['SOUL.md', 'MEMORY.md', 'USER.md'] as const).map((doc) => ({
+            value: doc,
+            label: doc,
+          }))}
+        />
         <p className="muted">
           {name === 'SOUL.md'
             ? t.soulDescription
@@ -351,12 +355,12 @@ function MemoryPanel({ bot, t }: { bot: Bot; t: Texts }) {
                 disabled={!online || busy || drafts[name] === undefined}
                 onClick={() => void save()}
               >
-                {busy ? <SpinnerDots /> : t.save}
+                {busy ? <LoadingText action="saving" /> : t.save}
               </button>
             </div>
           </>
         ) : (
-          <SpinnerDots />
+          <LoadingText />
         )}
         {error && (
           <p className="form-error" role="alert">

@@ -85,10 +85,7 @@ class _PetsPageState extends State<PetsPage> {
               ),
             ),
             if (error.isNotEmpty) ErrorNotice(error),
-            if (busy) ...[
-              const LinearProgressIndicator(),
-              Text('${operation?['detail']}'),
-            ],
+            if (busy) ...[const ShiningText(), Text('${operation?['detail']}')],
             if (data['enabled'] == true)
               ListTile(
                 title: Text('${data['active']}'),

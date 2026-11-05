@@ -1,8 +1,9 @@
+import { AnimatedList } from '../components/ui/animated-list';
 import { useEffect, useState } from 'react';
 import { USER_MEMORY_SEPARATOR, type UserMemoryView } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
 import type { Texts } from '../shared';
-import { SpinnerDots } from '../ui';
+import { LoadingText } from '../ui';
 
 export function SharedUserMemoryPanel({ t, online }: { t: Texts; online: boolean }) {
   const [data, setData] = useState<UserMemoryView>();
@@ -72,39 +73,43 @@ export function SharedUserMemoryPanel({ t, online }: { t: Texts; online: boolean
         <section className="memory-proposals">
           <h4>{t.memoryImportReview}</h4>
           <p>{t.memoryImportHelp}</p>
-          {imports.map((item) => (
-            <details key={item.id}>
-              <summary>
-                {item.name} · {item.botId}
-              </summary>
-              <pre>{item.content}</pre>
-            </details>
-          ))}
+          <AnimatedList>
+            {imports.map((item) => (
+              <details key={item.id}>
+                <summary>
+                  {item.name} · {item.botId}
+                </summary>
+                <pre>{item.content}</pre>
+              </details>
+            ))}
+          </AnimatedList>
         </section>
       )}
       {conflicts.length > 0 && (
         <section className="memory-proposals" role="status">
           <h4>{t.memoryConflictReview}</h4>
           <p>{t.memoryConflictHelp}</p>
-          {conflicts.map((item) => (
-            <details key={item.id} open>
-              <summary>
-                {item.name} · {item.botId}
-              </summary>
-              <strong>{t.memoryBase}</strong>
-              <pre>{item.base || '∅'}</pre>
-              <strong>{t.memoryCurrent}</strong>
-              <pre>{item.current || '∅'}</pre>
-              <strong>{t.memoryIncoming}</strong>
-              <pre>{item.incoming || '∅'}</pre>
-              <button
-                className="secondary-button"
-                onClick={() => setDraft(combine([content, item.incoming]))}
-              >
-                {t.memoryKeepBoth}
-              </button>
-            </details>
-          ))}
+          <AnimatedList>
+            {conflicts.map((item) => (
+              <details key={item.id} open>
+                <summary>
+                  {item.name} · {item.botId}
+                </summary>
+                <strong>{t.memoryBase}</strong>
+                <pre>{item.base || '∅'}</pre>
+                <strong>{t.memoryCurrent}</strong>
+                <pre>{item.current || '∅'}</pre>
+                <strong>{t.memoryIncoming}</strong>
+                <pre>{item.incoming || '∅'}</pre>
+                <button
+                  className="secondary-button"
+                  onClick={() => setDraft(combine([content, item.incoming]))}
+                >
+                  {t.memoryKeepBoth}
+                </button>
+              </details>
+            ))}
+          </AnimatedList>
         </section>
       )}
       {state ? (
@@ -136,7 +141,7 @@ export function SharedUserMemoryPanel({ t, online }: { t: Texts; online: boolean
               onClick={() => void save()}
             >
               {busy ? (
-                <SpinnerDots />
+                <LoadingText action="saving" />
               ) : imports.length || conflicts.length || !state.initialized ? (
                 t.confirmSharedMemory
               ) : (
@@ -146,7 +151,7 @@ export function SharedUserMemoryPanel({ t, online }: { t: Texts; online: boolean
           </div>
         </>
       ) : (
-        <p>{online ? <SpinnerDots /> : t.offlineCreateHint}</p>
+        <p>{online ? <LoadingText /> : t.offlineCreateHint}</p>
       )}
       {!data?.connected && <p className="muted">{t.memorySyncOffline}</p>}
       {(error || data?.error) && (
@@ -164,27 +169,31 @@ export function SharedUserMemoryPanel({ t, online }: { t: Texts; online: boolean
           state.conflicts.some((item) => item.resolved)) && (
           <details className="memory-proposals">
             <summary>{t.memoryHistory}</summary>
-            {state.imports
-              .filter((item) => item.reviewed)
-              .map((item) => (
-                <details key={item.id}>
-                  <summary>{item.name} · USER.md</summary>
-                  <pre>{item.content}</pre>
-                </details>
-              ))}
-            {state.conflicts
-              .filter((item) => item.resolved)
-              .map((item) => (
-                <details key={item.id}>
-                  <summary>{item.name}</summary>
-                  <strong>{t.memoryBase}</strong>
-                  <pre>{item.base || '∅'}</pre>
-                  <strong>{t.memoryCurrent}</strong>
-                  <pre>{item.current || '∅'}</pre>
-                  <strong>{t.memoryIncoming}</strong>
-                  <pre>{item.incoming || '∅'}</pre>
-                </details>
-              ))}
+            <AnimatedList>
+              {state.imports
+                .filter((item) => item.reviewed)
+                .map((item) => (
+                  <details key={item.id}>
+                    <summary>{item.name} · USER.md</summary>
+                    <pre>{item.content}</pre>
+                  </details>
+                ))}
+            </AnimatedList>
+            <AnimatedList>
+              {state.conflicts
+                .filter((item) => item.resolved)
+                .map((item) => (
+                  <details key={item.id}>
+                    <summary>{item.name}</summary>
+                    <strong>{t.memoryBase}</strong>
+                    <pre>{item.base || '∅'}</pre>
+                    <strong>{t.memoryCurrent}</strong>
+                    <pre>{item.current || '∅'}</pre>
+                    <strong>{t.memoryIncoming}</strong>
+                    <pre>{item.incoming || '∅'}</pre>
+                  </details>
+                ))}
+            </AnimatedList>
           </details>
         )}
     </div>

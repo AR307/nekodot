@@ -1,9 +1,10 @@
+import { AnimatedList } from '../components/ui/animated-list';
 import { useState, type FormEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { Group } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
-import { BotAvatar, SpinnerDots } from '../ui';
+import { BotAvatar, LoadingText } from '../ui';
 import type { Texts } from '../shared';
 import { Sheet } from './sheet';
 
@@ -89,14 +90,12 @@ export function GroupDialog({
               {t.cancel}
             </button>
             <button className="primary-button" disabled={disabled}>
-              {busy && <SpinnerDots />}
-              {t.save}
+              {busy ? <LoadingText action="saving" /> : t.save}
             </button>
           </>
         ) : (
           <button className="primary-button full-button" disabled={disabled}>
-            {busy && <SpinnerDots />}
-            {t.createGroup}
+            {busy ? <LoadingText action="creating" /> : t.createGroup}
           </button>
         )
       }
@@ -136,7 +135,7 @@ export function GroupDialog({
           {t.members} <small>{botIds.length}/6</small>
         </legend>
         <p className="field-hint">{t.groupMemberHint}</p>
-        <div className="member-grid">
+        <AnimatedList className="member-grid">
           {candidates.map((bot) => {
             const selected = botIds.includes(bot.botId);
             return (
@@ -156,7 +155,7 @@ export function GroupDialog({
               </label>
             );
           })}
-        </div>
+        </AnimatedList>
       </fieldset>
       <label className="field">
         {t.leadBot}

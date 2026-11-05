@@ -1,6 +1,8 @@
 import type { avatarShapes } from '@nekodot/protocol';
 import { memo, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
+import { useReducedMotion } from 'motion/react';
+import { ShiningText } from './components/ui/shining-text';
+import { useAppStore } from './store';
 
 export const ease = [0.2, 0.8, 0.2, 1] as const;
 
@@ -245,58 +247,32 @@ export function StatusDot({ state }: { state: 'ok' | 'connecting' | 'offline' })
   );
 }
 
-export function SpinnerDots() {
+export function LoadingText({
+  text,
+  action = 'loading',
+}: {
+  text?: string;
+  action?: 'loading' | 'saving' | 'creating' | 'installing' | 'submitting' | 'connecting';
+}) {
+  const language = useAppStore((state) => state.language);
+  const labels = {
+    loading: ['加载中…', 'Loading…'],
+    saving: ['正在保存…', 'Saving…'],
+    creating: ['正在创建…', 'Creating…'],
+    installing: ['正在安装…', 'Installing…'],
+    submitting: ['正在提交…', 'Submitting…'],
+    connecting: ['正在连接…', 'Connecting…'],
+  } as const;
   return (
-    <span className="thinking-dots" aria-hidden="true">
-      <i />
-      <i />
-      <i />
-    </span>
+    <ShiningText
+      className="loading-text"
+      text={text ?? labels[action][language === 'zh' ? 0 : 1]}
+    />
   );
 }
 
 export function Kbd({ children }: { children: ReactNode }) {
   return <kbd className="kbd">{children}</kbd>;
-}
-
-/** Segmented control whose selection indicator glides between options. */
-export function Segmented<T extends string>({
-  id,
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: T;
-  options: { value: T; label: string; icon?: IconName }[];
-  onChange(value: T): void;
-}) {
-  const reduceMotion = useReducedMotion();
-  return (
-    <nav className="segmented" aria-label={label}>
-      {options.map((option) => (
-        <button
-          key={option.value}
-          aria-current={value === option.value ? 'page' : undefined}
-          onClick={() => onChange(option.value)}
-        >
-          {value === option.value && (
-            <motion.span
-              className="segmented-thumb"
-              layoutId={id}
-              transition={
-                reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 38 }
-              }
-            />
-          )}
-          {option.icon && <Icon name={option.icon} />}
-          <span>{option.label}</span>
-        </button>
-      ))}
-    </nav>
-  );
 }
 
 export type IconName =

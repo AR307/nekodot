@@ -8,8 +8,10 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../data/client.dart';
 import 'parts.dart';
+import 'shining_text.dart';
 
 export 'parts.dart';
+export 'shining_text.dart';
 
 final nativeRoutes = RouteObserver<ModalRoute<void>>();
 
@@ -977,61 +979,6 @@ class GroupAvatar extends StatelessWidget {
   }
 }
 
-/// Three dots hopping in turn while a Bot is thinking.
-class ThinkingDots extends StatefulWidget {
-  const ThinkingDots({super.key});
-  @override
-  State<ThinkingDots> createState() => _ThinkingDotsState();
-}
-
-class _ThinkingDotsState extends State<ThinkingDots>
-    with SingleTickerProviderStateMixin {
-  late final controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  );
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      controller.stop();
-    } else if (!controller.isAnimating) {
-      controller.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: controller,
-    builder: (context, child) => Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var dot = 0; dot < 3; dot++)
-          Transform.translate(
-            offset: Offset(
-              0,
-              -2 *
-                  (1 -
-                      math.cos(
-                        2 * math.pi * (controller.value - dot * .12 / .9),
-                      )),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: StatusDot(size: 5, color: context.tone.ink2),
-            ),
-          ),
-      ],
-    ),
-  );
-}
-
 class ErrorNotice extends StatelessWidget {
   final String text;
   const ErrorNotice(this.text, {super.key});
@@ -1099,7 +1046,7 @@ class _AsyncPaneState extends State<AsyncPane> {
           ),
         );
       }
-      if (!snapshot.hasData) return const Center(child: Breathing());
+      if (!snapshot.hasData) return const Center(child: ShiningText());
       return widget.builder(context, snapshot.data!, reload);
     },
   );

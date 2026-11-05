@@ -57,11 +57,6 @@
   flex: none;
   padding: 0 24px 12px;
 }
-.document-tabs .selected {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--bg);
-}
 .details-scroll {
   flex: 1;
   min-height: 0;
@@ -132,14 +127,10 @@
   max-height: 450px;
   overflow: auto;
 }
-.document-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.document-tabs button {
-  padding: 8px 10px;
+.document-tabs .gooey-nav__link {
+  padding-inline: 3px;
   font: 12px var(--font-mono);
+  white-space: nowrap;
 }
 .memory-editor {
   width: 100%;

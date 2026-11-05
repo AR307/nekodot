@@ -837,11 +837,12 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                       padding: const EdgeInsets.all(8),
                       child: Row(
                         children: [
-                          const Breathing(),
-                          const SizedBox(width: 8),
                           Expanded(
-                            child: Text(
-                              c.tr('Hermes 指令执行中…', 'Running Hermes command…'),
+                            child: ShiningText(
+                              text: c.tr(
+                                'Hermes 指令执行中…',
+                                'Running Hermes command…',
+                              ),
                             ),
                           ),
                           if (error.isNotEmpty)

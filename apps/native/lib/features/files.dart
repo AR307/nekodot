@@ -527,7 +527,7 @@ class _FileViewerState extends State<FileViewer> {
                         return Center(child: ErrorNotice('${snapshot.error}'));
                       }
                       if (!snapshot.hasData) {
-                        return const Center(child: Breathing());
+                        return const Center(child: ShiningText());
                       }
                       final bytes = snapshot.data!,
                           mime = file['mime'] as String;

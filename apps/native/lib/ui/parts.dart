@@ -548,28 +548,7 @@ class SectionLabel extends StatelessWidget {
   );
 }
 
-/// State without words: solid is on, a hollow ring is off.
-class StatusDot extends StatelessWidget {
-  final bool on;
-  final double size;
-  final Color? color;
-  const StatusDot({super.key, this.on = true, this.size = 8, this.color});
-  @override
-  Widget build(BuildContext context) {
-    final tone = context.tone;
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: on ? color ?? tone.ink : null,
-        border: on ? null : Border.all(color: tone.ink3, width: 1.5),
-      ),
-    );
-  }
-}
-
-/// A dot that breathes while something is under way.
+/// A dot that breathes beside a step that is under way.
 class Breathing extends StatefulWidget {
   final double size;
   const Breathing({super.key, this.size = 10});
@@ -607,6 +586,27 @@ class _BreathingState extends State<Breathing>
     ).animate(CurvedAnimation(parent: controller, curve: Curves.easeInOut)),
     child: StatusDot(size: widget.size),
   );
+}
+
+/// State without words: solid is on, a hollow ring is off.
+class StatusDot extends StatelessWidget {
+  final bool on;
+  final double size;
+  final Color? color;
+  const StatusDot({super.key, this.on = true, this.size = 8, this.color});
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: on ? color ?? tone.ink : null,
+        border: on ? null : Border.all(color: tone.ink3, width: 1.5),
+      ),
+    );
+  }
 }
 
 /// Relay progress: one dot per turn.

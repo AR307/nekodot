@@ -1191,3 +1191,12 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 菜单：所有弹出菜单和下拉选择统一按参考截图重做：白底圆角 16、细边与柔和阴影，上下各留 6，行高桌面 36 / 手机 44，左侧 17 号线条图标，14 号正文，右侧灰色附加信息或勾，分组细线左右各缩进 16，最小宽 220。账户菜单、「＋」菜单、电脑切换菜单换成这种行；新建 Bot 的模型来源、主答、审批，命令面板的执行 Bot，Hermes 设置里的单选，宠物的图像服务从系统下拉改为同款菜单，下拉宽度与输入框一致；模型名称的联想列表也用同款卡片。
 - 真实验收（QA Relay 127.0.0.1:4459、本机 Node 换上新构建、官方 Hermes、真实模型）：work_steps 旅程扩充并在 Windows 当前源码客户端与 Android 模拟器 NekodotNativePhase3（节点由新测试版托管）均通过。菜单行高实测 36 / 44；Ctrl+回车只插入换行、组字中回车不发送、回车发出任务；新会话后状态行依次为「本机小助手 正在思考」「本机小助手 正在查看首页并运行计算」（Android：「正在读取首页并运行计算」），与 Bot 本轮写的那句一致。截图：docs/evidence/work-steps-*-working.png、work-steps-*-menu-*.png。
 - 新增 Flutter 单元测试 working_line_test；Flutter 28 项、Node runtime 6 项测试与 analyze、tsc、prettier 通过。hermes_settings、providers、research_* 旅程已改为找新的菜单选择，本轮未重跑。未验：Android 真机、macOS/Linux、真实输入法组字（用模拟的组字状态验证）。本地提交，未 push。
+
+## 2026-11-05 合并 PR #1 中不冲突的部分
+
+- 来源：AR307/nekodot PR #1（FairChan，分支 codex/integrate-all-20261105，15 个提交）。用 squash 合入本地，GitHub 上 PR 仍是打开状态，暂缓的部分以后可以再合。
+- 合入：网页端新登录/注册页、ShiningText 闪光文字（替换各处「加载中」，原生端同样）、Gooey Nav 分段切换、Animated List 列表、网页输入框与语音、网页 AI 审批卡片；官网首屏自动开场（约 5.2 秒，切到别的标签页会暂停）；原生端登录页改版（auth_frame、auth_layout、校验测试、auth_journey）；对应文档、浏览器测试与证据截图；打包脚本的 vswhere `-products *` 修复。PR 中的 nekoDOT 写法在合入文件里统一回 nekodot，docs/development.md 去掉「产品名称」一节。PR 自带的证据截图拍于改名时，图中仍是 nekoDOT。
+- 冲突处保留本地实现：chat.dart、files.dart、home.dart、secrets.dart 用本地版本，只把 ShiningText 移进 Hermes 指令执行行、阅读器加载、电脑切换的「连接中…」和保密请求加载；parts.dart 保留 Breathing（PR 删了，步骤框仍在用）。
+- 暂缓、等验收：nekoDOT 品牌改名（会改 exe 名与安装目录）、原生 AI 审批卡片、原生输入框胶囊与模型选择、SVG 侧边预览与 Windows 文件操作，以及 PR 自己写的 Summary/progress 记录。
+- 真实验收（QA Relay 127.0.0.1:4459、本机 Node、官方 Hermes、真实模型）：Windows 当前源码客户端 work_steps 旅程通过，经 PR 新登录页登录，状态行依次为「本机小助手 正在思考」「正在查看首页标题并运行计算」「正在用 terminal 运行指定的 Python 命令」，完成后「2 个步骤 · 4.9s」，菜单行高 36，回车发送。内置浏览器连本地网页（4466 → QA Relay）：登录页登录成功，Gooey Nav 与 Bot 列表正常，给笔笔发「用 terminal 运行 python -c」后出现闪光「正在思考」、terminal 步骤，回复 42。官网本地预览：开场按顺序播放，停在完整首屏。
+- 未验或已知：网页 AI 审批卡片没触发真实审批（笔笔的命令不需要审批，第二次请求时节点已随旅程结束离线）。Playwright 浏览器测试从 766db25330（11-03）起无法加载：releases.ts 直接 import package.json，Node 24 要求 json 导入属性；与本 PR 无关，新旧 E2E 本轮都没跑成。原生 auth_journey 需要 Mailpit 8025，未跑。Android 模拟器与真机本轮未跑。Flutter 30 项、pnpm test 75 项、tsc、eslint、合入文件的 prettier、analyze、网页 build 通过；另有 7 个本轮未改动的文件原本就不符合 prettier。本地提交，未 push。

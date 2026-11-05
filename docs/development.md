@@ -22,6 +22,12 @@ pnpm test:e2e    # Playwright + Edge 完整用户旅程
 
 群聊与扩展两条端到端旅程直接加载 `apps/web/dist`，改动界面后请先执行 `pnpm --filter @nekodot/web build` 再跑 `pnpm test:e2e`。
 
+## Web 账号页组件
+
+账号页展示壳与基础 Button/Input 位于 `apps/web/src/components/ui`，认证状态及真实请求位于 `apps/web/src/features/auth.tsx`，专用样式为 `src/styles/auth.css`。这个目录与 `apps/web/components.json` 的 shadcn UI 别名保持一致，后续组件可以使用 `@/components/ui` 与 `@/lib/utils`，避免将认证逻辑混入可复用基础组件。
+
+项目已经配置 TypeScript、Tailwind 4 与 Vite 插件，无需重新初始化。路径动画使用现有 `motion/react`；组件依赖已列入 Web package 与锁文件，执行 `pnpm install --frozen-lockfile` 即可。
+
 ## 本地运行
 
 Relay 需要一个私有的 `JWT_SECRET`，只在本地 shell 中设置，不要写进源码或提交：
@@ -68,6 +74,14 @@ pnpm dev:remote --ssh <your-ssh-alias>
 - 自动化测试不调用付费模型：`packages/fake-hermes` 通过 HTTP 回放 `docs/fixtures` 中录制的真实 Hermes SSE 与状态。该包只作为开发依赖，产品代码不引用。
 - 产品运行时始终使用真实的 Hermes CLI 与 API。真实模型的验收与回放验收分开记录，见 [实施进度](progress.md)。
 - `tests/browser/screens-live.spec.ts` 只在提供本地 `NEKODOT_SCREEN_ACCEPTANCE_FILE` 时运行，连接独立的真实 Linux 节点。文件包含 `url`、登录 `token`、`nodeId` 及 `bots[].bot.botId` / `bots[].conversation.conversationId`，不得提交。普通 E2E 明确跳过这一项，不以回放替代屏幕验收。
+
+Windows 账号旅程连接真实本地 Relay 和 `127.0.0.1:8025` 的 Mailpit。先部署服务并准备私有本地账号文件，再运行：
+
+```powershell
+node scripts/flutter.mjs flutter test integration_test/auth_journey_test.dart -d windows --no-pub --dart-define=RELAY_URL=http://127.0.0.1:4319 --dart-define=LOCAL_ACCOUNT_FILE=C:/private/local-account.json --dart-define=LOCAL_EVIDENCE=C:/private/auth-evidence
+```
+
+账号文件只包含 `email` 和 `password`，不得提交。旅程会新建专用测试账号、读取它的真实验证码、注册并重新登录，最后用指定本地账号登录、连接其现有节点并检查 Hermes 提供方 RPC；需要该账号已有在线节点。输出为截图和不含凭据的检查结果，不调用模型。测试在启动应用前检查本地 Relay 和必要路径；Windows 构建依赖按现有 Flutter 工具链配置。
 
 ## Android 固定验收环境
 

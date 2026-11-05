@@ -1,3 +1,4 @@
+import { AnimatedList } from '../components/ui/animated-list';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Icon, Kbd, ease } from '../ui';
@@ -99,7 +100,7 @@ export function CommandPalette({
           />
           <Kbd>Esc</Kbd>
         </label>
-        <div className="palette-results" id="palette-results" role="listbox" ref={listRef}>
+        <AnimatedList className="palette-results" id="palette-results" role="listbox" ref={listRef}>
           {results.map((item, position) => (
             <div key={item.id} role="presentation">
               {item.section !== results[position - 1]?.section && (
@@ -138,7 +139,7 @@ export function CommandPalette({
             </div>
           ))}
           {!results.length && <p className="palette-empty">{t.noMatches}</p>}
-        </div>
+        </AnimatedList>
         <footer className="palette-footer">{t.paletteHint}</footer>
       </motion.div>
     </motion.div>

@@ -1,0 +1,137 @@
+/* ReactBits Animated List, adapted to nekodot's existing row components. */
+.animated-list {
+  position: relative;
+  min-width: 0;
+  overflow-x: clip;
+  overflow-clip-margin: 3px;
+  --al-fade-top: 0px;
+  --al-fade-bottom: 0px;
+  --al-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.animated-list[data-list-scrolls] {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 var(--al-fade-top),
+    #000 calc(100% - var(--al-fade-bottom)),
+    transparent
+  );
+}
+
+@supports (transition-timing-function: linear(0, 1)) {
+  .animated-list {
+    --al-spring: linear(
+      0,
+      0.0603,
+      0.2033,
+      0.3821,
+      0.5633,
+      0.7258,
+      0.8584,
+      0.9574,
+      1.0242,
+      1.0634,
+      1.0809,
+      1.0828,
+      1.0747,
+      1.0613,
+      1.046,
+      1.0313,
+      1.0186,
+      1.0085,
+      1.0012,
+      0.9965,
+      0.994,
+      0.9931,
+      0.9933,
+      0.9941,
+      0.9953,
+      0.9966,
+      0.9978,
+      0.9988,
+      1
+    );
+  }
+}
+
+.animated-list > [data-list-state] {
+  transition:
+    translate 620ms var(--al-spring) var(--al-delay, 0s),
+    scale 620ms var(--al-spring) var(--al-delay, 0s),
+    opacity 300ms cubic-bezier(0.22, 1, 0.36, 1) var(--al-delay, 0s),
+    background-color 160ms var(--ease),
+    border-color 160ms var(--ease),
+    box-shadow 160ms var(--ease);
+}
+
+.animated-list > [data-list-state='below'] {
+  translate: 0 12px;
+  scale: 0.8;
+  opacity: 0;
+}
+
+.animated-list > [data-list-state='above'] {
+  translate: 0 -12px;
+  scale: 0.8;
+  opacity: 0;
+}
+
+.animated-list > [data-list-state='in'],
+.animated-list > [data-list-state]:focus-within {
+  translate: none;
+  scale: none;
+  opacity: 1;
+}
+
+.animated-list > [data-list-state='in']:disabled {
+  opacity: 0.48;
+}
+
+/* Preserve the column layout previously supplied by the mention popup. */
+.mention-menu > .animated-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.animated-list::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--al-ring-width, 0px);
+  height: var(--al-ring-height, 0px);
+  border-radius: var(--al-ring-radius, var(--radius-btn));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+  translate: var(--al-ring-x, 0px) var(--al-ring-y, 0px);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 2;
+  transition:
+    translate 620ms var(--al-spring),
+    width 620ms var(--al-spring),
+    height 620ms var(--al-spring),
+    opacity 160ms var(--ease);
+}
+
+.animated-list[data-list-active]::after {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .animated-list::after {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated-list > [data-list-state] {
+    translate: none;
+    scale: none;
+    opacity: 1;
+    transition: none;
+  }
+  .animated-list::after {
+    transition: none;
+  }
+}

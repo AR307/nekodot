@@ -1,0 +1,208 @@
+/* ReactBits Gooey Nav particle/pill animation; see react-bits-LICENSE.md. */
+.gooey-nav {
+  --gooey-color-1: var(--accent);
+  --gooey-color-2: #f07a55;
+  --gooey-color-3: #d9932b;
+  --gooey-color-4: #ef9872;
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-width: 0;
+  padding: 4px;
+  border-radius: 24px;
+  background: var(--press);
+  overflow: clip;
+  overflow-clip-margin: 4px;
+}
+
+.gooey-nav__defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.gooey-nav__list {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gooey-nav__list li {
+  min-width: 0;
+}
+
+.gooey-nav__link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 44px;
+  height: 100%;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: 22px;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition: color 160ms var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.gooey-nav__link > span {
+  min-width: 0;
+  pointer-events: none;
+}
+
+.gooey-nav__link .icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+.gooey-nav__link:hover {
+  color: var(--ink);
+}
+
+.gooey-nav__link[aria-current='page'] {
+  color: #1f1b16;
+}
+
+.gooey-nav__link:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.gooey-nav__effect {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    left 300ms var(--ease),
+    top 300ms var(--ease),
+    width 300ms var(--ease),
+    height 300ms var(--ease);
+}
+
+.gooey-nav[data-ready='true'] .gooey-nav__effect {
+  opacity: 1;
+}
+
+.gooey-nav__effect::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.gooey-nav__effect.is-animating::after {
+  animation: gooey-nav-pill 300ms var(--ease) both;
+}
+
+.gooey-nav__particle,
+.gooey-nav__point {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 100%;
+  transform-origin: center;
+}
+
+.gooey-nav__particle {
+  position: absolute;
+  top: calc(50% - 8px);
+  left: calc(50% - 8px);
+  opacity: 0;
+  animation: gooey-nav-particle var(--time) ease 1 -350ms;
+}
+
+.gooey-nav__point {
+  background: var(--color);
+  animation: gooey-nav-point var(--time) ease 1 -350ms;
+}
+
+@keyframes gooey-nav-pill {
+  from {
+    transform: scale(0.88);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes gooey-nav-particle {
+  0% {
+    transform: rotate(0deg) translate(var(--start-x), var(--start-y));
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  70% {
+    transform: rotate(calc(var(--rotate) * 0.5))
+      translate(calc(var(--end-x) * 1.2), calc(var(--end-y) * 1.2));
+    opacity: 1;
+    animation-timing-function: ease;
+  }
+  85% {
+    transform: rotate(calc(var(--rotate) * 0.66)) translate(var(--end-x), var(--end-y));
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(calc(var(--rotate) * 1.2))
+      translate(calc(var(--end-x) * 0.5), calc(var(--end-y) * 0.5));
+    opacity: 0;
+  }
+}
+
+@keyframes gooey-nav-point {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  25% {
+    transform: scale(calc(var(--scale) * 0.25));
+  }
+  38% {
+    opacity: 1;
+  }
+  65%,
+  85% {
+    transform: scale(var(--scale));
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
+.gooey-nav[data-reduced-motion='true'] .gooey-nav__effect,
+.gooey-nav[data-reduced-motion='true'] .gooey-nav__effect::after {
+  transition: none;
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gooey-nav *,
+  .gooey-nav ::after {
+    transition: none;
+    animation: none;
+    /* Override the app-wide reduced-motion rule that retains 120ms transitions. */
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+  }
+}

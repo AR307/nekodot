@@ -1,3 +1,4 @@
+import { AnimatedList } from '../components/ui/animated-list';
 import {
   useEffect,
   useLayoutEffect,
@@ -11,12 +12,16 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { ApprovalChoice, Bot, Conversation, Group, Message } from '@nekodot/protocol';
 import { callNode, loadConversation } from '../relay-connection';
 import { useAppStore } from '../store';
-import { BotAvatar, GroupDots, Icon, SpinnerDots, ease, type IconName } from '../ui';
+import { BotAvatar, GroupDots, Icon, LoadingText, ease, type IconName } from '../ui';
 import { fill, type Texts } from '../shared';
-import { MessageFiles, readableMessageText } from './files';
+import { DraftAttachment, MessageFiles, readableMessageText, uploadChatFile } from './files';
 import { Markdown, MentionText } from './markdown';
 import { useDrafts } from '../drafts';
 import { writeClipboard } from '../native';
+import AIApproval from '../components/ui/ai-approval';
+import { PromptInput } from '../components/ui/ai-chat-input';
+import { useModelOptions } from './models';
+import { VoiceInput } from './voice-input';
 
 type Activity = 'thinking' | 'tool' | 'waiting_approval' | 'waiting_question' | 'unknown' | 'idle';
 
@@ -52,10 +57,18 @@ export function ChatView({
   const nodeId = useAppStore((state) => state.selectedNodeId);
   const draftKey = `${nodeId}:${conversation.conversationId}`;
   const draft = useDrafts((state) => state.values[draftKey] ?? '');
+  const files = useDrafts((state) => state.attachments[draftKey]);
   const setDraft = (text: string) => useDrafts.getState().set(draftKey, text);
   const [caret, setCaret] = useState(0);
   const [mentionIndex, setMentionIndex] = useState(0);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const [modelMenu, setModelMenu] = useState(false);
+  const [savingModel, setSavingModel] = useState(false);
+  const catalog = useModelOptions(online && modelMenu, bot.sourceId ?? '');
+  const zh = useAppStore((state) => state.language === 'zh');
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
   const [instructionAdded, setInstructionAdded] = useState(false);
@@ -137,20 +150,25 @@ export function ChatView({
   async function send(event: FormEvent) {
     event.preventDefault();
     const text = draft.trim();
-    if (!text || sending || !online || waiting) return;
+    if ((!text && !files?.length) || sending || uploading || voiceBusy || !online || waiting)
+      return;
+    const fileIds = files?.map((file) => file.fileId) ?? [];
+    const fingerprint = JSON.stringify([text, fileIds]);
     setSending(true);
     setError('');
     setInstructionAdded(false);
     const addingToCurrentRun = running;
-    if (pendingDraft.current?.text !== text)
-      pendingDraft.current = { text, clientMsgId: crypto.randomUUID() };
+    if (pendingDraft.current?.text !== fingerprint)
+      pendingDraft.current = { text: fingerprint, clientMsgId: crypto.randomUUID() };
     try {
       await callNode('messages.send', {
         conversationId: conversation.conversationId,
         text,
+        ...(fileIds.length ? { files: fileIds } : {}),
         clientMsgId: pendingDraft.current.clientMsgId,
       });
-      setDraft('');
+      if (useDrafts.getState().values[draftKey]?.trim() === text) setDraft('');
+      useDrafts.getState().removeAttachments(draftKey, fileIds);
       pendingDraft.current = null;
       setInstructionAdded(addingToCurrentRun);
       stickToBottom();
@@ -159,6 +177,49 @@ export function ChatView({
       setError(reason instanceof Error ? reason.message : t.sendError);
     } finally {
       setSending(false);
+    }
+  }
+
+  async function attach(selected: FileList | null) {
+    if (!selected || !nodeId || uploading) return;
+    setUploading(true);
+    setError('');
+    try {
+      for (const file of Array.from(selected)) {
+        const uploaded = await uploadChatFile(file, conversation.conversationId, nodeId);
+        useDrafts.getState().addAttachment(draftKey, uploaded);
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : t.sendError);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function selectModel(model: string) {
+    setSavingModel(true);
+    setError('');
+    try {
+      const result = await callNode('bots.update', { botId: bot.botId, model });
+      useAppStore.setState((state) => {
+        const node = nodeId && state.nodes[nodeId];
+        return node
+          ? {
+              nodes: {
+                ...state.nodes,
+                [nodeId]: {
+                  ...node,
+                  bots: node.bots.map((entry) => (entry.botId === bot.botId ? result.bot : entry)),
+                },
+              },
+            }
+          : {};
+      });
+      setModelMenu(false);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : t.saveError);
+    } finally {
+      setSavingModel(false);
     }
   }
 
@@ -245,8 +306,7 @@ export function ChatView({
               <span
                 className={`chat-status${online ? ' online' : ''}${running && online ? ' is-busy' : ''}${waiting ? ' is-waiting' : ''}`}
               >
-                {online && running && !waiting && <SpinnerDots />}
-                {statusText}
+                {online && running && !waiting ? <LoadingText text={statusText} /> : statusText}
               </span>
             </small>
           </span>
@@ -276,8 +336,14 @@ export function ChatView({
               disabled={loadingEarlier}
               onClick={() => void loadEarlier()}
             >
-              {loadingEarlier ? <SpinnerDots /> : <Icon name="arrowUp" />}
-              {t.loadEarlier}
+              {loadingEarlier ? (
+                <LoadingText text={t.loadEarlier} />
+              ) : (
+                <>
+                  <Icon name="arrowUp" />
+                  {t.loadEarlier}
+                </>
+              )}
             </button>
           )}
           {showIntro && (
@@ -458,10 +524,148 @@ export function ChatView({
             <button onClick={() => setError('')}>{t.close}</button>
           </div>
         )}
-        <form
-          className={`composer${running ? ' is-running' : ''}`}
+        <PromptInput
+          hasContent={Boolean(draft || files?.length || uploading || voiceBusy)}
+          running={running}
           onSubmit={(event) => void send(event)}
+          attachments={
+            files?.length ? (
+              <div className="prompt-attachments">
+                {files.map((file) => (
+                  <DraftAttachment
+                    key={file.fileId}
+                    file={file}
+                    nodeId={nodeId!}
+                    t={t}
+                    disabled={sending}
+                    onRemove={() => useDrafts.getState().removeAttachments(draftKey, [file.fileId])}
+                  />
+                ))}
+              </div>
+            ) : undefined
+          }
+          tools={
+            <>
+              <details
+                className="prompt-model"
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) setModelMenu(false);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    setModelMenu(false);
+                    event.currentTarget.querySelector('summary')?.focus();
+                  }
+                }}
+                open={modelMenu}
+                onToggle={(event) => setModelMenu(event.currentTarget.open)}
+              >
+                <summary aria-label={t.model}>
+                  <Icon name="bot" />
+                  <span>
+                    {group ? (zh ? '群聊模型' : 'Group models') : bot.model || t.chooseModel}
+                  </span>
+                  <Icon name="chevronDown" />
+                </summary>
+                <div className="prompt-model-menu">
+                  <strong>{t.model}</strong>
+                  {!group && catalog.loading && <LoadingText />}
+                  {!group &&
+                    [...new Set([bot.model, ...catalog.models])].filter(Boolean).map((model) => (
+                      <button
+                        type="button"
+                        key={model}
+                        disabled={!online || savingModel || model === bot.model}
+                        onClick={async () => {
+                          await selectModel(model);
+                          composerRef.current?.focus();
+                        }}
+                      >
+                        <span>{model}</span>
+                        {model === bot.model && <Icon name="check" />}
+                      </button>
+                    ))}
+                  {!group && catalog.error && <small role="alert">{catalog.error}</small>}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModelMenu(false);
+                      onEdit();
+                    }}
+                  >
+                    {group ? t.editGroup : t.editBot}
+                    <Icon name="settings" />
+                  </button>
+                </div>
+              </details>
+              <button
+                className="prompt-attach"
+                type="button"
+                disabled={!online || uploading || sending}
+                aria-label={zh ? '添加文件或图片' : 'Attach file or image'}
+                onClick={() => fileRef.current?.click()}
+              >
+                {uploading ? <LoadingText /> : <Icon name="plus" />}
+              </button>
+            </>
+          }
+          action={
+            <>
+              {!running && (voiceBusy || (!draft.trim() && !files?.length)) && (
+                <VoiceInput
+                  key={draftKey}
+                  botId={group?.leadBotId ?? bot.botId}
+                  disabled={!online || sending || uploading || waiting}
+                  onBusy={setVoiceBusy}
+                  onError={setError}
+                  onTranscript={(text) => {
+                    const previous = useDrafts.getState().values[draftKey] ?? '';
+                    useDrafts.getState().set(draftKey, previous + (previous ? ' ' : '') + text);
+                    composerRef.current?.focus();
+                  }}
+                />
+              )}
+              {(running || Boolean(draft.trim() || files?.length)) && (
+                <button
+                  type={running && !draft.trim() && !files?.length ? 'button' : 'submit'}
+                  className={`send-button${sending ? ' is-sending' : ''}`}
+                  disabled={
+                    running && !draft.trim() && !files?.length
+                      ? !online
+                      : (!draft.trim() && !files?.length) ||
+                        sending ||
+                        uploading ||
+                        voiceBusy ||
+                        !online ||
+                        waiting
+                  }
+                  aria-label={running && !draft.trim() && !files?.length ? t.stop : t.send}
+                  onClick={
+                    running && !draft.trim() && !files?.length ? () => void stop() : undefined
+                  }
+                >
+                  {sending ? (
+                    <LoadingText text={zh ? '发送中' : 'Sending'} />
+                  ) : running && !draft.trim() && !files?.length ? (
+                    <span className="prompt-stop" />
+                  ) : (
+                    <Icon name="arrowUp" />
+                  )}
+                </button>
+              )}
+            </>
+          }
         >
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            hidden
+            onChange={(event) => {
+              void attach(event.target.files);
+              event.target.value = '';
+            }}
+          />
           <AnimatePresence>
             {mentionOptions.length > 0 && (
               <motion.div
@@ -474,24 +678,30 @@ export function ChatView({
                 transition={{ duration: reduceMotion ? 0.1 : 0.16, ease }}
               >
                 <span className="mention-heading">{t.mentionMember}</span>
-                {mentionOptions.map((member) => (
-                  <button
-                    key={member.botId}
-                    type="button"
-                    role="option"
-                    aria-selected={member === activeMention}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onMouseMove={() => setMentionIndex(mentionOptions.indexOf(member))}
-                    onClick={() => insertMention(member)}
-                  >
-                    <BotAvatar color={member.avatar.color} shape={member.avatar.shape} size={26} />
-                    <strong>{member.displayName}</strong>
-                    <small>
-                      @{member.handle}
-                      {member.role ? ' · ' + member.role : ''}
-                    </small>
-                  </button>
-                ))}
+                <AnimatedList>
+                  {mentionOptions.map((member) => (
+                    <button
+                      key={member.botId}
+                      type="button"
+                      role="option"
+                      aria-selected={member === activeMention}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onMouseMove={() => setMentionIndex(mentionOptions.indexOf(member))}
+                      onClick={() => insertMention(member)}
+                    >
+                      <BotAvatar
+                        color={member.avatar.color}
+                        shape={member.avatar.shape}
+                        size={26}
+                      />
+                      <strong>{member.displayName}</strong>
+                      <small>
+                        @{member.handle}
+                        {member.role ? ' · ' + member.role : ''}
+                      </small>
+                    </button>
+                  ))}
+                </AnimatedList>
               </motion.div>
             )}
           </AnimatePresence>
@@ -523,7 +733,11 @@ export function ChatView({
                 );
                 return;
               }
-              if (mentionOptions.length && (event.key === 'Tab' || event.key === 'Enter')) {
+              if (
+                !event.nativeEvent.isComposing &&
+                mentionOptions.length &&
+                (event.key === 'Tab' || event.key === 'Enter')
+              ) {
                 event.preventDefault();
                 insertMention(activeMention!);
                 return;
@@ -534,15 +748,7 @@ export function ChatView({
               }
             }}
           />
-          <motion.button
-            className="send-button"
-            disabled={!draft.trim() || sending || !online || waiting}
-            aria-label={t.send}
-            whileTap={reduceMotion ? undefined : { scale: 0.9 }}
-          >
-            {sending ? <SpinnerDots /> : <Icon name="arrowUp" />}
-          </motion.button>
-        </form>
+        </PromptInput>
         {waiting && <div className="composer-hint">{t.approvalDraftHint}</div>}
       </div>
     </div>
@@ -697,7 +903,9 @@ function Appear({ id, children }: { id: string; children: ReactNode }) {
 function ThinkingRow() {
   return (
     <div className="thinking-row">
-      <SpinnerDots />
+      <LoadingText
+        text={useAppStore((state) => state.language) === 'zh' ? '正在思考…' : 'Thinking…'}
+      />
     </div>
   );
 }
@@ -767,7 +975,7 @@ function QuestionCard({
       <strong>{message.content.question}</strong>
       {pending ? (
         <>
-          <div className="approval-actions">
+          <AnimatedList className="approval-actions">
             {message.content.choices.map((choice) => (
               <button
                 type="button"
@@ -787,7 +995,7 @@ function QuestionCard({
                 {choice}
               </button>
             ))}
-          </div>
+          </AnimatedList>
           <textarea
             aria-label={t.questionAnswer}
             value={answer}
@@ -996,7 +1204,7 @@ function ToolCard({ t, message }: { t: Texts; message: Extract<Message, { kind: 
                 transition={{ duration: 0.15 }}
               >
                 {state === 'running' ? (
-                  <span className="tool-spinner" />
+                  <LoadingText text={label} />
                 ) : (
                   <Icon
                     name={state === 'done' ? 'check' : state === 'stopped' ? 'stop' : 'warning'}
@@ -1048,19 +1256,11 @@ function ApprovalCard({
   t: Texts;
   message: Extract<Message, { kind: 'approval' }>;
 }) {
-  const [busy, setBusy] = useState<ApprovalChoice | null>(null);
-  const [error, setError] = useState('');
-  async function respond(choice: ApprovalChoice) {
-    setBusy(choice);
-    setError('');
-    try {
-      await callNode('approvals.respond', { messageId: message.messageId, choice });
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : t.saveError);
-    } finally {
-      setBusy(null);
-    }
-  }
+  const connected = useAppStore(
+    (state) =>
+      state.socketReady &&
+      Boolean(state.selectedNodeId && state.nodes[state.selectedNodeId]?.online),
+  );
   const choiceLabels = {
     once: t.allowOnce,
     session: t.allowSession,
@@ -1081,66 +1281,32 @@ function ApprovalCard({
         ? t.failed
         : '';
   const choices = message.content.choices ?? (['once', 'deny'] as const);
-  const extra = choices.filter((choice) => choice === 'session' || choice === 'always');
-  const pending = !status && message.status === 'streaming';
-  const allowed = message.content.choice && message.content.choice !== 'deny';
   return (
-    <div className={`approval-card${pending ? ' is-pending' : ' is-resolved'}`}>
-      <div className="approval-title">
-        <span className="approval-icon">
-          <Icon name="warning" />
-        </span>
-        <strong>{t.approvalTitle}</strong>
-      </div>
+    <AIApproval
+      key={message.messageId}
+      className="approval-card"
+      disabled={!connected}
+      question={t.approvalTitle}
+      options={choices.map((choice) => ({
+        id: choice,
+        label: choiceLabels[choice],
+        resultLabel: resultLabels[choice],
+        destructive: choice === 'deny',
+      }))}
+      resolvedId={message.content.choice}
+      resolvedLabel={status || (message.status !== 'streaming' ? t.completed : undefined)}
+      onDecide={async (option) => {
+        await callNode('approvals.respond', {
+          messageId: message.messageId,
+          choice: option.id as ApprovalChoice,
+        });
+      }}
+    >
       <p>{message.content.prompt}</p>
       {message.content.command && <pre className="approval-command">{message.content.command}</pre>}
-      {pending && (
-        <>
-          <div className="approval-actions">
-            {choices.includes('once') && (
-              <button
-                className="primary-button"
-                disabled={Boolean(busy)}
-                onClick={() => void respond('once')}
-              >
-                {busy === 'once' && <SpinnerDots />}
-                {choiceLabels.once}
-              </button>
-            )}
-            {choices.includes('deny') && (
-              <button
-                className="secondary-button"
-                disabled={Boolean(busy)}
-                onClick={() => void respond('deny')}
-              >
-                {choiceLabels.deny}
-              </button>
-            )}
-          </div>
-          {extra.length > 0 && (
-            <div className="approval-more">
-              {extra.map((choice) => (
-                <button
-                  key={choice}
-                  className="approval-chip"
-                  disabled={Boolean(busy)}
-                  onClick={() => void respond(choice)}
-                >
-                  {choiceLabels[choice]}
-                </button>
-              ))}
-              <small className="approval-scope-hint">{t.approvalScopeHint}</small>
-            </div>
-          )}
-        </>
+      {choices.some((choice) => choice === 'session' || choice === 'always') && (
+        <small className="approval-scope-hint">{t.approvalScopeHint}</small>
       )}
-      {status && (
-        <span className={`approval-result${allowed ? ' is-allowed' : ''}`}>
-          <Icon name={allowed ? 'check' : 'close'} />
-          {status}
-        </span>
-      )}
-      {error && <small className="form-error">{error}</small>}
-    </div>
+    </AIApproval>
   );
 }

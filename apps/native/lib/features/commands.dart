@@ -137,7 +137,7 @@ class CommandPalette extends StatelessWidget {
               ],
               onChanged: onBot,
             ),
-          if (loading) const LinearProgressIndicator(minHeight: 2),
+          if (loading) const ShiningText(),
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 230),
             child: ListView(

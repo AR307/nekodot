@@ -1,9 +1,10 @@
+import { AnimatedList } from '../components/ui/animated-list';
 import { useEffect, useState, type FormEvent } from 'react';
 import type { ProviderSource, RpcResult } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
 import type { Texts } from '../shared';
-import { SpinnerDots } from '../ui';
+import { LoadingText } from '../ui';
 
 export function ProviderSettings({ t }: { t: Texts }) {
   const node = useAppStore(selectNodeData);
@@ -69,7 +70,7 @@ export function ProviderSettings({ t }: { t: Texts }) {
             <p>{t.sourceHelp}</p>
           </div>
         </div>
-        <div className="source-list">
+        <AnimatedList className="source-list">
           {data.oauth.map((entry) => (
             <Authorization
               key={String(entry.id)}
@@ -78,7 +79,7 @@ export function ProviderSettings({ t }: { t: Texts }) {
               refresh={() => setRevision((v) => v + 1)}
             />
           ))}
-        </div>
+        </AnimatedList>
       </section>
       <section className="settings-card">
         <div className="settings-card-heading">
@@ -87,7 +88,7 @@ export function ProviderSettings({ t }: { t: Texts }) {
             <p>{t.customSourceHelp}</p>
           </div>
         </div>
-        <div className="source-list">
+        <AnimatedList className="source-list">
           {data.sources
             .filter((entry) => entry.kind === 'custom')
             .map((entry) => (
@@ -109,7 +110,7 @@ export function ProviderSettings({ t }: { t: Texts }) {
                 </small>
               </button>
             ))}
-        </div>
+        </AnimatedList>
         <form className="provider-form" onSubmit={(event) => void save(event)}>
           <label>
             {t.name}
@@ -158,8 +159,7 @@ export function ProviderSettings({ t }: { t: Texts }) {
               </button>
             )}
             <button className="primary-button" disabled={busy || !node.online}>
-              {busy && <SpinnerDots />}
-              {t.saveFetchModels}
+              {busy ? <LoadingText action="saving" /> : t.saveFetchModels}
             </button>
           </div>
           {message && (

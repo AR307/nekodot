@@ -508,7 +508,6 @@ void main() {
       isTrue,
       reason: 'the row showed what the Bot wrote',
     );
-    expect(find.byType(ThinkingDots), findsNothing);
 
     // Done: one line with the count, the steps folded until opened.
     final box = find.byWidgetPredicate(

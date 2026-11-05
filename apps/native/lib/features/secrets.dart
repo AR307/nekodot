@@ -247,8 +247,7 @@ class _SecretCardState extends State<SecretCard>
         children: [
           title,
           const SizedBox(height: 10),
-          if (field == null && error.isEmpty)
-            const LinearProgressIndicator(minHeight: 2),
+          if (field == null && error.isEmpty) const ShiningText(),
           if (field != null) ...[
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,

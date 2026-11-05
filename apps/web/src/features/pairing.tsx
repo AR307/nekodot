@@ -1,8 +1,9 @@
+import { AnimatedList } from '../components/ui/animated-list';
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { fetchMe, relayRequest } from '../api';
 import { useAppStore } from '../store';
-import { BotAvatar, Icon, SpinnerDots, StatusDot, ease } from '../ui';
+import { BotAvatar, Icon, LoadingText, StatusDot, ease } from '../ui';
 import { avatarColors, fill, type Texts } from '../shared';
 import { writeClipboard } from '../native';
 
@@ -233,7 +234,7 @@ export function PairScreen({
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.16 }}
             >
-              {expired ? <Icon name="warning" /> : <SpinnerDots />}
+              {expired ? <Icon name="warning" /> : <LoadingText />}
               <div>
                 <strong>{expired ? t.codeExpired : t.waiting}</strong>
                 <small>
@@ -282,13 +283,15 @@ export function PairScreen({
         {me?.nodes.length ? (
           <section className="paired-nodes" aria-label={t.nodesTitle}>
             <h2>{t.nodesTitle}</h2>
-            {me.nodes.map((node) => (
-              <div className="paired-node" key={node.nodeId}>
-                <StatusDot state={node.online ? 'ok' : 'offline'} />
-                <span>{node.name}</span>
-                <small>{node.online ? t.connected : t.offline}</small>
-              </div>
-            ))}
+            <AnimatedList>
+              {me.nodes.map((node) => (
+                <div className="paired-node" key={node.nodeId}>
+                  <StatusDot state={node.online ? 'ok' : 'offline'} />
+                  <span>{node.name}</span>
+                  <small>{node.online ? t.connected : t.offline}</small>
+                </div>
+              ))}
+            </AnimatedList>
           </section>
         ) : null}
         {error && (

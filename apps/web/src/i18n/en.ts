@@ -33,6 +33,7 @@ const en = {
   offline: 'Computer offline',
   reconnecting: 'Reconnecting',
   signIn: 'Sign in',
+  authHome: 'Home',
   signUp: 'Create account',
   welcome: 'Your AI team, running on your own computer.',
   email: 'Email',
