@@ -584,6 +584,8 @@ export class NodeApplication {
         return this.providers.models(request.params);
       case 'models.info':
         return this.providers.info(request.params.botId);
+      case 'models.assign':
+        return this.providers.assign(request.params);
       case 'hermes.settings.get':
         return this.settings.get(request.params.botId);
       case 'hermes.settings.set':
@@ -911,7 +913,8 @@ export class NodeApplication {
           status: 'done',
           createdAt: now(),
           content: {
-            text: params.command + '\n\n' + output,
+            text: output,
+            command: params.command.split(/\s/)[0]!,
             ...(fileId ? { files: [fileId] } : {}),
           },
         });

@@ -172,10 +172,8 @@ export class Providers {
     };
   }
 
-  async configureBot(bot: Bot) {
-    // Existing profiles keep their native route until the user explicitly selects a source.
-    if (!bot.sourceId) return;
-    const source = await this.source(bot.sourceId);
+  private async prepareSource(profile: string, sourceId: string) {
+    const source = await this.source(sourceId);
     if (source.kind === 'custom') {
       const id = source.provider;
       const entry = (await this.config('default')).providers?.[id];
@@ -183,11 +181,66 @@ export class Providers {
       const secret = (await this.hermes.environment('default'))[key];
       if (!entry || !secret)
         throw new NodeFault('invalid_params', 'Custom source has no saved credential');
-      await this.saveSecret(bot.botId, key, secret);
-      await this.saveConfig(bot.botId, { providers: { [id]: entry } });
+      await this.saveSecret(profile, key, secret);
+      await this.saveConfig(profile, { providers: { [id]: entry } });
     }
     // OAuth grants stay in the project root. Hermes inherits and rotates the original grant;
     // copying auth.json into profiles would invalidate single-use refresh tokens.
+    return source;
+  }
+
+  async assign(input: RpcParams<'models.assign'>): Promise<RpcResult<'models.assign'>> {
+    const bot = this.database.bot(input.botId);
+    if (!bot || bot.archived) throw new NodeFault('not_found', 'Bot not found');
+    const schema = await this.hermes.management.request<{
+      fields: Record<string, { type: string }>;
+    }>('/api/config/schema', input.botId);
+    if (
+      !/^(auxiliary\.[^.]+|delegation|cron)\.model$/.test(input.key) ||
+      schema.fields[input.key]?.type !== 'string'
+    )
+      throw new NodeFault('invalid_params', 'This model slot is not editable');
+    const source = await this.prepareSource(input.botId, input.sourceId);
+    const entry = (await this.config(input.botId)).providers?.[source.provider];
+    const endpoint =
+      source.kind === 'custom'
+        ? {
+            base_url: source.baseUrl,
+            api_key: (await this.hermes.environment(input.botId))[String(entry?.key_env)],
+          }
+        : {};
+    if (input.key.startsWith('auxiliary.')) {
+      await this.hermes.management.request('/api/model/set', input.botId, {
+        method: 'POST',
+        body: JSON.stringify({
+          scope: 'auxiliary',
+          task: input.key.split('.')[1],
+          provider: source.provider,
+          model: input.model,
+          ...endpoint,
+        }),
+      });
+    } else if (input.key === 'cron.model') {
+      await this.saveConfig(input.botId, {
+        cron: { model: input.model, model_provider: source.provider },
+      });
+    } else {
+      await this.saveConfig(input.botId, {
+        delegation: {
+          provider: source.provider,
+          model: input.model,
+          base_url: source.baseUrl ?? '',
+          api_key: endpoint.api_key ?? '',
+        },
+      });
+    }
+    return { saved: true };
+  }
+
+  async configureBot(bot: Bot) {
+    // Existing profiles keep their native route until the user explicitly selects a source.
+    if (!bot.sourceId) return;
+    const source = await this.prepareSource(bot.botId, bot.sourceId);
     await this.hermes.management.request('/api/model/set', bot.botId, {
       method: 'POST',
       body: JSON.stringify({
@@ -199,7 +252,7 @@ export class Providers {
     });
     if (bot.modelSettings?.contextLength !== undefined)
       await this.saveConfig(bot.botId, {
-        model: { context_length: bot.modelSettings.contextLength },
+        model_context_length: bot.modelSettings.contextLength ?? 0,
       });
   }
 

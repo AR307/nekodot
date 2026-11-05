@@ -174,9 +174,15 @@ export class Routines {
         '/api/cron/jobs/' + encodeURIComponent(routine.cronJobId!) + '/runs?limit=20',
         botId,
       );
+      await this.drain();
       return {
         routine: { ...routine, native: { ...routine.native, runs: native.runs } },
-        executions: [],
+        executions: this.database.db
+          .prepare(
+            'SELECT data FROM routine_executions WHERE routine_id=? ORDER BY rowid DESC LIMIT 100',
+          )
+          .all(id)
+          .map((row) => JSON.parse(String(row.data)) as RoutineExecution),
         receipts: [],
       };
     }
@@ -269,27 +275,44 @@ export class Routines {
     const row = { ...old, ...input };
     await this.subscribe(row);
     this.save(row);
-    this.card(row);
+    this.card(row, 'updated');
     return this.view(row);
   }
-  private card(row: StoredRoutine, card: 'task' | 'credentials' = 'task') {
+  private card(
+    row: Routine,
+    action:
+      | 'created'
+      | 'updated'
+      | 'enabled'
+      | 'stopped'
+      | 'started'
+      | 'executed'
+      | 'failed'
+      | 'credentials' = 'created',
+    executionId?: string,
+  ) {
+    const card = action === 'credentials' ? 'credentials' : 'task';
     const conversation = this.database
       .conversations()
       .find((c) => c.kind === 'dm' && c.botId === row.botId)!;
     const message: Message = {
-      messageId: 'routine:' + card + ':' + row.routineId,
+      messageId: executionId
+        ? 'routine-status:' + executionId
+        : 'routine:' + row.routineId + ':' + randomUUID(),
       conversationId: conversation.conversationId,
       seq: this.database.head(),
       author: { type: 'bot', id: row.botId },
       kind: 'routine',
       status: 'done',
-      createdAt: row.createdAt,
+      createdAt: time(),
       content: {
         routineId: row.routineId,
         botId: row.botId,
         name: row.name,
         granted: row.granted,
         card,
+        ...(action !== 'credentials' ? { action } : {}),
+        ...(executionId ? { executionId } : {}),
       },
     };
     this.database.putMessage(message);
@@ -310,7 +333,7 @@ export class Routines {
     row.enabled = enabled;
     this.save(row);
     await this.syncRoutes();
-    this.card(row);
+    this.card(row, enabled ? 'enabled' : 'stopped');
     if (grant) this.card(row, 'credentials');
     return this.view(row);
   }
@@ -475,16 +498,62 @@ export class Routines {
     }));
   }
   private async collect() {
-    const routines = this.all();
-    for (const botId of new Set(routines.map((r) => r.botId))) {
+    const hooks = this.all();
+    for (const bot of this.database.allBots().filter((b) => !b.archived)) {
+      const botId = bot.botId;
+      const jobs = await this.hermes.management.request<Record<string, unknown>[]>(
+        '/api/cron/jobs',
+        botId,
+      );
+      const snapshot = jobs.map((job) => ({
+        id: String(job.id),
+        name: String(job.name ?? job.id),
+        prompt: String(job.prompt ?? ''),
+        schedule: job.schedule,
+        enabled: job.enabled !== false,
+      }));
+      const previous = this.database.setting<typeof snapshot>('routine-schedules:' + botId);
+      const routines: Routine[] = hooks.filter((r) => r.botId === botId);
+      for (const job of jobs) {
+        const routine: Routine = routines.find((r) => r.cronJobId === job.id) ?? {
+          routineId: 'cron:' + String(job.id),
+          botId,
+          name: String(job.name ?? job.id),
+          description: String(job.prompt ?? ''),
+          prompt: String(job.prompt ?? ''),
+          events: [],
+          skills: [],
+          trigger: 'schedule',
+          cronJobId: String(job.id),
+          enabled: job.enabled !== false,
+          granted: false,
+          url: '',
+          createdAt: String(job.created_at ?? ''),
+          permissions: 'Hermes native cron / approvals.cron_mode',
+          native: job,
+        };
+        if (!routines.includes(routine)) routines.push(routine);
+        const saved = previous?.find((p) => p.id === job.id);
+        const current = snapshot.find((p) => p.id === job.id)!;
+        // Completing a one-shot disables it natively; that is execution, not a user stop.
+        if (
+          previous &&
+          job.state !== 'completed' &&
+          JSON.stringify(saved) !== JSON.stringify(current)
+        )
+          this.card(routine, !saved ? 'created' : !current.enabled ? 'stopped' : 'updated');
+      }
+      this.database.setSetting('routine-schedules:' + botId, snapshot);
+      if (!routines.length) continue;
+      const ids = new Set(routines.map((r) => r.routineId));
       const settled = this.database.db
         .prepare(
-          `SELECT e.data FROM routine_executions e
-          JOIN routines r ON r.routine_id=e.routine_id WHERE r.bot_id=?
-          AND json_extract(e.data,'$.state')!='running'`,
+          `SELECT data FROM routine_executions WHERE json_extract(data,'$.state')!='running'`,
         )
-        .all(botId)
-        .map((r) => (JSON.parse(String(r.data)) as RoutineExecution).sessionId);
+        .all()
+        .map((r) => JSON.parse(String(r.data)) as RoutineExecution)
+        .filter((r) => ids.has(r.routineId))
+        .map((r) => r.sessionId);
       const result = await this.hermes.management.rpc<{ output: string }>('command.dispatch', {
         profile: botId,
         name: 'nekodot-routine-status',
@@ -496,13 +565,15 @@ export class Routines {
         const routine = routines.find(
           (r) =>
             r.botId === botId &&
-            (event.route ? r.route === event.route : r.cronJobId === event.jobId),
+            (event.route
+              ? hooks.some((h) => h.routineId === r.routineId && h.route === event.route)
+              : r.cronJobId === event.jobId),
         );
         if (routine) this.record(routine, event);
       }
     }
   }
-  private record(routine: StoredRoutine, event: z.infer<typeof nativeEvent>) {
+  private record(routine: Routine, event: z.infer<typeof nativeEvent>) {
     const id = routine.routineId + ':' + event.sessionId;
     const old = this.database.db
       .prepare('SELECT data FROM routine_executions WHERE execution_id=?')
@@ -536,6 +607,18 @@ export class Routines {
         'INSERT INTO routine_executions VALUES(?,?,?) ON CONFLICT(execution_id) DO UPDATE SET data=excluded.data',
       )
       .run(id, routine.routineId, JSON.stringify(execution));
+    if (previous?.state !== state)
+      this.card(
+        routine,
+        state === 'running'
+          ? 'started'
+          : state === 'completed'
+            ? 'executed'
+            : state === 'cancelled'
+              ? 'stopped'
+              : 'failed',
+        id,
+      );
     if (state === 'running') return;
     const conversation = this.database
       .conversations()

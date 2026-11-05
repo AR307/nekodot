@@ -108,6 +108,10 @@ export const messageSchema = z.discriminatedUnion('kind', [
       name: z.string(),
       granted: z.boolean(),
       card: z.enum(['task', 'credentials']),
+      action: z
+        .enum(['created', 'updated', 'enabled', 'stopped', 'started', 'executed', 'failed'])
+        .optional(),
+      executionId: z.string().optional(),
     }),
   }),
   z.strictObject({
@@ -132,6 +136,7 @@ export const messageSchema = z.discriminatedUnion('kind', [
     content: z.strictObject({
       text: z.string(),
       retryText: z.string().optional(),
+      command: z.string().optional(),
       files: z.array(idSchema).optional(),
     }),
   }),

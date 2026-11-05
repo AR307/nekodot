@@ -60,7 +60,13 @@ export async function providerReplay(directory: string, modelOptions?: unknown) 
     }
     if (url.pathname === '/api/config') {
       if (method === 'PUT') {
-        merge(state, body.config as Record<string, unknown>);
+        const changes = { ...(body.config as Record<string, unknown>) };
+        if ('model_context_length' in changes) {
+          const current = state.model as Record<string, unknown>;
+          current.context_length = changes.model_context_length || undefined;
+          delete changes.model_context_length;
+        }
+        merge(state, changes);
         return { ok: true };
       }
       return url.searchParams.get('include_defaults') === 'true'

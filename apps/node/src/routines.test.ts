@@ -59,7 +59,7 @@ it('keeps credentials out of chat, requires a user grant and rotates the same sc
   await expect(routines.enable(botId, routine.routineId, true)).rejects.toThrow('Approve');
   await routines.enable(botId, routine.routineId, true, true);
   expect(routes[0]!.enabled).toBe(true);
-  expect(db.messages(conversationId).filter((m) => m.kind === 'routine')).toHaveLength(2);
+  expect(db.messages(conversationId).filter((m) => m.kind === 'routine')).toHaveLength(3);
   const oldDigest = routes[0]!.digest;
   await routines.rotate(botId, routine.routineId);
   expect(routes[0]!.digest).not.toBe(oldDigest);
@@ -102,7 +102,7 @@ it('recovers a native admission failure after restart without rerunning it or du
     cli: async () => 'Secret: internal',
     profileHome: (profile: string) => join(home, profile),
     management: {
-      request: async () => ({}),
+      request: async (path: string) => (path === '/api/cron/jobs' ? [] : {}),
       rpc: async (_method: string, params: { profile: string; arg: string }) => {
         expect(params.profile).toBe(botId);
         const { profile, settled } = JSON.parse(params.arg) as {
@@ -167,6 +167,79 @@ it('recovers a native admission failure after restart without rerunning it or du
   expect(db.messages(conversationId).filter((m) => m.kind === 'text')).toHaveLength(1);
   expect(signals.map((s) => s.kind)).toEqual(['failed']);
   expect(routines.context(botId).text).toContain('session=native-session');
+  await routines.close();
+  db.db.close();
+});
+
+it('shows a one-shot completion without reporting a user stop, while a pause still reports stopped', async () => {
+  const db = new NodeDatabase(await mkdtemp(join(tmpdir(), 'nekodot-cron-notice-')));
+  const botId = 'nk-abcdef',
+    conversationId = randomUUID();
+  db.putBot({
+    botId,
+    displayName: 'Notice Bot',
+    handle: 'notice',
+    role: '',
+    model: 'qa',
+    avatar: { shape: 'dot', color: '#E8603C' },
+    archived: false,
+    createdAt: new Date().toISOString(),
+  });
+  db.putConversation({ conversationId, botId, kind: 'dm', createdAt: new Date().toISOString() });
+  const job = {
+    id: 'once',
+    name: 'Reminder',
+    prompt: 'Test reminder',
+    schedule: { kind: 'once' },
+    enabled: true,
+    state: 'scheduled',
+  };
+  const jobs = [job];
+  let events: Record<string, unknown>[] = [];
+  const hermes = {
+    management: {
+      request: async () => jobs,
+      rpc: async () => ({ output: JSON.stringify(events) }),
+    },
+  } as unknown as HermesRuntime;
+  const routines = new Routines(db, hermes, new Notifications(db));
+  await routines.drain();
+  job.enabled = false;
+  job.state = 'completed';
+  events = [
+    {
+      phase: 'ended',
+      botId,
+      sessionId: 'once-session',
+      route: null,
+      jobId: 'once',
+      requestId: null,
+      text: 'Reminder completed',
+      time: Date.now() / 1000,
+      completed: true,
+    },
+  ];
+  await routines.drain();
+  expect(
+    db
+      .messages(conversationId)
+      .filter((m) => m.kind === 'routine')
+      .map((m) => m.content.action),
+  ).toEqual(['executed']);
+  await routines.drain();
+  expect(db.messages(conversationId).filter((m) => m.kind === 'routine')).toHaveLength(1);
+  const later = { ...job, id: 'later', name: 'Later reminder', enabled: true, state: 'scheduled' };
+  jobs.push(later);
+  await routines.drain();
+  later.enabled = false;
+  later.state = 'paused';
+  await routines.drain();
+  expect(
+    db
+      .messages(conversationId)
+      .filter((m) => m.kind === 'routine')
+      .map((m) => m.content.action),
+  ).toEqual(['executed', 'created', 'stopped']);
   await routines.close();
   db.db.close();
 });

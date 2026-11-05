@@ -465,6 +465,15 @@ export const rpcContracts = {
     result: z.strictObject({ models: z.array(z.string()), warning: z.string().optional() }),
   },
   'models.info': { params: z.strictObject(botTarget), result: modelInfoSchema },
+  'models.assign': {
+    params: z.strictObject({
+      ...botTarget,
+      key: z.string().min(1),
+      sourceId: idSchema,
+      model: z.string().min(1),
+    }),
+    result: z.strictObject({ saved: z.literal(true) }),
+  },
   'hermes.settings.get': { params: z.strictObject(botTarget), result: hermesSettingsSchema },
   'hermes.settings.set': {
     params: z.strictObject({ ...botTarget, key: z.string().min(1), value: z.json() }),
