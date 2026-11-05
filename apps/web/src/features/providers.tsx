@@ -4,7 +4,7 @@ import type { ProviderSource, RpcResult } from '@nekodot/protocol';
 import { callNode } from '../relay-connection';
 import { selectNodeData, useAppStore } from '../store';
 import type { Texts } from '../shared';
-import { LoadingText } from '../ui';
+import { Icon, LoadingText } from '../ui';
 
 export function ProviderSettings({ t }: { t: Texts }) {
   const node = useAppStore(selectNodeData);
@@ -222,17 +222,21 @@ function Authorization({
   }, [session]);
   return (
     <div className="authorization-card">
-      <strong>{String(entry.name ?? entry.id)}</strong>
-      <small>
-        {status?.logged_in ? t.authorized : t.notAuthorized} {status?.source_label ?? ''}
-      </small>
-      {entry.flow !== 'device_code' ? (
+      <div className="authorization-head">
+        <strong>{String(entry.name ?? entry.id)}</strong>
+        <span className={`authorization-state${status?.logged_in ? ' is-on' : ''}`}>
+          {status?.logged_in ? t.authorized : t.notAuthorized}
+        </span>
+      </div>
+      {status?.source_label && <small>{status.source_label}</small>}
+      {entry.flow !== 'device_code' && (
         <>
           <p className="muted">{t.terminalAuthorization}</p>
-          <code>{String(entry.cli_command ?? '')}</code>
+          <code className="authorization-command">{String(entry.cli_command ?? '')}</code>
         </>
-      ) : (
-        !status?.logged_in && (
+      )}
+      <div className="authorization-actions">
+        {entry.flow === 'device_code' && !status?.logged_in && (
           <button
             type="button"
             className="secondary-button"
@@ -241,23 +245,24 @@ function Authorization({
           >
             {t.startAuthorization}
           </button>
-        )
-      )}
-      {typeof entry.docs_url === 'string' && (
-        <a href={entry.docs_url} target="_blank" rel="noreferrer">
-          {t.authorizationGuide}
-        </a>
-      )}
-      {status?.logged_in && entry.disconnectable === true && (
-        <button
-          type="button"
-          className="quiet-button"
-          disabled={busy}
-          onClick={() => void action('disconnect')}
-        >
-          {t.disconnectAuthorization}
-        </button>
-      )}
+        )}
+        {status?.logged_in && entry.disconnectable === true && (
+          <button
+            type="button"
+            className="quiet-button"
+            disabled={busy}
+            onClick={() => void action('disconnect')}
+          >
+            {t.disconnectAuthorization}
+          </button>
+        )}
+        {typeof entry.docs_url === 'string' && (
+          <a className="authorization-guide" href={entry.docs_url} target="_blank" rel="noreferrer">
+            {t.authorizationGuide}
+            <Icon name="external" />
+          </a>
+        )}
+      </div>
       {session && (
         <div className="authorization-session">
           {session.status === 'pending' && Boolean(session.user_code) && (

@@ -26,6 +26,8 @@ const GATED: string[] = [
   'groups',
   'bots',
   'extensions',
+  'settings',
+  'screen',
 ];
 
 export const variants = [

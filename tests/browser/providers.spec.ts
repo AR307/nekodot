@@ -92,7 +92,9 @@ test('Edge manages coexisting sources, selects a source in the Bot form, and sho
       .filter({ hasText: 'ChatGPT or Codex Subscription' });
     await authorization.getByRole('button', { name: '开始授权', exact: true }).click();
     await expect(authorization.locator('.authorization-session')).toContainText('TEST-ONLY');
-    await expect(authorization.locator('small')).toContainText('已授权', { timeout: 15000 });
+    await expect(authorization.locator('.authorization-state')).toHaveText('已授权', {
+      timeout: 15000,
+    });
     expect(
       (await app.providers.models({ sourceId: 'oauth:openai-codex' })).models.length,
     ).toBeGreaterThan(0);

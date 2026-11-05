@@ -99,7 +99,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 36px;
+  min-height: var(--target);
   padding: 0 12px 0 8px;
   border-radius: 999px;
   border: 1px solid var(--line);
@@ -210,7 +210,7 @@
 }
 .screen-control-bar .primary-button,
 .screen-control-bar .secondary-button {
-  min-height: 36px;
+  min-height: var(--target);
   padding: 0 14px;
   font-size: 13px;
 }
@@ -270,13 +270,13 @@
   padding: 0 12px;
 }
 .screen-toolbar .quiet-button {
-  min-height: 36px;
+  min-height: var(--target);
   padding: 0 10px;
   font-size: 12px;
 }
 .screen-toolbar select {
   width: auto;
-  min-height: 36px;
+  min-height: var(--target);
   font-size: 12px;
 }
 .screen-notice {
@@ -329,12 +329,12 @@
   padding: 8px 0 12px;
 }
 .screen-key-actions button {
-  min-height: 36px;
+  min-height: var(--target);
   padding: 0 12px;
   font-size: 12px;
 }
 .screen-key-actions .quiet-button {
-  min-width: 40px;
+  min-width: var(--target);
   border: 1px solid var(--line);
   font-family: var(--font-mono);
 }
@@ -353,7 +353,7 @@
   line-height: 1.5;
 }
 .screen-footer .quiet-button {
-  min-height: 36px;
+  min-height: var(--target);
   padding: 0 12px;
   font-size: 12px;
 }

@@ -114,6 +114,18 @@ export async function walkSurfaces(
     findings.push(...(await auditSurface(page, 'chat/composer')));
     await shot('chat-composer');
   });
+  await step('screen/panel', async () => {
+    await page.locator('.bot-row').first().click();
+    await expect(page.locator('.chat-title')).toBeVisible();
+    await page
+      .getByRole('button', { name: /^(Bot 屏幕|Bot screen)$/ })
+      .first()
+      .click();
+    await expect(page.locator('.screen-panel')).toBeVisible();
+    await settle(700);
+    findings.push(...(await auditSurface(page, 'screen/panel')));
+    await shot('screen-panel');
+  });
   await step('groups/chat', async () => {
     const row = page.locator('.group-row').first();
     if (!(await row.count())) throw new Error('no group on this computer');

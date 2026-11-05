@@ -303,7 +303,8 @@ export type IconName =
   | 'copy'
   | 'users'
   | 'bot'
-  | 'enter';
+  | 'enter'
+  | 'external';
 
 const paths: Record<IconName, ReactNode> = {
   spark: (
@@ -320,6 +321,9 @@ const paths: Record<IconName, ReactNode> = {
   ),
   plus: <path d="M12 5v14M5 12h14" />,
   arrow: <path d="M5 12h14m-6-6 6 6-6 6" />,
+  external: (
+    <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+  ),
   arrowUp: <path d="M12 19V5M5 12l7-7 7 7" />,
   arrowDown: <path d="M12 5v14M19 12l-7 7-7-7" />,
   sun: (
