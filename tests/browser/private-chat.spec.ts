@@ -103,7 +103,10 @@ async function openConfiguredChat(page: Page, context: BrowserContext) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-    await page.screenshot({ path: `docs/evidence/pairing-fix-${width}.png`, fullPage: true });
+    await page.screenshot({
+      path: test.info().outputPath(`pairing-fix-${width}.png`),
+      fullPage: true,
+    });
   }
   await page.getByRole('button', { name: '返回团队', exact: true }).click();
   await expect(page.locator('.pair-page')).toHaveCount(0);
@@ -115,7 +118,7 @@ async function openConfiguredChat(page: Page, context: BrowserContext) {
     .getByRole('button', { name: '添加电脑', exact: true })
     .click();
   await expect(page.locator('.command-box code')).toHaveText(pairCommand);
-  await page.screenshot({ path: 'docs/evidence/phase1-pairing.png', fullPage: true });
+  await page.screenshot({ path: test.info().outputPath('phase1-pairing.png'), fullPage: true });
 
   services.nodeHome = await mkdtemp(join(tmpdir(), 'nekodot-browser-node-'));
   services.credentials = await pairNode(services.nodeHome, relayUrl, code!, 'Acceptance computer');
@@ -176,7 +179,7 @@ async function openConfiguredChat(page: Page, context: BrowserContext) {
   expect(JSON.stringify(await services.app.providers.list())).not.toContain(
     'browser-only-secret-9472',
   );
-  await page.screenshot({ path: 'docs/evidence/phase1-settings.png', fullPage: true });
+  await page.screenshot({ path: test.info().outputPath('phase1-settings.png'), fullPage: true });
 
   await page.getByRole('button', { name: '返回团队' }).click();
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -190,7 +193,10 @@ async function openConfiguredChat(page: Page, context: BrowserContext) {
   await expect(page.getByRole('heading', { name: '团队', exact: true })).toHaveCount(0);
   await page.setViewportSize({ width: 1024, height: 600 });
   await page.getByRole('button', { name: '新建 bot' }).last().click();
-  await page.screenshot({ path: 'docs/evidence/phase1-new-bot.png', animations: 'disabled' });
+  await page.screenshot({
+    path: test.info().outputPath('phase1-new-bot.png'),
+    animations: 'disabled',
+  });
   await page.getByLabel('名字').fill('Mochi');
   await page.getByLabel('它负责什么？').fill('A friendly assistant for everyday planning.');
   await page.getByLabel(/工具权限/).selectOption('smart');
@@ -204,7 +210,7 @@ async function openConfiguredChat(page: Page, context: BrowserContext) {
   ).toBe(true);
   await expect(page.locator('.bot-dialog footer')).toBeInViewport();
   await page.screenshot({
-    path: 'docs/evidence/fix-bot-dialog-scroll.png',
+    path: test.info().outputPath('fix-bot-dialog-scroll.png'),
     animations: 'disabled',
   });
   await page.locator('.bot-dialog').getByRole('button', { name: '创建 Mochi' }).click();
@@ -283,7 +289,10 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
       .messages(services.app.database.conversations()[0]!.conversationId)
       .some((message) => message.author.type === 'user'),
   ).toBe(false);
-  await page.screenshot({ path: 'docs/evidence/side-phase3-welcome-edge.png', fullPage: true });
+  await page.screenshot({
+    path: test.info().outputPath('side-phase3-welcome-edge.png'),
+    fullPage: true,
+  });
 
   const originalHandle = services.app.handle.bind(services.app);
   let dropFirstReply = true;
@@ -310,7 +319,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await composer.press('Enter');
   await expect(page.locator('.stream-cursor')).toBeVisible();
   await page.screenshot({
-    path: 'docs/evidence/phase1-chat-streaming.png',
+    path: test.info().outputPath('phase1-chat-streaming.png'),
     animations: 'disabled',
   });
   await expect(page.locator('.bot-copy').filter({ hasText: 'NEKODOT_PHASE0_OK' })).toBeVisible({
@@ -357,12 +366,15 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await expect(page.locator('.run-banner')).toHaveCount(0);
   await expect(composer).toHaveValue('Keep this draft while I answer');
   expect(services.fake!.inspectRuns().at(-1)!.runId).toBe(questionRun);
-  await page.screenshot({ path: 'docs/evidence/side-phase3-clarify-answered.png', fullPage: true });
+  await page.screenshot({
+    path: test.info().outputPath('side-phase3-clarify-answered.png'),
+    fullPage: true,
+  });
 
   await composer.fill('Please demonstrate a protected-file approval.');
   await composer.press('Enter');
   await expect(page.locator('.approval-card')).toBeVisible({ timeout: 10000 });
-  await page.screenshot({ path: 'docs/evidence/phase1-approval.png', fullPage: true });
+  await page.screenshot({ path: test.info().outputPath('phase1-approval.png'), fullPage: true });
   const pendingRun = services.fake!.inspectRuns().at(-1)!.runId;
   await page.reload();
   await expect(
@@ -384,7 +396,7 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   await page.locator('.tool-summary').first().click();
   await expect(page.locator('.tool-result')).toBeVisible();
   await page.screenshot({
-    path: 'docs/evidence/phase1-tools-expanded.png',
+    path: test.info().outputPath('phase1-tools-expanded.png'),
     animations: 'disabled',
   });
 
@@ -446,7 +458,10 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
   });
   await page.locator('.bot-copy').filter({ hasText: 'NEKODOT_STEER_OK' }).scrollIntoViewIfNeeded();
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.screenshot({ path: 'docs/evidence/phase1-chat-desktop.png', animations: 'disabled' });
+  await page.screenshot({
+    path: test.info().outputPath('phase1-chat-desktop.png'),
+    animations: 'disabled',
+  });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('.chat-column')).toBeVisible();
   const composerBox = await page.locator('.composer').boundingBox();
@@ -457,13 +472,22 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
       .evaluate((element) => element.scrollWidth <= element.clientWidth),
   ).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: 'docs/evidence/phase1-chat-mobile.png', animations: 'disabled' });
+  await page.screenshot({
+    path: test.info().outputPath('phase1-chat-mobile.png'),
+    animations: 'disabled',
+  });
   await page.setViewportSize({ width: 768, height: 1000 });
   await expect(page.locator('.team-sidebar')).toBeHidden();
-  await page.screenshot({ path: 'docs/evidence/phase1-chat-tablet.png', animations: 'disabled' });
+  await page.screenshot({
+    path: test.info().outputPath('phase1-chat-tablet.png'),
+    animations: 'disabled',
+  });
   await page.getByRole('button', { name: '返回团队', exact: true }).click();
   await expect(page.locator('.team-sidebar')).toBeVisible();
-  await page.screenshot({ path: 'docs/evidence/phase1-team.png', animations: 'disabled' });
+  await page.screenshot({
+    path: test.info().outputPath('phase1-team.png'),
+    animations: 'disabled',
+  });
 
   await page.setViewportSize({ width: 1440, height: 900 });
   services.connection!.close();
@@ -481,12 +505,15 @@ test('a real browser account pairs a node, configures a bot, and runs private ch
     page.getByRole('heading', { name: 'Authorized services', exact: true }),
   ).toBeVisible();
   await page.screenshot({
-    path: 'docs/evidence/phase1-settings-dark-en.png',
+    path: test.info().outputPath('phase1-settings-dark-en.png'),
     animations: 'disabled',
     fullPage: true,
   });
   await page.getByRole('button', { name: 'Back to team' }).click();
-  await page.screenshot({ path: 'docs/evidence/phase1-chat-dark-en.png', animations: 'disabled' });
+  await page.screenshot({
+    path: test.info().outputPath('phase1-chat-dark-en.png'),
+    animations: 'disabled',
+  });
   await page.locator('.chat-title').click();
   await page.locator('.bot-details').getByRole('button', { name: 'Edit bot', exact: true }).click();
   await page.getByLabel('Name', { exact: true }).fill('Mochi edited');

@@ -238,7 +238,7 @@ test('Bot details, native memory editing, library download, extension catalog an
     await expect(page.locator('.extension-full-content')).toContainText('does not execute tools');
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.screenshot({
-      path: 'docs/evidence/side-phase3-plugin-document-1440.png',
+      path: test.info().outputPath('side-phase3-plugin-document-1440.png'),
       animations: 'disabled',
     });
     await page.getByRole('button', { name: '返回上页', exact: true }).click();

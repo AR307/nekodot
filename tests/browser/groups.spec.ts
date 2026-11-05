@@ -167,7 +167,10 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     await page.locator('.member-option').filter({ hasText: 'Researcher' }).locator('input').check();
     await expect(page.getByRole('button', { name: '创建群组', exact: true })).toBeDisabled();
     await page.locator('.member-option').filter({ hasText: 'Writer' }).locator('input').check();
-    await page.screenshot({ path: 'docs/evidence/phase2-new-group.png', animations: 'disabled' });
+    await page.screenshot({
+      path: test.info().outputPath('phase2-new-group.png'),
+      animations: 'disabled',
+    });
     await page.getByRole('button', { name: '创建群组', exact: true }).click();
     await page.locator('.group-row').first().click();
     await expect(page.locator('.chat-title')).toContainText('Research studio');
@@ -180,7 +183,10 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     await send('A lead reply without mentions.');
     await expect(page.locator('.stream-cursor')).toBeVisible();
     await expect(page.locator('.chain-progress')).toContainText('1 / 6');
-    await page.screenshot({ path: 'docs/evidence/phase2-streaming.png', animations: 'disabled' });
+    await page.screenshot({
+      path: test.info().outputPath('phase2-streaming.png'),
+      animations: 'disabled',
+    });
     await idle();
     expect(fake.inspectRuns()).toHaveLength(4);
     const groupSessionId = fake.inspectRuns().at(-1)!.sessionId;
@@ -257,7 +263,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     for (const width of [1440, 768, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await page.screenshot({
-        path: `docs/evidence/phase2-chat-${width}.png`,
+        path: test.info().outputPath(`phase2-chat-${width}.png`),
         animations: 'disabled',
       });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
@@ -274,7 +280,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     await expect(page.locator('.chat-title')).toContainText('Lead: Writer');
     await expect(page.locator('.app-shell')).toHaveAttribute('data-theme', 'dark');
     await page.screenshot({
-      path: 'docs/evidence/phase2-dark-en-reduced.png',
+      path: test.info().outputPath('phase2-dark-en-reduced.png'),
       animations: 'disabled',
     });
     await page.setViewportSize({ width: 1440, height: 900 });

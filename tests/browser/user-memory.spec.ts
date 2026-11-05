@@ -84,7 +84,7 @@ test('shared USER.md: confirm originals, switch computers, resolve competing off
       });
       await page.getByRole('heading', { name: '同一条记忆有不同修改' }).scrollIntoViewIfNeeded();
       await page.screenshot({
-        path: `docs/evidence/side-phase3-user-memory-${width}.png`,
+        path: test.info().outputPath(`side-phase3-user-memory-${width}.png`),
         animations: 'disabled',
       });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
@@ -130,7 +130,7 @@ test('shared USER.md: confirm originals, switch computers, resolve competing off
     await page.setViewportSize({ width: 390, height: 1000 });
     await expect(editor).toBeVisible();
     await page.screenshot({
-      path: 'docs/evidence/side-phase3-user-memory-dark-en.png',
+      path: test.info().outputPath('side-phase3-user-memory-dark-en.png'),
       animations: 'disabled',
     });
     expect(await other!.read()).toBe('OTHER_ACCOUNT_ONLY');

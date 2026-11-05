@@ -112,7 +112,7 @@ test('Edge manages coexisting sources, selects a source in the Bot form, and sho
         true,
       );
       await page.screenshot({
-        path: `docs/evidence/side-phase3-sources-${width}.png`,
+        path: test.info().outputPath(`side-phase3-sources-${width}.png`),
         fullPage: true,
       });
     }
@@ -127,7 +127,7 @@ test('Edge manages coexisting sources, selects a source in the Bot form, and sho
     await page.getByLabel('上下文覆盖值（可选）', { exact: true }).fill('64000');
     await page.getByLabel('上下文覆盖值（可选）', { exact: true }).scrollIntoViewIfNeeded();
     await page.waitForTimeout(350);
-    await page.screenshot({ path: 'docs/evidence/side-phase3-source-bot-form.png' });
+    await page.screenshot({ path: test.info().outputPath('side-phase3-source-bot-form.png') });
     await page.getByRole('button', { name: '创建 Maple', exact: true }).click();
     await expect(page.locator('.welcome-introduction')).toContainText('Maple');
     await expect(page.locator('.run-banner')).toHaveCount(0);
@@ -142,7 +142,7 @@ test('Edge manages coexisting sources, selects a source in the Bot form, and sho
     await expect(page.getByRole('heading', { name: '模型与压缩', exact: true })).toBeVisible();
     await expect(page.locator('.model-limits')).toContainText('64000');
     await page.waitForTimeout(350);
-    await page.screenshot({ path: 'docs/evidence/side-phase3-model-information.png' });
+    await page.screenshot({ path: test.info().outputPath('side-phase3-model-information.png') });
     expect(errors).toEqual([]);
   } finally {
     connection.close();
