@@ -81,6 +81,18 @@ export async function auditSurface(
   options: { exclude?: string[]; touch?: boolean } = {},
 ): Promise<Finding[]> {
   const findings: Finding[] = [];
+  // Measure the settled UI: entrance animations (list pop-in, sheets) finish first.
+  await page.evaluate(() =>
+    Promise.race([
+      Promise.all(
+        document
+          .getAnimations()
+          .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+          .map((animation) => animation.finished.catch(() => undefined)),
+      ),
+      new Promise((resolve) => setTimeout(resolve, 3_000)),
+    ]),
+  );
   let axe = new AxeBuilder({ page }).withTags([
     'wcag2a',
     'wcag2aa',

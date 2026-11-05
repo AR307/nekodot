@@ -2,13 +2,13 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { relayRequest } from '../api';
 import { useAppStore } from '../store';
-import { AtSign, ArrowRight, KeyRound, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { AtSign, ArrowRight, Eye, EyeOff, KeyRound, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { LoadingText } from '../ui';
 import type { Texts } from '../shared';
 import { AuthPage as AuthLayout } from '../components/ui/auth-page';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { tween } from '../motion';
+import { shift, tween } from '../motion';
 
 export function AuthPage({
   t,
@@ -25,6 +25,7 @@ export function AuthPage({
   const [mode, setMode] = useState<'login' | 'signup' | 'verify' | 'reset'>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [code, setCode] = useState('');
   const [sending, setSending] = useState(false);
@@ -41,6 +42,14 @@ export function AuthPage({
   }, [retryAt]);
 
   async function sendCode() {
+    // Explain what is missing at the field itself instead of leaving the button disabled.
+    for (const id of mode === 'verify' ? ['auth-email', 'auth-password'] : ['auth-email']) {
+      const field = document.getElementById(id) as HTMLInputElement | null;
+      if (field && !field.checkValidity()) {
+        field.reportValidity();
+        return;
+      }
+    }
     setSending(true);
     setError('');
     setNotice('');
@@ -165,7 +174,7 @@ export function AuthPage({
                 autoComplete={
                   mode === 'signup' || mode === 'reset' ? 'new-password' : 'current-password'
                 }
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 minLength={8}
                 required
                 disabled={busy}
@@ -173,6 +182,16 @@ export function AuthPage({
                 placeholder={t.passwordPlaceholder}
                 onChange={(event) => setPassword(event.target.value)}
               />
+              <button
+                type="button"
+                className="auth-reveal"
+                aria-label={showPassword ? t.hidePassword : t.showPassword}
+                aria-pressed={showPassword}
+                aria-controls="auth-password"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+              </button>
             </div>
           </div>
           {mode !== 'login' && (
@@ -198,9 +217,7 @@ export function AuthPage({
                 <Button
                   variant="outline"
                   type="button"
-                  disabled={
-                    busy || sending || seconds > 0 || !email || (mode === 'verify' && !password)
-                  }
+                  disabled={busy || sending || seconds > 0}
                   onClick={() => void sendCode()}
                 >
                   {sending ? (
@@ -215,16 +232,34 @@ export function AuthPage({
             </div>
           )}
         </div>
-        {notice && (
-          <p role="status" className="auth-notice">
-            {notice}
-          </p>
-        )}
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
+        <AnimatePresence initial={false}>
+          {notice && (
+            <motion.p
+              key="notice"
+              role="status"
+              className="auth-notice"
+              initial={{ opacity: 0, y: reduceMotion ? 0 : -shift[1] }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={tween('base', reduceMotion)}
+            >
+              {notice}
+            </motion.p>
+          )}
+          {error && (
+            <motion.p
+              key="error"
+              className="form-error"
+              role="alert"
+              initial={{ opacity: 0, y: reduceMotion ? 0 : -shift[1] }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={tween('base', reduceMotion)}
+            >
+              {error}
+            </motion.p>
+          )}
+        </AnimatePresence>
         <Button type="submit" size="lg" className="auth-submit" disabled={busy || sending}>
           {busy ? (
             <LoadingText action="submitting" />

@@ -181,6 +181,37 @@
   color: var(--auth-muted);
   pointer-events: none;
 }
+/* Show/hide password: a full 44px target inside the field's right edge. */
+.auth-reveal {
+  position: absolute;
+  top: 50%;
+  right: 1px;
+  width: var(--target);
+  height: var(--target);
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--auth-muted);
+  transform: translateY(-50%);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease);
+}
+.auth-reveal:hover {
+  color: var(--auth-ink);
+}
+.auth-reveal:focus-visible {
+  outline: 2px solid var(--auth-ink);
+  outline-offset: -4px;
+}
+.auth-reveal svg {
+  width: 17px;
+  height: 17px;
+}
+.auth-input-wrap:has(.auth-reveal) .ui-input {
+  padding-right: var(--target);
+}
 .auth-layout .ui-input {
   display: block;
   width: 100%;

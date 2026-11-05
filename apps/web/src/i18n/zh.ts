@@ -39,6 +39,8 @@ const zh = {
   password: '密码',
   emailPlaceholder: 'you@example.com',
   passwordPlaceholder: '至少 8 位密码',
+  showPassword: '显示密码',
+  hidePassword: '隐藏密码',
   alreadyAccount: '已有账号？登录',
   newAccount: '第一次来？创建账号',
   submit: '继续',

@@ -4,7 +4,8 @@ import en from './i18n/en';
 import { fetchMe, relayRequest } from './api';
 import { RelayConnection } from './relay-connection';
 import { useAppStore } from './store';
-import { LoadingText, Wordmark } from './ui';
+import { Wordmark } from './ui';
+import { StateView } from './components/ui/state-view';
 import type { Texts } from './shared';
 import { AuthPage } from './features/auth';
 import { PairScreen } from './features/pairing';
@@ -103,14 +104,13 @@ export function App() {
       <div className="boot-screen">
         <Wordmark />
         {bootError ? (
-          <>
-            <p role="alert">{t.relayUnavailable}</p>
-            <button className="secondary-button" onClick={() => location.reload()}>
-              {t.retry}
-            </button>
-          </>
+          <StateView
+            kind="error"
+            title={t.relayUnavailable}
+            action={{ label: t.retry, run: () => location.reload() }}
+          />
         ) : (
-          <LoadingText />
+          <StateView kind="loading" />
         )}
       </div>
     );

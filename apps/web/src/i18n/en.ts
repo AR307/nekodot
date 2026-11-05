@@ -40,6 +40,8 @@ const en = {
   password: 'Password',
   emailPlaceholder: 'you@example.com',
   passwordPlaceholder: 'At least 8 characters',
+  showPassword: 'Show password',
+  hidePassword: 'Hide password',
   alreadyAccount: 'Already have an account? Sign in',
   newAccount: 'New here? Create an account',
   submit: 'Continue',

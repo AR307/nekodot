@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { fetchMe, relayRequest } from '../api';
 import { useAppStore } from '../store';
-import { BotAvatar, Icon, LoadingText, StatusDot } from '../ui';
+import { BotAvatar, Icon, StatusDot } from '../ui';
 import { avatarColors, fill, type Texts } from '../shared';
 import { writeClipboard } from '../native';
 import { durations, ease, easePop, tween } from '../motion';
@@ -235,7 +235,7 @@ export function PairScreen({
               exit={{ opacity: 0, scale: 0.98 }}
               transition={tween('fast', reduceMotion)}
             >
-              {expired ? <Icon name="warning" /> : <LoadingText />}
+              {expired ? <Icon name="warning" /> : <StatusDot state="connecting" />}
               <div>
                 <strong>{expired ? t.codeExpired : t.waiting}</strong>
                 <small>
