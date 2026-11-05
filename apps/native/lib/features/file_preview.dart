@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:share_plus/share_plus.dart';
@@ -169,6 +169,15 @@ class _FilePageState extends State<FilePage> {
           }
         }
       }
+    } on PlatformException catch (e) {
+      // Programs and scripts from a bot are never run by "Open"; say what to do instead.
+      final message = e.code == 'blocked_type'
+          ? client.tr(
+              '为了安全，程序和脚本文件不会直接打开。可以在文件夹中查看，或用「打开方式」自行选择应用。',
+              'For safety, programs and scripts are not opened directly. Show it in its folder, or use Open with to choose an app.',
+            )
+          : e.message ?? e.code;
+      if (mounted) setState(() => error = message);
     } catch (e) {
       if (mounted) setState(() => error = '$e');
     } finally {

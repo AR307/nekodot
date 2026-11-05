@@ -20,6 +20,11 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 
 ## 更新记录
 
+### 2026-11-05 / 原生客户端：Bot 附件不再被直接执行（Windows）
+
+- 自动安全审查指出文件预览的「打开」会直接运行 Bot 发来的程序/脚本。现在「打开」先按系统 `AssocIsDangerous` 与固定清单拒绝可执行类型（`blocked_type`），每个预览副本在任何操作前写入 Mark of the Web（`ZoneId=3`），「打开方式」与「在文件夹中显示」保留；预览页给出中英文说明。
+- 真实 Windows 运行器中的集成测试：6 种载荷全部被拒、副本均带 `ZoneId=3`、无载荷执行；文件预览 7 项 widget 测试与 `flutter analyze` 通过。Android/macOS/Linux 未改动未实测。详见 `docs/native-attachment-safety.md`。
+
 ### 2026-11-05 / 人体工学验收：总验收
 
 - 共用 React 的全部功能面在真实环境 6 组（中/英、明/暗、1440/768/390/320px）与录制环境 4 组中无 P0/P1/P2，仅余两项接受例外；改造前真实桌面为 94/339 项 P1/P2。全部界面进入探针门禁，动效/排版由单一 token 来源与 4 项守卫约束。

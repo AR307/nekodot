@@ -1,5 +1,10 @@
 # 开发进度
 
+## 2026-11-05 原生客户端：Bot 附件安全打开（Windows）
+
+- `file_actions.cpp`：可执行/脚本类型拒绝直接打开，预览副本写入 Mark of the Web；`file_preview.dart`：`blocked_type` 中英文说明。
+- 验证：`integration_test/file_actions_safety_test.dart` 在真实 Windows 运行器中通过（Debug 构建 102.9s）；`test/file_preview_test.dart` 7 项、相关 analyze 通过。仅本地提交。
+
 ## 2026-11-05 人体工学验收：总验收
 
 - 真实环境全矩阵 6 组走查 + 真实私聊 2 组 + 真实群聊 1 轮共 9 项通过，无 P1/P2；录制探针全部界面门禁通过。
