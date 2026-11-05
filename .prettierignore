@@ -3,6 +3,7 @@ docs/references/**
 design/**
 docs/fixtures/**
 .runtime/**
+.claude/**
 opus-video/**
 dist/**
 node_modules/**

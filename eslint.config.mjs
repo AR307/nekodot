@@ -8,6 +8,8 @@ export default tseslint.config(
       '**/dist/**',
       '**/node_modules/**',
       '.runtime/**',
+      // Claude Code worktrees and local launch settings, never project source.
+      '.claude/**',
       'opus-video/**',
       'docs/references/**',
       'design/**',
@@ -29,7 +31,11 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     files: ['**/*.{ts,tsx,mjs}'],
-    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
+      // Nested checkouts (e.g. worktrees) must not change which tsconfig root is used.
+      parserOptions: { tsconfigRootDir: import.meta.dirname },
+    },
   },
   {
     files: ['apps/site/**/*.js'],
