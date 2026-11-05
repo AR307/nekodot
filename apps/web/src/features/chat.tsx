@@ -855,7 +855,17 @@ function useChatScroll(messages: Message[], activity: Activity) {
   }, [messages.length, lastSize, activity, last?.status, messages]);
 
   useEffect(() => {
-    ref.current?.scrollTo({ top: ref.current.scrollHeight });
+    const element = ref.current;
+    if (!element) return;
+    element.scrollTo({ top: element.scrollHeight });
+    // Late layout (file cards, images, expanded tool results, a resized composer) must not
+    // push the newest content out of view while the reader is following the conversation.
+    const observer = new ResizeObserver(() => {
+      if (atBottom.current && !restore.current) element.scrollTop = element.scrollHeight;
+    });
+    observer.observe(element);
+    if (element.firstElementChild) observer.observe(element.firstElementChild);
+    return () => observer.disconnect();
   }, []);
 
   return {

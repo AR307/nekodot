@@ -16,7 +16,7 @@ import { walkSurfaces } from '../support/ergonomics-walk';
  * Recorded replay supplements, and never replaces, the live acceptance run.
  * Surfaces listed in GATED must have no P0/P1 findings; the list grows with each wave.
  */
-const GATED: string[] = ['auth', 'pair', 'shell/home', 'shell/palette', 'shell/new-menu'];
+const GATED: string[] = ['auth', 'pair', 'shell/home', 'shell/palette', 'shell/new-menu', 'chat'];
 
 export const variants = [
   { name: 'desktop-light', width: 1440, height: 900, dark: false, touch: false },

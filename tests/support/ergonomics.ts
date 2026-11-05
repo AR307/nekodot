@@ -162,6 +162,10 @@ export async function auditSurface(
       };
       const hidden = (element: Element) => {
         if (element.closest('[aria-hidden="true"], [inert]')) return true;
+        // Content of a closed <details> is not rendered (content-visibility), only its summary.
+        const details = element.closest('details:not([open])');
+        if (details && !element.closest('summary')) return true;
+        if (!element.checkVisibility({ visibilityProperty: true })) return true;
         const style = getComputedStyle(element);
         if (style.visibility === 'hidden' || style.display === 'none') return true;
         const box = element.getBoundingClientRect();

@@ -143,6 +143,8 @@
 .chat-intro p {
   margin: 0;
   max-width: 440px;
+  /* Even line lengths: no single orphaned character on the last line. */
+  text-wrap: balance;
   font-size: 13px;
   line-height: 1.6;
 }
@@ -1057,6 +1059,7 @@
   justify-content: space-between;
   gap: 10px;
   width: 100%;
+  min-height: var(--target);
   padding: 9px;
   border-radius: 12px;
   text-align: left;
