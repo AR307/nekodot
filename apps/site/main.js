@@ -124,6 +124,7 @@ document.querySelectorAll('[data-avatar]').forEach((node) => {
 const intro = document.getElementById('intro');
 const introStage = intro.querySelector('.intro-stage');
 const introWindow = intro.querySelector('.intro-window');
+const introCard = intro.querySelector('.intro-card');
 const introFace = intro.querySelector('.intro-card-face');
 const introBots = [...intro.querySelectorAll('.intro-bots > span')];
 introBots.forEach((node, index) => {
@@ -186,34 +187,49 @@ window.addEventListener('resize', placeBots, { passive: true });
 // The card's size waits on the web fonts.
 document.fonts?.ready.then(placeBots);
 
-// --p runs from 0 when the stage pins to 1 when it lets go.
-let introFrame = 0;
-function trackIntro() {
-  introFrame = 0;
-  const pinned = document.querySelector('.nav').offsetHeight;
-  const box = intro.getBoundingClientRect();
-  const travel = box.height - introStage.offsetHeight;
-  const progress = travel > 0 ? Math.max(0, Math.min(1, (pinned - box.top) / travel)) : 0;
-  intro.style.setProperty('--p', progress.toFixed(4));
-}
-if (!reduceMotion) {
-  window.addEventListener(
-    'scroll',
-    () => {
-      if (!introFrame) introFrame = requestAnimationFrame(trackIntro);
-    },
-    { passive: true },
-  );
-  trackIntro();
-  window.addEventListener('load', trackIntro);
-  window.addEventListener('resize', trackIntro, { passive: true });
-  // Tabbing into the card brings it fully into view.
-  intro.querySelector('.intro-card').addEventListener('focusin', () => {
-    const travel = intro.offsetHeight - introStage.offsetHeight;
-    const pinned = document.querySelector('.nav').offsetHeight;
-    if (Number(intro.style.getPropertyValue('--p')) < 0.9)
-      window.scrollTo({ top: intro.offsetTop - pinned + travel * 0.92 });
-  });
+// Keep hidden download links out of the focus order until the card has risen.
+introCard.inert = !reduceMotion;
+
+async function playIntro() {
+  if (reduceMotion) {
+    intro.style.setProperty('--p', '1');
+    return;
+  }
+
+  // Start the window, Bot hops and card on the same clock, after theme/language
+  // and first-screen assets are ready. Slow image/font loads cannot split the intro.
+  await Promise.allSettled([
+    document.fonts.ready,
+    ...[...introWindow.querySelectorAll('img')].map((image) => image.decode()),
+  ]);
+  placeBots();
+  intro.classList.add('is-playing');
+
+  const hopTime = 2400; // Last Bot lands at 2.42s; the card takes over as it lands.
+  const cardTime = 2800;
+  let elapsed = 0;
+  let previous = null;
+  let frame = 0;
+
+  function advance(now) {
+    if (previous !== null) elapsed += now - previous;
+    previous = now;
+    const progress = Math.max(0, Math.min(1, (elapsed - hopTime) / cardTime));
+    intro.style.setProperty('--p', progress === 1 ? '1' : progress.toFixed(4));
+    if (progress >= 0.52) introCard.inert = false;
+    if (progress < 1) frame = requestAnimationFrame(advance);
+    else document.removeEventListener('visibilitychange', pauseIntro);
+  }
+
+  // Both the CSS hops and the card pause while the tab is hidden.
+  function pauseIntro() {
+    intro.classList.toggle('is-paused', document.hidden);
+    cancelAnimationFrame(frame);
+    previous = null;
+    if (!document.hidden) frame = requestAnimationFrame(advance);
+  }
+  document.addEventListener('visibilitychange', pauseIntro);
+  pauseIntro();
 }
 
 /* ---------- language ---------- */
@@ -355,6 +371,7 @@ function applyLanguage() {
   document.querySelectorAll('.type').forEach((node) => {
     node.style.setProperty('--n', [...node.textContent.trim()].length);
   });
+  placeBots();
 }
 
 document.getElementById('lang-toggle').addEventListener('click', () => {
@@ -821,3 +838,4 @@ document.querySelectorAll('.play').forEach((node) => playObserver.observe(node))
 applyLanguage();
 applyTheme();
 onScroll();
+void playIntro();
