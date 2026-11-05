@@ -16,7 +16,15 @@ import { walkSurfaces } from '../support/ergonomics-walk';
  * Recorded replay supplements, and never replaces, the live acceptance run.
  * Surfaces listed in GATED must have no P0/P1 findings; the list grows with each wave.
  */
-const GATED: string[] = ['auth', 'pair', 'shell/home', 'shell/palette', 'shell/new-menu', 'chat'];
+const GATED: string[] = [
+  'auth',
+  'pair',
+  'shell/home',
+  'shell/palette',
+  'shell/new-menu',
+  'chat',
+  'groups',
+];
 
 export const variants = [
   { name: 'desktop-light', width: 1440, height: 900, dark: false, touch: false },
@@ -29,6 +37,21 @@ for (const variant of variants) {
   test(`ergonomic probe · ${variant.name}`, async ({ browser }) => {
     test.setTimeout(8 * 60_000);
     const environment = await userMemoryEnvironment();
+    // A second bot and a group make the group sheet and group chat reachable.
+    const first = environment.nodes[0]!;
+    const second = await first.app.bots.create({
+      displayName: 'Birch',
+      handle: 'probe-birch',
+      role: 'Second member for group surfaces',
+      model: 'recorded-model',
+      sourceId: first.bot.sourceId!,
+      avatar: { shape: 'bear', color: '#2F9E8F' },
+    });
+    first.app.groups.create({
+      name: 'Probe group',
+      botIds: [first.bot.botId, second.bot.botId],
+      leadBotId: first.bot.botId,
+    });
     const findings: Finding[] = [];
     const errors: string[] = [];
     const context = await browser.newContext({

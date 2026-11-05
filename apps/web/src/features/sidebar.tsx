@@ -49,6 +49,11 @@ export function TeamSidebar({
   const [copied, setCopied] = useState(false);
   const activeBots = node.bots.filter((bot) => !bot.archived);
   const canGroup = activeBots.length >= 2 && node.online;
+  const groupBlocker = !node.online
+    ? t.groupNeedsOnline
+    : activeBots.length < 2
+      ? t.groupNeedsBots
+      : '';
   const views: { value: AppView; label: string; icon: ReactNode }[] = [
     { value: 'chats', label: t.chatsPage, icon: <Icon name="chat" /> },
     { value: 'skills', label: t.skillsPage, icon: <Icon name="spark" /> },
@@ -157,6 +162,8 @@ export function TeamSidebar({
               className="tiny-icon"
               onClick={onNewGroup}
               aria-label={t.newGroup}
+              aria-describedby={canGroup ? undefined : 'group-unavailable'}
+              title={groupBlocker || undefined}
               disabled={!canGroup}
             >
               <Icon name="plus" />
@@ -181,7 +188,14 @@ export function TeamSidebar({
                 />
               );
             })}
-            {!node.groups.length && <p className="empty-group-copy">{t.noGroups}</p>}
+            {groupBlocker ? (
+              // Say why "new group" is unavailable instead of a silent disabled button (E10).
+              <p className="empty-group-copy" id="group-unavailable">
+                {groupBlocker}
+              </p>
+            ) : (
+              !node.groups.length && <p className="empty-group-copy">{t.noGroups}</p>
+            )}
           </AnimatedList>
         </section>
       </div>

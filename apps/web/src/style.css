@@ -206,7 +206,7 @@ quiet ghost; all press down slightly */
   white-space: nowrap;
 }
 .form-error {
-  color: var(--danger);
+  color: var(--danger-text);
   font-size: 12px;
   margin: 0;
 }

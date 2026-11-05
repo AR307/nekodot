@@ -114,6 +114,15 @@ export async function walkSurfaces(
     findings.push(...(await auditSurface(page, 'chat/composer')));
     await shot('chat-composer');
   });
+  await step('groups/chat', async () => {
+    const row = page.locator('.group-row').first();
+    if (!(await row.count())) throw new Error('no group on this computer');
+    await row.click();
+    await expect(page.locator('.chat-title')).toBeVisible();
+    await settle(600);
+    findings.push(...(await auditSurface(page, 'groups/chat')));
+    await shot('groups-chat');
+  });
   await step('bots/details', async () => {
     await page.locator('.bot-row').first().click();
     const dialog = page.locator('[role="dialog"]').filter({ has: page.locator('.details-tabs') });

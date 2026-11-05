@@ -16,6 +16,8 @@
   --ok: #2f9e8f;
   --warn: #d9932b;
   --danger: #c8432f;
+  /* Text on danger tints (failure pills, errors); like accent-text, keeps ≥ 4.5:1. */
+  --danger-text: #ab3725;
   --bubble-user: #1f1b16;
   --bubble-user-ink: #faf7f2;
   --hover: rgb(31 27 22 / 4.5%);
@@ -85,6 +87,7 @@
   --accent-text: #f59a7a;
   --accent-soft: #3a2620;
   --danger: #ec7a63; /* ≥ 4.5:1 on dark bg, surface, surface-2 */
+  --danger-text: #ec7a63;
   --bubble-user: #f3eee6;
   --bubble-user-ink: #16130f;
   --hover: rgb(243 238 230 / 6%);
@@ -110,6 +113,7 @@
     --accent-text: #f59a7a;
     --accent-soft: #3a2620;
     --danger: #ec7a63; /* ≥ 4.5:1 on dark bg, surface, surface-2 */
+    --danger-text: #ec7a63;
     --bubble-user: #f3eee6;
     --bubble-user-ink: #16130f;
     --hover: rgb(243 238 230 / 6%);
