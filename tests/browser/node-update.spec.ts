@@ -40,6 +40,8 @@ test('Edge shows a copyable legacy command and removes it when the same computer
     'Update computer',
   );
   // This UI test uses empty conversation data; real legacy bundles/systemd are tested separately.
+  // A 1.0.0 Node predates host/desktopControl, so the client cannot sync it and must still
+  // show the command; the upgraded Node answers the current protocol.
   const node = (version: string) =>
     connectRelay({
       version,
@@ -47,10 +49,10 @@ test('Edge shows a copyable legacy command and removes it when the same computer
       handleRpc: async (request) =>
         request.method === 'sync.snapshot'
           ? {
-              node: {
-                platform: 'linux',
-                computerUse: false,
-              },
+              node:
+                version === '1.0.0'
+                  ? { platform: 'linux', computerUse: false }
+                  : { platform: 'linux', computerUse: false, host: 'server', desktopControl: null },
               bots: [],
               groups: [],
               conversations: [],
@@ -58,7 +60,7 @@ test('Edge shows a copyable legacy command and removes it when the same computer
               headSeq: 0,
             }
           : request.method === 'sync.since'
-            ? { events: [], resyncRequired: false }
+            ? { events: [], headSeq: 0, resyncRequired: false }
             : {},
     });
   let connection = node('1.0.0');
@@ -79,6 +81,7 @@ test('Edge shows a copyable legacy command and removes it when the same computer
     connection = node('20261031010000');
     await expect(notice).toHaveCount(0);
     await expect(page.locator('.node-picker summary')).toContainText('Update computer');
+    await expect(page.locator('.node-picker summary')).toContainText('已同步');
   } finally {
     connection.close();
     await relay.app.close();

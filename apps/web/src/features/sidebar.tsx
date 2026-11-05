@@ -2,7 +2,7 @@ import { AnimatedList } from '../components/ui/animated-list';
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { Bot, Conversation, Group, Message } from '@nekodot/protocol';
-import { selectNodeData, useAppStore, type ActivityState } from '../store';
+import { selectNodeData, selectUpdateCommand, useAppStore, type ActivityState } from '../store';
 import { BotAvatar, GroupDots, Icon, Kbd, LoadingText, Wordmark } from '../ui';
 import { GooeyNav } from '../components/ui/gooey-nav';
 import { avatarColors, fill, listTime, type Texts } from '../shared';
@@ -42,8 +42,7 @@ export function TeamSidebar({
   const me = useAppStore((state) => state.me);
   const node = useAppStore(selectNodeData);
   const socketReady = useAppStore((state) => state.socketReady);
-  const selectedNodeId = useAppStore((state) => state.selectedNodeId);
-  const updateCommand = me?.nodes.find((item) => item.nodeId === selectedNodeId)?.updateCommand;
+  const updateCommand = useAppStore(selectUpdateCommand);
   const setScreen = useAppStore((state) => state.setScreen);
   const [scrolled, setScrolled] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -89,7 +88,7 @@ export function TeamSidebar({
       </header>
       <div className={`sidebar-top${scrolled ? ' is-scrolled' : ''}`}>
         <NodePicker t={t} state={!node.online ? 'offline' : socketReady ? 'ok' : 'connecting'} />
-        {node.online && socketReady && updateCommand && (
+        {updateCommand && (
           <section className="command-box node-update-notice" role="status">
             <span>{t.nodeNeedsUpdate}</span>
             <code>{updateCommand}</code>

@@ -1320,3 +1320,16 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 浏览器专项与完整私聊旅程 2 项通过：真实邮箱收码注册/登录、配对、模型设置/附件上传、审批/拒绝/停止、steer、重连/历史与多电脑操作；Hermes 为录制服务，属于辅助验收。3 个过期按钮选择器同步到现有产品文案和输入框停止按钮。Node24 下经 `node --import tsx node_modules/@playwright/test/cli.js` 运行，隔离端口 4528/4529，同时设置 `NEKODOT_RELAY_URL`。
 - agent-browser 实际浏览候选官网，并以本地现有账号登录候选 Web、进入真实 Relay 设置页。现有本地 Node 离线、模型来源为空，真实官方 Hermes/模型链路未验；Windows 仅构建，未替换安装程序或做原生交互，Android/macOS/Linux 未复验。
 - 原始失败现场与当前截图位于忽略的 `.runtime/integration-20261105`；测试生成的历史证据图片另行保存后恢复原文件。无凭据/运行目录提交，无文件删除、部署或 push。
+
+## 2026-11-05 Web 旧 Node 更新提示恢复（本地）
+
+- 根因：tests/browser/node-update.spec.ts 先因 9af9282c0b 后登录提交按钮改为“登录”而卡住；修正后真实失败为 51bfa0a474 给 nodeCapabilitiesSchema 增加 host/desktopControl，1.0.0 Node 的旧快照被 Web 严格校验拒绝，synchronize 失败分支调用 setNodeOnline(false)，同时把 me.nodes[].online 改为 false，提示条件 node.online 失效。探针：给假 Node 补当前字段后原代码即通过。
+- 修复：store 新增 setNodeUnsynced（仅本端同步状态）与 selectUpdateCommand（socketReady + Relay 在线 + /me 命令）；relay-connection 同步失败改用 setNodeUnsynced；sidebar 改用选择器；setNodeOnline(false) 同步清除 updateCommand，与 Relay 断线后 /me 返回一致。
+- 验证：apps/web/src/store.test.ts 3 项；Edge 旅程 3 次连续通过（5.8–8.0s），使用进程内真实 Relay、Web 构建与 Node 连接代码，假 RPC 回复按版本给出旧/新结构。lint、typecheck、Web build 通过；全量 vitest 69/72，失败的 apps/node welcome.test.ts 2 项和 app.test.ts 1 项不引用 Web 代码，单独重跑仍失败，属既有问题。其余旧 E2E（foundation/groups/providers/private-chat）仍使用“继续”登录按钮，本次未改。未做真实 1.0.0 bundle/官方 Hermes/真实模型验收，未 push。
+
+## 2026-11-06 更新审查：收尾旧 Node 提示补丁整合
+
+- 接续工作区未完成的 `26d5b39fbd` cherry-pick，侧栏保留现行 `LoadingText` 并引入 `selectUpdateCommand`；两份模块记录保留双方内容。官网文案和 `.claude/` 原有未提交内容不纳入此修复。
+- 冲突标记导致 TypeScript 基线 3 项语法错误；收尾后 lint、typecheck、全量 41 文件 78 项测试、完整 build、Edge 旧 Node 旅程通过。Playwright 在 Node 24 下需现有 `node --import tsx` 入口；直接 CLI 的 JSON import 属性错误不计产品失败。
+- Flutter analyze 与 43 项测试通过；核对发现 `TextFieldTapRegion` 和四项桌面/手机宽度点击回归已存在，不重复应用原计划补丁。
+- 候选通过本地原 Relay / Node 与官方 Hermes 调用真实 `gpt-6-sol`，中文桌面、英文手机尺寸私聊与群聊接力 3 项通过；不是 Android 设备或旧 1.0.0 bundle 实测。部署与完整浏览器回归另行记录。

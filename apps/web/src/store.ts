@@ -69,7 +69,10 @@ interface AppState {
   setLanguage(language: 'zh' | 'en'): void;
   setPairing(pairing: AppState['pairing']): void;
   setAuthError(message: string): void;
+  /** Relay presence: the computer is connected to the Relay, or not. */
   setNodeOnline(nodeId: string, online: boolean): void;
+  /** This client could not sync the computer; its Relay presence is unchanged. */
+  setNodeUnsynced(nodeId: string): void;
   setSnapshot(
     nodeId: string,
     snapshot: {
@@ -146,13 +149,23 @@ export const useAppStore = create<AppState>((set) => ({
         me: state.me
           ? {
               ...state.me,
+              // The Relay forgets a Node's version on disconnect, as /me then reports.
               nodes: state.me.nodes.map((node) =>
-                node.nodeId === nodeId ? { ...node, online } : node,
+                node.nodeId === nodeId
+                  ? { ...node, online, updateCommand: online ? node.updateCommand : null }
+                  : node,
               ),
             }
           : null,
       };
     }),
+  setNodeUnsynced: (nodeId) =>
+    set((state) => ({
+      nodes: {
+        ...state.nodes,
+        [nodeId]: { ...(state.nodes[nodeId] ?? emptyNode()), online: false },
+      },
+    })),
   setSnapshot: (nodeId, snapshot) =>
     set((state) => {
       const current = state.nodes[nodeId] ?? emptyNode();
@@ -295,3 +308,9 @@ export const useAppStore = create<AppState>((set) => ({
 const emptyTeamState = emptyNode();
 export const selectNodeData = (state: AppState) =>
   state.selectedNodeId ? (state.nodes[state.selectedNodeId] ?? emptyTeamState) : emptyTeamState;
+/** One-time manual command for the selected computer while the Relay reports it connected.
+ *  A legacy Node cannot answer the current sync protocol, so this ignores sync success. */
+export const selectUpdateCommand = (state: AppState) => {
+  const node = state.me?.nodes.find((item) => item.nodeId === state.selectedNodeId);
+  return state.socketReady && node?.online ? node.updateCommand : null;
+};

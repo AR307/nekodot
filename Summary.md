@@ -1119,3 +1119,15 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 验证：Node 全量 39 文件、71 项辅助测试；Flutter 43 项辅助测试及 analyze；TypeScript、相关 ESLint/格式检查、Web/Node/Relay 构建与 Windows Release 构建通过。浏览器输入框专项与完整私聊旅程共 2 项通过，使用隔离真实 Relay/Node 与录制 Hermes；修正 3 处与当前界面不一致的测试选择器。
 - 真实本地 Relay 登录和设置页、候选官网实际浏览通过；现有本地 Node 离线且无已配置模型来源，本轮未宣称官方 Hermes/真实模型或原生设备交互验收通过。Android/macOS/Linux 未重建或复验；未部署、未 push。
 - 本轮浏览器截图及失败现场保存在忽略的 `.runtime/integration-20261105`，测试临时改写的历史截图已恢复，不提交账号、运行数据或原始响应。
+
+## 2026-11-05 Web 旧 Node 更新提示恢复（本地）
+
+- 根因：11-04 起 sync.snapshot 要求 node.host/desktopControl，真实 1.0.0 Node 仍按旧结构回复；Web 拒绝快照后把同步失败写成“离线”，连带覆盖 Relay 在线状态，专为旧 Node 准备的更新命令因此被隐藏。/me 刷新本身正常。
+- Web 区分 Relay 在线与本端同步：同步失败只标记本端不可用；提示按 Relay 在线和 /me 的命令显示。断线时同步清除命令（与 /me 一致），升级后重连不再闪现旧命令。未增加兼容层或更新状态，Flutter 未受影响。
+- 新增 store 单元测试；Edge 旅程修正 11-04 后过时的“登录”按钮，旧版回复真实旧结构、升级后回复当前结构并断言“已同步”，连续 3 次通过。lint、typecheck、Web build 通过；pnpm test 中 apps/node 的 welcome/app 3 项既有失败与本改动无关。未用真实 1.0.0 bundle、官方 Hermes 或真实模型复验，未 push。
+
+## 2026-11-06 更新审查：收尾旧 Node 提示补丁整合
+
+- 继续既有 `26d5b39fbd` cherry-pick，解决侧栏与两份记录冲突：保留当前 `LoadingText`、整合分支全部记录及旧 Node 更新命令选择器，不覆盖官网未提交文案。
+- `pnpm lint`、`pnpm typecheck`、`pnpm test`（41 文件 / 78 项）、`pnpm build` 与 Edge 旧 Node 更新旅程通过；Flutter analyze 与 43 项测试通过。输入框 `TextFieldTapRegion` 和四项点击回归已在当前分支，不重复合入。
+- 本次构建的本地 Web / Relay / Node、官方 Hermes 与既有真实 `gpt-6-sol` 完成中文桌面私聊、英文手机尺寸私聊、中文群聊接力共 3 项浏览器验收。沿用原账号、Bot 与群组；真实 1.0.0 发布 bundle 未复验。
