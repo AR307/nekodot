@@ -329,7 +329,15 @@ export function ChatView({
           <Icon name="panel" />
         </button>
       </header>
-      <div className="message-scroll" ref={scrollRef} onScroll={onScroll}>
+      <div
+        className="message-scroll"
+        ref={scrollRef}
+        onScroll={onScroll}
+        // Keyboard users can scroll the conversation even when no message has a control.
+        tabIndex={0}
+        role="region"
+        aria-label={t.messageHistory}
+      >
         <div className="messages-inner">
           {messages.length >= 50 && !historyComplete && (
             <button

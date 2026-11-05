@@ -81,18 +81,21 @@ export async function auditSurface(
   options: { exclude?: string[]; touch?: boolean } = {},
 ): Promise<Finding[]> {
   const findings: Finding[] = [];
-  // Measure the settled UI: entrance animations (list pop-in, sheets) finish first.
-  await page.evaluate(() =>
-    Promise.race([
-      Promise.all(
-        document
-          .getAnimations()
-          .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
-          .map((animation) => animation.finished.catch(() => undefined)),
-      ),
-      new Promise((resolve) => setTimeout(resolve, 3_000)),
-    ]),
-  );
+  // Measure the settled UI: entrance animations (list pop-in, sheets) finish first. Reveals can
+  // start a moment later (intersection observers), so settle in a few rounds.
+  await page.evaluate(async () => {
+    for (let round = 0; round < 4; round++) {
+      const running = document
+        .getAnimations()
+        .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
+      if (!running.length && round > 0) return;
+      await Promise.race([
+        Promise.all(running.map((animation) => animation.finished.catch(() => undefined))),
+        new Promise((resolve) => setTimeout(resolve, 2_000)),
+      ]);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+  });
   let axe = new AxeBuilder({ page }).withTags([
     'wcag2a',
     'wcag2aa',
@@ -165,7 +168,8 @@ export async function auditSurface(
         // Content of a closed <details> is not rendered (content-visibility), only its summary.
         const details = element.closest('details:not([open])');
         if (details && !element.closest('summary')) return true;
-        if (!element.checkVisibility({ visibilityProperty: true })) return true;
+        if (!element.checkVisibility({ visibilityProperty: true, opacityProperty: true }))
+          return true;
         const style = getComputedStyle(element);
         if (style.visibility === 'hidden' || style.display === 'none') return true;
         const box = element.getBoundingClientRect();

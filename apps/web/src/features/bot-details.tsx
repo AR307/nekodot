@@ -11,6 +11,7 @@ import { OperationProgress } from './operations';
 import { LibraryPanel } from './files';
 import { ModelInformation } from './model-info';
 import { SharedUserMemoryPanel } from './user-memory';
+import { StateView } from '../components/ui/state-view';
 
 export function BotDetails({
   bot,
@@ -137,7 +138,7 @@ function BotInfo({ bot, t, onEdit }: { bot: Bot; t: Texts; onEdit(): void }) {
         {!jobs ? (
           <LoadingText />
         ) : !jobs.length ? (
-          <p className="empty-state">{t.noScheduledTasks}</p>
+          <StateView kind="empty" compact message={t.noScheduledTasks} />
         ) : (
           <AnimatedList>
             {jobs.map((job) => {

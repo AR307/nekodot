@@ -728,7 +728,7 @@
     margin-left: 4px;
   }
   .node-picker summary {
-    min-height: 32px;
+    min-height: var(--target);
     padding: 0 6px 0 0;
     background: transparent;
     box-shadow: none;

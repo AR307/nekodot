@@ -115,13 +115,18 @@
   color: var(--ink-2);
   font: 12px/1.4 var(--font-mono);
 }
-.avatar-shapes {
+.avatar-shapes,
+.color-swatches {
+  /* 44px hit slots side by side; the visual circle sits inside. Eight per row from
+     358px of content width (390px phones with 16px gutters), wrapping below that. */
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(var(--target), 1fr));
+  gap: var(--space-1) 0;
 }
 .avatar-shapes button {
-  height: 44px;
+  justify-self: center;
+  width: var(--target);
+  height: var(--target);
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -132,13 +137,10 @@
 .avatar-shapes button.selected {
   border-color: var(--ink);
 }
-.color-swatches {
-  display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  gap: 6px;
-}
 .color-swatches button {
   position: relative;
+  justify-self: center;
+  width: var(--target);
   height: var(--target);
   display: grid;
   place-items: center;
@@ -380,7 +382,7 @@
     border-radius: var(--radius-panel) var(--radius-panel) 0 0;
   }
   .sheet > header {
-    padding: 22px 8px 4px 20px;
+    padding: 22px 8px 4px var(--space-4);
     touch-action: none;
   }
   .sheet-handle {
@@ -395,10 +397,10 @@
     background: var(--line);
   }
   .dialog-body {
-    padding: 4px 20px 20px;
+    padding: 4px var(--space-4) 20px;
   }
   .sheet > footer {
-    padding: 12px 20px max(20px, env(safe-area-inset-bottom));
+    padding: 12px var(--space-4) max(20px, env(safe-area-inset-bottom));
   }
   .color-swatches button span {
     width: 30px;

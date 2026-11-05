@@ -17,6 +17,7 @@ import { OperationProgress } from './operations';
 import { relayUrl } from '../relay-url';
 import { native, android, chooseImportFiles } from '../native';
 import { Markdown } from './markdown';
+import { StateView } from '../components/ui/state-view';
 
 export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Texts }) {
   const node = useAppStore(selectNodeData);
@@ -243,7 +244,7 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
           {error}
         </p>
       )}
-      {!activeBots.length && <p className="empty-state">{t.noBotForExtensions}</p>}
+      {!activeBots.length && <StateView kind="empty" compact message={t.noBotForExtensions} />}
       {operation && (
         <OperationProgress
           key={operation.operationId}
@@ -264,7 +265,7 @@ export function ExtensionsPage({ kind, t }: { kind: 'skills' | 'plugins'; t: Tex
         {!entries ? (
           <LoadingText />
         ) : !filtered?.length ? (
-          <p className="empty-state">{t.noExtensions}</p>
+          <StateView kind="empty" compact message={t.noExtensions} />
         ) : (
           filtered.map((row) => (
             <button

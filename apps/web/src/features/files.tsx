@@ -10,6 +10,7 @@ import type { Texts } from '../shared';
 import { relayUrl } from '../relay-url';
 import { OperationProgress } from './operations';
 import { android, saveDownload, shareFile } from '../native';
+import { StateView } from '../components/ui/state-view';
 const PdfPreview = lazy(() =>
   import('./pdf-preview').then((module) => ({ default: module.PdfPreview })),
 );
@@ -361,7 +362,7 @@ export function LibraryPanel({
           ))}
         </AnimatedList>
       ) : (
-        <p className="empty-state">{t.noFiles}</p>
+        <StateView kind="empty" compact message={t.noFiles} />
       )}
     </section>
   );

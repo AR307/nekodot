@@ -24,6 +24,8 @@ const GATED: string[] = [
   'shell/new-menu',
   'chat',
   'groups',
+  'bots',
+  'extensions',
 ];
 
 export const variants = [

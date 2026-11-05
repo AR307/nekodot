@@ -176,6 +176,7 @@ const zh = {
   groupMemberHint: '选择 2–6 位 bot，一起完成任务。',
   groupEditHint: '修改从下一条新消息开始生效，当前接力保持原成员。',
   noGroups: '让不同专长的 bot 组成小队。',
+  messageHistory: '对话记录',
   groupNeedsBots: '至少需要 2 个 bot 才能建群，先新建一个吧。',
   groupNeedsOnline: '电脑在线后才能建群。',
   relayProgress: '接力已进行',

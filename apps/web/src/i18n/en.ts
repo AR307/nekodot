@@ -180,6 +180,7 @@ const en = {
   groupMemberHint: 'Choose 2–6 bots to work together.',
   groupEditHint: 'Edits apply to the next message. The current relay keeps its members.',
   noGroups: 'Bring different specialties into one team.',
+  messageHistory: 'Conversation history',
   groupNeedsBots: 'A group needs at least two bots. Create another one first.',
   groupNeedsOnline: 'Groups can be created once the computer is online.',
   relayProgress: 'Relay turns',

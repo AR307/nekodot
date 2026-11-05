@@ -182,15 +182,6 @@
 .operation-done {
   border-color: var(--ok);
 }
-.empty-state {
-  margin: 0;
-  padding: 28px 16px;
-  border-radius: 14px;
-  border: 1px dashed var(--line);
-  color: var(--ink-2);
-  font-size: 13px;
-  text-align: center;
-}
 .offline-strip {
   margin: 0 24px 12px;
   padding: 8px 12px;
