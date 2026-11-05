@@ -67,7 +67,7 @@ test('Edge shows a copyable legacy command and removes it when the same computer
     await page.getByRole('button', { name: '已有账号？登录', exact: true }).click();
     await page.getByLabel('邮箱', { exact: true }).fill(email);
     await page.getByLabel('密码', { exact: true }).fill(password);
-    await page.getByRole('button', { name: '继续', exact: true }).click();
+    await page.getByRole('button', { name: '登录', exact: true }).click();
     const notice = page.locator('.node-update-notice');
     await expect(notice).toContainText('这台电脑需要更新一次');
     await expect(notice.locator('code')).toHaveText(

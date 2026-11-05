@@ -55,7 +55,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
     await page.getByRole('button', { name: '发送验证码', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('验证码已发出');
     await page.getByLabel('邮箱验证码', { exact: true }).fill(mailbox.code());
-    await page.getByRole('button', { name: '继续', exact: true }).click();
+    await page.getByRole('button', { name: '创建账号', exact: true }).click();
     await expect(page.locator('.pair-wait')).toContainText(/[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}/);
     const code = (await page.locator('.pair-wait').innerText()).match(
       /[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}/,
@@ -124,7 +124,7 @@ test('Edge creates and edits a group, relays recorded members, resumes approvals
       await page.getByRole('button', { name: '新建 bot', exact: true }).last().click();
       await page.getByLabel('名字', { exact: true }).fill(name!);
       await page.getByLabel('它负责什么？').fill('A group specialist.');
-      await page.getByLabel('模型', { exact: true }).fill('recorded-model');
+      await page.getByRole('textbox', { name: '模型', exact: true }).fill('recorded-model');
       await page.getByRole('button', { name: '高级设置' }).click();
       await page.locator('.advanced-field input[pattern]').fill(handle!);
       await page
