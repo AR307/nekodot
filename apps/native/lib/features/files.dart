@@ -5,11 +5,14 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../data/client.dart';
+import '../platform/file_actions.dart';
 import '../ui/design.dart';
 import 'bot_editor.dart';
 
@@ -42,6 +45,36 @@ String withoutDeliveries(String text) => text
     .replaceAll(_deliveryLine, '')
     .replaceAllMapped(_localReference, (m) => m[1]!.isEmpty ? m[2]! : '')
     .trim();
+
+/// A drawing rather than a bitmap: shown with the SVG renderer.
+bool isSvg(Json file) =>
+    '${file['mime']}'.split(';').first.trim().toLowerCase() ==
+        'image/svg+xml' ||
+    '${file['name']}'.toLowerCase().endsWith('.svg');
+
+/// A file name Windows accepts for a copy handed to another app.
+String safeFileName(String name) {
+  var result = name
+      .split(RegExp(r'[/\\]'))
+      .last
+      .replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1f]'), '_')
+      .replaceAll(RegExp(r'[. ]+$'), '');
+  if (result.isEmpty) return 'file';
+  if (RegExp(
+    r'^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)',
+    caseSensitive: false,
+  ).hasMatch(result)) {
+    result = '_$result';
+  }
+  if (result.length > 180) {
+    final dot = result.lastIndexOf('.');
+    final extension = dot > 0 && result.length - dot <= 20
+        ? result.substring(dot)
+        : '';
+    result = '${result.substring(0, 180 - extension.length)}$extension';
+  }
+  return result;
+}
 
 String fileSize(num bytes) => bytes < 1024
     ? '$bytes B'
@@ -172,17 +205,16 @@ class _FileCardState extends State<FileCard> {
         picture ??= downloadFile(widget.client, widget.fileId);
         return FutureBuilder<Uint8List>(
           future: picture,
-          builder: (context, bytes) => bytes.hasError
-              ? row(value)
-              : image(bytes.data, '${value['name']}'),
+          builder: (context, bytes) =>
+              bytes.hasError ? row(value) : image(bytes.data, value),
         );
       }
       return row(value);
     },
   );
 
-  Widget image(Uint8List? bytes, String name) {
-    final tone = context.tone;
+  Widget image(Uint8List? bytes, Json file) {
+    final tone = context.tone, name = '${file['name']}';
     final placeholder = Container(
       width: 240,
       height: 160,
@@ -206,12 +238,19 @@ class _FileCardState extends State<FileCard> {
                 onTap: open,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.memory(
-                    bytes,
-                    semanticLabel: name,
-                    frameBuilder: (context, child, frame, sync) =>
-                        frame == null && !sync ? placeholder : child,
-                  ),
+                  child: isSvg(file)
+                      ? SvgPicture.memory(
+                          bytes,
+                          semanticsLabel: name,
+                          placeholderBuilder: (_) => placeholder,
+                          errorBuilder: (_, _, _) => row(file),
+                        )
+                      : Image.memory(
+                          bytes,
+                          semanticLabel: name,
+                          frameBuilder: (context, child, frame, sync) =>
+                              frame == null && !sync ? placeholder : child,
+                        ),
                 ),
               ),
             ),
@@ -399,8 +438,91 @@ class _FileViewerState extends State<FileViewer> {
   NekodotClient get client => widget.client;
   Json get file => widget.file;
   late final content = downloadFile(client, file['fileId'] as String);
-  bool busy = false;
+  bool busy = false, source = false;
   String error = '', notice = '';
+  Future<String>? copy;
+
+  /// A copy in a folder of its own, for another app to open.
+  Future<String> copyForApps() async {
+    final bytes = await content;
+    final root = await getTemporaryDirectory();
+    final separator = Platform.pathSeparator;
+    final folder = await Directory('${root.path}${separator}nekodot-files')
+        .create(recursive: true);
+    final directory = await folder.createTemp('file-');
+    // The Windows shell takes only its own separator.
+    final path = '${directory.path}$separator${safeFileName('${file['name']}')}'
+        .replaceAll('/', separator);
+    await File(path).writeAsBytes(bytes, flush: true);
+    return path;
+  }
+
+  /// Hands the file to the system: its default app, the Windows "Open with"
+  /// list, or its folder.
+  Future<void> openOutside(String action) async {
+    setState(() {
+      busy = true;
+      error = '';
+      notice = '';
+    });
+    try {
+      final path = await (copy ??= copyForApps());
+      if (action == 'reveal') {
+        await WindowsFileActions.invoke('reveal', path);
+      } else {
+        await openAttachment(path, chooseApp: action == 'openWith');
+      }
+    } catch (e) {
+      copy = null;
+      if (mounted) setState(() => error = '$e');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> openMenu(BuildContext anchor) async {
+    final button = anchor.findRenderObject()! as RenderBox;
+    final overlay =
+        Navigator.of(anchor).overlay!.context.findRenderObject()! as RenderBox;
+    final at = button.localToGlobal(
+      Offset(0, button.size.height + 4),
+      ancestor: overlay,
+    );
+    final action = await showMenu<String>(
+      context: anchor,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(at.dx, at.dy, button.size.width, 0),
+        Offset.zero & overlay.size,
+      ),
+      constraints: menuConstraints,
+      items: [
+        menuItem(
+          anchor,
+          key: const ValueKey('open-default'),
+          value: 'open',
+          icon: Icons.open_in_new,
+          label: client.tr('用默认应用打开', 'Open in default app'),
+        ),
+        if (Platform.isWindows) ...[
+          menuItem(
+            anchor,
+            key: const ValueKey('open-with'),
+            value: 'openWith',
+            icon: Icons.apps_outlined,
+            label: client.tr('打开方式…', 'Open with…'),
+          ),
+          menuItem(
+            anchor,
+            key: const ValueKey('open-folder'),
+            value: 'reveal',
+            icon: Icons.folder_open_outlined,
+            label: client.tr('在文件夹中显示', 'Show in folder'),
+          ),
+        ],
+      ],
+    );
+    if (action != null && mounted) await openOutside(action);
+  }
 
   Future<void> deliver({required bool share}) async {
     setState(() {
@@ -438,7 +560,8 @@ class _FileViewerState extends State<FileViewer> {
   @override
   Widget build(BuildContext context) {
     final tone = context.tone;
-    final available = file['available'] == true;
+    final available = file['available'] == true, svg = isSvg(file);
+    final desktop = Platform.isWindows || Platform.isMacOS || Platform.isLinux;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -471,6 +594,26 @@ class _FileViewerState extends State<FileViewer> {
                       ),
                     );
                   },
+                ),
+              if (svg && available)
+                IconButton(
+                  key: const ValueKey('viewer-svg-source'),
+                  tooltip: source
+                      ? client.tr('查看图片', 'Show picture')
+                      : client.tr('查看源码', 'Show source'),
+                  onPressed: () => setState(() => source = !source),
+                  icon: Icon(source ? Icons.image_outlined : Icons.code),
+                ),
+              if (desktop)
+                Builder(
+                  builder: (anchor) => IconButton(
+                    key: const ValueKey('viewer-open'),
+                    tooltip: client.tr('打开', 'Open'),
+                    onPressed: available && !busy
+                        ? () => openMenu(anchor)
+                        : null,
+                    icon: const Icon(Icons.open_in_new),
+                  ),
                 ),
               IconButton(
                 tooltip: client.tr('分享文件', 'Share file'),
@@ -531,7 +674,24 @@ class _FileViewerState extends State<FileViewer> {
                       }
                       final bytes = snapshot.data!,
                           mime = file['mime'] as String;
-                      if (mime.startsWith('image/')) {
+                      if (svg && !source) {
+                        return InteractiveViewer(
+                          key: const ValueKey('viewer-svg'),
+                          minScale: .25,
+                          maxScale: 4,
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: SvgPicture.memory(
+                                bytes,
+                                semanticsLabel: '${file['name']}',
+                                errorBuilder: (_, e, _) => ErrorNotice('$e'),
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                      if (mime.startsWith('image/') && !svg) {
                         return InteractiveViewer(
                           key: const ValueKey('viewer-image'),
                           maxScale: 6,
@@ -549,7 +709,8 @@ class _FileViewerState extends State<FileViewer> {
                           sourceName: file['name'] as String,
                         );
                       }
-                      if (mime.startsWith('text/') ||
+                      if (svg ||
+                          mime.startsWith('text/') ||
                           mime == 'application/json') {
                         return ColoredBox(
                           color: tone.surface,

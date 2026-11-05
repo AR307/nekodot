@@ -981,7 +981,10 @@ class GroupAvatar extends StatelessWidget {
 
 class ErrorNotice extends StatelessWidget {
   final String text;
-  const ErrorNotice(this.text, {super.key});
+
+  /// What to do about it, such as trying again.
+  final Widget? action;
+  const ErrorNotice(this.text, {super.key, this.action});
   @override
   Widget build(BuildContext context) {
     if (text.isEmpty) return const SizedBox.shrink();
@@ -1002,6 +1005,7 @@ class ErrorNotice extends StatelessWidget {
                   ?.copyWith(color: tone.danger),
             ),
           ),
+          if (action != null) ...[const SizedBox(width: 8), action!],
         ],
       ),
     );

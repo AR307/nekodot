@@ -1021,3 +1021,27 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 暂缓、等验收：nekoDOT 品牌改名（会改 exe 名与安装目录）、原生 AI 审批卡片、原生输入框胶囊与模型选择、SVG 侧边预览与 Windows 文件操作，以及 PR 自己写的 Summary/progress 记录。
 - 真实验收（QA Relay 127.0.0.1:4459、本机 Node、官方 Hermes、真实模型）：Windows 当前源码客户端 work_steps 旅程通过，经 PR 新登录页登录，状态行依次为「本机小助手 正在思考」「正在查看首页标题并运行计算」「正在用 terminal 运行指定的 Python 命令」，完成后「2 个步骤 · 4.9s」，菜单行高 36，回车发送。内置浏览器连本地网页（4466 → QA Relay）：登录页登录成功，Gooey Nav 与 Bot 列表正常，给笔笔发「用 terminal 运行 python -c」后出现闪光「正在思考」、terminal 步骤，回复 42。官网本地预览：开场按顺序播放，停在完整首屏。
 - 未验或已知：网页 AI 审批卡片没触发真实审批（笔笔的命令不需要审批，第二次请求时节点已随旅程结束离线）。Edge 浏览器测试要加 `NODE_OPTIONS=--import=tsx` 才能加载（releases.ts 直接 import package.json，Node 24 要求 json 导入属性，自 766db25330 起）。全套 20 项：17 通过、1 跳过（screens-live 需真实 Linux 屏幕）、2 失败；失败的 groups（第 234 行等发送失败提示）与 node-update（更新提示不出现，页面显示电脑离线）换回合并前的网页代码同样失败，与本 PR 无关。foundation、groups、node-update、providers 四个旧测试仍点「继续」，已改为新登录页的「登录」/「创建账号」，groups 的「模型」输入框与新输入框的模型选择同名，改按文本框定位。运行前快照了 docs/evidence，结束后按字节恢复。原生 auth_journey 需要 Mailpit 8025，未跑。Android 模拟器与真机本轮未跑。Flutter 30 项、pnpm test 75 项、tsc、eslint、合入文件的 prettier、analyze、网页 build 通过；另有 7 个本轮未改动的文件原本就不符合 prettier。本地提交，未 push。
+
+## 2026-11-05 PR #1 暂缓项按验收决定落地
+
+- 品牌：保持小写 nekodot，PR 的 nekoDOT 改名不合入。
+- 工作状态行：Bot 干活时输入框上方那句「名字 + 正在做什么」改用 PR 的闪光文字，灰字上有白光扫过，两秒一轮；系统关闭动画时为静止灰字。
+- 审批与提问卡：保留我们的一行样式，借用 PR 的两点：
+  - 提交时只有点下的按钮闪光，其他按钮不可点；Node 接受后卡片立刻定为结果，不会在等服务器更新的间隙重新开放。
+  - 失败时错误旁有「重试」，按原选择再发一次。ErrorNotice 现在可以带一个操作按钮。
+- 输入框：
+  - 外观换成 PR 的胶囊（prompt_card.dart）：空闲时宽 320，聚焦、有内容或运行中展开到最宽 480，圆角 24，细边加柔和阴影。
+  - 展开后下方一排：左边是当前模型，点开为统一菜单卡，列出模型目录和「Bot 模型设置」；右边「＋」发文件。群聊不显示模型按钮。
+  - 右侧按钮：私聊空闲时是语音，转写结果回填到输入框（取自 PR 的 voice.dart 改动）；运行中是停止；有字时是发送。
+  - 回车发送、Ctrl+回车换行、工作状态行都不变。
+- 文件阅读器：
+  - 保留浮层。SVG 在聊天和阅读器里都直接显示为图形，可缩放（25%–400%），阅读器可切换看源码。
+  - 电脑端阅读器顶部新增「打开」菜单：用默认应用打开；Windows 另有「打开方式…」和「在文件夹中显示」。这两项取自 PR 的 Windows runner file_actions，只操作临时副本，不改原文件，也不改默认关联。
+  - 没有用 PR 的 WebView 截图渲染，改用项目里已有的 flutter_svg，少一个原生插件；代价是 SVG 滤镜（阴影、模糊）不显示。
+- 修正：交给系统的临时副本路径原先混用 / 和 \，Windows「在文件夹中显示」报 0x80070057；现在统一用系统分隔符。
+- 真实验收（QA Relay 127.0.0.1:4459、本机 Node、官方 Hermes、真实模型），work_steps 旅程扩充：
+  - Windows 当前源码客户端：胶囊空闲 320、展开 480，模型菜单列出 gpt-6.1-sol 与「Bot 模型设置」，状态行依次为「本机小助手 正在思考」「正在查看首页标题并运行计算」「正在运行指定的 Python 命令」，2 个步骤。之后 Bot 用 terminal 生成 badge.svg 并交付，渐变在聊天和阅读器里都正确显示；源码视图含 <svg；「在文件夹中显示」打开资源管理器并选中临时副本。
+  - Android 模拟器 NekodotNativePhase3（节点由新预览版托管）同一旅程通过：胶囊 320 展开到手机宽 387，菜单行高 44，SVG 在聊天、阅读器、源码视图都正常；手机上没有「打开」菜单，用分享代替。
+  - 截图：docs/evidence/work-steps-windows-composer-model.png、work-steps-windows-drawing-chat.png、work-steps-windows-viewer-open-menu.png、work-steps-android-composer-model.png、work-steps-android-drawing-chat.png、work-steps-android-viewer-drawing.png。
+- 模拟器：NekodotNativePhase3 以 GPU 模式启动时连续崩溃（崩溃信息 bad color buffer handle），冷启动也一样。本轮改用 `-gpu swiftshader_indirect` 启动，AVD 配置未改，未 wipe-data。崩溃报告未发送。
+- 未验或已知：两次真实运行都没有触发审批，所以审批卡的「提交中锁定 / 立即定结果 / 失败重试」只在代码和组件层面完成，真实审批未再跑；「用默认应用打开」「打开方式…」只验了菜单出现，没有实际打开外部程序；macOS、Linux 与 Android 真机未验。Flutter 35 项测试与 analyze 通过。本地提交，未 push。

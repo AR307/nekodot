@@ -9,15 +9,18 @@ import '../data/client.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
 import '../ui/message_markdown.dart';
+import '../ui/prompt_card.dart';
 import '../screen/viewer.dart';
 import 'bot_details.dart';
 import 'bot_editor.dart';
+import 'chat_model_picker.dart';
 import 'files.dart';
 import 'commands.dart';
 import 'client_commands.dart';
 import 'routines.dart';
 import 'secrets.dart';
 import 'sessions.dart';
+import 'voice.dart';
 import 'work.dart';
 
 class ChatPage extends StatefulWidget {
@@ -304,6 +307,25 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
           );
           if (!mounted) return;
         }
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    }
+  }
+
+  /// Switches the Bot's model from the composer, or opens its model settings.
+  Future<void> pickModel(BuildContext anchor, Json bot) async {
+    final nodeId = c.selectedNodeId;
+    try {
+      final picked = await pickChatModel(anchor, c, bot);
+      if (!mounted || picked == null || nodeId != c.selectedNodeId) return;
+      if (picked.isEmpty) {
+        await pushPage(context, BotEditor(client: c, existing: bot));
+      } else if (picked != bot['model']) {
+        await c.rpc('bots.update', {
+          'botId': bot['botId'],
+          'model': picked,
+        }, nodeId);
       }
     } catch (e) {
       if (mounted) setState(() => error = '$e');
@@ -677,112 +699,160 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                   SizedBox(width: WindowChrome.reserved(context)),
               ],
             );
-      final composerRow = Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          IconButton(
-            tooltip: c.tr('发送文件或图片', 'Attach file or image'),
-            onPressed: !c.online || uploading || sending ? null : attachFile,
-            icon: const Icon(Icons.add_circle_outline),
+      final composerField = Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        // Enter sends, Ctrl+Enter starts a new line. While an input method is
+        // composing, Enter is its own.
+        onKeyEvent: (node, event) {
+          if (event is KeyUpEvent ||
+              (event.logicalKey != LogicalKeyboardKey.enter &&
+                  event.logicalKey != LogicalKeyboardKey.numpadEnter)) {
+            return KeyEventResult.ignored;
+          }
+          final value = input.value;
+          if (value.composing.isValid && !value.composing.isCollapsed) {
+            return KeyEventResult.ignored;
+          }
+          if (HardwareKeyboard.instance.isControlPressed) {
+            final at = value.selection.isValid
+                ? value.selection
+                : TextSelection.collapsed(offset: value.text.length);
+            input.value = value.replaced(at, '\n');
+            return KeyEventResult.handled;
+          }
+          if ((!waiting || queueCommand) && c.online) send();
+          return KeyEventResult.handled;
+        },
+        child: TextField(
+          key: const ValueKey('chat-input'),
+          controller: input,
+          minLines: 1,
+          maxLines: 7,
+          textCapitalization: TextCapitalization.sentences,
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            filled: false,
+            isDense: true,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 6),
+            hintText: c.tr('发消息', 'Message'),
           ),
-          Expanded(
-            child: Focus(
-              canRequestFocus: false,
-              skipTraversal: true,
-              // Enter sends, Ctrl+Enter starts a new line. While an input
-              // method is composing, Enter is its own.
-              onKeyEvent: (node, event) {
-                if (event is KeyUpEvent ||
-                    (event.logicalKey != LogicalKeyboardKey.enter &&
-                        event.logicalKey != LogicalKeyboardKey.numpadEnter)) {
-                  return KeyEventResult.ignored;
-                }
-                final value = input.value;
-                if (value.composing.isValid && !value.composing.isCollapsed) {
-                  return KeyEventResult.ignored;
-                }
-                if (HardwareKeyboard.instance.isControlPressed) {
-                  final at = value.selection.isValid
-                      ? value.selection
-                      : TextSelection.collapsed(offset: value.text.length);
-                  input.value = value.replaced(at, '\n');
-                  return KeyEventResult.handled;
-                }
-                if ((!waiting || queueCommand) && c.online) send();
-                return KeyEventResult.handled;
-              },
-              child: TextField(
-                key: const ValueKey('chat-input'),
-                controller: input,
-                minLines: 1,
-                maxLines: 7,
-                textCapitalization: TextCapitalization.sentences,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  filled: false,
-                  isDense: true,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  disabledBorder: InputBorder.none,
-                  // CJK glyphs sit low on the Latin baseline; lift them onto the button's line.
-                  contentPadding: EdgeInsets.fromLTRB(
-                    8,
-                    tone.glass ? 11 : 2,
-                    8,
-                    tone.glass ? 15 : 6,
+        ),
+      );
+      final roundAction = IconButton.styleFrom(
+        fixedSize: const Size.square(32),
+        minimumSize: const Size.square(32),
+        padding: EdgeInsets.zero,
+        iconSize: 17,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: const CircleBorder(),
+        backgroundColor: tone.ink,
+        foregroundColor: tone.base,
+        disabledBackgroundColor: tone.raised,
+        disabledForegroundColor: tone.ink3,
+      );
+      // Under the words once the capsule opens: the Bot's model, then files.
+      final composerTools = Row(
+        children: [
+          if (group == null && bot != null)
+            Flexible(
+              child: Builder(
+                builder: (anchor) => TextButton(
+                  key: const ValueKey('composer-model'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: tone.ink2,
+                    textStyle: const TextStyle(fontSize: 13),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    minimumSize: const Size(0, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  hintText: c.tr('发消息', 'Message'),
+                  onPressed: c.online ? () => pickModel(anchor, bot) : null,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          '${bot['model'] ?? c.tr('模型设置', 'Model settings')}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(Icons.keyboard_arrow_down, size: 16),
+                    ],
+                  ),
                 ),
               ),
             ),
+          const Spacer(),
+          IconButton(
+            tooltip: c.tr('发送文件或图片', 'Attach file or image'),
+            onPressed: !c.online || uploading || sending ? null : attachFile,
+            iconSize: 19,
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.add),
           ),
+        ],
+      );
+      final canSend =
+          c.online &&
+          (!waiting || queueCommand) &&
+          !sending &&
+          !uploading &&
+          !(commandOperation?['status'] == 'running' &&
+              !(sideCommand && !input.text.startsWith('/'))) &&
+          hasText;
+      final composerAction = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (group == null && bot != null && !hasText && !running)
+            IconButton.filled(
+              key: const ValueKey('composer-voice'),
+              tooltip: c.tr('语音', 'Voice'),
+              style: roundAction,
+              onPressed: !c.online || uploading || sending || waiting
+                  ? null
+                  : () => pushPage(
+                      context,
+                      VoicePage(
+                        client: c,
+                        botId: '${bot['botId']}',
+                        onTranscript: (text) {
+                          input.text = [
+                            input.text,
+                            text,
+                          ].where((part) => part.isNotEmpty).join(' ');
+                          input.selection = TextSelection.collapsed(
+                            offset: input.text.length,
+                          );
+                          setState(() {});
+                        },
+                      ),
+                    ),
+              icon: const Icon(Icons.mic_none),
+            ),
           if (running)
             IconButton.filled(
               tooltip: c.tr('停止', 'Stop'),
-              style: IconButton.styleFrom(
-                fixedSize: Size.square(tone.control - 4),
-                minimumSize: Size.square(tone.control - 4),
-                padding: EdgeInsets.zero,
-                iconSize: tone.icon - 2,
-                tapTargetSize: tone.glass
-                    ? MaterialTapTargetSize.padded
-                    : MaterialTapTargetSize.shrinkWrap,
-                shape: const CircleBorder(),
-                backgroundColor: hasText ? tone.raised : tone.ink,
-                foregroundColor: hasText ? tone.ink : tone.base,
-              ),
+              style: hasText
+                  ? roundAction.copyWith(
+                      backgroundColor: WidgetStatePropertyAll(tone.raised),
+                      foregroundColor: WidgetStatePropertyAll(tone.ink),
+                    )
+                  : roundAction,
               onPressed: c.online ? stop : null,
               icon: const Icon(Icons.stop),
             ),
-          if (!running || hasText) ...[
+          if (hasText || (!running && (group != null || bot == null))) ...[
             const SizedBox(width: 4),
             IconButton.filled(
               tooltip: c.tr('发送', 'Send'),
-              style: IconButton.styleFrom(
-                fixedSize: Size.square(tone.control - 4),
-                minimumSize: Size.square(tone.control - 4),
-                padding: EdgeInsets.zero,
-                iconSize: tone.icon - 2,
-                tapTargetSize: tone.glass
-                    ? MaterialTapTargetSize.padded
-                    : MaterialTapTargetSize.shrinkWrap,
-                shape: const CircleBorder(),
-                backgroundColor: tone.ink,
-                foregroundColor: tone.base,
-                disabledBackgroundColor: tone.raised,
-                disabledForegroundColor: tone.ink3,
-              ),
-              onPressed:
-                  !c.online ||
-                      (waiting && !queueCommand) ||
-                      sending ||
-                      uploading ||
-                      (commandOperation?['status'] == 'running' &&
-                          !(sideCommand && !input.text.startsWith('/'))) ||
-                      !hasText
-                  ? null
-                  : send,
+              style: roundAction,
+              onPressed: canSend ? send : null,
               icon: const Icon(Icons.arrow_upward),
             ),
           ],
@@ -911,23 +981,14 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                         ],
                       ),
                     ),
-                  if (tone.glass)
-                    Panel(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: composerRow,
-                      ),
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(4, 6, 6, 6),
-                      decoration: BoxDecoration(
-                        color: tone.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: tone.rest,
-                      ),
-                      child: composerRow,
-                    ),
+                  PromptCard(
+                    key: const ValueKey('composer-card'),
+                    field: composerField,
+                    tools: composerTools,
+                    action: composerAction,
+                    hasContent: hasText || uploading,
+                    running: running,
+                  ),
                   if (c.chatDisplay['statusbar'] == true ||
                       c.chatDisplay['battery'] == true)
                     Padding(
@@ -1107,11 +1168,9 @@ class ThinkingRow extends StatelessWidget {
               alignment: Alignment.centerLeft,
               children: [...previous, ?current],
             ),
-            child: Text(
-              line,
+            child: ShiningText(
               key: ValueKey(line),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              text: line,
               style: Theme.of(context).textTheme.bodyMedium
                   ?.copyWith(color: context.tone.ink3),
             ),
@@ -1478,8 +1537,12 @@ class ControlCard extends StatefulWidget {
 class _ControlCardState extends State<ControlCard> {
   final answer = TextEditingController();
   final selected = <String>{};
-  bool busy = false, unfolded = false;
+  bool unfolded = false;
   String error = '';
+
+  /// The choice being sent, the one the Node accepted (final even before the
+  /// card's own update arrives), and the last one tried, for a retry.
+  String? sending, sent, tried;
   @override
   void dispose() {
     answer.dispose();
@@ -1487,8 +1550,9 @@ class _ControlCardState extends State<ControlCard> {
   }
 
   Future<void> respond(String value) async {
+    if (sending != null || sent != null) return;
     setState(() {
-      busy = true;
+      sending = tried = value;
       error = '';
     });
     final question = widget.message['kind'] == 'question';
@@ -1500,10 +1564,11 @@ class _ControlCardState extends State<ControlCard> {
           question ? 'answer' : 'choice': value,
         },
       );
+      if (mounted) setState(() => sent = value);
     } catch (e) {
       if (mounted) setState(() => error = '$e');
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) setState(() => sending = null);
     }
   }
 
@@ -1515,12 +1580,12 @@ class _ControlCardState extends State<ControlCard> {
         text = Theme.of(context).textTheme,
         data = object(m['content']),
         question = m['kind'] == 'question',
-        pending = m['status'] == 'streaming',
+        pending = m['status'] == 'streaming' && sent == null,
         multi = data['multiSelect'] == true,
-        open = c.online && !busy,
+        open = c.online && sending == null,
             // An interrupted question or approval ends without an answer.
             answered =
-            data['answer'] ?? data['choice'];
+            data['answer'] ?? data['choice'] ?? sent;
     String label(Object? choice) => switch (choice) {
       'once' => c.tr('允许一次', 'Allow once'),
       'session' => c.tr('本会话允许', 'Allow session'),
@@ -1536,6 +1601,15 @@ class _ControlCardState extends State<ControlCard> {
       if (selected.isEmpty && typed.isEmpty) return;
       respond([...selected, if (typed.isNotEmpty) typed].join('\n'));
     }
+
+    // A send that failed can be tried again as it was.
+    final retry = tried == null || !pending
+        ? null
+        : TextButton(
+            key: const ValueKey('control-retry'),
+            onPressed: open ? () => respond(tried!) : null,
+            child: Text(c.tr('重试', 'Retry')),
+          );
 
     if (!question) {
       // A command waiting for you sits in the same line as the steps do, with
@@ -1606,7 +1680,9 @@ class _ControlCardState extends State<ControlCard> {
                               onPressed: !open
                                   ? null
                                   : () => respond('$choice'),
-                              child: Text(label(choice)),
+                              child: sending == '$choice'
+                                  ? ShiningText(text: label(choice))
+                                  : Text(label(choice)),
                             )
                           : OutlinedButton(
                               key: ValueKey('choice-${m['messageId']}-$index'),
@@ -1614,12 +1690,14 @@ class _ControlCardState extends State<ControlCard> {
                               onPressed: !open
                                   ? null
                                   : () => respond('$choice'),
-                              child: Text(label(choice)),
+                              child: sending == '$choice'
+                                  ? ShiningText(text: label(choice))
+                                  : Text(label(choice)),
                             ),
                   ],
                 ),
               ),
-            ErrorNotice(error),
+            ErrorNotice(error, action: retry),
           ],
         ),
       );
@@ -1720,7 +1798,7 @@ class _ControlCardState extends State<ControlCard> {
                 ),
               ),
           ],
-          ErrorNotice(error),
+          ErrorNotice(error, action: retry),
         ],
       ),
     );

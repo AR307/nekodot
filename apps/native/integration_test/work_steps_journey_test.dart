@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
 import 'package:nekodot_native/features/chat.dart';
@@ -347,6 +349,42 @@ void main() {
     // Ctrl+Enter only starts a new line; Enter while an input method is
     // composing is the input method's; Enter sends.
     final field = tester.widget<TextField>(input).controller!;
+    // At rest the composer is a narrow capsule; typing in it opens it wider,
+    // with the Bot's model under the words.
+    final capsule = find.byKey(const ValueKey('composer-card'));
+    field.clear();
+    FocusManager.instance.primaryFocus?.unfocus();
+    await settle(700);
+    final restWidth = tester.getSize(capsule).width;
+    expect(restWidth, lessThanOrEqualTo(320));
+    expect(find.byKey(const ValueKey('composer-model')), findsNothing);
+    await tap(input);
+    await settle(700);
+    final openWidth = tester.getSize(capsule).width;
+    expect(openWidth, greaterThan(restWidth));
+    expect(openWidth, lessThanOrEqualTo(480));
+    note('composerWidths', [restWidth, openWidth]);
+    await tap(find.byKey(const ValueKey('composer-model')));
+    await until(
+      () => find.byKey(const ValueKey('model-settings')).evaluate().isNotEmpty,
+      what: 'model menu',
+    );
+    expect(find.byKey(ValueKey('model-${bot['model']}')), findsOneWidget);
+    note('modelMenu', [
+      for (final row
+          in find
+              .byWidgetPredicate(
+                (w) =>
+                    w is PopupMenuItem<String> &&
+                    '${w.key}'.contains("'model-"),
+              )
+              .evaluate())
+        '${row.widget.key}',
+    ]);
+    await shot('composer-model');
+    Navigator.of(tester.element(find.byKey(const ValueKey('model-settings'))))
+        .pop();
+    await settle(400);
     await tap(input);
     field.value = const TextEditingValue(
       text: '第一行',
@@ -547,6 +585,121 @@ void main() {
     expect(labels.any((l) => l.startsWith('{')), isFalse);
     await reveal(box);
     await shot('done-open');
+    expect(tester.takeException(), isNull);
+
+    // A drawing the Bot makes shows as a drawing in the chat and in the
+    // viewer, its source a tap away; on Windows the viewer hands it to the
+    // system too.
+    final before = messages().map((m) => m['messageId']).toSet();
+    const drawingTask =
+        '用 terminal 工具在你的工作目录里写一个 SVG 文件 badge.svg：240x120，'
+        '一个圆角矩形，用从橙色到紫色的线性渐变填充，中间写白色文字 nekodot。'
+        '回复里用单独一行 MEDIA:<文件的绝对路径> 把它发给我，再写一句“图发你了”。';
+    await tap(input);
+    field.value = const TextEditingValue(
+      text: drawingTask,
+      selection: TextSelection.collapsed(offset: drawingTask.length),
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    Json? drawing;
+    final drawingEnd = DateTime.now().add(const Duration(seconds: 420));
+    while (DateTime.now().isBefore(drawingEnd)) {
+      final pending = messages()
+          .where((m) => m['kind'] == 'approval' && m['status'] == 'streaming')
+          .lastOrNull;
+      final allow = pending == null
+          ? null
+          : find.byKey(ValueKey('choice-${pending['messageId']}-0'));
+      if (allow != null && allow.evaluate().isNotEmpty) {
+        await tap(allow);
+        continue;
+      }
+      drawing = messages()
+          .where(
+            (m) =>
+                !before.contains(m['messageId']) &&
+                m['kind'] == 'text' &&
+                m['status'] == 'done' &&
+                (m['content']['files'] as List?)?.isNotEmpty == true,
+          )
+          .lastOrNull;
+      if (drawing != null && idle()) break;
+      await tester.pump(const Duration(milliseconds: 150));
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+    }
+    expect(drawing, isNotNull, reason: 'the Bot delivered the drawing');
+    final delivered = [
+      for (final fileId in drawing!['content']['files'] as List)
+        await client.rpc('files.get', {'fileId': fileId}),
+    ];
+    final svgFile = delivered.firstWhere(isSvg);
+    note('drawing', {'name': svgFile['name'], 'mime': svgFile['mime']});
+    final drawingCard = find.byWidgetPredicate(
+      (w) => w is FileCard && w.fileId == svgFile['fileId'],
+    );
+    final drawn = find.descendant(
+      of: drawingCard,
+      matching: find.byType(SvgPicture),
+    );
+    await until(() => drawn.evaluate().isNotEmpty, what: 'drawing in chat');
+    await reveal(drawingCard);
+    await shot('drawing-chat');
+    await tap(drawn);
+    final viewerDrawing = find.byKey(const ValueKey('viewer-svg'));
+    await until(
+      () => viewerDrawing.evaluate().isNotEmpty,
+      what: 'drawing in the viewer',
+    );
+    expect(
+      find.descendant(of: viewerDrawing, matching: find.byType(SvgPicture)),
+      findsOneWidget,
+    );
+    expect(find.byType(Dialog), findsOneWidget);
+    await shot('viewer-drawing');
+    await tap(find.byKey(const ValueKey('viewer-svg-source')));
+    final source = find.byKey(const ValueKey('viewer-text'));
+    await until(() => source.evaluate().isNotEmpty, what: 'drawing source');
+    expect(tester.widget<SelectableText>(source).data, contains('<svg'));
+    await shot('viewer-drawing-source');
+    if (!android) {
+      await tap(find.byKey(const ValueKey('viewer-open')));
+      await until(
+        () => find.byKey(const ValueKey('open-folder')).evaluate().isNotEmpty,
+        what: 'open menu',
+      );
+      expect(find.byKey(const ValueKey('open-default')), findsOneWidget);
+      expect(find.byKey(const ValueKey('open-with')), findsOneWidget);
+      await shot('viewer-open-menu');
+      await tap(find.byKey(const ValueKey('open-folder')));
+      await settle(2500);
+      final failed = find.descendant(
+        of: find.byType(FileViewer),
+        matching: find.byType(ErrorNotice),
+      );
+      if (failed.evaluate().isNotEmpty) {
+        note('openError', tester.widget<ErrorNotice>(failed).text);
+      }
+      expect(failed, findsNothing);
+      final temporary = await getTemporaryDirectory();
+      final copies = Directory('${temporary.path}/nekodot-files')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith(safeFileName('${svgFile['name']}')))
+          .toList();
+      expect(copies, isNotEmpty);
+      note(
+        'shownInFolder',
+        copies.last.path.split(Platform.pathSeparator).last,
+      );
+    }
+    await tap(
+      find.descendant(
+        of: find.byType(FileViewer),
+        matching: find.byTooltip('关闭'),
+      ),
+    );
+    await until(() => find.byType(FileViewer).evaluate().isEmpty);
     expect(tester.takeException(), isNull);
 
     if (!android && hold) {
