@@ -212,8 +212,16 @@ class RuntimeInstaller {
         await Link(cache).create(shared.path);
       }
     }
-    // A fresh account uses the shipped baseline. Hermes creates a private PM generation
-    // only when that account adds dependencies; no all-extras install or frontend build.
+    // PM no-ops against the shipped baseline for new accounts. On a package
+    // update it prepares existing plugin dependencies in this account's private
+    // generation; discovery alone would otherwise leave those plugins unloadable.
+    final sync = await runOwned(
+      location.launcher,
+      ['pm', 'install', '--extra', 'all'],
+      workingDirectory: home,
+      environment: _environment(home),
+    );
+    if (sync.code != 0) throw InstallFailure('account', sync.output);
     final result = await runOwned(
       location.launcher,
       ['--version'],

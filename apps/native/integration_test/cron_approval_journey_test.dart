@@ -38,6 +38,10 @@ void main() {
     final file = reuseRoutine
         ? const String.fromEnvironment('QA_EXISTING_FILE')
         : '${const String.fromEnvironment('QA_WORK_DIR').replaceAll('\\', '/')}/$name.txt';
+    // A Windows candidate may drive a Linux VPS; its result file is checked on
+    // that host separately, never interpreted as a Windows-local path.
+    final localFile =
+        Platform.isWindows && RegExp(r'^[A-Za-z]:/').hasMatch(file);
     final report = <String, Object?>{'platform': platform, 'task': name};
     void note(String key, Object? value) {
       report[key] = value;
@@ -431,7 +435,7 @@ void main() {
       await shot('followup');
       detail = await client.rpc('routines.get', target);
       expect(objects(detail['executions']).length, 1);
-      if (Platform.isWindows) expect(await File(file).readAsLines(), [token]);
+      if (localFile) expect(await File(file).readAsLines(), [token]);
       note('selectedFollowupWithoutRerun', true);
       await submit('/cron resume $jobId');
       await configure(
@@ -450,7 +454,7 @@ void main() {
         ),
         'Explicit denial returns a real result',
       );
-      if (Platform.isWindows) expect(await File(file).readAsLines(), [token]);
+      if (localFile) expect(await File(file).readAsLines(), [token]);
       note('denyDidNotExecuteScript', true);
       await until(
         () => tester.widget<TextField>(input).controller!.text.isEmpty,
@@ -498,7 +502,7 @@ void main() {
         ?.group(0);
     expect(autoToken, isNotNull);
     expect(autoToken, isNot(token));
-    if (Platform.isWindows) {
+    if (localFile) {
       expect(await File(file).readAsLines(), [token, autoToken]);
     }
     note('autoAllowResult', autoToken);

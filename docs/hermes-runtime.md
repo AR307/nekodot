@@ -45,7 +45,7 @@ data/accounts/<userId>/
   ...                         # 原有节点身份、数据库、工作目录
 ```
 
-新账号直接使用包内基线。新增插件依赖由官方 PM 在该账号内建立可变环境，不修改共享基线，不合并不同账号的 Python 环境。Hermes PM 使用其 home 下的 `cache`，因此新账号用 Windows junction / POSIX symlink 指向安装级缓存；只设 `UV_CACHE_DIR` 不足以影响 PM。已有缓存目录不搬动。
+账号准备执行官方 `hermes pm install --extra all`：新账号匹配包内基线时为 no-op，不新建环境；更新运行包后按已有插件配置准备该账号的可变环境。新增插件依赖不修改共享基线，不合并不同账号的 Python 环境。Hermes PM 使用其 home 下的 `cache`，因此新账号用 Windows junction / POSIX symlink 指向安装级缓存；只设 `UV_CACHE_DIR` 不足以影响 PM。已有缓存目录不搬动。
 
 VPS 安装使用同一 Linux 包与官方 launcher，并保留现有 systemd user service、账号身份和历史。普通 Linux VPS 默认准备屏幕系统库；WSL 不启用 VPS 桌面。
 

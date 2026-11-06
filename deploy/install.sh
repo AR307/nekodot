@@ -167,6 +167,7 @@ printf '%s\n' 'Preparing the official Hermes runtime...'
 if [ ! -f "$HERMES_HOME/config.yaml" ]; then
   cp "$payload/hermes-agent/cli-config.yaml.example" "$HERMES_HOME/config.yaml"
 fi
+"$payload/bin/hermes" pm install --extra all
 "$payload/bin/hermes" --version
 if ! grep -qi microsoft /proc/sys/kernel/osrelease; then
   printf '%s\n' 'Installing the official Hermes computer-use runtime and screen packages...'

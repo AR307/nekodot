@@ -175,7 +175,12 @@ void main() {
     );
     await tap(find.widgetWithText(FilledButton, '发送'));
     await until(() => find.byType(AlertDialog).evaluate().isEmpty);
-    await until(() => find.byType(LinearProgressIndicator).evaluate().isEmpty);
+    await until(
+      () => find
+          .byKey(const ValueKey('routine-test-receipt'))
+          .evaluate()
+          .isNotEmpty,
+    );
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('routine-test-receipt')),
       200,
