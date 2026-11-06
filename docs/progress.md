@@ -1,5 +1,11 @@
 # 开发进度
 
+## 2026-11-06 合并群聊接力修复并在真实环境复验
+
+- 合并 `claude/kind-dhawan-963e62`（`f23294893b`），仅 Summary/progress 冲突，保留双方。旧 Node 提示修复已在 `1dba4f62b1`，与分支提交内容一致。
+- 门禁：lint、typecheck、Vitest 45/83、Web 构建、`build:distribution`；E2E 9 项通过（群聊、旧 Node 更新、私聊 2、探针 4、键盘）。
+- 真实复验：重启本机部署（节点约 25s 上线）。`ergonomics-live-group.spec.ts` 本轮失败——主答在宽泛提示下自行写出小核的补充而未交接（F25）；改用点名两位成员的一次性检查，@1 22.3s、小核 26.8s 完成，无失败标签。F21 在真实表单预览中验证，未提交新建。一次性检查脚本与截图在忽略的 `.runtime/ergonomics/`。仅本地提交。
+
 ## 2026-11-05 原生客户端：Bot 附件安全打开（Windows）
 
 - `file_actions.cpp`：可执行/脚本类型拒绝直接打开，预览副本写入 Mark of the Web；`file_preview.dart`：`blocked_type` 中英文说明。
