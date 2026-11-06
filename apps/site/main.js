@@ -319,7 +319,7 @@ const en = {
   openP3: 'Want to run the whole service yourself? The steps are on GitHub',
   startTitle: 'Three steps to start',
   downloadNote:
-    'Release 0.3.1. Windows 10 / 11 x64; the installer is not yet publisher-signed. Android 10 and later, arm64; the APK is signed. No macOS or Linux desktop installers yet.',
+    'Release 0.3.2. Windows 10 / 11 x64; the installer is not yet publisher-signed. Android 10 and later, arm64; the APK is signed. No macOS or Linux desktop installers yet.',
   s1Title: 'Download the app and sign up with email',
   s1Body: 'Enter the code we send you, and you are in.',
   s2Title: 'Pick a computer for your bots',
@@ -388,7 +388,7 @@ const currentTheme = () => root.dataset.theme ?? (systemDark.matches ? 'dark' : 
 function applyTheme() {
   const theme = currentTheme();
   document.querySelectorAll('img[data-shot]').forEach((image) => {
-    const next = `assets/shots/${image.dataset.shot}-${theme}.webp?v=0.3.1-20261105`;
+    const next = `assets/shots/${image.dataset.shot}-${theme}.webp?v=0.3.2-20261106`;
     if (!image.src.endsWith(next)) image.src = next;
   });
   document.querySelector('meta[name="theme-color"]').content =
