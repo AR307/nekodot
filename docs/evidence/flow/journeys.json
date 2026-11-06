@@ -1,0 +1,984 @@
+{
+  "flow-windows": {
+    "platform": "windows",
+    "model": "gpt-6.1-sol",
+    "privateState": "done",
+    "groupState": "done",
+    "privateSteps": [
+      {
+        "kind": "bot",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "read",
+        "state": "done",
+        "tool": "read_file"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "code",
+        "state": "done",
+        "tool": "execute_code"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "write",
+        "state": "done",
+        "tool": "write_file"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "read",
+        "state": "done",
+        "tool": "read_file"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null
+      }
+    ],
+    "groupSteps": [
+      {
+        "kind": "bot",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "tool",
+        "state": "done",
+        "tool": "skill_view",
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "search",
+        "state": "done",
+        "tool": "web_search",
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "browser",
+        "state": "done",
+        "tool": "browser_exec",
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-dsandb"
+      },
+      {
+        "kind": "bot",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-wt5psv"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-wt5psv"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-wt5psv"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-wt5psv"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-wt5psv"
+      },
+      {
+        "kind": "tool",
+        "state": "done",
+        "tool": "skill_view",
+        "botId": "nk-wt5psv"
+      },
+      {
+        "kind": "read",
+        "state": "done",
+        "tool": "read_file",
+        "botId": "nk-wt5psv"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-wt5psv"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-wt5psv"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-wt5psv"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-wt5psv"
+      },
+      {
+        "kind": "code",
+        "state": "done",
+        "tool": "execute_code",
+        "botId": "nk-wt5psv"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-wt5psv"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-wt5psv"
+      },
+      {
+        "kind": "bot",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-ypxzne"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-ypxzne"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-ypxzne"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-ypxzne"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-ypxzne"
+      },
+      {
+        "kind": "tool",
+        "state": "done",
+        "tool": "skill_view",
+        "botId": "nk-ypxzne"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-ypxzne"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-ypxzne"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-ypxzne"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-ypxzne"
+      },
+      {
+        "kind": "write",
+        "state": "done",
+        "tool": "write_file",
+        "botId": "nk-ypxzne"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-ypxzne"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "botId": "nk-ypxzne"
+      }
+    ],
+    "observed": {
+      "df8776d2-f7ec-411f-8a36-f1b57e6224bf": [
+        "bot:done",
+        "thinking:done",
+        "reply:done",
+        "bot:running",
+        "thinking:running",
+        "reply:running",
+        "read:running",
+        "read:done",
+        "code:running",
+        "code:done",
+        "write:running",
+        "write:done"
+      ],
+      "2b397ceb-84ab-450f-ab11-c311f560edb6": ["bot:done", "thinking:done", "reply:done"],
+      "800d7b04-098f-427c-b041-395409841b41": ["bot:done", "thinking:done", "reply:done"],
+      "e647262e-20ff-4aff-aff8-088caed27820": [
+        "bot:running",
+        "thinking:running",
+        "thinking:done",
+        "reply:running",
+        "reply:done",
+        "tool:running",
+        "tool:done",
+        "search:running",
+        "search:done",
+        "browser:running",
+        "browser:done",
+        "bot:done",
+        "read:running",
+        "read:done",
+        "code:running",
+        "code:done",
+        "write:running",
+        "write:done"
+      ]
+    }
+  },
+  "flow-plan-windows": {
+    "platform": "windows",
+    "model": "gpt-6.1-sol",
+    "outputFile": "flow-plan-windows-1793939533219.md",
+    "flowId": "01cddadb9cd94572b8d540278710c60e",
+    "nativePlans": [
+      {
+        "title": "读取数据",
+        "state": "done"
+      },
+      {
+        "title": "计算均值",
+        "state": "running"
+      },
+      {
+        "title": "写入报告",
+        "state": "pending"
+      }
+    ],
+    "steps": [
+      {
+        "kind": "bot",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      },
+      {
+        "kind": "tool",
+        "state": "done",
+        "tool": "todo_list",
+        "parent": null
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:read"
+      },
+      {
+        "kind": "plan",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      },
+      {
+        "kind": "plan",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      },
+      {
+        "kind": "plan",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:read"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:read"
+      },
+      {
+        "kind": "read",
+        "state": "done",
+        "tool": "read_file",
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:read"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:read"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:read"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:read"
+      },
+      {
+        "kind": "tool",
+        "state": "done",
+        "tool": "todo_list",
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:read"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:analyse"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:analyse"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:analyse"
+      },
+      {
+        "kind": "code",
+        "state": "done",
+        "tool": "execute_code",
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:analyse"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:analyse"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:analyse"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:analyse"
+      },
+      {
+        "kind": "tool",
+        "state": "done",
+        "tool": "todo_list",
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:analyse"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:write"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:write"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:write"
+      },
+      {
+        "kind": "write",
+        "state": "done",
+        "tool": "write_file",
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:write"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:write"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:write"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:write"
+      },
+      {
+        "kind": "read",
+        "state": "done",
+        "tool": "read_file",
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:write"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:write"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:write"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:write"
+      },
+      {
+        "kind": "tool",
+        "state": "done",
+        "tool": "todo_list",
+        "parent": "01cddadb9cd94572b8d540278710c60e:plan:write"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      }
+    ],
+    "autoCollapsed": true,
+    "manualExpand": true,
+    "reconnectSameRun": true,
+    "backPreservesChat": false
+  },
+  "flow-plan-android": {
+    "platform": "android",
+    "model": "gpt-6.1-sol",
+    "outputFile": "flow-plan-android-1793939868244.md",
+    "flowId": "09fd1db29784476bb0f7e32454271d5a",
+    "nativePlans": [
+      {
+        "title": "读取数据",
+        "state": "done"
+      },
+      {
+        "title": "计算均值",
+        "state": "running"
+      },
+      {
+        "title": "写入报告",
+        "state": "pending"
+      }
+    ],
+    "steps": [
+      {
+        "kind": "bot",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      },
+      {
+        "kind": "tool",
+        "state": "done",
+        "tool": "todo_list",
+        "parent": null
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:read"
+      },
+      {
+        "kind": "plan",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      },
+      {
+        "kind": "plan",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      },
+      {
+        "kind": "plan",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:read"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:read"
+      },
+      {
+        "kind": "read",
+        "state": "done",
+        "tool": "read_file",
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:read"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:read"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:read"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:read"
+      },
+      {
+        "kind": "tool",
+        "state": "done",
+        "tool": "todo_list",
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:read"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:analyse"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:analyse"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:analyse"
+      },
+      {
+        "kind": "code",
+        "state": "done",
+        "tool": "execute_code",
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:analyse"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:analyse"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:analyse"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:analyse"
+      },
+      {
+        "kind": "tool",
+        "state": "done",
+        "tool": "todo_list",
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:analyse"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:write"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:write"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:write"
+      },
+      {
+        "kind": "write",
+        "state": "done",
+        "tool": "write_file",
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:write"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:write"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:write"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:write"
+      },
+      {
+        "kind": "read",
+        "state": "done",
+        "tool": "read_file",
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:write"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:write"
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:write"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:write"
+      },
+      {
+        "kind": "tool",
+        "state": "done",
+        "tool": "todo_list",
+        "parent": "09fd1db29784476bb0f7e32454271d5a:plan:write"
+      },
+      {
+        "kind": "thinking",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      },
+      {
+        "kind": "reply",
+        "state": "done",
+        "tool": null,
+        "parent": null
+      }
+    ],
+    "autoCollapsed": true,
+    "manualExpand": true,
+    "reconnectSameRun": true,
+    "backPreservesChat": true
+  },
+  "flow-view-windows": {
+    "platform": "windows",
+    "viewOnly": true,
+    "sameFlowSeq": true,
+    "planFlow": "09fd1db29784476bb0f7e32454271d5a",
+    "groupFlow": "283b385e-35e5-4479-964f-48d5c9f1f277",
+    "groupTurns": 3,
+    "landscape": false,
+    "backPreservesChat": false,
+    "reducedMotion": true,
+    "compactNode": 32,
+    "rowExtent": 56
+  },
+  "flow-view-android": {
+    "platform": "android",
+    "viewOnly": true,
+    "sameFlowSeq": true,
+    "planFlow": "09fd1db29784476bb0f7e32454271d5a",
+    "groupFlow": "283b385e-35e5-4479-964f-48d5c9f1f277",
+    "groupTurns": 3,
+    "landscape": true,
+    "backPreservesChat": true,
+    "reducedMotion": true,
+    "compactNode": 32,
+    "rowExtent": 56
+  },
+  "flow-controls-windows": {
+    "platform": "windows",
+    "question": false,
+    "approval": false,
+    "toolFailure": false,
+    "steer": true,
+    "queueKeptFlow": true,
+    "reconnect": true,
+    "stop": true,
+    "newSessionEmpty": true
+  },
+  "flow-empty-android": {
+    "platform": "android",
+    "newSessionEmpty": true
+  }
+}

@@ -1280,3 +1280,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - Flutter 原生面板与 Dot 详情互斥；工具详情/审批定位复用原界面，断线不进度冒进，重新打开不重跑。Android 横屏仍全屏，系统返回仅退出图。
 - 真实 Android `gpt-6.1-sol` 三计划读/算/写/复核成功，均值 20；重连保持同一 execution。Windows 与 Android 只读查看同一最新任务、群聊三 Dot 记录与深色/英文/reduced-motion 的原生候选复测通过。
 - reduced-motion 下 size animator 直接使用静态 child，修复已复现的 RenderAnimatedSize 自布局通知异常；Windows 玻璃标题栏为系统按钮预留宽度，解决 Flow 按钮被遮挡。Flutter analyze 与 36 项辅助测试通过（最后两处 UI 修复的全量复检留到验收模块）。
+
+## 2026-11-06 Flow：真实验收与构建
+
+- 已完成紧凑 32px 节点/56px 行高的双端真实视觉检查，采用审核文案与四状态色，Plan 完成收起/手动展开、Android 横竖屏/返回、Windows 窄窗和深色 reduced-motion 复测通过。
+- 真实 gpt-6.1-sol 完成私聊读/算/写/复核、三 Dot 搜索/浏览/报告、原生计划、clarify、terminal 审批返回 63、不存在命令 exit 127。控制与重连分段验收，Windows `/new` 清图，Android 重新读取同一新会话确认无旧图。
+- 初始 Windows Plan 的 reduced-motion 断言及 Android 固定同名 `/new` 测试误判均保留记录；修复/纠正后分别复测，不重放已完成工具。详情见 docs/flowchart-acceptance.md。
+- 最终 typecheck、相关 lint、39 文件/81 项服务端测试、Flutter analyze/36 项测试、Node/Relay bundle 和双端 release 构建通过。Android 构建与测试改为串行，避免生成注册器互相污染。
+- 仅本地候选与提交，未 push/发布/更新正式服务。Android 真机、物理网络切换及未触发的原生异常逐项保留待验，截图和脱敏记录位于 docs/evidence/flow。

@@ -1102,3 +1102,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 填入用户审核后的中英文案。完成绿、执行/等待蓝、失败红、未执行灰；节点框缩至 32px、行高 56px，保留 44px 点击区域与原 Bot 头像。
 - 原生 Plan 父层自动收起已完成内容、跟随当前动作，支持手动展开、暂停跟随与定位。工具复用原详情，审批/问题定位原卡片；断线冻结、重连读现有图，不触发任务。
 - Windows 与固定 Android 模拟器已实际查看最新真实图、计划展开/收起、深色英文/reduced-motion，Android 横屏全屏和系统返回通过。修复真实验收复现的零时长 AnimatedSize 布局异常，以及玻璃主题 Windows 标题栏按钮与窗口控件重叠。完整控制旅程与 release 构建另记。
+
+## 2026-11-06 Flow：真实验收与构建
+
+- Windows 与固定 Android 模拟器通过真实 gpt-6.1-sol 的读写/计算、三 Dot 搜索与浏览接力、Plan 分层/折叠、clarify、审批和工具失败场景；节点外框 32px、行高 56px 已双端视觉复核。
+- steer/排队不替换图，真实 socket 重连保持同一执行，停止与新会话空图已分段确认。reduced-motion 和标题栏问题修复后复测通过；不将最初失败的整条旅程称为全绿。
+- 服务端 39 文件/81 项、Flutter analyze/36 项辅助测试、Node/Relay bundle、Windows release 与 Android arm64 签名 release 构建通过。候选包位于 dist/native，Windows 未做 Authenticode 签名。
+- 证据与准确边界见 docs/flowchart-acceptance.md、docs/evidence/flow。Android 真机、物理断网及部分真实异常旅程待验。仅本地 commit，不提升版本、不 push、不发布、不动正式服务；无关改动保留。
