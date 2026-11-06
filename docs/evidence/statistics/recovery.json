@@ -1,0 +1,48 @@
+{
+  "before": {
+    "total": 744728,
+    "unavailable": 5,
+    "nodes": [
+      {
+        "nodeId": "b0be9915-0ac6-4a02-8b32-8a12d6e630f2",
+        "online": true
+      },
+      {
+        "nodeId": "87036c5e-9181-4256-86f5-6f5376dc2aad",
+        "online": true
+      }
+    ],
+    "repeatRefreshUnchanged": true,
+    "timezoneTotalUnchanged": true
+  },
+  "offline": {
+    "total": 744728,
+    "unavailable": 5,
+    "nodes": [
+      {
+        "nodeId": "b0be9915-0ac6-4a02-8b32-8a12d6e630f2",
+        "online": true
+      },
+      {
+        "nodeId": "87036c5e-9181-4256-86f5-6f5376dc2aad",
+        "online": false
+      }
+    ],
+    "offlineRefreshReported": true
+  },
+  "restarted": {
+    "total": 744728,
+    "unavailable": 5,
+    "nodes": [
+      {
+        "nodeId": "b0be9915-0ac6-4a02-8b32-8a12d6e630f2",
+        "online": true
+      },
+      {
+        "nodeId": "87036c5e-9181-4256-86f5-6f5376dc2aad",
+        "online": true
+      }
+    ],
+    "restartUnchanged": true
+  }
+}

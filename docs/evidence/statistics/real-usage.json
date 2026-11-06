@@ -1,0 +1,367 @@
+{
+  "from": "2026-11-06",
+  "to": "2026-11-07",
+  "totals": {
+    "tokens": {
+      "input": 212105,
+      "output": 1782,
+      "cacheRead": 530841,
+      "cacheWrite": 0
+    },
+    "total": 744728,
+    "unavailable": 5
+  },
+  "days": [
+    {
+      "date": "2026-11-06",
+      "tokens": {
+        "input": 212105,
+        "output": 1782,
+        "cacheRead": 530841,
+        "cacheWrite": 0
+      },
+      "total": 744728,
+      "unavailable": 5
+    }
+  ],
+  "conversations": [
+    {
+      "tokens": {
+        "input": 94461,
+        "output": 1072,
+        "cacheRead": 438745,
+        "cacheWrite": 0
+      },
+      "total": 534278,
+      "unavailable": 4,
+      "nodeId": "b0be9915-0ac6-4a02-8b32-8a12d6e630f2",
+      "nodeName": "Usage Windows",
+      "entity": {
+        "id": "nk-uuhzft",
+        "kind": "bot",
+        "name": "Usage Blue",
+        "ownerName": "Usage Blue",
+        "avatars": [
+          {
+            "shape": "dot",
+            "color": "#347BDD"
+          }
+        ],
+        "group": false
+      },
+      "percent": 77.22197570941488
+    },
+    {
+      "tokens": {
+        "input": 22243,
+        "output": 484,
+        "cacheRead": 57792,
+        "cacheWrite": 0
+      },
+      "total": 80519,
+      "unavailable": 0,
+      "nodeId": "b0be9915-0ac6-4a02-8b32-8a12d6e630f2",
+      "nodeName": "Usage Windows",
+      "entity": {
+        "id": "nk-xfzb6p",
+        "kind": "bot",
+        "name": "Usage Green",
+        "ownerName": "Usage Green",
+        "avatars": [
+          {
+            "shape": "bunny",
+            "color": "#20A078"
+          }
+        ],
+        "group": false
+      },
+      "percent": 11.637829486047295
+    },
+    {
+      "tokens": {
+        "input": 25847,
+        "output": 137,
+        "cacheRead": 34304,
+        "cacheWrite": 0
+      },
+      "total": 60288,
+      "unavailable": 0,
+      "nodeId": "b0be9915-0ac6-4a02-8b32-8a12d6e630f2",
+      "nodeName": "Usage Windows",
+      "entity": {
+        "id": "79ce419d-fe26-4fa8-a55c-933a042e602f",
+        "kind": "group",
+        "name": "Usage Research",
+        "ownerName": "Usage Research",
+        "avatars": [
+          {
+            "shape": "dot",
+            "color": "#347BDD"
+          },
+          {
+            "shape": "bunny",
+            "color": "#20A078"
+          }
+        ],
+        "group": true
+      },
+      "percent": 8.713737925891023
+    },
+    {
+      "tokens": {
+        "input": 16763,
+        "output": 25,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "total": 16788,
+      "unavailable": 0,
+      "nodeId": "87036c5e-9181-4256-86f5-6f5376dc2aad",
+      "nodeName": "Usage Windows B",
+      "entity": {
+        "id": "nk-6a5u2z",
+        "kind": "bot",
+        "name": "Usage Orange",
+        "ownerName": "Usage Orange",
+        "avatars": [
+          {
+            "shape": "dot",
+            "color": "#EE6B38"
+          }
+        ],
+        "group": false
+      },
+      "percent": 2.4264568786468037
+    }
+  ],
+  "routines": [
+    {
+      "tokens": {
+        "input": 40909,
+        "output": 56,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "total": 40965,
+      "unavailable": 1,
+      "nodeId": "b0be9915-0ac6-4a02-8b32-8a12d6e630f2",
+      "nodeName": "Usage Windows",
+      "entity": {
+        "id": "nk-xfzb6p:4d8ffba7-b95b-4c56-8555-76fe37dd58b7",
+        "kind": "routine",
+        "name": "Usage pulse",
+        "ownerName": "Usage Green",
+        "avatars": [
+          {
+            "shape": "bunny",
+            "color": "#20A078"
+          }
+        ],
+        "group": false
+      },
+      "percent": 77.50449342540914
+    },
+    {
+      "tokens": {
+        "input": 11882,
+        "output": 8,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "total": 11890,
+      "unavailable": 0,
+      "nodeId": "b0be9915-0ac6-4a02-8b32-8a12d6e630f2",
+      "nodeName": "Usage Windows",
+      "entity": {
+        "id": "nk-xfzb6p:cron:cd0a9da85384",
+        "kind": "routine",
+        "name": "Usage schedule follow profile",
+        "ownerName": "Usage Green",
+        "avatars": [
+          {
+            "shape": "bunny",
+            "color": "#20A078"
+          }
+        ],
+        "group": false
+      },
+      "percent": 22.495506574590863
+    }
+  ],
+  "rows": [
+    {
+      "tokens": {
+        "input": 94461,
+        "output": 1072,
+        "cacheRead": 438745,
+        "cacheWrite": 0
+      },
+      "total": 534278,
+      "unavailable": 4,
+      "date": "2026-11-06",
+      "nodeId": "b0be9915-0ac6-4a02-8b32-8a12d6e630f2",
+      "nodeName": "Usage Windows",
+      "entity": {
+        "id": "nk-uuhzft",
+        "kind": "bot",
+        "name": "Usage Blue",
+        "ownerName": "Usage Blue",
+        "avatars": [
+          {
+            "shape": "dot",
+            "color": "#347BDD"
+          }
+        ],
+        "group": false
+      }
+    },
+    {
+      "tokens": {
+        "input": 25847,
+        "output": 137,
+        "cacheRead": 34304,
+        "cacheWrite": 0
+      },
+      "total": 60288,
+      "unavailable": 0,
+      "date": "2026-11-06",
+      "nodeId": "b0be9915-0ac6-4a02-8b32-8a12d6e630f2",
+      "nodeName": "Usage Windows",
+      "entity": {
+        "id": "79ce419d-fe26-4fa8-a55c-933a042e602f",
+        "kind": "group",
+        "name": "Usage Research",
+        "ownerName": "Usage Research",
+        "avatars": [
+          {
+            "shape": "dot",
+            "color": "#347BDD"
+          },
+          {
+            "shape": "bunny",
+            "color": "#20A078"
+          }
+        ],
+        "group": true
+      }
+    },
+    {
+      "tokens": {
+        "input": 40909,
+        "output": 56,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "total": 40965,
+      "unavailable": 1,
+      "date": "2026-11-06",
+      "nodeId": "b0be9915-0ac6-4a02-8b32-8a12d6e630f2",
+      "nodeName": "Usage Windows",
+      "entity": {
+        "id": "nk-xfzb6p:4d8ffba7-b95b-4c56-8555-76fe37dd58b7",
+        "kind": "routine",
+        "name": "Usage pulse",
+        "ownerName": "Usage Green",
+        "avatars": [
+          {
+            "shape": "bunny",
+            "color": "#20A078"
+          }
+        ],
+        "group": false
+      }
+    },
+    {
+      "tokens": {
+        "input": 22243,
+        "output": 484,
+        "cacheRead": 57792,
+        "cacheWrite": 0
+      },
+      "total": 80519,
+      "unavailable": 0,
+      "date": "2026-11-06",
+      "nodeId": "b0be9915-0ac6-4a02-8b32-8a12d6e630f2",
+      "nodeName": "Usage Windows",
+      "entity": {
+        "id": "nk-xfzb6p",
+        "kind": "bot",
+        "name": "Usage Green",
+        "ownerName": "Usage Green",
+        "avatars": [
+          {
+            "shape": "bunny",
+            "color": "#20A078"
+          }
+        ],
+        "group": false
+      }
+    },
+    {
+      "tokens": {
+        "input": 16763,
+        "output": 25,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "total": 16788,
+      "unavailable": 0,
+      "date": "2026-11-06",
+      "nodeId": "87036c5e-9181-4256-86f5-6f5376dc2aad",
+      "nodeName": "Usage Windows B",
+      "entity": {
+        "id": "nk-6a5u2z",
+        "kind": "bot",
+        "name": "Usage Orange",
+        "ownerName": "Usage Orange",
+        "avatars": [
+          {
+            "shape": "dot",
+            "color": "#EE6B38"
+          }
+        ],
+        "group": false
+      }
+    },
+    {
+      "tokens": {
+        "input": 11882,
+        "output": 8,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "total": 11890,
+      "unavailable": 0,
+      "date": "2026-11-06",
+      "nodeId": "b0be9915-0ac6-4a02-8b32-8a12d6e630f2",
+      "nodeName": "Usage Windows",
+      "entity": {
+        "id": "nk-xfzb6p:cron:cd0a9da85384",
+        "kind": "routine",
+        "name": "Usage schedule follow profile",
+        "ownerName": "Usage Green",
+        "avatars": [
+          {
+            "shape": "bunny",
+            "color": "#20A078"
+          }
+        ],
+        "group": false
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "nodeId": "b0be9915-0ac6-4a02-8b32-8a12d6e630f2",
+      "name": "Usage Windows",
+      "online": true,
+      "syncedAt": "2026-11-06T10:29:35.020Z"
+    },
+    {
+      "nodeId": "87036c5e-9181-4256-86f5-6f5376dc2aad",
+      "name": "Usage Windows B",
+      "online": true,
+      "syncedAt": "2026-11-06T10:29:35.001Z"
+    }
+  ]
+}

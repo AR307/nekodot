@@ -1,0 +1,7 @@
+﻿"date","node_id","node","kind","entity_id","owner","name","input","output","cache_read","cache_write","total","unavailable"
+"2026-11-06","b0be9915-0ac6-4a02-8b32-8a12d6e630f2","Usage Windows","bot","nk-uuhzft","Usage Blue","Usage Blue","94461","1072","438745","0","534278","4"
+"2026-11-06","b0be9915-0ac6-4a02-8b32-8a12d6e630f2","Usage Windows","group","79ce419d-fe26-4fa8-a55c-933a042e602f","Usage Research","Usage Research","25847","137","34304","0","60288","0"
+"2026-11-06","b0be9915-0ac6-4a02-8b32-8a12d6e630f2","Usage Windows","routine","nk-xfzb6p:4d8ffba7-b95b-4c56-8555-76fe37dd58b7","Usage Green","Usage pulse","40909","56","0","0","40965","1"
+"2026-11-06","b0be9915-0ac6-4a02-8b32-8a12d6e630f2","Usage Windows","bot","nk-xfzb6p","Usage Green","Usage Green","22243","484","57792","0","80519","0"
+"2026-11-06","87036c5e-9181-4256-86f5-6f5376dc2aad","Usage Windows B","bot","nk-6a5u2z","Usage Orange","Usage Orange","16763","25","0","0","16788","0"
+"2026-11-06","b0be9915-0ac6-4a02-8b32-8a12d6e630f2","Usage Windows","routine","nk-xfzb6p:cron:cd0a9da85384","Usage Green","Usage schedule follow profile","11882","8","0","0","11890","0"

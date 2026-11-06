@@ -1,0 +1,7 @@
+{
+  "offlineTotal": 744728,
+  "afterReconnectTotal": 775360,
+  "newTokens": 30632,
+  "duplicateBatchUnchanged": true,
+  "model": "gpt-6.1-sol"
+}

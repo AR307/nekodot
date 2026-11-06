@@ -1,0 +1,84 @@
+{
+  "nk-uuhzft": {
+    "auxiliary": [],
+    "tools": [
+      ["execute_code", 1],
+      ["terminal", 3]
+    ],
+    "compressedSummaries": 0,
+    "children": []
+  },
+  "nk-xfzb6p": {
+    "auxiliary": [
+      {
+        "id": "aux:aux-a50e78b5d41b4e8c9b27f3bfc8b755f1:1793958995.622769",
+        "sessionId": "20261106_175630_10b21781",
+        "executionId": "admission:ca0a284a7fde414195a6db8f5a1f4444",
+        "at": 1793958996.2800841,
+        "tokens": null
+      },
+      {
+        "id": "aux:aux-a50e78b5d41b4e8c9b27f3bfc8b755f1:1793958996.3017256",
+        "sessionId": "20261106_175630_10b21781",
+        "executionId": "admission:ca0a284a7fde414195a6db8f5a1f4444",
+        "at": 1793959001.4571717,
+        "tokens": {
+          "input": 18528,
+          "output": 48,
+          "cacheRead": 0,
+          "cacheWrite": 0
+        }
+      },
+      {
+        "id": "aux:aux-6817e26333ae4eb0bc0278d7b48769ea:1793959647.683719",
+        "sessionId": "",
+        "executionId": "",
+        "at": 1793959682.4779203,
+        "tokens": {
+          "input": 2004,
+          "output": 337,
+          "cacheRead": 4224,
+          "cacheWrite": 0
+        }
+      }
+    ],
+    "tools": [
+      ["delegate_task", 2],
+      ["execute_code", 1],
+      ["terminal", 1]
+    ],
+    "compressedSummaries": 1,
+    "children": [
+      {
+        "sessionId": "20261106_180717_afea65",
+        "parent": "local-f3a55de0d50a69f1c0c39780ca3124df5231a8fb43609cdb8b0b1ee855b671ef",
+        "calls": [
+          {
+            "id": "main:20261106_180717_afea65:sa-0-2f54f761:38f5d5b1:api:1:1793959638.6599946",
+            "sessionId": "20261106_180717_afea65",
+            "executionId": "admission:452718a1d8cd4233b0035d32d99758bf",
+            "at": 1793959645.8526917,
+            "tokens": {
+              "input": 10032,
+              "output": 24,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          },
+          {
+            "id": "main:20261106_180717_afea65:sa-0-2f54f761:38f5d5b1:api:2:1793959646.0470407",
+            "sessionId": "20261106_180717_afea65",
+            "executionId": "admission:452718a1d8cd4233b0035d32d99758bf",
+            "at": 1793959653.7093709,
+            "tokens": {
+              "input": 7159,
+              "output": 5,
+              "cacheRead": 3008,
+              "cacheWrite": 0
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
