@@ -3,20 +3,20 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>nekodot · 替你把事做完的 AI 助手</title>
+    <title>nekodot · 一群替你干活的 Bot，装在你自己的电脑上</title>
     <meta
       name="description"
-      content="跟 Bot 说一句，它用你电脑上的文件和浏览器把事做完，动手之前先问你。模型用你自己的，装在你自己的电脑上；人在外面用手机叫它，事多了就多建几个在群里接力。开源，基于 Hermes Agent。"
+      content="查资料、写周报、记账、填网页，各交给一个 Bot。它们在你自己的电脑上干活，在群里互相接力，动手之前先问你。开源，基于 Hermes Agent。"
     />
     <meta name="theme-color" content="#ffffff" />
-    <link rel="icon" href="assets/favicon.svg?v=0.3.2-20261106b" type="image/svg+xml" />
-    <meta property="og:title" content="nekodot · 替你把事做完的 AI 助手" />
+    <link rel="icon" href="assets/favicon.svg?v=0.3.2-20261106" type="image/svg+xml" />
+    <meta property="og:title" content="nekodot" />
     <link rel="canonical" href="https://nekodot.com/" />
     <meta property="og:url" content="https://nekodot.com/" />
-    <meta property="og:description" content="一个 Bot，一句话，一件事办完。" />
+    <meta property="og:description" content="一群替你干活的 Bot，装在你自己的电脑上。" />
     <meta
       property="og:image"
-      content="https://nekodot.com/assets/shots/desk-group-light.webp?v=0.3.2-20261106b"
+      content="https://nekodot.com/assets/shots/desk-group-light.webp?v=0.3.2-20261106"
     />
     <link
       rel="preload"
@@ -25,7 +25,7 @@
       type="font/woff2"
       crossorigin
     />
-    <link rel="stylesheet" href="styles.css?v=0.3.2-20261106b" />
+    <link rel="stylesheet" href="styles.css?v=0.3.2-20261106-autoplay" />
     <script>
       try {
         const saved = localStorage.getItem('nekodot-site-theme');
@@ -35,19 +35,18 @@
       }
     </script>
   </head>
-  <body id="top">
-    <header class="nav">
+  <body>
+    <header class="nav" id="top">
       <div class="container nav-inner">
         <a class="brand" href="#top" aria-label="nekodot">
           <span data-avatar="dot" aria-hidden="true"></span>
           <span>nekodot</span>
         </a>
         <nav class="nav-links" aria-label="Primary">
-          <a href="#top" data-sections="intro" data-i18n="navHome">首页</a>
-          <a href="#work" data-sections="work local phone team more open" data-i18n="navFeatures"
-            >功能介绍</a
-          >
-          <a href="#start" data-sections="start" data-i18n="navStart">下载</a>
+          <a href="#team" data-i18n="navTeam">群聊接力</a>
+          <a href="#local" data-i18n="navLocal">本机运行</a>
+          <a href="#more" data-i18n="navMore">更多能力</a>
+          <a href="#start" data-i18n="navStart">开始使用</a>
         </nav>
         <div class="nav-actions">
           <button class="text-btn" id="lang-toggle" type="button" aria-label="Switch language">
@@ -82,15 +81,15 @@
     </header>
 
     <main>
-      <!-- The opening: the app pops up, its Bots hop out from behind it, and
-           scrolling grows the name card to the full screen. -->
+      <!-- The opening automatically plays the app, Bot hops and full-screen
+           name card as one continuous sequence. -->
       <section class="intro" id="intro">
         <div class="intro-stage">
           <div class="intro-window">
             <img
               class="shot only-wide"
               data-shot="desk-group"
-              src="assets/shots/desk-group-light.webp?v=0.3.2-20261106b"
+              src="assets/shots/desk-group-light.webp?v=0.3.2-20261106"
               width="2400"
               height="1500"
               alt="nekodot Windows 客户端：两位 Bot 在群里接力整理周报"
@@ -100,7 +99,7 @@
             <img
               class="shot only-narrow"
               data-shot="phone-home"
-              src="assets/shots/phone-home-light.webp?v=0.3.2-20261106b"
+              src="assets/shots/phone-home-light.webp?v=0.3.2-20261106"
               width="780"
               height="1690"
               alt="nekodot Android 客户端：Bot 与群聊列表"
@@ -124,21 +123,24 @@
                 <span data-avatar="dot" aria-hidden="true"></span>
                 <span>nekodot</span>
               </h1>
-              <p class="intro-line" data-i18n="heroTitle">替你把事做完的 AI 助手。</p>
+              <p class="intro-line" data-i18n="heroTitle">
+                一群替你干活的 Bot，<br />装在你自己的电脑上。
+              </p>
               <p class="intro-lead" data-i18n="heroLead">
-                跟它说一句要做什么，它用你电脑上的文件和浏览器把事做完。你在电脑或手机上派活、看进度、点头放行。
+                查资料、写周报、记账、填网页，各交给一个
+                Bot。它们用这台电脑上的文件和浏览器干活，你在电脑或手机上派活、看进度、点头放行。
               </p>
               <div class="downloads" data-downloads>
                 <a
                   class="btn btn-ink"
-                  href="/downloads/nekodot-windows-x64.exe"
+                  href="/downloads/releases/0.3.2-9/nekodot-windows-x64.exe"
                   data-platform="windows"
                 >
                   <span data-i18n="downloadWindows">下载 Windows 版</span>
                 </a>
                 <a
                   class="btn btn-line"
-                  href="/downloads/nekodot-android-arm64.apk"
+                  href="/downloads/releases/0.3.2-9/nekodot-android-arm64.apk"
                   data-platform="android"
                 >
                   <span data-i18n="downloadAndroid">下载 Android 版</span>
@@ -152,121 +154,13 @@
         </div>
       </section>
 
-      <section class="section feature" id="work">
+      <section class="section feature" id="team">
         <div class="container feature-layout">
           <div class="feature-copy">
-            <h2 data-i18n="workTitle">一个 Bot，一句话，<br />一件事办完</h2>
-            <p class="section-lead" data-i18n="workBody">
-              跟它说一句要做什么，它自己查网页、读文件、跑命令，做完把结果和文件交给你。干活时它会说一句正在做什么，每一步都收在对话里。
-            </p>
-            <ul class="points">
-              <li data-i18n="workP1">
-                要跑命令、改文件，先停下来问你：允许一次、这次都允许、以后都允许，或者拒绝
-              </li>
-              <li data-i18n="workP2">干到一半想补一句，直接发；方向不对就按停止</li>
-              <li data-i18n="workP3">拿不准的地方，它会停下来问你</li>
-            </ul>
-          </div>
-          <div class="chat" data-scenes="dm ask" aria-hidden="true">
-            <div class="app-top">
-              <span class="pill"
-                ><span class="pill-face"></span><strong></strong><small></small
-              ></span>
-            </div>
-            <div class="app-body"></div>
-            <div class="app-composer">
-              <span data-i18n="composer">发消息</span><i class="app-send"></i>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section feature feature-flip" id="local">
-        <div class="container feature-layout">
-          <div class="feature-copy">
-            <h2 data-i18n="localTitle">你的模型，你的电脑，<br />你的隐私</h2>
-            <p class="section-lead" data-i18n="localBody">
-              模型用你自己的：账号授权登录，或者填自定义 API，每个 Bot 可以用不同的模型。Bot
-              装在你自己的电脑上，在 Windows 上添加电脑时选「这台电脑」，App
-              会自己装好运行环境，直接读写这台电脑上的文件。
-            </p>
-            <dl class="where">
-              <div>
-                <dt data-i18n="w1Title">你的电脑</dt>
-                <dd data-i18n="w1Body">聊天记录、Bot 设置、交付的文件和 API 密钥都存在这里</dd>
-              </div>
-              <div>
-                <dt data-i18n="w2Title">nekodot 服务</dt>
-                <dd data-i18n="w2Body">管账号、转发消息，聊天内容不存盘</dd>
-              </div>
-              <div>
-                <dt data-i18n="w3Title">App</dt>
-                <dd data-i18n="w3Body">只记住登录状态和语言这类偏好</dd>
-              </div>
-            </dl>
-            <p class="fine" data-i18n="localFine">
-              模型请求会发给你选的模型服务商，所以 nekodot 不是离线运行，也没有端到端加密。
-            </p>
-          </div>
-          <div class="chat" data-scenes="local" aria-hidden="true">
-            <div class="app-top">
-              <span class="pill"
-                ><span class="pill-face"></span><strong></strong><small></small
-              ></span>
-            </div>
-            <div class="app-body"></div>
-            <div class="app-composer">
-              <span data-i18n="composer">发消息</span><i class="app-send"></i>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section feature" id="phone">
-        <div class="container feature-layout">
-          <div class="feature-copy">
-            <h2 data-i18n="phoneTitle">随时随地，<br />叫醒你的 Bot</h2>
-            <p class="section-lead" data-i18n="phoneBody">
-              人在外面，打开 Android App 就能给电脑上的 Bot 派活，聊天和进度两边一样。Bot
-              回复了、有问题问你、等你确认，手机都会收到通知，点开就能放行或者拒绝。
-            </p>
-            <ul class="points">
-              <li data-i18n="phoneP1">定时任务：说好每天几点做什么，到点它自己开工</li>
-              <li data-i18n="phoneP2">电脑开着就能找它；想全天在线，就装在 Linux 服务器上</li>
-            </ul>
-          </div>
-          <div class="phone-stage play" aria-hidden="true">
-            <div class="phone">
-              <img
-                data-shot="phone-dm"
-                src="assets/shots/phone-dm-light.webp?v=0.3.2-20261106b"
-                width="780"
-                height="1690"
-                alt=""
-                loading="lazy"
-              />
-              <div class="notice">
-                <span class="notice-face" data-avatar="bunny" data-color="#2E8BFF"></span>
-                <span class="notice-copy">
-                  <b
-                    ><span data-i18n="botYan">小研</span> ·
-                    <span data-i18n="waiting">等你确认</span></b
-                  >
-                  <span data-i18n="noticeBody">想在你的电脑上运行 pip install arxiv</span>
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section feature feature-flip" id="team">
-        <div class="container feature-layout">
-          <div class="feature-copy">
-            <h2 data-i18n="teamTitle">一个不够？<br />那就多来几个</h2>
+            <h2 data-i18n="teamTitle">几个 Bot 一个群，<br />接力把事做完</h2>
             <p class="section-lead" data-i18n="teamBody">
-              一个 Bot 管一摊事。事情多了，就多建几个，2 到 6 个拉进一个群。你让笔笔写周报，它写完会
-              @小研 去核对数据，你只看最后的结果。中途要改，直接在群里说。
+              群里放 2 到 6 个 Bot，各管一摊。你让笔笔写周报，它写完会 @小研
+              去核对数据，你只看最后的结果。中途要改，直接在群里说。
             </p>
             <ul class="points">
               <li data-i18n="teamP1">@ 谁就交给谁，Bot 之间也会互相 @</li>
@@ -288,9 +182,111 @@
         </div>
       </section>
 
+      <section class="section feature feature-flip" id="local">
+        <div class="container feature-layout">
+          <div class="feature-copy">
+            <h2 data-i18n="localTitle">装在你自己的电脑上</h2>
+            <p class="section-lead" data-i18n="localBody">
+              在 Windows 上添加电脑时选「这台电脑」，App 会自己把运行环境装好，不用另外租服务器。Bot
+              直接读写这台电脑上的文件。
+            </p>
+            <dl class="where">
+              <div>
+                <dt data-i18n="w1Title">你的电脑</dt>
+                <dd data-i18n="w1Body">聊天记录、Bot 设置、交付的文件和 API 密钥都存在这里</dd>
+              </div>
+              <div>
+                <dt data-i18n="w2Title">nekodot 服务</dt>
+                <dd data-i18n="w2Body">管账号、转发消息，聊天内容不存盘</dd>
+              </div>
+              <div>
+                <dt data-i18n="w3Title">App</dt>
+                <dd data-i18n="w3Body">只记住登录状态和语言这类偏好</dd>
+              </div>
+            </dl>
+            <p class="fine" data-i18n="localFine">
+              模型请求会发给你选的模型服务商，所以 nekodot 不是离线运行，也没有端到端加密。想让 Bot
+              全天在线，可以改装在一台 Linux 服务器上。
+            </p>
+          </div>
+          <div class="chat" data-scenes="local" aria-hidden="true">
+            <div class="app-top">
+              <span class="pill"
+                ><span class="pill-face"></span><strong></strong><small></small
+              ></span>
+            </div>
+            <div class="app-body"></div>
+            <div class="app-composer">
+              <span data-i18n="composer">发消息</span><i class="app-send"></i>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section feature" id="control">
+        <div class="container feature-layout">
+          <div class="feature-copy">
+            <h2 data-i18n="controlTitle">动手之前，<br />先问你</h2>
+            <p class="section-lead" data-i18n="controlBody">
+              它要跑命令、改文件时，会停下来等你选：允许一次、这次会话都允许、以后都允许，或者拒绝。用了哪个工具、花了几秒，对话里一条条列着。
+            </p>
+            <ul class="points">
+              <li data-i18n="controlP1">干到一半想补一句，直接发，它会带着这句话接着干</li>
+              <li data-i18n="controlP2">方向不对就按停止；群里可以一次全停</li>
+              <li data-i18n="controlP3">拿不准的地方，它会停下来问你</li>
+            </ul>
+          </div>
+          <div class="chat" data-scenes="dm ask" aria-hidden="true">
+            <div class="app-top">
+              <span class="pill"
+                ><span class="pill-face"></span><strong></strong><small></small
+              ></span>
+            </div>
+            <div class="app-body"></div>
+            <div class="app-composer">
+              <span data-i18n="composer">发消息</span><i class="app-send"></i>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section feature feature-flip" id="phone">
+        <div class="container feature-layout">
+          <div class="feature-copy">
+            <h2 data-i18n="phoneTitle">人不在电脑前，<br />用手机管着</h2>
+            <p class="section-lead" data-i18n="phoneBody">
+              Android App 连的是同一台电脑，聊天和进度两边一样。Bot
+              回复了、有问题问你、等你确认，手机都会收到通知，点开就能放行或者拒绝。
+            </p>
+          </div>
+          <div class="phone-stage play" aria-hidden="true">
+            <div class="phone">
+              <img
+                data-shot="phone-dm"
+                src="assets/shots/phone-dm-light.webp?v=0.3.2-20261106"
+                width="780"
+                height="1690"
+                alt=""
+                loading="lazy"
+              />
+              <div class="notice">
+                <span class="notice-face" data-avatar="bunny" data-color="#2E8BFF"></span>
+                <span class="notice-copy">
+                  <b
+                    ><span data-i18n="botYan">小研</span> ·
+                    <span data-i18n="waiting">等你确认</span></b
+                  >
+                  <span data-i18n="noticeBody">想在你的电脑上运行 pip install arxiv</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="section" id="more">
         <div class="container">
-          <h2 data-i18n="moreTitle">还不止这些……</h2>
+          <h2 data-i18n="moreTitle">它还会这些</h2>
           <div class="cards">
             <article class="card">
               <div class="card-stage play" aria-hidden="true">
@@ -418,6 +414,9 @@
               Bot 之间的协作。
             </p>
             <ul class="points">
+              <li data-i18n="openP1">
+                模型用你自己的：账号授权登录，或者填自定义 API，每个 Bot 可以用不同的模型
+              </li>
               <li data-i18n="openP2">Hermes 的原生设置都能在 App 里直接改，不用碰配置文件</li>
               <li data-i18n="openP3">想自己部署整套服务也行，步骤写在 GitHub 上</li>
             </ul>
@@ -432,25 +431,45 @@
       <section class="start" id="start">
         <div class="container start-layout">
           <div>
-            <h2 data-i18n="startTitle">开始使用</h2>
+            <h2 data-i18n="startTitle">三步开始</h2>
             <div class="downloads" data-downloads>
               <a
                 class="btn btn-paper"
-                href="/downloads/nekodot-windows-x64.exe"
+                href="/downloads/releases/0.3.2-9/nekodot-windows-x64.exe"
                 data-platform="windows"
               >
                 <span data-i18n="downloadWindows">下载 Windows 版</span>
               </a>
               <a
                 class="btn btn-ghost"
-                href="/downloads/nekodot-android-arm64.apk"
+                href="/downloads/releases/0.3.2-9/nekodot-android-arm64.apk"
                 data-platform="android"
               >
                 <span data-i18n="downloadAndroid">下载 Android 版</span>
               </a>
             </div>
-            <p class="fine" data-i18n="downloadNote">0.3.2 · Windows 10 / 11 · Android 10 以上</p>
+            <p class="fine" data-i18n="downloadNote">
+              0.3.2 正式版。Windows 10 / 11 x64，安装器还没有发布者签名；Android 10 以上 arm64，APK
+              已签名。macOS 和 Linux 桌面版暂时没有安装包。
+            </p>
           </div>
+          <ol class="start-steps">
+            <li>
+              <strong data-i18n="s1Title">下载 App，用邮箱注册</strong>
+              <p data-i18n="s1Body">收到验证码，填进去就行。</p>
+            </li>
+            <li>
+              <strong data-i18n="s2Title">给 Bot 找一台电脑</strong>
+              <p data-i18n="s2Body">
+                在 Windows 上直接选「这台电脑」，App 自动装好。想全天在线，就在 Linux 服务器上运行
+                App 给的一行命令。
+              </p>
+            </li>
+            <li>
+              <strong data-i18n="s3Title">添加模型，建第一个 Bot</strong>
+              <p data-i18n="s3Body">起个名字，写一句它负责什么，它会先跟你打个招呼。</p>
+            </li>
+          </ol>
         </div>
       </section>
     </main>
@@ -482,6 +501,6 @@
       </div>
     </footer>
 
-    <script src="main.js?v=0.3.2-20261106b" defer></script>
+    <script src="main.js?v=0.3.2-20261106-autoplay" defer></script>
   </body>
 </html>

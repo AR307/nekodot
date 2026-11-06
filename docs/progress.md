@@ -1400,3 +1400,5 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 产品截图重拍：首屏的 Windows 群聊（desk-group）、Android 首页（phone-home）和「随时随地」段的手机对话（phone-dm）原是 11-04 的旧界面，按当前源码客户端重拍浅色、深色各一张。数据来自本地演示 Relay（Bot、群聊与消息为演示数据，账号显示为 me）；ui_tour_test 改用根图层截图，可以用 profile 构建跑（Debug 版 exe 当时被另一个已打开的客户端占用，未关闭它）。
 - 验收：本机 Edge 打开 1440 宽中英文、390 宽中文逐段查看，无横向溢出、无脚本错误；导航三项点击后分别落到页顶、第一段介绍和下载区，滚动时高亮正确；开场随滚动播放。ui_tour_test 在 Windows profile 构建下通过，Flutter analyze 该文件无问题。未部署到正式站，未 push。
 - 证据截图：docs/evidence/site-copy-hero-390.png、site-copy-work-en-dark.png、site-copy-phone-1440.png、site-copy-start-1440.png。
+
+- 公网已验证运行包首段/续段为 206。另发现固定安装包别名仍被 CDN 缓存旧 build 8；官网四个下载按钮改为最终版本化路径 0.3.2-9，App 已使用版本化路径。不混入并行官网改动，旧文件留存。最终构建为 0.3.2+9、Android 2009。
