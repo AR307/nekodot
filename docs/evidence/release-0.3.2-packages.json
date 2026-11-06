@@ -1,0 +1,28 @@
+{
+  "checkedAt": "2026-11-06T12:36:26.850Z",
+  "version": "0.3.2",
+  "build": 9,
+  "sourceCommit": "9ef626b8131aaafdd00ce93069ab567b585b71f6",
+  "siteCommit": "938fae11ab358f90e0b457cb0e8006b38306e960",
+  "windows": {
+    "bytes": 16226652,
+    "target": "x64",
+    "authenticodeSigned": false
+  },
+  "android": {
+    "bytes": 35208222,
+    "applicationId": "app.nekodot.client",
+    "versionCode": 2009,
+    "signatureVerified": true,
+    "sameSigningCertificateAsPrevious": true,
+    "minSdk": 29
+  },
+  "node": {
+    "version": "20261106120623"
+  },
+  "hermes": {
+    "version": "v0.22.6-r1",
+    "windowsBytes": 770308773,
+    "linuxBytes": 642321596
+  }
+}

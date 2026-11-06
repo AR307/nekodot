@@ -1,0 +1,56 @@
+{
+  "checkedAt": "2026-11-06T12:45:17.831Z",
+  "version": "0.3.2",
+  "downloads": [
+    {
+      "platform": "windows",
+      "versionedBytes": 16226652,
+      "samePublishedBytes": true,
+      "legacyAliasBytes": 16226652,
+      "legacyAliasMatchesCurrent": true,
+      "legacyAliasCache": "EXPIRED"
+    },
+    {
+      "platform": "android",
+      "versionedBytes": 35208222,
+      "samePublishedBytes": true,
+      "legacyAliasBytes": 35208222,
+      "legacyAliasMatchesCurrent": true,
+      "legacyAliasCache": "MISS"
+    }
+  ],
+  "health": {
+    "service": "nekodot-relay",
+    "status": "ok",
+    "version": "0.3.2",
+    "build": "9"
+  },
+  "product": {
+    "version": "0.3.2",
+    "build": 9,
+    "androidBuild": 2009
+  },
+  "relayArchiveStatus": 200,
+  "relayArchiveBytes": 514906112,
+  "approvedLatestHomepage": true,
+  "siteCommit": "938fae11ab358f90e0b457cb0e8006b38306e960",
+  "downloadButtonsUseVersionedFiles": true,
+  "runtimes": [
+    {
+      "target": "win32-x64",
+      "bytes": 770308773,
+      "rangeStatus": 206,
+      "resumeStatus": 206,
+      "cacheControl": "max-age=14400",
+      "resumedBytesMatch": true
+    },
+    {
+      "target": "linux-x64",
+      "bytes": 642321596,
+      "rangeStatus": 206,
+      "resumeStatus": 206,
+      "cacheControl": "no-store",
+      "resumedBytesMatch": true
+    }
+  ]
+}

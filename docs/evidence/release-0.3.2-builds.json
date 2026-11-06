@@ -1,0 +1,97 @@
+{
+  "checkedAt": "2026-11-06T12:27:45.614Z",
+  "server": [
+    {
+      "name": "frozen-install",
+      "exitCode": 0,
+      "seconds": 7
+    },
+    {
+      "name": "eslint",
+      "exitCode": 0,
+      "seconds": 19
+    },
+    {
+      "name": "typecheck",
+      "exitCode": 0,
+      "seconds": 3
+    },
+    {
+      "name": "test",
+      "exitCode": 0,
+      "seconds": 102
+    },
+    {
+      "name": "build",
+      "exitCode": 0,
+      "seconds": 1
+    }
+  ],
+  "native": [
+    {
+      "name": "frozen-pub",
+      "exitCode": 0,
+      "seconds": 6
+    },
+    {
+      "name": "analyze",
+      "exitCode": 0,
+      "seconds": 56
+    },
+    {
+      "name": "flutter-test",
+      "exitCode": 0,
+      "seconds": 121
+    },
+    {
+      "name": "windows",
+      "exitCode": 0,
+      "seconds": 212
+    },
+    {
+      "name": "android",
+      "exitCode": 0,
+      "seconds": 307
+    }
+  ],
+  "serverTestFiles": 41,
+  "serverTests": 84,
+  "flutterTests": 40,
+  "windowsFileVersion": "0.3.2+9",
+  "nativeInteractiveRerun": false,
+  "finalBuild": 9,
+  "serverBuild9": [
+    {
+      "name": "eslint-b9",
+      "exitCode": 0,
+      "seconds": 18
+    },
+    {
+      "name": "typecheck-b9",
+      "exitCode": 0,
+      "seconds": 16
+    },
+    {
+      "name": "test-downloads-b9",
+      "exitCode": 0,
+      "seconds": 6
+    },
+    {
+      "name": "build-b9",
+      "exitCode": 0,
+      "seconds": 1
+    }
+  ],
+  "nativeBuild9": [
+    {
+      "name": "windows-b9",
+      "exitCode": 0,
+      "seconds": 83
+    },
+    {
+      "name": "android-b9",
+      "exitCode": 0,
+      "seconds": 128
+    }
+  ]
+}

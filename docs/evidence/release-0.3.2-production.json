@@ -1,0 +1,30 @@
+{
+  "checkedAt": "2026-11-06T12:45:12.300250+00:00",
+  "version": "0.3.2",
+  "build": 9,
+  "countsBefore": {
+    "users": 5,
+    "nodes": 4,
+    "bots": 2,
+    "messages": 63
+  },
+  "countsAfter": {
+    "users": 5,
+    "nodes": 4,
+    "bots": 2,
+    "messages": 73
+  },
+  "dataPreserved": true,
+  "nodeIdentityPreserved": true,
+  "nodeVersion": "20261106120623",
+  "nodeBundleUpdated": true,
+  "nodePending": false,
+  "nodeRejected": false,
+  "runtime": "v0.22.6-r1",
+  "previousSourceRetained": true,
+  "previousRuntimeRetained": true,
+  "profileBackupRetained": true,
+  "protectedServicesUnchanged": true,
+  "releaseLatestPublishedLast": true,
+  "siteCommit": "938fae11ab358f90e0b457cb0e8006b38306e960"
+}
