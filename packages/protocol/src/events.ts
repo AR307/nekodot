@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { screenStatusSchema } from './screen';
+import { flowChangeSchema } from './flow';
 import {
   botSchema,
   conversationSchema,
@@ -10,6 +11,7 @@ import {
 } from './entities';
 const eventBase = { seq: seqSchema };
 export const eventSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ ...eventBase, kind: z.literal('flow.changed'), data: flowChangeSchema }),
   z.strictObject({ ...eventBase, kind: z.literal('bot.upserted'), data: botSchema }),
   z.strictObject({
     ...eventBase,

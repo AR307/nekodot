@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { flowSnapshotSchema } from './flow';
 import { secretRequestSchema, savedSecretSchema, secretEnvelopeSchema } from './secrets';
 import {
   routineInputSchema,
@@ -368,6 +369,10 @@ export const rpcContracts = {
   },
   'files.backfill': { params: z.strictObject(botTarget), result: operationSchema },
   'imports.create': { params: empty, result: z.strictObject({ importId: z.uuid() }) },
+  'flow.get': {
+    params: z.strictObject({ conversationId: idSchema }),
+    result: z.strictObject({ flow: flowSnapshotSchema.nullable() }),
+  },
   'sync.snapshot': {
     params: empty,
     result: z.strictObject({
@@ -376,6 +381,7 @@ export const rpcContracts = {
       conversations: z.array(conversationSchema),
       // Each conversation's newest words, so a list previews it before it is opened.
       latest: z.array(messageSchema),
+      flows: z.array(flowSnapshotSchema),
       headSeq: seqSchema,
       node: nodeCapabilitiesSchema,
     }),

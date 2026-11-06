@@ -1260,3 +1260,9 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 固定 Android 模拟器已通过真实聊天创建/设置规则、原生允许一次、默认拒绝、自动允许、普通追问和执行详情的选定结果追问；三次执行实际写入两行 UUID，最终任务暂停。配置规则的工具已成功，后续模型回读停滞时仅停止该回读回合，再继续验收，没有重放配置或已完成任务。结果及截图见 `docs/cron-conversational-approval-acceptance.md`。
 - 工程：Hermes 官方测试入口 11 项、代码检查 13 项通过；Node 24 的 38 文件/76 项、typecheck、相关 ESLint/Prettier、Node bundle、Flutter analyze/33 项测试与 Windows/Android release 构建通过。
 - 边界：Android 真机未验；跨日时间边界用自动化验证，未宣称实等跨日。安装包只在本地构建，本轮不发布、不 push、不更新正式服务，所有 QA 文件与历史保留。
+
+## 2026-11-06 Flowchart：执行投影
+
+- 新增 flow.get、FlowSnapshot/FlowStep 和 flow.changed，沿用既有账号归属、seq 和快照同步。Node 仅保存每会话最新图，不复制工具参数或输出。
+- 真实 admission 开始后建图；工具开始/结束、审批/提问、正文与结束状态来自 canonical 事件。排队不替换图，原生 session 切换清空，群聊按实际接力保留各 Dot 回合。Cron/Webhook 独立执行不接入。
+- 辅助行为测试覆盖同一调用、并行、审批拒绝、排队、会话切换、A/B/A 接力及缺失完成事件不误判成功。typecheck、相关 ESLint 和新测试通过；候选 Windows/Android 真实验收正在进行，尚不标记整体验收完成。

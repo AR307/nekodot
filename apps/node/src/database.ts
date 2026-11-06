@@ -8,6 +8,8 @@ import type {
   Message,
   PersistedEvent,
   RpcResult,
+  FlowSnapshot,
+  FlowChange,
 } from '@nekodot/protocol';
 
 export interface NativeModelOverride {
@@ -398,6 +400,14 @@ export class NodeDatabase {
         'INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
       )
       .run(key, JSON.stringify(value));
+  }
+  saveFlow(flow: FlowSnapshot, steps: FlowSnapshot['steps'], reset = false) {
+    const change: FlowChange = { ...flow, steps, reset };
+    this.write('flow.changed', change, (seq) => {
+      flow.seq = seq;
+      change.seq = seq;
+      this.setSetting('flow:' + flow.conversationId, flow);
+    });
   }
   updateMessage(message: Message, run?: RunRecord, metadata: { toolCallId?: string } = {}) {
     return this.putMessage(message, { runId: run?.runId, ...metadata }, run);

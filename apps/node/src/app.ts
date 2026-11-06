@@ -34,6 +34,7 @@ import { Routines } from './routines';
 import { BotVoice } from './voice';
 import { NativeActivity } from './native-activity';
 import { openNativeSession, type NativeSessionSnapshot } from './hermes/session';
+import { ExecutionFlows } from './flow';
 
 type TextMessage = Extract<Message, { kind: 'text' }>;
 
@@ -200,6 +201,7 @@ export class NodeApplication {
   readonly routines: Routines;
   readonly secrets: BotSecrets;
   readonly voice: BotVoice;
+  readonly flow: ExecutionFlows;
   private readonly nativeActivity: NativeActivity;
   onEvent: (event: PersistedEvent) => void = () => {};
   onLive: (event: LiveEvent) => void = () => {};
@@ -229,6 +231,7 @@ export class NodeApplication {
     readonly desktop = false,
   ) {
     this.database = new NodeDatabase(home);
+    this.flow = new ExecutionFlows(this.database);
     this.notifications = new Notifications(this.database);
     this.routines = new Routines(this.database, hermes, this.notifications);
     this.secrets = new BotSecrets(this.database, hermes);
@@ -538,6 +541,8 @@ export class NodeApplication {
         return this.extensions.toggle(request.params);
       case 'extensions.configure':
         return this.extensions.configure(request.params);
+      case 'flow.get':
+        return { flow: this.flow.get(request.params.conversationId) };
       case 'sync.snapshot':
         this.activities();
         return {
@@ -545,6 +550,7 @@ export class NodeApplication {
           groups: this.database.groups(),
           conversations: this.database.conversations(),
           latest: this.database.latestTexts(),
+          flows: this.flow.all(),
           headSeq: this.database.head(),
           node: this.desktopControl.capabilities(),
         } satisfies RpcResult<'sync.snapshot'>;
@@ -763,6 +769,7 @@ export class NodeApplication {
           }
           if (run.queue !== 'queued') this.activeRuns.set(run.conversationId, run);
           if (run.queue !== 'queued') this.restoreNativePrompts(run, snapshot.prompts ?? []);
+          if (receipt.status === 'started') this.flow.start(run);
           this.publishActivity(run);
           this.consume(run, gateway);
         } else {
@@ -900,6 +907,7 @@ export class NodeApplication {
           { botId: params.botId, input: result.message, modelOverride: result.modelOverride },
         );
       }
+      this.flow.sessionChanged(params.conversationId);
       const output = [result.output, result.warning, result.notice].filter(Boolean).join('\n');
       if (output) {
         const messageId = randomUUID();
@@ -1247,12 +1255,14 @@ export class NodeApplication {
         kind: chain.failed ? 'failed' : 'completed',
       });
     if (chain.count >= MAX_CHAIN) {
+      this.flow.group(chain, 'paused');
       this.groupNotice(chain, 'Relay paused after 6 turns. Mention a group member to continue.');
       this.database.clearChain(chain.conversationId);
       this.publishGroupIdle(chain.conversationId);
       return;
     }
     if (!chain.queue.length) {
+      this.flow.group(chain, chain.failed ? 'failed' : 'done');
       this.database.clearChain(chain.conversationId);
       this.publishGroupIdle(chain.conversationId);
       return;
@@ -1390,6 +1400,7 @@ export class NodeApplication {
       if (this.database.message(run.inputMessageId))
         this.database.setMessageRun(run.inputMessageId, admission.admission_id);
       this.database.saveRun(run);
+      if (admission.status === 'started' && run.queue !== 'queued') this.flow.start(run);
       if (admission.status === 'unknown') {
         this.pauseUnknown(run);
       } else if (admission.status === 'terminal') {
@@ -1575,6 +1586,7 @@ export class NodeApplication {
               run.queue = 'started';
               run.executionGeneration = receipt.execution_generation ?? run.executionGeneration;
               this.activeRuns.set(run.conversationId, run);
+              this.flow.start(run);
               this.queueMessage(run, 'running');
               this.restoreNativePrompts(run, snapshot.prompts ?? []);
               this.database.saveRun(run);
@@ -1647,6 +1659,8 @@ export class NodeApplication {
   private async acceptEvent(run: RunRecord, event: HermesEvent) {
     event = JSON.parse(this.secrets.scrub(run.botId, JSON.stringify(event))) as HermesEvent;
     const runId = run.runId!;
+    this.flow.start(run);
+    if (event.event === 'tool.generating') this.flow.phase(run, 'thinking', event.seq);
     if (event.event === 'clarify.request') {
       this.persistText(run, this.currentText(run), event.seq);
       this.restoreQuestion(run, {
@@ -1671,6 +1685,7 @@ export class NodeApplication {
         question.status = 'done';
         this.database.putMessage(question, { runId });
       }
+      this.flow.settle(run, 'question', event.prompt_id ?? '', false);
       run.state = 'thinking';
       run.lastSeq = event.seq;
       this.database.saveRun(run);
@@ -1679,6 +1694,7 @@ export class NodeApplication {
     }
     if (event.event === 'message.delta') {
       const textMessage = this.ensureText(run);
+      this.flow.phase(run, 'reply', event.seq, textMessage.messageId);
       const delta = event.delta ?? '';
       const previous = this.streamingTexts.get(textMessage.messageId) ?? textMessage.content.text;
       textMessage.content = { ...textMessage.content, text: previous + delta };
@@ -1745,6 +1761,7 @@ export class NodeApplication {
       run.state = 'tool';
       run.lastSeq = event.seq;
       this.database.putMessage(tool, { runId, toolCallId }, run);
+      this.flow.tool(run, toolCallId, tool.content.tool, tool.messageId);
       this.publishActivity(run);
       return;
     }
@@ -1762,6 +1779,12 @@ export class NodeApplication {
           error: event.error === true || event.error === 'true',
         };
         this.database.putMessage(tool, { runId, ...(toolCallId ? { toolCallId } : {}) }, run);
+        this.flow.toolEnd(
+          run,
+          toolCallId!,
+          run.stopRequested ? 'cancelled' : tool.content.error ? 'failed' : 'done',
+          event.seq,
+        );
       } else this.database.saveRun(run);
       this.publishActivity(run);
       return;
@@ -1789,6 +1812,7 @@ export class NodeApplication {
       run.state = 'waiting_approval';
       run.lastSeq = event.seq;
       this.database.putMessage(approval, { runId }, run);
+      this.flow.prompt(run, 'approval', event.prompt_id ?? '', approval.messageId);
       this.notifications.send({
         notificationId: `approval:${runId}:${event.prompt_id}`,
         conversationId: run.conversationId,
@@ -1807,6 +1831,12 @@ export class NodeApplication {
         run.lastSeq = event.seq;
         this.database.saveRun(run);
       }
+      this.flow.settle(
+        run,
+        'approval',
+        event.prompt_id ?? '',
+        approval?.kind === 'approval' && approval.content.choice === 'deny',
+      );
       run.state = 'thinking';
       this.publishActivity(run);
       return;
@@ -1817,6 +1847,8 @@ export class NodeApplication {
       reply.status = 'done';
       await this.files.capture(reply);
       this.persistText(run, reply, event.seq);
+      this.flow.phase(run, 'reply', event.seq, reply.messageId);
+      this.flow.finish(run, 'done');
       if (run.groupId) await this.finishGroupRun(run, 'completed', reply.content.text);
       else {
         this.notifications.send({
@@ -1853,6 +1885,7 @@ export class NodeApplication {
               'Hermes interrupted this turn. Send a message to continue; the task was not restarted.');
       reply.status = event.event === 'run.cancelled' ? 'cancelled' : 'failed';
       this.persistText(run, reply, event.seq);
+      this.flow.finish(run, event.event === 'run.cancelled' ? 'cancelled' : 'failed');
       if (run.groupId)
         await this.finishGroupRun(
           run,
@@ -1890,6 +1923,7 @@ export class NodeApplication {
       this.consumers.delete(run.runId);
     }
     if (!chain || status === 'cancelled') {
+      if (chain) this.flow.group(chain, 'cancelled');
       if (chain && status === 'cancelled') this.database.clearChain(run.conversationId);
       this.database.saveRun({ ...run, state: 'idle' });
       this.publishGroupIdle(run.conversationId);
@@ -1911,6 +1945,7 @@ export class NodeApplication {
     chain.requestId = randomUUID();
     this.database.saveRun({ ...run, state: 'idle' });
     this.database.saveChain(chain);
+    this.flow.group(chain);
     await this.userMemory.sync();
     await this.startNextGroupRun(chain);
   }
@@ -2004,6 +2039,7 @@ export class NodeApplication {
     const current = this.activeRuns.get(run.conversationId);
     if (run.state === 'idle' && current && current.runId !== run.runId) return;
     const chain = run.groupId ? this.database.chain(run.conversationId) : undefined;
+    if (chain) this.flow.group(chain);
     this.onLive({
       kind: 'activity',
       conversationId: run.conversationId,
@@ -2078,6 +2114,7 @@ export class NodeApplication {
   }
 
   private pauseUnknown(run: RunRecord) {
+    this.flow.finish(run, 'unknown');
     this.settleControls(run, 'failed');
     const reply = this.currentText(run) ?? this.newText(run, '', 'failed');
     reply.status = 'failed';
@@ -2110,6 +2147,7 @@ export class NodeApplication {
     message.status = 'done';
     run.state = 'thinking';
     this.database.putMessage(message, { runId }, run);
+    this.flow.settle(run, 'approval', message.content.requestId, params.choice === 'deny');
     this.publishActivity(run);
     return {};
   }
@@ -2120,7 +2158,13 @@ export class NodeApplication {
         this.restoreQuestion(run, pending);
         continue;
       }
-      if (!run.runId || this.database.approval(run.runId, pending.prompt_id)) continue;
+      if (!run.runId) continue;
+      const existing = this.database.approval(run.runId, pending.prompt_id);
+      if (existing) {
+        if (existing.status === 'streaming')
+          this.flow.prompt(run, 'approval', pending.prompt_id, existing.messageId);
+        continue;
+      }
       run.state = 'waiting_approval';
       this.database.putMessage(
         {
@@ -2144,6 +2188,8 @@ export class NodeApplication {
         { runId: run.runId },
         run,
       );
+      const message = this.database.approval(run.runId, pending.prompt_id);
+      if (message) this.flow.prompt(run, 'approval', pending.prompt_id, message.messageId);
     }
   }
 
@@ -2179,6 +2225,12 @@ export class NodeApplication {
         run,
       );
     else this.database.saveRun(run);
+    const message =
+      existing ??
+      this.database
+        .messagesForRun(run.runId)
+        .find((m) => m.kind === 'question' && m.content.requestId === pending.prompt_id);
+    if (message) this.flow.prompt(run, 'question', pending.prompt_id, message.messageId);
     if (!existing)
       this.notifications.send({
         notificationId: `question:${run.runId}:${pending.prompt_id}`,
@@ -2217,6 +2269,7 @@ export class NodeApplication {
     message.status = 'done';
     run.state = 'thinking';
     this.database.putMessage(message, { runId: run.runId }, run);
+    this.flow.settle(run, 'question', message.content.requestId, false);
     this.publishActivity(run);
     return {};
   }
@@ -2261,6 +2314,11 @@ export class NodeApplication {
       run.queue = 'started';
       this.queueMessage(run, 'running');
     }
+    this.flow.start(run);
+    this.flow.finish(
+      run,
+      status === 'cancelled' ? 'cancelled' : status === 'completed' ? 'done' : 'failed',
+    );
     this.settleControls(
       run,
       status === 'cancelled' ? 'cancelled' : status === 'completed' ? 'done' : 'failed',
@@ -2317,6 +2375,7 @@ export class NodeApplication {
   }
 
   private async finishInterrupted(run: RunRecord, text: string) {
+    this.flow.finish(run, 'failed');
     this.settleControls(run, 'failed');
     const message = this.currentText(run) ?? this.newText(run, text, 'failed');
     if (!message.content.text) message.content = { ...message.content, text };

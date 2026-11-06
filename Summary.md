@@ -1082,3 +1082,9 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - Cron 执行中的原生授权可显示在 Bot 私聊，并响应同一 admission 的原生审批，不重跑任务。Bot 指引要求创建/修改任务时先让用户确认授权方式。
 - Windows 候选和固定 Android 模拟器与真实 gpt-6.1-sol 已完成聊天设置时段规则、原生允许一次、自动拒绝、自动允许、普通和选定结果追问；各三次执行仅两行文件，追问不重跑，最终任务均暂停。模型配置回读曾停滞，分段继续已确认记录，未重放已完成操作。验收中修复用户追问消息“查看执行”误传用户 ID 和链接颜色问题。
 - Hermes 官方入口 11 项测试、13 项代码检查通过；Node 24 的 38 文件/76 项、typecheck、相关 ESLint/Prettier、Flutter analyze/33 项测试与双端 Release 构建通过。详细结果及未验边界见 `docs/cron-conversational-approval-acceptance.md`；Android 真机未验，未部署、未发布。
+
+## 2026-11-06 Flowchart：执行投影
+
+- 新增 flow.get、FlowSnapshot/FlowStep 和 flow.changed，沿用既有账号归属、seq 和快照同步。Node 仅保存每会话最新图，不复制工具参数或输出。
+- 真实 admission 开始后建图；工具开始/结束、审批/提问、正文与结束状态来自 canonical 事件。排队不替换图，原生 session 切换清空，群聊按实际接力保留各 Dot 回合。Cron/Webhook 独立执行不接入。
+- 辅助行为测试覆盖同一调用、并行、审批拒绝、排队、会话切换、A/B/A 接力及缺失完成事件不误判成功。typecheck、相关 ESLint 和新测试通过；候选 Windows/Android 真实验收正在进行，尚不标记整体验收完成。
