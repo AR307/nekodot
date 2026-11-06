@@ -1,6 +1,22 @@
-# Add this independent site block to the existing Caddy configuration.
-# Replace the hostname with the DNS name supplied for this product.
-nekodot.your-domain.example {
+# The existing Caddy owns TLS and the static site, not Relay.
+# Mount the approved site snapshot at /srv/nekodot-site in that Caddy container.
+www.nekodot.com {
+    encode zstd gzip
+    root * /srv/nekodot-site
+    file_server
+}
+
+api.nekodot.com {
     encode zstd gzip
     reverse_proxy nekodot-product-relay:4329
+}
+
+nekodot.com {
+    @retired path /api /api/* /ws /ws/* /hooks /hooks/* /downloads /downloads/* /install.sh /health
+    handle @retired {
+        respond 410
+    }
+    handle {
+        redir https://www.nekodot.com{uri} 308
+    }
 }

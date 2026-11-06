@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../data/client.dart';
+import '../data/endpoints.dart';
 
 import 'installer.dart';
 import 'location.dart';
@@ -108,6 +109,15 @@ class LocalRuntime extends ChangeNotifier {
     final file = File(joinPath(_home, 'node.json'));
     if (!await file.exists()) return null;
     final value = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    // One-time official installation upgrade, before the existing identity check.
+    // Never rewrite self-hosted Relays or retry the retired address at runtime.
+    if (_relay(client.account.origin.toString()) == officialApiUrl &&
+        _relay(value['relayUrl'] as String) == 'https://nekodot.com') {
+      final backup = File('${file.path}.before-api-domain');
+      if (!await backup.exists()) await file.copy(backup.path);
+      value['relayUrl'] = officialApiUrl;
+      await file.writeAsString('${jsonEncode(value)}\n', flush: true);
+    }
     if (_relay(value['relayUrl'] as String) !=
         _relay(client.account.origin.toString())) {
       _fail(

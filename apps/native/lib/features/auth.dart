@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/client.dart';
+import '../data/endpoints.dart';
 import '../data/account.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
@@ -456,7 +457,7 @@ class _AuthPageState extends State<AuthPage> {
               ),
               home: TextButton.icon(
                 onPressed: () => launchUrl(
-                  Uri.parse('https://nekodot.com'),
+                  Uri.parse(websiteUrl),
                   mode: LaunchMode.externalApplication,
                 ),
                 icon: const Icon(Icons.chevron_left, size: 18),

@@ -32,7 +32,7 @@ def main():
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument('--check', action='store_true')
     action.add_argument('--apply', action='store_true')
-    parser.add_argument('--source', default='https://nekodot.com')
+    parser.add_argument('--source', default='https://api.nekodot.com')
     parser.add_argument('--health', default='http://127.0.0.1:4349/health')
     parser.add_argument('--directory', type=Path, default=Path.cwd())
     args = parser.parse_args()

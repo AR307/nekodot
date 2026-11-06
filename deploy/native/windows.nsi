@@ -70,7 +70,7 @@ Section "nekodot"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\app.nekodot.client" "DisplayIcon" "$INSTDIR\nekodot_native.exe"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\app.nekodot.client" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\app.nekodot.client" "UninstallString" '$\"$INSTDIR\uninstall.exe$\"'
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\app.nekodot.client" "URLInfoAbout" "https://nekodot.com"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\app.nekodot.client" "URLInfoAbout" "https://www.nekodot.com"
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\app.nekodot.client" "NoModify" 1
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\app.nekodot.client" "NoRepair" 1
 SectionEnd

@@ -13,6 +13,7 @@ import 'relay_transport.dart';
 import 'node_data.dart';
 import 'json.dart';
 import 'flow.dart';
+import 'endpoints.dart';
 
 class NekodotClient extends ChangeNotifier {
   final AccountSession account;
@@ -21,7 +22,7 @@ class NekodotClient extends ChangeNotifier {
   NekodotClient({
     String server = const String.fromEnvironment(
       'RELAY_URL',
-      defaultValue: 'https://nekodot.com',
+      defaultValue: officialApiUrl,
     ),
     http.Client? transport,
     FlutterSecureStorage? vault,

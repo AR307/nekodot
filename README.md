@@ -20,8 +20,8 @@
 </p>
 
 <p align="center">
-  <a href="https://nekodot.com">官网</a> ·
-  <a href="https://nekodot.com/#start">下载</a> ·
+  <a href="https://www.nekodot.com">官网</a> ·
+  <a href="https://www.nekodot.com/#start">下载</a> ·
   <a href="LICENSE">MIT License</a><br>
   <a href="#它能做什么">它能做什么</a> ·
   <a href="#功能一览">功能一览</a> ·

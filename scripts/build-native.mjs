@@ -48,7 +48,7 @@ if (platform === 'android') {
     throw new Error('Firebase configuration must target app.nekodot.client.');
   await copyFile(resolve(firebase), resolve(root, 'apps/native/android/app/google-services.json'));
 }
-const relay = value('relay') ?? env.NEKODOT_RELAY_URL ?? 'https://nekodot.com';
+const relay = value('relay') ?? env.NEKODOT_RELAY_URL ?? 'https://api.nekodot.com';
 if (new URL(relay).protocol !== 'https:') throw new Error('Product builds require HTTPS.');
 const command = [
   'scripts/flutter.mjs',
