@@ -1181,3 +1181,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 ### Ferris 候选构建
 
 - 最终批准文案与代码已完成 Windows Release/未签名安装器、Android arm64 原签名 Release（33.6 MB）串行构建，版本保持 0.3.1+7。没有安装、启动或发布；本轮真实窗口操作许可仍待确认，QA 服务未启动。
+
+## 2026-11-06 0.3.2 正式发布准备
+
+- 用户授权发布 Windows、Android、Relay/Node，并同步 GitHub 源码、标签与正式 Release。产品版本设为 0.3.2+8，Android 使用实际 APK versionCode。
+- 以已提交源码独立构建，保留无关未提交截图和设计；沿用 Android 签名及 Node 发布机制，配套分发 Hermes v0.22.6-r1 后端运行包。
+- 正式切换前检查服务、端口和磁盘，备份产品数据与原产物；版本化下载先上传，latest.json 最后切换。不重启其他服务，不清理用户数据或 profiles。
+- Ferris 真实窗口操作尚未恢复授权，本轮不操作窗口、不把辅助测试当作真实窗口验收。其他未验范围沿用各模块报告；发布结果另记。
