@@ -1,11 +1,8 @@
-# nekodot native · 0.2.0 development
+# nekodot native
 
 Windows / Android 的 Flutter 客户端。界面由 Flutter 绘制，屏幕通过
 `vnc-rs → flutter_rust_bridge → ui.Image` 解码与显示，不包含 WebView。
 Hermes 和 Node 仍在服务器运行，客户端不安装或运行本地 agent。
-
-**这是开发工程，不是已发布的 0.2.0。** 现有客户端和线上服务继续工作；
-不会因本工程存在而替换安装包或部署未验收的账号接口。
 
 ## 结构
 
@@ -51,4 +48,4 @@ Windows 要求 VS 2022 Desktop C++ 工具链及 Windows SDK。编译通过不代
 
 旅程核对新消息 ID、实际 streaming 与最终回复，再验证画面、接管/交还和 Android 返回导航。
 原生输入、后台/锁屏通知、Android 真机、双端完整页面及开发中的服务端接口分别验收，
-不以模拟器或 widget 测试替代。最新结果与限制见仓库 `docs/side-phase-3-progress.md`。
+不以模拟器或 widget 测试替代。

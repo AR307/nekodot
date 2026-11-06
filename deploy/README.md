@@ -9,7 +9,7 @@ Use Node 24 and the repository's pnpm version:
 ```sh
 pnpm install --frozen-lockfile
 pnpm build:distribution
-# Build the backend package on each supported host; see docs/hermes-runtime.md.
+# Build the backend package on each supported host.
 node scripts/stage-hermes-runtime.mjs /build/windows/win32-x64.json /build/linux/linux-x64.json
 # Required for an auto-updating Node release; the key stays outside the repository/server.
 NEKODOT_RELEASE_KEY_FILE=/private/nekodot-release.pem pnpm release:node

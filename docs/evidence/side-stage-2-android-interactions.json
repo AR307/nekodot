@@ -1,7 +1,0 @@
-{
-  "emulator": true,
-  "systemBackBackground": true,
-  "processRetained": true,
-  "systemShareChooser": true,
-  "sharedToAnotherApp": false
-}

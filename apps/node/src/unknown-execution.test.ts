@@ -17,7 +17,7 @@ it.each(['dm', 'group'] as const)(
     const home = await mkdtemp(join(tmpdir(), 'nekodot-unknown-execution-'));
     const profiles = ['default', 'nk-abcdef', 'nk-ghijkl'];
     const recorded = await startFakeHermes({
-      fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
+      fixturesDirectory: join(process.cwd(), 'tests/fixtures'),
       profiles,
       apiKey: key,
       eventDelayMs: 1,

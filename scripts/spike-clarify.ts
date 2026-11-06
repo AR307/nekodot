@@ -106,13 +106,13 @@ try {
     !final.output.includes('Amber')
   )
     throw new Error('The real native clarify round trip did not complete.');
-  await mkdir(join(root, 'docs/fixtures'), { recursive: true });
+  await mkdir(join(root, 'tests/fixtures'), { recursive: true });
   await writeFile(
-    join(root, 'docs/fixtures/runs-clarify.sse'),
+    join(root, 'tests/fixtures/runs-clarify.sse'),
     redact(frames.map((f) => f.raw).join('')),
   );
   await writeFile(
-    join(root, 'docs/fixtures/runs-clarify.state.json'),
+    join(root, 'tests/fixtures/runs-clarify.state.json'),
     redact(JSON.stringify({ created, pending, response, final }, null, 2)) + '\n',
   );
   console.log(

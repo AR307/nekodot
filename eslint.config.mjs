@@ -4,13 +4,15 @@ import globals from 'globals';
 export default tseslint.config(
   {
     ignores: [
+      // Kept on the maintainers' computers only, never committed.
+      'docs/**',
+      'design/**',
+      'apps/site/**',
+      'opus-video/**',
       '**/dist/**',
       '**/node_modules/**',
       '.runtime/**',
-      'opus-video/**',
-      'docs/references/**',
-      'design/**',
-      'docs/fixtures/**',
+      'tests/fixtures/**',
       'playwright-report/**',
       'test-results/**',
       '.env*',
@@ -26,9 +28,5 @@ export default tseslint.config(
   {
     files: ['**/*.{ts,tsx,mjs}'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
-  },
-  {
-    files: ['apps/site/**/*.js'],
-    languageOptions: { sourceType: 'script', globals: globals.browser },
   },
 );

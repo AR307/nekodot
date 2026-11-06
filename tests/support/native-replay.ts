@@ -25,7 +25,7 @@ const relayUrl = 'http://127.0.0.1:' + port;
 const modes = new Map<string, ApprovalMode>();
 let researcher: Bot | undefined;
 const fake = await startFakeHermes({
-  fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
+  fixturesDirectory: join(process.cwd(), 'tests/fixtures'),
   profiles: ['default'],
   apiKey: key,
   allowProfileCreate: true,

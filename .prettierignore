@@ -1,9 +1,6 @@
 pnpm-lock.yaml
-docs/references/**
-design/**
-docs/fixtures/**
+tests/fixtures/**
 .runtime/**
-opus-video/**
 dist/**
 node_modules/**
 .env*
@@ -14,3 +11,12 @@ apps/native/windows/flutter/ephemeral/**
 **/Cargo.lock
 **/.gradle/**
 release/**
+# Kept on the maintainers' computers only, never committed.
+docs/**
+design/**
+apps/site/**
+opus-video/**
+/AGENTS.md
+/Summary.md
+/IMPLEMENTATION_PLAN.md
+/README.draft.md

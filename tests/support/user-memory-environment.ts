@@ -51,7 +51,7 @@ export async function userMemoryEnvironment(port = 0) {
     const key = randomUUID(),
       nodeHome = join(home, 'node-' + i);
     const fake = await startFakeHermes({
-      fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
+      fixturesDirectory: join(process.cwd(), 'tests/fixtures'),
       profiles: ['default'],
       apiKey: key,
       allowProfileCreate: true,

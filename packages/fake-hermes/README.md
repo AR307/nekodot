@@ -1,13 +1,13 @@
 # 测试回放 Hermes
 
 仅作为测试 devDependency 使用，不启动产品服务、不调用模型、不执行工具。
-读取 docs/fixtures 中真实 spike 的 SSE 和状态；不会用手写回复替代模型验收。
+读取 tests/fixtures 中真实 spike 的 SSE 和状态；不会用手写回复替代模型验收。
 
 ```ts
 import { startFakeHermes } from '@nekodot/fake-hermes';
 
 const service = await startFakeHermes({
-  fixturesDirectory: '/absolute/path/to/docs/fixtures',
+  fixturesDirectory: '/absolute/path/to/tests/fixtures',
   profiles: ['nk-abcdef'],
   apiKey: 'test-only-key',
 });

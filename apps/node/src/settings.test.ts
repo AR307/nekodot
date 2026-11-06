@@ -11,7 +11,7 @@ it('keeps Bot settings on one profile and shared settings on every profile', asy
   const home = await mkdtemp(join(tmpdir(), 'nekodot-hermes-settings-'));
   const key = 'test-only-management';
   const fake = await startFakeHermes({
-    fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
+    fixturesDirectory: join(process.cwd(), 'tests/fixtures'),
     profiles: ['default'],
     apiKey: key,
     allowProfileCreate: true,
