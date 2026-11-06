@@ -48,5 +48,7 @@ Ferris 记录的群聊忙碌排队、错误本地化等是其待解决问题，�
 ## 验收
 
 - `flutter analyze` 通过；40 项辅助测试通过，包括密码内容不变/切换隐藏、两种主题颜色命中区和键盘选择、聊天键盘滚动保持草稿。
-- 真实旅程脚本：`apps/native/integration_test/ferris_native_journey_test.dart`，使用隔离真实 Relay/Node/Hermes、现有 gpt-6.1-sol，不改系统保存的登录凭证。真实窗口执行结果在完成后补录。
+- 最终代码 Windows Release/未签名安装器、Android arm64 原签名 Release（33.6 MB）串行构建通过，仍为 0.3.1+7 本地候选。没有安装、启动或发布这批包。
+- 真实旅程脚本：`apps/native/integration_test/ferris_native_journey_test.dart`，为隔离真实 Relay/Node/Hermes、现有 gpt-6.1-sol 准备，不改系统保存的登录凭证。上一轮用户停止窗口操作，本轮恢复许可尚未收到；未运行该旅程，不宣称窗口/模型实测通过。QA 服务监听保持关闭，Android 真机也未验。
+- 新头像测试首次选择到了 InkResponse 自带的 Semantics，而不是带颜色标签的选择状态，断言失败；改为读取对应标签的状态后两种主题通过，未为测试修改产品行为。
 - 新文案见 `docs/ferris-native-copy-review.md`。既有未提交截图、设计与其他文件保留，不纳入本次提交。
