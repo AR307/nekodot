@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { hermesTodoStateSchema } from '@nekodot/protocol';
 import { BotSecrets } from './secrets';
 import type {
   LiveEvent,
@@ -78,6 +79,8 @@ export function projectGatewayEvent(run: RunRecord, frame: GatewayFrame): Hermes
   };
   const text = typeof payload.text === 'string' ? payload.text : undefined;
   switch (frame.type) {
+    case 'todo.updated':
+      return { ...base, event: 'todo.updated', todo_state: hermesTodoStateSchema.parse(payload) };
     case 'message.delta':
       return { ...base, event: 'message.delta', ...(text !== undefined ? { delta: text } : {}) };
     case 'message.interim':
@@ -1660,6 +1663,12 @@ export class NodeApplication {
     event = JSON.parse(this.secrets.scrub(run.botId, JSON.stringify(event))) as HermesEvent;
     const runId = run.runId!;
     this.flow.start(run);
+    if (event.event === 'todo.updated') {
+      this.flow.plan(run, event.todo_state!);
+      run.lastSeq = event.seq;
+      this.database.saveRun(run);
+      return;
+    }
     if (event.event === 'tool.generating') this.flow.phase(run, 'thinking', event.seq);
     if (event.event === 'clarify.request') {
       this.persistText(run, this.currentText(run), event.seq);
@@ -1685,7 +1694,12 @@ export class NodeApplication {
         question.status = 'done';
         this.database.putMessage(question, { runId });
       }
-      this.flow.settle(run, 'question', event.prompt_id ?? '', false);
+      this.flow.settle(
+        run,
+        'question',
+        event.prompt_id ?? '',
+        question?.kind === 'question' && question.content.answer ? 'done' : 'unknown',
+      );
       run.state = 'thinking';
       run.lastSeq = event.seq;
       this.database.saveRun(run);
@@ -1694,8 +1708,9 @@ export class NodeApplication {
     }
     if (event.event === 'message.delta') {
       const textMessage = this.ensureText(run);
-      this.flow.phase(run, 'reply', event.seq, textMessage.messageId);
       const delta = event.delta ?? '';
+      // Canonical null deltas delimit segments; they are not a reply being emitted.
+      if (delta.trim()) this.flow.phase(run, 'reply', event.seq, textMessage.messageId);
       const previous = this.streamingTexts.get(textMessage.messageId) ?? textMessage.content.text;
       textMessage.content = { ...textMessage.content, text: previous + delta };
       this.streamingTexts.set(textMessage.messageId, textMessage.content.text);
@@ -1835,7 +1850,11 @@ export class NodeApplication {
         run,
         'approval',
         event.prompt_id ?? '',
-        approval?.kind === 'approval' && approval.content.choice === 'deny',
+        approval?.kind === 'approval' && approval.content.choice
+          ? approval.content.choice === 'deny'
+            ? 'cancelled'
+            : 'done'
+          : 'unknown',
       );
       run.state = 'thinking';
       this.publishActivity(run);
@@ -1847,7 +1866,7 @@ export class NodeApplication {
       reply.status = 'done';
       await this.files.capture(reply);
       this.persistText(run, reply, event.seq);
-      this.flow.phase(run, 'reply', event.seq, reply.messageId);
+      if (reply.content.text) this.flow.phase(run, 'reply', event.seq, reply.messageId);
       this.flow.finish(run, 'done');
       if (run.groupId) await this.finishGroupRun(run, 'completed', reply.content.text);
       else {
@@ -2147,7 +2166,12 @@ export class NodeApplication {
     message.status = 'done';
     run.state = 'thinking';
     this.database.putMessage(message, { runId }, run);
-    this.flow.settle(run, 'approval', message.content.requestId, params.choice === 'deny');
+    this.flow.settle(
+      run,
+      'approval',
+      message.content.requestId,
+      params.choice === 'deny' ? 'cancelled' : 'done',
+    );
     this.publishActivity(run);
     return {};
   }
@@ -2269,7 +2293,7 @@ export class NodeApplication {
     message.status = 'done';
     run.state = 'thinking';
     this.database.putMessage(message, { runId: run.runId }, run);
-    this.flow.settle(run, 'question', message.content.requestId, false);
+    this.flow.settle(run, 'question', message.content.requestId, 'done');
     this.publishActivity(run);
     return {};
   }

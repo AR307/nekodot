@@ -1,4 +1,4 @@
-import type { FlowSnapshot, FlowStep } from '@nekodot/protocol';
+import type { FlowSnapshot, FlowStep, HermesTodoState } from '@nekodot/protocol';
 import type { GroupChainRecord, NodeDatabase, RunRecord } from './database';
 import { NodeFault } from './fault';
 
@@ -108,6 +108,12 @@ export class ExecutionFlows {
   }
 
   private step(run: RunRecord, kind: FlowStep['kind'], stepId: string, after: string[]): FlowStep {
+    const parent =
+      kind === 'bot' || kind === 'plan'
+        ? undefined
+        : this.load(run.conversationId)?.steps.find(
+            (s) => s.runId === run.runId && s.kind === 'plan' && s.state === 'running',
+          );
     return {
       stepId,
       runId: run.runId!,
@@ -116,12 +122,54 @@ export class ExecutionFlows {
       kind,
       state: 'running',
       after,
+      ...(parent ? { parentStepId: parent.stepId } : {}),
     };
   }
 
   private frontier(flow: FlowSnapshot) {
     const referenced = new Set(flow.steps.flatMap((s) => s.after));
-    return flow.steps.filter((s) => !referenced.has(s.stepId)).map((s) => s.stepId);
+    return flow.steps
+      .filter((s) => s.kind !== 'plan' && !referenced.has(s.stepId))
+      .map((s) => s.stepId);
+  }
+
+  plan(run: RunRecord, native: HermesTodoState) {
+    const flow = this.owned(run);
+    if (!flow) return;
+    const prefix = `${run.runId}:plan:`;
+    const changed: FlowStep[] = [];
+    const states = {
+      pending: 'pending',
+      in_progress: 'running',
+      completed: 'done',
+      cancelled: 'cancelled',
+    } as const;
+    const previous = flow.steps.filter((s) => s.runId === run.runId && s.kind === 'plan');
+    for (const todo of native.todos) {
+      const stepId = prefix + todo.id;
+      let step = previous.find((s) => s.stepId === stepId);
+      if (!step) {
+        step = this.step(run, 'plan', stepId, []);
+        flow.steps.push(step);
+      }
+      step.title = todo.content;
+      step.state = states[todo.status];
+      step.parentStepId = todo.parent ? prefix + todo.parent : undefined;
+      changed.push(step);
+    }
+    // Keep already observed actions inspectable when the native plan is replaced.
+    for (const step of previous.filter((s) => !changed.includes(s))) {
+      step.state = 'unknown';
+      changed.push(step);
+    }
+    const current = changed.find((s) => s.state === 'running');
+    for (const step of flow.steps.filter(
+      (s) => s.runId === run.runId && (s.kind === 'thinking' || s.kind === 'reply') && active(s),
+    )) {
+      step.parentStepId = current?.stepId;
+      changed.push(step);
+    }
+    this.database.saveFlow(flow, changed);
   }
 
   phase(run: RunRecord, kind: 'thinking' | 'reply', seq: number, messageId?: string) {
@@ -201,11 +249,16 @@ export class ExecutionFlows {
     this.database.saveFlow(flow, [...changed, step]);
   }
 
-  settle(run: RunRecord, kind: 'approval' | 'question', promptId: string, denied: boolean) {
+  settle(
+    run: RunRecord,
+    kind: 'approval' | 'question',
+    promptId: string,
+    state: 'done' | 'cancelled' | 'unknown',
+  ) {
     const flow = this.owned(run);
     const step = flow?.steps.find((s) => s.stepId === `${run.runId}:${kind}:${promptId}`);
-    if (!flow || !step || !active(step)) return;
-    step.state = denied ? 'cancelled' : 'done';
+    if (!flow || !step || (!active(step) && step.state !== 'unknown')) return;
+    step.state = state;
     const changed = [step];
     const pending = flow.steps.some(
       (s) => (s.kind === 'approval' || s.kind === 'question') && s.state === 'waiting',
@@ -227,7 +280,7 @@ export class ExecutionFlows {
     const changed = flow.steps.filter((s) => s.runId === run.runId && active(s));
     for (const step of changed)
       step.state =
-        state === 'done' && step.tool
+        state === 'done' && (step.tool || step.kind === 'plan')
           ? 'unknown'
           : state === 'done' && step.state === 'waiting'
             ? 'cancelled'

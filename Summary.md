@@ -1088,3 +1088,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 新增 flow.get、FlowSnapshot/FlowStep 和 flow.changed，沿用既有账号归属、seq 和快照同步。Node 仅保存每会话最新图，不复制工具参数或输出。
 - 真实 admission 开始后建图；工具开始/结束、审批/提问、正文与结束状态来自 canonical 事件。排队不替换图，原生 session 切换清空，群聊按实际接力保留各 Dot 回合。Cron/Webhook 独立执行不接入。
 - 辅助行为测试覆盖同一调用、并行、审批拒绝、排队、会话切换、A/B/A 接力及缺失完成事件不误判成功。typecheck、相关 ESLint 和新测试通过；候选 Windows/Android 真实验收正在进行，尚不标记整体验收完成。
+
+## 2026-11-06 Flow：原生 Plan 分层
+
+- 按用户确认接入 canonical `todo.updated`，原生计划标题与状态成为父节点；实际工具、正文和等待节点归属执行时的计划项。计划未开始保持 pending，原生完成才显示完成，不从文本推测进度。
+- Plan ID 按原生 admission 隔离，群聊不同 Dot 的同名计划不串用；每个会话仍只保存最新聊天图，Cron/Webhook 不接入。
+- 修复空白 delta 产生假回复节点、原生 settled 未提供审批结果却被标为通过的问题。计划结束但缺少原生完成确认保持未知，不制造成功。
+- 服务端 39 文件 / 81 项辅助测试通过；隔离真实 Windows 候选已观察到三个计划和工具对应、实际写入均值 20。完整双端界面验收继续进行，测试中发现的 reduced-motion 布局异常另行修复。

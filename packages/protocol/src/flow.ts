@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const flowStateSchema = z.enum([
+  'pending',
   'running',
   'waiting',
   'done',
@@ -16,6 +17,7 @@ export const flowStepSchema = z.strictObject({
   botId: z.string(),
   kind: z.enum([
     'bot',
+    'plan',
     'thinking',
     'reply',
     'browser',
@@ -32,6 +34,8 @@ export const flowStepSchema = z.strictObject({
   after: z.array(z.string()),
   tool: z.string().optional(),
   messageId: z.string().optional(),
+  title: z.string().optional(),
+  parentStepId: z.string().optional(),
 });
 const flowHeader = {
   flowId: z.string(),

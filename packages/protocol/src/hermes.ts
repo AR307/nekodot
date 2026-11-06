@@ -1,5 +1,17 @@
 import { z } from 'zod';
 import { approvalChoiceSchema } from './entities';
+export const hermesTodoStateSchema = z.object({
+  todos: z.array(
+    z.object({
+      id: z.string(),
+      content: z.string(),
+      status: z.enum(['pending', 'in_progress', 'completed', 'cancelled']),
+      parent: z.string().optional(),
+    }),
+  ),
+  revision: z.number().int(),
+});
+export type HermesTodoState = z.infer<typeof hermesTodoStateSchema>;
 export const hermesSseEventSchema = z
   .looseObject({
     event: z.string().min(1),
@@ -10,6 +22,7 @@ export const hermesSseEventSchema = z
     text: z.string().optional(),
     already_streamed: z.boolean().optional(),
     tool: z.string().optional(),
+    todo_state: hermesTodoStateSchema.optional(),
     preview: z.string().optional(),
     context: z.string().optional(),
     tool_call_id: z.string().optional(),

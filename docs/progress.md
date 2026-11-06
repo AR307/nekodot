@@ -1266,3 +1266,10 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 新增 flow.get、FlowSnapshot/FlowStep 和 flow.changed，沿用既有账号归属、seq 和快照同步。Node 仅保存每会话最新图，不复制工具参数或输出。
 - 真实 admission 开始后建图；工具开始/结束、审批/提问、正文与结束状态来自 canonical 事件。排队不替换图，原生 session 切换清空，群聊按实际接力保留各 Dot 回合。Cron/Webhook 独立执行不接入。
 - 辅助行为测试覆盖同一调用、并行、审批拒绝、排队、会话切换、A/B/A 接力及缺失完成事件不误判成功。typecheck、相关 ESLint 和新测试通过；候选 Windows/Android 真实验收正在进行，尚不标记整体验收完成。
+
+## 2026-11-06 Flow：原生计划事件
+
+- 使用 Hermes canonical `todo.updated` 的完整快照，将计划 ID 按 admission 隔离、工具按发生时的当前计划归组。待执行节点不进入实际执行路径，不会因为生成了计划就亮起工具。
+- 保留最新私聊或群聊图；不为 cron/webhook 补图，不复用上次任务的计划。群聊同名计划的父子归属、服务重载后的快照恢复有行为覆盖。
+- 空白正文不产生回复节点；无结果的原生 settled 保持未知，用户真实选择才更新为已处理。服务端 39 文件 / 81 项、typecheck 与相关 ESLint 通过。
+- Windows 真正运行 `gpt-6.1-sol` 的 todo_list → read_file → execute_code → write_file → read_file → todo_list，结果文件均值 20。界面折叠/重连已观察，reduced-motion 验收复现既有 AnimatedSize 零时长布局异常，后续 UI 模块修复；尚不将整体验收标记完成。

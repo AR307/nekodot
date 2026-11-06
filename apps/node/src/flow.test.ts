@@ -51,7 +51,9 @@ it('shows real call identities, overlapping tools, approval and reply without co
   flow.toolEnd(run, 'search-2', 'done', 4);
   flow.prompt(run, 'approval', 'permission', 'approval-card');
   expect(calls[0]!.state).toBe('waiting');
-  flow.settle(run, 'approval', 'permission', true);
+  flow.settle(run, 'approval', 'permission', 'unknown');
+  expect(flow.get('dm')!.steps.at(-1)!.state).toBe('unknown');
+  flow.settle(run, 'approval', 'permission', 'cancelled');
   flow.toolEnd(run, 'read-1', 'failed', 6);
   flow.phase(run, 'reply', 7, 'reply-message');
   const before = db.head();
@@ -110,6 +112,16 @@ it('keeps A to B to A as three real group turns, queue avatars only, and actual 
   db.saveChain(chain);
   const first = { ...run, conversationId: 'group-chat', groupId: 'group' };
   flow.start(first);
+  flow.plan(first, {
+    revision: 1,
+    todos: [{ id: 'task', content: 'Find sources', status: 'in_progress' }],
+  });
+  flow.tool(first, 'search', 'web_search', 'search-message');
+  flow.toolEnd(first, 'search', 'done', 2);
+  flow.plan(first, {
+    revision: 2,
+    todos: [{ id: 'task', content: 'Find sources', status: 'completed' }],
+  });
   expect(flow.get('group-chat')!.queuedBotIds).toEqual(['nk-bbbbbb']);
   expect(flow.get('group-chat')!.steps.some((s) => s.botId === 'nk-bbbbbb')).toBe(false);
   flow.finish(first, 'done');
@@ -117,6 +129,15 @@ it('keeps A to B to A as three real group turns, queue avatars only, and actual 
   chain.queue = ['nk-aaaaaa'];
   db.saveChain(chain);
   flow.start(second);
+  flow.plan(second, {
+    revision: 1,
+    todos: [{ id: 'task', content: 'Analyse sources', status: 'in_progress' }],
+  });
+  flow.tool(second, 'analyse', 'execute_code', 'analysis-message');
+  expect(flow.get('group-chat')!.steps.find((s) => s.tool === 'execute_code')!.parentStepId).toBe(
+    'second:plan:task',
+  );
+  expect(flow.get('group-chat')!.steps.find((s) => s.title === 'Find sources')!.state).toBe('done');
   flow.finish(second, 'done');
   chain.queue = [];
   db.saveChain(chain);
@@ -131,4 +152,48 @@ it('keeps A to B to A as three real group turns, queue avatars only, and actual 
   flow.group(chain, 'cancelled');
   expect(flow.get('group-chat')!.state).toBe('cancelled');
   expect(flow.get('group-chat')!.queuedBotIds).toEqual([]);
+});
+
+it('groups actual actions beneath native plan items without pre-executing pending items', async () => {
+  const { db, run, flow } = await scene();
+  flow.start(run);
+  flow.tool(run, 'plan-call', 'todo_list', 'plan-message');
+  flow.toolEnd(run, 'plan-call', 'done', 2);
+  flow.plan(run, {
+    revision: 1,
+    todos: [
+      { id: 'read', content: 'Read data', status: 'in_progress' },
+      { id: 'write', content: 'Write report', status: 'pending' },
+      { id: 'check', content: 'Check report', status: 'pending', parent: 'write' },
+    ],
+  });
+  flow.tool(run, 'read-call', 'read_file', 'read-message');
+  expect(flow.get('dm')!.steps.find((s) => s.tool === 'read_file')!.parentStepId).toBe(
+    'first:plan:read',
+  );
+  expect(flow.get('dm')!.steps.find((s) => s.title === 'Write report')!.state).toBe('pending');
+  expect(flow.get('dm')!.steps.find((s) => s.title === 'Check report')!.parentStepId).toBe(
+    'first:plan:write',
+  );
+  flow.toolEnd(run, 'read-call', 'done', 4);
+  flow.plan(run, {
+    revision: 2,
+    todos: [
+      { id: 'read', content: 'Read data', status: 'completed' },
+      { id: 'write', content: 'Write report', status: 'in_progress' },
+      { id: 'check', content: 'Check report', status: 'pending', parent: 'write' },
+    ],
+  });
+  flow.tool(run, 'write-call', 'write_file', 'write-message');
+  const write = flow.get('dm')!.steps.find((s) => s.tool === 'write_file')!;
+  expect(write.parentStepId).toBe('first:plan:write');
+  expect(write.after.every((id) => !id.includes(':plan:'))).toBe(true);
+  flow.toolEnd(run, 'write-call', 'done', 6);
+  flow.finish(run, 'done');
+  expect(flow.get('dm')!.steps.find((s) => s.title === 'Read data')!.state).toBe('done');
+  expect(flow.get('dm')!.steps.find((s) => s.title === 'Write report')!.state).toBe('unknown');
+  expect(flow.get('dm')!.steps.find((s) => s.title === 'Check report')!.state).toBe('pending');
+  expect(flowSnapshotSchema.parse(new ExecutionFlows(db).get('dm'))).toEqual(flow.get('dm'));
+  flow.start({ ...run, runId: 'next' });
+  expect(flow.get('dm')!.steps.some((s) => s.kind === 'plan')).toBe(false);
 });
