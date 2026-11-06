@@ -158,11 +158,7 @@ void main() {
     );
     await until(() => c.node.activities[dm]?.state == 'idle');
     await shot('dm-flow-complete');
-    if (find.byKey(const ValueKey('chat-flowchart')).evaluate().isNotEmpty) {
-      await tester.tap(find.byKey(const ValueKey('chat-flowchart')));
-    } else {
-      await tester.pageBack();
-    }
+    await tester.tap(find.byKey(const ValueKey('flow-close')));
     await tester.pump(const Duration(milliseconds: 400));
     final completedIds = (c.node.messages[dm] ?? [])
         .map((m) => m.messageId)

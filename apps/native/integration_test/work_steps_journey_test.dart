@@ -1,3 +1,4 @@
+import 'package:nekodot_native/features/chat_message.dart';
 import 'package:nekodot_native/data/chat_models.dart';
 
 import 'dart:convert';

@@ -1,3 +1,5 @@
+import 'package:nekodot_native/features/chat_timeline.dart';
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -11,7 +13,6 @@ import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/features/auth.dart';
 import 'package:nekodot_native/features/bot_details.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
-import 'package:nekodot_native/features/chat.dart';
 import 'package:nekodot_native/features/extensions.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/features/pairing.dart';

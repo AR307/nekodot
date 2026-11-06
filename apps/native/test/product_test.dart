@@ -1,3 +1,4 @@
+import 'package:nekodot_native/features/chat_timeline.dart';
 import 'package:nekodot_native/data/chat_models.dart';
 
 import 'dart:async';

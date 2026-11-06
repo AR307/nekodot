@@ -1,3 +1,4 @@
+import 'package:nekodot_native/features/chat_message.dart';
 import 'package:nekodot_native/data/chat_models.dart';
 
 import 'dart:convert';
@@ -13,7 +14,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/data/json.dart';
-import 'package:nekodot_native/features/chat.dart';
 import 'package:nekodot_native/features/extensions.dart';
 import 'package:nekodot_native/features/files.dart';
 import 'package:nekodot_native/features/secrets.dart';
