@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
+import '../data/account.dart';
 import '../platform/rust.dart';
 import '../ui/design.dart';
 import 'bridge/api.dart';
@@ -75,7 +77,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
     busy = true;
     try {
       await ensureRust();
-      final ticket = await c.request(
+      final ticket = await c.account.request(
         '/tunnels',
         method: 'POST',
         body: {
@@ -92,7 +94,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
       subscription =
           watchScreen(
             id: identity,
-            url: c.wsUrl('/ws/tunnel', {
+            url: c.account.wsUrl('/ws/tunnel', {
               'ticket': ticket['ticket'] as String,
             }).toString(),
           ).listen(

@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../data/client.dart';
+import '../data/json.dart';
 import 'desktop.dart';
 
 const _channel = MethodChannel('app.nekodot/updates');

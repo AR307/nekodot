@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:nekodot_native/data/client.dart';
+
 import 'package:nekodot_native/features/auth.dart';
 import 'package:nekodot_native/ui/design.dart';
 
@@ -22,7 +23,7 @@ void main() {
     const password = String.fromEnvironment('QA_PASSWORD');
     const evidence = String.fromEnvironment('QA_EVIDENCE');
     final client = NekodotClient(vault: MemoryVault());
-    expect(client.origin.host, anyOf('127.0.0.1', 'localhost'));
+    expect(client.account.origin.host, anyOf('127.0.0.1', 'localhost'));
     expect(email.isNotEmpty && password.isNotEmpty, isTrue);
     final capture = GlobalKey();
     await tester.pumpWidget(
@@ -89,24 +90,24 @@ void main() {
           : '密码或邮箱错误';
       await settle(() => find.text(expected).evaluate().isNotEmpty);
       await shot('${baseline ? 'before' : 'after'}-$name');
-      expect(client.token, isNull);
+      expect(client.account.token, isNull);
     }
     await submit(email, password);
-    await settle(() => client.ready);
-    expect(client.me!['user']['email'], email);
+    await settle(() => client.connection.ready);
+    expect(client.account.me!['user']['email'], email);
     await tester.runAsync(client.logout);
     if (!baseline) {
       await submit(email, '');
       expect(find.text('请输入密码'), findsOneWidget);
       await submit('not-an-email', 'incorrect-test-password');
       expect(find.text('请输入有效的邮箱'), findsOneWidget);
-      client.language = 'en';
+      client.prefs.language = 'en';
       await submit(email, 'incorrect-test-password');
       await settle(
         () => find.text('Email or password incorrect').evaluate().isNotEmpty,
       );
       await shot('after-english');
-      client.language = 'zh';
+      client.prefs.language = 'zh';
       // The actual Relay limiter must not be presented as a wrong password.
       for (var attempt = 0; attempt < 10; attempt++) {
         await submit(email, 'incorrect-test-password');

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/features/settings.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
@@ -175,7 +176,7 @@ void main() {
       await client.loadMessages(id);
       await until(
         () => (client.node.messages[id] ?? []).any(
-          (message) => message['status'] == 'done',
+          (message) => message.status == 'done',
         ),
       );
       await tap(find.byKey(ValueKey('conversation-$id')));
@@ -183,16 +184,14 @@ void main() {
       debugPrint('QA: native source welcome ready');
       await screenshot('native-source-welcome');
       final before = client.node.messages[id]!
-          .map((message) => message['messageId'])
+          .map((message) => message.messageId)
           .toList();
-      await client.connect();
+      await client.connection.connect();
       await client.selectNode(client.selectedNodeId!);
       await until(() => client.online);
       await client.loadMessages(id);
       expect(
-        client.node.messages[id]!
-            .map((message) => message['messageId'])
-            .toList(),
+        client.node.messages[id]!.map((message) => message.messageId).toList(),
         before,
       );
       final info = await client.rpc('models.info', {'botId': bot['botId']});

@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/bot_details.dart';
 import 'package:nekodot_native/features/chat.dart';
 import 'package:nekodot_native/features/commands.dart';
@@ -160,7 +161,7 @@ void main() {
     Future<Map<String, dynamic>> qa(String path) async {
       final response = await http.get(
         Uri.parse('$relay$path'),
-        headers: {'Authorization': 'Bearer ${client.token}'},
+        headers: {'Authorization': 'Bearer ${client.account.token}'},
       );
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
@@ -180,7 +181,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 300));
     await tap(find.widgetWithText(FilledButton, '登录'));
-    await until(() => client.ready, what: 'signed in');
+    await until(() => client.connection.ready, what: 'signed in');
     await until(
       () =>
           client.online &&
@@ -607,7 +608,7 @@ void main() {
     await settle(400);
 
     // Dark: the same screens on a black ground.
-    await client.preferences(appearance: 'dark');
+    await client.prefs.update(appearance: 'dark');
     await settle(800);
     await shot('home-dark');
     if (!android) {
@@ -617,7 +618,7 @@ void main() {
       await shot('details-dark');
       await tap(find.byTooltip('关闭'));
     }
-    await client.preferences(appearance: 'system');
+    await client.prefs.update(appearance: 'system');
     expect(tester.takeException(), isNull);
 
     if (!android && hold) {

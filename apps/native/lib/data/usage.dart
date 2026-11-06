@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'client.dart';
+import 'json.dart';
 
 class UsageAmount {
   final Map<String, int> tokens;

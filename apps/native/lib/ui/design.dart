@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
-import '../data/client.dart';
+import '../data/json.dart';
 import 'parts.dart';
 import 'shining_text.dart';
 

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
 import 'package:nekodot_native/ui/design.dart';
 
@@ -13,7 +14,7 @@ void main() {
     tester,
   ) async {
     final client = NekodotClient();
-    final login = await client.request(
+    final login = await client.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -21,7 +22,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    client.token = login['token'] as String;
+    client.account.token = login['token'] as String;
     client.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await client.bootstrap();
     addTearDown(client.dispose);
@@ -141,11 +142,11 @@ void main() {
       final messages = client.node.messages[conversationId] ?? [];
       return messages.any(
         (message) =>
-            message['kind'] == 'text' &&
-            message['author']['type'] == 'bot' &&
-            message['content']['welcome'] == true &&
-            message['status'] == 'done' &&
-            '${message['content']['text']}'.trim().isNotEmpty,
+            message.kind == 'text' &&
+            message.author.type == 'bot' &&
+            message.content['welcome'] == true &&
+            message.status == 'done' &&
+            '${message.content['text']}'.trim().isNotEmpty,
       );
     }, seconds: 180);
     debugPrint('QA: real Hermes welcome completed.');
@@ -174,11 +175,11 @@ void main() {
     await until(
       () => (client.node.messages[groupConversationId] ?? []).any(
         (message) =>
-            message['kind'] == 'text' &&
-            message['author']['type'] == 'bot' &&
-            message['author']['id'] == bot['botId'] &&
-            message['status'] == 'done' &&
-            '${message['content']['text']}'.trim().isNotEmpty,
+            message.kind == 'text' &&
+            message.author.type == 'bot' &&
+            message.author.id == bot['botId'] &&
+            message.status == 'done' &&
+            '${message.content['text']}'.trim().isNotEmpty,
       ),
       seconds: 180,
     );

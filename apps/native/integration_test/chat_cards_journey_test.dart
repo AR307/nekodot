@@ -1,3 +1,5 @@
+import 'package:nekodot_native/data/chat_models.dart';
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -10,6 +12,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/chat.dart';
 import 'package:nekodot_native/features/extensions.dart';
 import 'package:nekodot_native/features/files.dart';
@@ -202,7 +205,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 300));
     await tap(find.widgetWithText(FilledButton, '登录'));
-    await until(() => client.ready, what: 'signed in');
+    await until(() => client.connection.ready, what: 'signed in');
     await until(
       () =>
           client.online &&
@@ -277,7 +280,7 @@ void main() {
       );
       note('sidebar', {'before': before, 'after': after, 'saved': saved});
       expect(after, closeTo(before - 120, 2));
-      expect(saved, closeTo(client.sidebarWidth!, .01));
+      expect(saved, closeTo(client.prefs.sidebarWidth!, .01));
       await shot('sidebar-narrower');
     }
 
@@ -291,13 +294,14 @@ void main() {
     await until(() => input.evaluate().isNotEmpty, what: 'chat open');
     await until(() => client.node.messages[id] != null, what: 'history');
 
-    List<Json> messages() => client.node.messages[id] ?? [];
-    bool idle() => client.node.activities[id]?['state'] == 'idle';
-    Json? fresh(Set<Object?> seen, bool Function(Json) where) => messages()
-        .where((m) => !seen.contains(m['messageId']) && where(m))
-        .lastOrNull;
-    Finder tile(Json m) => find.byWidgetPredicate(
-      (w) => w is MessageTile && w.message['messageId'] == m['messageId'],
+    List<ChatMessage> messages() => client.node.messages[id] ?? [];
+    bool idle() => client.node.activities[id]?.state == 'idle';
+    ChatMessage? fresh(Set<Object?> seen, bool Function(ChatMessage) where) =>
+        messages()
+            .where((m) => !seen.contains(m.messageId) && where(m))
+            .lastOrNull;
+    Finder tile(ChatMessage m) => find.byWidgetPredicate(
+      (w) => w is MessageTile && w.message.messageId == m.messageId,
     );
 
     // Waits for the Bot, allowing once whatever it asks to run on the way,
@@ -311,13 +315,13 @@ void main() {
       final end = DateTime.now().add(Duration(seconds: seconds));
       while (!done() && DateTime.now().isBefore(end)) {
         final pending = messages()
-            .where((m) => m['kind'] == 'approval' && m['status'] == 'streaming')
+            .where((m) => m.kind == 'approval' && m.status == 'streaming')
             .lastOrNull;
         final allow = pending == null
             ? null
-            : find.byKey(ValueKey('choice-${pending['messageId']}-0'));
+            : find.byKey(ValueKey('choice-${pending.messageId}-0'));
         if (allow != null && allow.evaluate().isNotEmpty) {
-          final choices = object(pending!['content'])['choices'] as List?;
+          final choices = object(pending!.content)['choices'] as List?;
           expect(
             find.descendant(
               of: tile(pending),
@@ -332,14 +336,13 @@ void main() {
           if (approvals++ == 0) {
             await reveal(tile(pending));
             await shot('approval');
-            note('approval', object(pending['content']));
+            note('approval', object(pending.content));
           }
           await tap(allow);
           await until(
             () => messages().any(
               (m) =>
-                  m['messageId'] == pending['messageId'] &&
-                  m['status'] != 'streaming',
+                  m.messageId == pending.messageId && m.status != 'streaming',
             ),
             what: 'approval resolved',
           );
@@ -353,15 +356,15 @@ void main() {
 
     Future<Set<Object?>> send(String text) async {
       await working(idle, what: 'idle before sending');
-      final seen = messages().map((m) => m['messageId']).toSet();
+      final seen = messages().map((m) => m.messageId).toSet();
       await type(input, text);
       await tap(find.byTooltip('发送'));
       final end = DateTime.now().add(const Duration(seconds: 40));
       bool arrived() => messages().any(
         (m) =>
-            !seen.contains(m['messageId']) &&
-            m['author']['type'] == 'user' &&
-            m['content']['text'] == text.trim(),
+            !seen.contains(m.messageId) &&
+            m.author.type == 'user' &&
+            m.content['text'] == text.trim(),
       );
       while (!arrived() && DateTime.now().isBefore(end)) {
         await tester.pump(const Duration(milliseconds: 200));
@@ -394,18 +397,15 @@ void main() {
     );
     await until(
       () =>
-          fresh(
-            seen,
-            (m) => m['kind'] == 'question' && m['status'] == 'streaming',
-          ) !=
+          fresh(seen, (m) => m.kind == 'question' && m.status == 'streaming') !=
           null,
       seconds: 300,
       what: 'a native question',
     );
-    final question = fresh(seen, (m) => m['kind'] == 'question')!;
-    final choices = object(question['content'])['choices'] as List;
-    note('question', object(question['content']));
-    final first = find.byKey(ValueKey('choice-${question['messageId']}-0'));
+    final question = fresh(seen, (m) => m.kind == 'question')!;
+    final choices = object(question.content)['choices'] as List;
+    note('question', object(question.content));
+    final first = find.byKey(ValueKey('choice-${question.messageId}-0'));
     await until(() => first.evaluate().isNotEmpty, what: 'choices shown');
     expect(
       find.descendant(of: tile(question), matching: find.byType(ChoiceRow)),
@@ -420,9 +420,7 @@ void main() {
     await tap(first);
     await until(
       () => messages().any(
-        (m) =>
-            m['messageId'] == question['messageId'] &&
-            m['status'] != 'streaming',
+        (m) => m.messageId == question.messageId && m.status != 'streaming',
       ),
       seconds: 120,
       what: 'question answered',
@@ -459,18 +457,17 @@ void main() {
         () =>
             fresh(
               seen,
-              (m) =>
-                  m['kind'] == 'secret' && m['content']['state'] == 'pending',
+              (m) => m.kind == 'secret' && m.content['state'] == 'pending',
             ) !=
             null,
         seconds: 300,
         what: 'a secret card',
       );
-      final secret = fresh(seen, (m) => m['kind'] == 'secret')!;
+      final secret = fresh(seen, (m) => m.kind == 'secret')!;
       final card = find.byWidgetPredicate(
         (w) =>
             w is SecretCard &&
-            w.content['requestId'] == secret['content']['requestId'],
+            w.content['requestId'] == secret.content['requestId'],
       );
       final field = find.byKey(
         const ValueKey('secret-field-ETHERSCAN_API_KEY'),
@@ -500,9 +497,9 @@ void main() {
       await until(
         () => messages().any(
           (m) =>
-              m['kind'] == 'secret' &&
-              m['content']['requestId'] == secret['content']['requestId'] &&
-              m['content']['state'] == 'applied',
+              m.kind == 'secret' &&
+              m.content['requestId'] == secret.content['requestId'] &&
+              m.content['state'] == 'applied',
         ),
         seconds: 120,
         what: 'secret applied',
@@ -512,10 +509,10 @@ void main() {
             fresh(
               seen,
               (m) =>
-                  m['kind'] == 'text' &&
-                  m['author']['type'] == 'bot' &&
-                  m['status'] == 'done' &&
-                  '${m['content']['text']}'.contains('SECRET_CARD_OK'),
+                  m.kind == 'text' &&
+                  m.author.type == 'bot' &&
+                  m.status == 'done' &&
+                  '${m.content['text']}'.contains('SECRET_CARD_OK'),
             ) !=
             null,
         what: 'Bot used the delivered key',
@@ -545,9 +542,9 @@ void main() {
           fresh(
             seen,
             (m) =>
-                m['kind'] == 'text' &&
-                m['status'] == 'done' &&
-                (m['content']['files'] as List?)?.length == 2,
+                m.kind == 'text' &&
+                m.status == 'done' &&
+                (m.content['files'] as List?)?.length == 2,
           ) !=
           null,
       seconds: 400,
@@ -556,11 +553,10 @@ void main() {
     await working(idle, seconds: 120, what: 'files turn over');
     final delivered = fresh(
       seen,
-      (m) =>
-          m['kind'] == 'text' && (m['content']['files'] as List?)?.length == 2,
+      (m) => m.kind == 'text' && (m.content['files'] as List?)?.length == 2,
     )!;
     final files = [
-      for (final fileId in delivered['content']['files'] as List)
+      for (final fileId in delivered.content['files'] as List)
         await client.rpc('files.get', {'fileId': fileId}),
     ];
     note('files', [
@@ -619,7 +615,7 @@ void main() {
     await shot('files');
 
     // The words select across paragraphs and copy as they are shown.
-    final words = withoutDeliveries('${delivered['content']['text']}');
+    final words = withoutDeliveries('${delivered.content['text']}');
     final paragraphs = words
         .split(RegExp(r'\n\s*\n'))
         .map((p) => p.trim())
@@ -677,7 +673,7 @@ void main() {
     expect(copied, contains(head(paragraphs.last)));
 
     copied = null;
-    final copy = find.byKey(ValueKey('copy-${delivered['messageId']}'));
+    final copy = find.byKey(ValueKey('copy-${delivered.messageId}'));
     await tap(copy);
     expect(copied, words);
     expect(
@@ -688,11 +684,11 @@ void main() {
     note('copyButton', true);
 
     if (!android) {
-      await client.preferences(appearance: 'dark');
+      await client.prefs.update(appearance: 'dark');
       await settle(800);
       await reveal(tile(delivered));
       await shot('files-dark');
-      await client.preferences(appearance: 'system');
+      await client.prefs.update(appearance: 'system');
     }
     expect(tester.takeException(), isNull);
 

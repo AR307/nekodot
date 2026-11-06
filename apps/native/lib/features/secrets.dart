@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../data/secret_crypto.dart';
 import '../ui/design.dart';
 
@@ -36,6 +37,7 @@ class _SecretCardState extends State<SecretCard>
   int step = 0;
   final fields = <String, TextEditingController>{};
   NekodotClient get c => widget.client;
+  late final updates = c.node.summaries;
   Json get target => {
     'botId': widget.content['botId'],
     'requestId': widget.content['requestId'],
@@ -47,6 +49,7 @@ class _SecretCardState extends State<SecretCard>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     c.addListener(sync);
+    updates.addListener(sync);
     if (open(widget.content['state'])) unawaited(load());
   }
 
@@ -57,12 +60,12 @@ class _SecretCardState extends State<SecretCard>
     final message = (c.node.messages[request['conversationId']] ?? [])
         .where(
           (m) =>
-              m['kind'] == 'secret' &&
-              m['content']['requestId'] == target['requestId'],
+              m.kind == 'secret' &&
+              m.content['requestId'] == target['requestId'],
         )
         .firstOrNull;
     if (message == null) return;
-    final content = object(message['content']);
+    final content = object(message.content);
     if (!open(content['state'])) clear();
     setState(
       () => data = {
@@ -114,6 +117,7 @@ class _SecretCardState extends State<SecretCard>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     c.removeListener(sync);
+    updates.removeListener(sync);
     nativeRoutes.unsubscribe(this);
     for (final field in fields.values) {
       field

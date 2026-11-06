@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+
 import 'package:nekodot_native/main.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -115,30 +116,28 @@ void main() {
     );
     await tester.ensureVisible(find.byKey(const ValueKey('auth-submit')));
     await tester.tap(find.byKey(const ValueKey('auth-submit')));
-    await until(() => c.ready);
+    await until(() => c.connection.ready);
     await tester.runAsync(() => c.selectNode(nodeId));
     await until(() => c.online && c.node.conversations.isNotEmpty);
     // A prior harness exit interrupted introductions. Acknowledge only those
     // real interrupted QA runs through the same Stop control, never replay them.
     for (final conversation in c.node.conversations.toList()) {
       final id = conversation['conversationId'] as String;
-      if (c.node.activities[id]?['state'] != 'unknown') continue;
+      if (c.node.activities[id]?.state != 'unknown') continue;
       await open(id);
       await tester.tap(find.byTooltip('停止'));
-      await until(() => c.node.activities[id]?['state'] == 'idle');
+      await until(() => c.node.activities[id]?.state == 'idle');
     }
     debugPrint('QA real login and interrupted-run acknowledgement complete');
     await open(dm);
-    final before = (c.node.messages[dm] ?? [])
-        .map((m) => m['messageId'])
-        .toSet();
+    final before = (c.node.messages[dm] ?? []).map((m) => m.messageId).toSet();
     await submit(
       '请使用文件工具读取 $toolFile ，然后用真实代码工具计算 17 * 19。最终使用 Markdown 列表给出文件原文与计算结果。不要修改或删除文件。',
     );
     debugPrint('QA real file/code prompt submitted');
     await until(
       () => (c.node.messages[dm] ?? []).any(
-        (m) => !before.contains(m['messageId']) && m['kind'] == 'tool',
+        (m) => !before.contains(m.messageId) && m.kind == 'tool',
       ),
       seconds: 240,
     );
@@ -148,16 +147,16 @@ void main() {
     await until(
       () => (c.node.messages[dm] ?? []).any(
         (m) =>
-            !before.contains(m['messageId']) &&
-            m['kind'] == 'text' &&
-            m['author']['type'] == 'bot' &&
-            m['status'] == 'done' &&
-            '${m['content']['text']}'.contains('NEKODOT_NATIVE_LIVE_OK') &&
-            '${m['content']['text']}'.contains('323'),
+            !before.contains(m.messageId) &&
+            m.kind == 'text' &&
+            m.author.type == 'bot' &&
+            m.status == 'done' &&
+            '${m.content['text']}'.contains('NEKODOT_NATIVE_LIVE_OK') &&
+            '${m.content['text']}'.contains('323'),
       ),
       seconds: 300,
     );
-    await until(() => c.node.activities[dm]?['state'] == 'idle');
+    await until(() => c.node.activities[dm]?.state == 'idle');
     await shot('dm-flow-complete');
     if (find.byKey(const ValueKey('chat-flowchart')).evaluate().isNotEmpty) {
       await tester.tap(find.byKey(const ValueKey('chat-flowchart')));
@@ -166,26 +165,26 @@ void main() {
     }
     await tester.pump(const Duration(milliseconds: 400));
     final completedIds = (c.node.messages[dm] ?? [])
-        .map((m) => m['messageId'])
+        .map((m) => m.messageId)
         .toSet();
-    await tester.runAsync(c.connect);
-    await until(() => c.ready && !c.node.syncing);
+    await tester.runAsync(c.connection.connect);
+    await until(() => c.connection.ready && !c.node.syncing);
     await tester.runAsync(() => c.loadMessages(dm));
     expect(
-      (c.node.messages[dm] ?? []).map((m) => m['messageId']).toSet(),
+      (c.node.messages[dm] ?? []).map((m) => m.messageId).toSet(),
       containsAll(completedIds),
     );
     final turnCount = (c.node.messages[dm] ?? [])
-        .where((m) => m['kind'] == 'tool')
+        .where((m) => m.kind == 'tool')
         .length;
     await tester.pump(const Duration(seconds: 1));
     expect(
-      (c.node.messages[dm] ?? []).where((m) => m['kind'] == 'tool').length,
+      (c.node.messages[dm] ?? []).where((m) => m.kind == 'tool').length,
       turnCount,
     );
     await open(group);
     final groupBefore = (c.node.messages[group] ?? [])
-        .map((m) => m['messageId'])
+        .map((m) => m.messageId)
         .toSet();
     await submit('@everyone 每位成员各自用实际工具计算 11 * 13，然后只回复结果。不要提及其他成员，不要接力。');
     await until(
@@ -193,19 +192,19 @@ void main() {
           (c.node.messages[group] ?? [])
               .where(
                 (m) =>
-                    !groupBefore.contains(m['messageId']) &&
-                    m['kind'] == 'text' &&
-                    m['author']['type'] == 'bot' &&
-                    m['status'] == 'done' &&
-                    '${m['content']['text']}'.contains('143'),
+                    !groupBefore.contains(m.messageId) &&
+                    m.kind == 'text' &&
+                    m.author.type == 'bot' &&
+                    m.status == 'done' &&
+                    '${m.content['text']}'.contains('143'),
               )
-              .map((m) => m['author']['id'])
+              .map((m) => m.author.id)
               .toSet()
               .length ==
           3,
       seconds: 480,
     );
-    await until(() => c.node.activities[group]?['state'] == 'idle');
+    await until(() => c.node.activities[group]?.state == 'idle');
     await tester.tap(find.byKey(const ValueKey('chat-flowchart')));
     await tester.pump(const Duration(milliseconds: 400));
     await shot('group-flow-complete');

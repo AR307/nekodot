@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
+
 import 'package:nekodot_native/features/client_commands.dart';
 
 void main() {
@@ -16,7 +17,7 @@ void main() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, null);
     });
-    final client = NekodotClient()..language = 'en';
+    final client = NekodotClient()..prefs.language = 'en';
     addTearDown(client.dispose);
     await tester.pumpWidget(
       MaterialApp(

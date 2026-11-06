@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/hermes_settings.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/platform/desktop.dart';
@@ -17,12 +18,12 @@ void main() {
     tester,
   ) async {
     if (Platform.isWindows) await DesktopHost.initialize();
-    final client = NekodotClient()..language = 'en';
+    final client = NekodotClient()..prefs.language = 'en';
     final botId = const String.fromEnvironment('QA_BOT');
     final secondBotId = const String.fromEnvironment('QA_SECOND_BOT');
     final conversationId = const String.fromEnvironment('QA_CONVERSATION');
     // Authenticate in memory without replacing the user's saved product login.
-    final login = await client.request(
+    final login = await client.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -30,7 +31,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    client.token = login['token'] as String;
+    client.account.token = login['token'] as String;
     client.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await client.bootstrap();
     addTearDown(client.dispose);
@@ -201,21 +202,21 @@ void main() {
     );
     await client.loadMessages(conversationId);
     await until(
-      () => client.node.activities[conversationId]?['state'] == 'idle',
+      () => client.node.activities[conversationId]?.state == 'idle',
       seconds: 240,
     );
     final before = (client.node.messages[conversationId] ?? [])
-        .map((m) => m['messageId'])
+        .map((m) => m.messageId)
         .toSet();
     final marker = 'NATIVE_SETTINGS_${DateTime.now().millisecondsSinceEpoch}';
     bool streamed = false;
     void observe() {
       streamed |= (client.node.messages[conversationId] ?? []).any(
         (m) =>
-            !before.contains(m['messageId']) &&
-            m['author']['type'] == 'bot' &&
-            m['status'] == 'streaming' &&
-            '${m['content']['text'] ?? ''}'.isNotEmpty,
+            !before.contains(m.messageId) &&
+            m.author.type == 'bot' &&
+            m.status == 'streaming' &&
+            '${m.content['text'] ?? ''}'.isNotEmpty,
       );
     }
 
@@ -229,10 +230,10 @@ void main() {
     await until(
       () => (client.node.messages[conversationId] ?? []).any(
         (m) =>
-            !before.contains(m['messageId']) &&
-            m['author']['type'] == 'bot' &&
-            m['status'] == 'done' &&
-            '${m['content']['text']}'.contains(marker),
+            !before.contains(m.messageId) &&
+            m.author.type == 'bot' &&
+            m.status == 'done' &&
+            '${m.content['text']}'.contains(marker),
       ),
       seconds: 240,
     );
@@ -248,15 +249,15 @@ void main() {
       await binding.takeScreenshot('hermes-chat-native-android');
     }
     final messageIds = (client.node.messages[conversationId] ?? [])
-        .map((m) => m['messageId'])
+        .map((m) => m.messageId)
         .toSet();
-    await client.connect();
-    await until(() => client.ready);
+    await client.connection.connect();
+    await until(() => client.connection.ready);
     await client.synchronize(client.selectedNodeId!);
     await client.loadMessages(conversationId);
     expect(
       (client.node.messages[conversationId] ?? [])
-          .map((m) => m['messageId'])
+          .map((m) => m.messageId)
           .toSet(),
       messageIds,
     );

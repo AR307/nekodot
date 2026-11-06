@@ -9,6 +9,8 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
+import '../data/account.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
 
@@ -466,7 +468,7 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
           offset += 196608
         ) {
           final end = (offset + 196608).clamp(0, bytes.length);
-          final url = c
+          final url = c.account
               .url('/api/nodes/${c.selectedNodeId}/imports/$importId')
               .replace(
                 queryParameters: {'path': file.name, 'offset': '$offset'},
@@ -474,7 +476,7 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
           final response = await http.put(
             url,
             headers: {
-              'Authorization': 'Bearer ${c.token}',
+              'Authorization': 'Bearer ${c.account.token}',
               'Content-Type': 'application/octet-stream',
             },
             body: bytes.sublist(offset, end),

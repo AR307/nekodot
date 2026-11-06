@@ -1,3 +1,5 @@
+import 'package:nekodot_native/data/chat_models.dart';
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -7,6 +9,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/platform/desktop.dart';
 import 'package:nekodot_native/ui/design.dart';
@@ -104,7 +107,7 @@ void main() {
       }
     }
 
-    final login = await client.request(
+    final login = await client.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -112,7 +115,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    client.token = login['token'] as String;
+    client.account.token = login['token'] as String;
     client.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await client.bootstrap();
     addTearDown(client.dispose);
@@ -132,7 +135,7 @@ void main() {
     );
     await tap(find.byKey(const ValueKey('conversation-$conversationId')));
     final input = find.byKey(const ValueKey('chat-input'));
-    List<Json> messages() => client.node.messages[conversationId] ?? [];
+    List<ChatMessage> messages() => client.node.messages[conversationId] ?? [];
     Future<void> submit(String text, {bool waitForAdmission = true}) async {
       await until(() => input.evaluate().isNotEmpty, 'Composer');
       await tap(input);
@@ -149,7 +152,7 @@ void main() {
     }
 
     Future<void> idle() => until(
-      () => client.node.activities[conversationId]?['state'] == 'idle',
+      () => client.node.activities[conversationId]?.state == 'idle',
       'Conversation idle',
     );
     if (!reuseRoutine) await submit('/new $name');
@@ -168,7 +171,7 @@ void main() {
       );
       note('continuingExistingExecution', existingExecution);
     } else {
-      final creationSeen = messages().map((m) => m['messageId']).toSet();
+      final creationSeen = messages().map((m) => m.messageId).toSet();
       await submit(
         '请使用原生 cronjob 工具创建一个每 1 小时运行的定时任务，名称严格为 "$name"。'
         '不要现在执行。任务固定提示如下：'
@@ -180,22 +183,20 @@ void main() {
       final creationDeadline = DateTime.now().add(const Duration(minutes: 5));
       while (DateTime.now().isBefore(creationDeadline)) {
         final card = messages()
-            .where(
-              (m) => m['kind'] == 'routine' && m['content']['name'] == name,
-            )
+            .where((m) => m.kind == 'routine' && m.content['name'] == name)
             .firstOrNull;
-        if (card != null) routine = object(card['content']);
+        if (card != null) routine = object(card.content);
         final question = messages()
             .where(
               (m) =>
-                  !creationSeen.contains(m['messageId']) &&
-                  m['kind'] == 'question' &&
-                  m['status'] == 'streaming',
+                  !creationSeen.contains(m.messageId) &&
+                  m.kind == 'question' &&
+                  m.status == 'streaming',
             )
             .firstOrNull;
         if (question != null && !answeredBeforeCreation) {
           await shot('question');
-          final field = find.byKey(ValueKey('answer-${question['messageId']}'));
+          final field = find.byKey(ValueKey('answer-${question.messageId}'));
           await tap(field);
           await tester.enterText(field, timeRule);
           await tap(find.byTooltip('提交'));
@@ -203,7 +204,7 @@ void main() {
           note('agentAskedUsingNativeClarify', true);
         }
         if (routine != null &&
-            client.node.activities[conversationId]?['state'] == 'idle') {
+            client.node.activities[conversationId]?.state == 'idle') {
           break;
         }
         await tester.pump(const Duration(milliseconds: 200));
@@ -234,10 +235,10 @@ void main() {
     final question = messages()
         .where(
           (m) =>
-              m['kind'] == 'text' &&
-              m['author']['type'] == 'bot' &&
-              m['status'] == 'done' &&
-              RegExp('授权|审批|允许').hasMatch('${m['content']['text']}'),
+              m.kind == 'text' &&
+              m.author.type == 'bot' &&
+              m.status == 'done' &&
+              RegExp('授权|审批|允许').hasMatch('${m.content['text']}'),
         )
         .lastOrNull;
     if (!continuing) {
@@ -260,19 +261,19 @@ void main() {
         final readback = messages()
             .where(
               (m) =>
-                  m['kind'] == 'approval' &&
-                  m['status'] == 'streaming' &&
-                  '${m['content']['command']}'.startsWith(
+                  m.kind == 'approval' &&
+                  m.status == 'streaming' &&
+                  '${m.content['command']}'.startsWith(
                     'hermes routine get cron:$jobId',
                   ),
             )
             .firstOrNull;
         if (readback != null) {
-          await tap(find.byKey(ValueKey('choice-${readback['messageId']}-0')));
+          await tap(find.byKey(ValueKey('choice-${readback.messageId}-0')));
           note('readbackApprovedOnce', true);
         }
         if (matched &&
-            client.node.activities[conversationId]?['state'] == 'idle') {
+            client.node.activities[conversationId]?.state == 'idle') {
           break;
         }
         await tester.pump(const Duration(milliseconds: 200));
@@ -315,48 +316,47 @@ void main() {
         (p) => p['default'] == 'ask' && objects(p['windows']).isEmpty,
       );
       await submit('/cron run $jobId', waitForAdmission: false);
-      Json? approval;
+      ChatMessage? approval;
       await until(() {
         approval = messages()
             .where(
               (m) =>
-                  m['kind'] == 'approval' &&
-                  '${m['messageId']}'.startsWith('routine-approval:') &&
-                  '${m['content']['runId']}'.startsWith('cron:$jobId:') &&
-                  m['status'] == 'streaming',
+                  m.kind == 'approval' &&
+                  m.messageId.startsWith('routine-approval:') &&
+                  '${m.content['runId']}'.startsWith('cron:$jobId:') &&
+                  m.status == 'streaming',
             )
             .firstOrNull;
         return approval != null;
       }, 'Cron waits for native approval');
-      executionId = '${approval!['content']['runId']}';
+      executionId = '${approval!.content['runId']}';
       note('executionId', executionId);
-      expect(approval!['content']['choices'], ['once', 'deny']);
+      expect(approval!.content['choices'], ['once', 'deny']);
       await shot('waiting-approval');
-      await tap(find.byKey(ValueKey('choice-${approval!['messageId']}-0')));
+      await tap(find.byKey(ValueKey('choice-${approval!.messageId}-0')));
       await shot('approved');
     }
-    Json? result;
+    String? resultText;
     if (continuing) {
       final previous = objects(detail['executions'])
           .firstWhere((e) => e['executionId'] == existingExecution);
-      result = {
-        'content': {'text': previous['text']},
-      };
+      resultText = previous['text'] as String;
     }
     await until(() {
-      if (result != null) return true;
-      result = messages()
-          .where(
-            (m) =>
-                m['messageId'] == 'routine-result:$executionId' &&
-                m['status'] == 'done',
-          )
-          .firstOrNull;
-      return result != null;
+      if (resultText != null) return true;
+      resultText =
+          messages()
+                  .where(
+                    (m) =>
+                        m.messageId == 'routine-result:$executionId' &&
+                        m.status == 'done',
+                  )
+                  .firstOrNull
+                  ?.content['text']
+              as String?;
+      return resultText != null;
     }, 'Actual cron output delivered');
-    final token = RegExp(r'\b[a-f0-9]{32}\b')
-        .firstMatch('${result!['content']['text']}')
-        ?.group(0);
+    final token = RegExp(r'\b[a-f0-9]{32}\b').firstMatch(resultText!)?.group(0);
     expect(token, isNotNull, reason: 'Real script returns its new UUID');
     note('approvedResult', token);
     if (!finishAllow) {
@@ -364,26 +364,26 @@ void main() {
         () => tester.widget<TextField>(input).controller!.text.isEmpty,
         'Cron command completed',
       );
-      final seen = messages().map((m) => m['messageId']).toSet();
+      final seen = messages().map((m) => m.messageId).toSet();
       await submit('不要执行工具。刚刚定时任务返回的随机字符串是什么？原样回复。');
       await until(
         () => messages().any(
           (m) =>
-              !seen.contains(m['messageId']) &&
-              m['kind'] == 'text' &&
-              m['author']['type'] == 'bot' &&
-              m['status'] == 'done' &&
-              '${m['content']['text']}'.contains(token!),
+              !seen.contains(m.messageId) &&
+              m.kind == 'text' &&
+              m.author.type == 'bot' &&
+              m.status == 'done' &&
+              '${m.content['text']}'.contains(token!),
         ),
         'Ordinary follow-up sees cron result',
       );
       await idle();
       note('ordinaryFollowup', true);
       final linkedMessage = messages().lastWhere(
-        (m) => m['content']['routine']?['executionId'] == executionId,
+        (m) => m.content['routine']?['executionId'] == executionId,
       );
       final resultLink = find.byKey(
-        ValueKey('routine-result-${linkedMessage['messageId']}'),
+        ValueKey('routine-result-${linkedMessage.messageId}'),
       );
       await tester.scrollUntilVisible(
         resultLink,
@@ -418,16 +418,16 @@ void main() {
         find.byKey(const ValueKey('routine-followup-chip')),
         findsOneWidget,
       );
-      final selectedSeen = messages().map((m) => m['messageId']).toSet();
+      final selectedSeen = messages().map((m) => m.messageId).toSet();
       await submit('不要执行工具。只回复我选择的这次执行返回的随机字符串。');
       await until(
         () => messages().any(
           (m) =>
-              !selectedSeen.contains(m['messageId']) &&
-              m['kind'] == 'text' &&
-              m['author']['type'] == 'bot' &&
-              m['status'] == 'done' &&
-              '${m['content']['text']}'.contains(token!),
+              !selectedSeen.contains(m.messageId) &&
+              m.kind == 'text' &&
+              m.author.type == 'bot' &&
+              m.status == 'done' &&
+              '${m.content['text']}'.contains(token!),
         ),
         'Selected execution follow-up',
       );
@@ -442,15 +442,15 @@ void main() {
         '把任务 $jobId 改成默认自动拒绝所有需要授权的操作，全天生效，不要现在运行。',
         (p) => p['default'] == 'deny' && objects(p['windows']).isEmpty,
       );
-      final beforeDeny = messages().map((m) => m['messageId']).toSet();
+      final beforeDeny = messages().map((m) => m.messageId).toSet();
       await submit('/cron run $jobId', waitForAdmission: false);
       await until(
         () => messages().any(
           (m) =>
-              !beforeDeny.contains(m['messageId']) &&
-              '${m['messageId']}'.startsWith('routine-result:') &&
-              m['content']['routine']?['routineId'] == routineId &&
-              m['status'] != 'streaming',
+              !beforeDeny.contains(m.messageId) &&
+              m.messageId.startsWith('routine-result:') &&
+              m.content['routine']?['routineId'] == routineId &&
+              m.status != 'streaming',
         ),
         'Explicit denial returns a real result',
       );
@@ -472,17 +472,17 @@ void main() {
       await submit('/cron resume $jobId');
       note('continuedAfterVerifiedAllowConfiguration', true);
     }
-    final beforeAuto = messages().map((m) => m['messageId']).toSet();
+    final beforeAuto = messages().map((m) => m.messageId).toSet();
     await submit('/cron run $jobId', waitForAdmission: false);
-    Json? autoResult;
+    ChatMessage? autoResult;
     await until(() {
       autoResult = messages()
           .where(
             (m) =>
-                '${m['messageId']}'.startsWith('routine-result:') &&
-                m['content']['routine']?['routineId'] == routineId &&
-                !beforeAuto.contains(m['messageId']) &&
-                m['status'] == 'done',
+                m.messageId.startsWith('routine-result:') &&
+                m.content['routine']?['routineId'] == routineId &&
+                !beforeAuto.contains(m.messageId) &&
+                m.status == 'done',
           )
           .firstOrNull;
       return autoResult != null;
@@ -490,15 +490,15 @@ void main() {
     expect(
       messages().where(
         (m) =>
-            m['kind'] == 'approval' &&
-            '${m['messageId']}'.startsWith('routine-approval:') &&
-            '${m['content']['runId']}'.startsWith('cron:$jobId:') &&
-            m['status'] == 'streaming',
+            m.kind == 'approval' &&
+            m.messageId.startsWith('routine-approval:') &&
+            '${m.content['runId']}'.startsWith('cron:$jobId:') &&
+            m.status == 'streaming',
       ),
       isEmpty,
     );
     final autoToken = RegExp(r'\b[a-f0-9]{32}\b')
-        .firstMatch('${autoResult!['content']['text']}')
+        .firstMatch('${autoResult!.content['text']}')
         ?.group(0);
     expect(autoToken, isNotNull);
     expect(autoToken, isNot(token));

@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../data/flow.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
@@ -144,6 +145,7 @@ class _FlowchartPanelState extends State<FlowchartPanel>
   List<FlowStep> visible = [];
   final collapsed = <String>{};
   NekodotClient get c => widget.client;
+  late final updates = c.node.conversation(widget.conversationId);
 
   @override
   void initState() {
@@ -158,11 +160,11 @@ class _FlowchartPanelState extends State<FlowchartPanel>
     connected =
         c.online &&
         !c.node.syncing &&
-        c.node.activities[widget.conversationId]?['connection'] !=
-            'reconnecting';
+        c.node.activities[widget.conversationId]?.connection != 'reconnecting';
     layout();
     WidgetsBinding.instance.addPostFrameCallback((_) => followCurrent());
     c.addListener(changed);
+    updates.addListener(changed);
     unawaited(load());
   }
 
@@ -197,8 +199,7 @@ class _FlowchartPanelState extends State<FlowchartPanel>
     final online =
         c.online &&
         !c.node.syncing &&
-        c.node.activities[widget.conversationId]?['connection'] !=
-            'reconnecting';
+        c.node.activities[widget.conversationId]?.connection != 'reconnecting';
     if (identical(next, flow) && connected == online) return;
     FlowStep? cursor(FlowSnapshot? value) => value?.steps
         .where(
@@ -343,10 +344,10 @@ class _FlowchartPanelState extends State<FlowchartPanel>
             width: 560,
             child: SingleChildScrollView(
               child: ListenableBuilder(
-                listenable: c,
+                listenable: Listenable.merge([c, updates]),
                 builder: (context, _) {
                   final message = c.node.messages[widget.conversationId]
-                      ?.where((m) => m['messageId'] == step.messageId)
+                      ?.where((m) => m.messageId == step.messageId)
                       .firstOrNull;
                   return message == null
                       ? const SizedBox.shrink()
@@ -368,6 +369,7 @@ class _FlowchartPanelState extends State<FlowchartPanel>
 
   @override
   void dispose() {
+    updates.removeListener(changed);
     c.removeListener(changed);
     scroll.dispose();
     pulse.dispose();

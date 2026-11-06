@@ -1,3 +1,5 @@
+import '../data/chat_models.dart';
+
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -8,6 +10,7 @@ import 'package:battery_plus/battery_plus.dart';
 import 'package:pasteboard/pasteboard.dart';
 
 import '../data/client.dart';
+import '../data/account.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
 
@@ -17,21 +20,21 @@ Future<void> clientCommand(
   NekodotClient c,
   String name,
   String arg,
-  List<Json> messages,
+  List<ChatMessage> messages,
   Future<void> Function({String? path, Uint8List? bytes, bool imageOnly})
   attach,
 ) async {
   if (name == '/copy') {
     final count = arg.isEmpty ? 1 : int.tryParse(arg);
     final replies = messages
-        .where((row) => row['author']['type'] == 'bot' && row['kind'] == 'text')
+        .where((row) => row.author.type == 'bot' && row.kind == 'text')
         .toList();
     if (count == null || count < 1 || count > replies.length) {
       throw RelayError(c.tr('没有对应的 Bot 回复', 'No such Bot reply'));
     }
     await Clipboard.setData(
       ClipboardData(
-        text: '${replies[replies.length - count]['content']['text'] ?? ''}',
+        text: '${replies[replies.length - count].content['text'] ?? ''}',
       ),
     );
     if (context.mounted) showNotice(context, c.tr('已复制回复', 'Reply copied'));
@@ -70,17 +73,17 @@ Future<void> clientCommand(
     return;
   }
   final key = name.substring(1);
-  if (c.chatDisplay.containsKey(key)) {
+  if (c.prefs.chatDisplay.containsKey(key)) {
     if (!['', 'on', 'off', 'status'].contains(arg)) {
       throw RelayError('Usage: $name [on|off|status]');
     }
-    final current = c.chatDisplay[key]!;
+    final current = c.prefs.chatDisplay[key]!;
     final enabled = arg == 'status'
         ? current
         : arg.isEmpty
         ? !current
         : arg == 'on';
-    await c.setChatDisplay(key, enabled);
+    await c.prefs.setChatDisplay(key, enabled);
     if (context.mounted) {
       showNotice(
         context,
@@ -99,11 +102,11 @@ Future<void> clientCommand(
       );
     }
     final appearance = arg.isEmpty
-        ? (c.theme == 'dark' ? 'light' : 'dark')
+        ? (c.prefs.theme == 'dark' ? 'light' : 'dark')
         : arg == 'auto'
         ? 'system'
         : arg;
-    await c.preferences(appearance: appearance);
+    await c.prefs.update(appearance: appearance);
     return;
   }
   if (name == '/redraw') {

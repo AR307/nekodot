@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/bot_details.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
 import 'package:nekodot_native/features/chat.dart';
@@ -30,7 +31,7 @@ void main() {
       );
       final client = NekodotClient();
       await tester.runAsync(() async {
-        final login = await client.request(
+        final login = await client.account.request(
           '/auth/login',
           method: 'POST',
           body: {
@@ -39,7 +40,7 @@ void main() {
           },
         );
         // Keep the current user's secure storage untouched by this QA session.
-        client.token = login['token'] as String;
+        client.account.token = login['token'] as String;
         await client.bootstrap();
         await client.selectNode(const String.fromEnvironment('QA_NODE'));
       });
@@ -93,8 +94,9 @@ void main() {
         await tester.pump();
       }
 
-      Future<Json> inspect() async =>
-          object(jsonDecode((await http.get(client.url('/qa/inspect'))).body));
+      Future<Json> inspect() async => object(
+        jsonDecode((await http.get(client.account.url('/qa/inspect'))).body),
+      );
 
       var converted = false;
       Future<void> screenshot(String name) async {
@@ -130,9 +132,7 @@ void main() {
       await client.loadMessages(id);
       final initialBasicCount = client.node.messages[id]!
           .where(
-            (m) =>
-                m['author']['type'] == 'user' &&
-                m['content']['text'] == 'runs-basic',
+            (m) => m.author.type == 'user' && m.content['text'] == 'runs-basic',
           )
           .length;
       final previousRuns = objects((await inspect())['runs'])
@@ -169,7 +169,7 @@ void main() {
       await tester.pump();
       final draftController = tester.widget<TextField>(input).controller!;
       expect(draftController.text, 'Next instruction draft');
-      await until(() => client.node.activities[id]?['state'] == 'idle');
+      await until(() => client.node.activities[id]?.state == 'idle');
       await tester.pump(const Duration(seconds: 2));
       expect(
         identical(tester.widget<TextField>(input).controller, draftController),
@@ -181,10 +181,10 @@ void main() {
         'Next instruction draft',
       );
       final texts = client.node.messages[id]!.where(
-        (m) => m['author']['type'] == 'user',
+        (m) => m.author.type == 'user',
       );
       expect(
-        texts.where((m) => m['content']['text'] == 'runs-basic'),
+        texts.where((m) => m.content['text'] == 'runs-basic'),
         hasLength(initialBasicCount + 1),
       );
       await tester.enterText(input, '');
@@ -195,9 +195,7 @@ void main() {
         await tap(find.byTooltip('发送'));
         await until(
           () => client.node.messages[id]!.any(
-            (m) =>
-                m['author']['type'] == 'user' &&
-                m['content']['text'] == scenario,
+            (m) => m.author.type == 'user' && m.content['text'] == scenario,
           ),
         );
         await tester.pump(const Duration(seconds: 2));
@@ -205,10 +203,10 @@ void main() {
 
       await send('runs-clarify');
       await until(
-        () => client.node.activities[id]?['state'] == 'waiting_question',
+        () => client.node.activities[id]?.state == 'waiting_question',
       );
       await tester.enterText(input, 'Draft survives a pending question');
-      await client.connect();
+      await client.connection.connect();
       await until(() => client.online && !client.node.syncing);
       expect(
         find.widgetWithText(ChoiceRow, 'Amber (Recommended)'),
@@ -221,29 +219,29 @@ void main() {
       await screenshot('native-product-question');
       // A single choice answers as soon as it is picked.
       await tap(find.widgetWithText(ChoiceRow, 'Amber (Recommended)'));
-      await until(() => client.node.activities[id]?['state'] == 'idle');
+      await until(() => client.node.activities[id]?.state == 'idle');
       await tester.enterText(input, '');
 
       for (final scenario in ['runs-tools-approval', 'runs-approval-deny']) {
         await send(scenario);
         await until(
-          () => client.node.activities[id]?['state'] == 'waiting_approval',
+          () => client.node.activities[id]?.state == 'waiting_approval',
         );
         await screenshot('native-product-$scenario');
         await tap(
           find.text(scenario == 'runs-tools-approval' ? '允许一次' : '拒绝').last,
         );
-        await until(() => client.node.activities[id]?['state'] == 'idle');
+        await until(() => client.node.activities[id]?.state == 'idle');
       }
 
       await send('runs-steer');
-      await until(() => client.node.activities[id]?['state'] == 'tool');
+      await until(() => client.node.activities[id]?.state == 'tool');
       final runId = objects((await inspect())['runs']).singleWhere(
         (r) =>
             r['scenario'] == 'runs-steer' && !previousRuns.contains(r['runId']),
       )['runId'];
       await send('Use the updated instruction');
-      await until(() => client.node.activities[id]?['state'] == 'idle');
+      await until(() => client.node.activities[id]?.state == 'idle');
       final steered = objects((await inspect())['runs']).singleWhere(
         (r) =>
             r['scenario'] == 'runs-steer' && !previousRuns.contains(r['runId']),
@@ -253,18 +251,18 @@ void main() {
       expect(steered['toolStarts'], 1);
 
       await send('runs-stop');
-      await until(() => client.node.activities[id]?['state'] == 'tool');
+      await until(() => client.node.activities[id]?.state == 'tool');
       await tap(find.byTooltip('停止'));
-      await until(() => client.node.activities[id]?['state'] == 'idle');
+      await until(() => client.node.activities[id]?.state == 'idle');
       expect(
-        client.node.messages[id]!.any((m) => m['status'] == 'cancelled'),
+        client.node.messages[id]!.any((m) => m.status == 'cancelled'),
         isTrue,
       );
 
       await send('group-failed');
-      await until(() => client.node.activities[id]?['state'] == 'idle');
+      await until(() => client.node.activities[id]?.state == 'idle');
       expect(
-        client.node.messages[id]!.any((m) => m['status'] == 'failed'),
+        client.node.messages[id]!.any((m) => m.status == 'failed'),
         isTrue,
       );
       await tester.enterText(input, 'Kept after error');
@@ -345,14 +343,14 @@ void main() {
             (client.node.messages[groupId] ?? [])
                 .where(
                   (m) =>
-                      m['kind'] == 'text' &&
-                      m['author']['type'] == 'bot' &&
-                      m['status'] == 'done',
+                      m.kind == 'text' &&
+                      m.author.type == 'bot' &&
+                      m.status == 'done',
                 )
                 .length ==
             2,
       );
-      await until(() => client.node.activities[groupId]?['state'] == 'idle');
+      await until(() => client.node.activities[groupId]?.state == 'idle');
       await until(
         () => tester.widget<TextField>(input).controller!.text.isEmpty,
       );
@@ -373,13 +371,13 @@ void main() {
         );
       }
       final before = client.node.messages[groupId]!
-          .map((m) => m['messageId'])
+          .map((m) => m.messageId)
           .toList();
-      await client.connect();
+      await client.connection.connect();
       await until(() => client.online && !client.node.syncing);
       await client.loadMessages(groupId);
       expect(
-        client.node.messages[groupId]!.map((m) => m['messageId']).toList(),
+        client.node.messages[groupId]!.map((m) => m.messageId).toList(),
         before,
       );
       await screenshot('native-product-group');

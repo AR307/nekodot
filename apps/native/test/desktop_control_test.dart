@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/desktop_control.dart';
 import 'package:nekodot_native/ui/design.dart';
 
@@ -9,11 +10,15 @@ class DesktopClient extends NekodotClient {
   final writes = <bool>[];
   DesktopClient() {
     selectedNodeId = 'desktop-node';
-    ready = true;
+    connection.ready = true;
     node.online = true;
   }
   @override
-  Future<Json> rpc(String method, [Json params = const {}, String? target]) async {
+  Future<Json> rpc(
+    String method, [
+    Json params = const {},
+    String? target,
+  ]) async {
     switch (method) {
       case 'bots.desktopControl':
         if (params['enabled'] is bool) {
@@ -41,7 +46,9 @@ class DesktopClient extends NekodotClient {
 }
 
 void main() {
-  testWidgets('A Bot is switched on to operate this computer only on request', (tester) async {
+  testWidgets('A Bot is switched on to operate this computer only on request', (
+    tester,
+  ) async {
     final client = DesktopClient();
     await tester.pumpWidget(
       MaterialApp(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/client.dart';
+
 import '../ui/design.dart';
 
 class NodeUpdateNotice extends StatefulWidget {

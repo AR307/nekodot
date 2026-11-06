@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/ui/design.dart';
 
@@ -18,7 +19,7 @@ void main() {
       expect(directory, isNotEmpty);
       final c = NekodotClient();
       await tester.runAsync(() async {
-        final login = await c.request(
+        final login = await c.account.request(
           '/auth/login',
           method: 'POST',
           body: {
@@ -26,7 +27,7 @@ void main() {
             'password': const String.fromEnvironment('QA_PASSWORD'),
           },
         );
-        c.token = login['token'] as String;
+        c.account.token = login['token'] as String;
         await c.bootstrap();
       });
       runApp(
@@ -54,7 +55,10 @@ void main() {
       await tester.pump();
       await tester.runAsync(() async {
         final value = await Clipboard.getData(Clipboard.kTextPlain);
-        expect(value?.text, "curl -fsSL '${c.origin}/install.sh' | bash");
+        expect(
+          value?.text,
+          "curl -fsSL '${c.account.origin}/install.sh' | bash",
+        );
         await File('$directory/native-ready')
             .writeAsString('legacy command copied');
       });

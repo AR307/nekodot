@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/node_update.dart';
 import 'package:nekodot_native/ui/design.dart';
 
@@ -46,8 +47,8 @@ void main() {
         );
       }),
     );
-    c.token = 'isolated-test';
-    await c.connect();
+    c.account.token = 'isolated-test';
+    await c.connection.connect();
     Future<void> until(bool Function() done) async {
       final end = DateTime.now().add(const Duration(seconds: 5));
       while (!done()) {
@@ -58,8 +59,8 @@ void main() {
       }
     }
 
-    await until(() => c.me != null);
-    expect(objects(c.me!['nodes']).single['updateCommand'], command);
+    await until(() => c.account.me != null);
+    expect(objects(c.account.me!['nodes']).single['updateCommand'], command);
     old = false;
     socket!.add(
       jsonEncode({
@@ -69,9 +70,11 @@ void main() {
         'payload': {'online': true},
       }),
     );
-    await until(() => objects(c.me!['nodes']).single['updateCommand'] == null);
+    await until(
+      () => objects(c.account.me!['nodes']).single['updateCommand'] == null,
+    );
     expect(reads, 2);
-    expect(c.ready, isTrue);
+    expect(c.connection.ready, isTrue);
     c.dispose();
     await server.close(force: true);
   });

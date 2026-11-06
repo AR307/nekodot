@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
 import 'package:nekodot_native/features/extensions.dart';
 import 'package:nekodot_native/features/home.dart';
@@ -26,9 +27,9 @@ void main() {
   ) async {
     SharedPreferences.setPrefix('nekodot-command-device-qa.');
     if (Platform.isWindows) await DesktopHost.initialize();
-    final c = NekodotClient()..language = 'en';
+    final c = NekodotClient()..prefs.language = 'en';
     final botId = const String.fromEnvironment('QA_SECOND_BOT');
-    final login = await c.request(
+    final login = await c.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -36,7 +37,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    c.token = login['token'];
+    c.account.token = login['token'];
     c.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await c.bootstrap();
     addTearDown(c.dispose);
@@ -66,7 +67,7 @@ void main() {
         builder: (context, child) => MaterialApp(
           theme: light,
           darkTheme: dark,
-          themeMode: c.theme == 'dark' ? ThemeMode.dark : ThemeMode.light,
+          themeMode: c.prefs.theme == 'dark' ? ThemeMode.dark : ThemeMode.light,
           navigatorObservers: [nativeRoutes],
           builder: (context, child) => Platform.isWindows
               ? WindowChrome(child: child!)
@@ -79,7 +80,7 @@ void main() {
     final input = find.byKey(const ValueKey('chat-input'));
     await until(() => input.evaluate().isNotEmpty);
     await c.loadMessages(conversationId);
-    await until(() => c.node.activities[conversationId]?['state'] == 'idle');
+    await until(() => c.node.activities[conversationId]?.state == 'idle');
     Future<void> send(String text) async {
       debugPrint('QA DEVICE: sending ${text.split(' ').first}');
       FocusManager.instance.primaryFocus?.unfocus();
@@ -117,7 +118,7 @@ void main() {
       'statusbar',
       'battery',
     ]) {
-      await local('/$key on', () => c.chatDisplay[key] == true);
+      await local('/$key on', () => c.prefs.chatDisplay[key] == true);
       final prefs = await SharedPreferences.getInstance();
       await until(() => prefs.getBool('chat-$key') == true);
     }
@@ -132,21 +133,19 @@ void main() {
     );
     expect(find.textContaining('Device battery'), findsOneWidget);
     final messagesBeforeRefresh = (c.node.messages[conversationId] ?? [])
-        .map((r) => r['messageId'])
+        .map((r) => r.messageId)
         .toSet();
     await local('/redraw', () => true);
     expect(
-      (c.node.messages[conversationId] ?? [])
-          .map((r) => r['messageId'])
-          .toSet(),
+      (c.node.messages[conversationId] ?? []).map((r) => r.messageId).toSet(),
       messagesBeforeRefresh,
     );
-    await local('/skin dark', () => c.theme == 'dark');
+    await local('/skin dark', () => c.prefs.theme == 'dark');
     await until(
       () => Theme.of(tester.element(input)).brightness == Brightness.dark,
     );
     expect(Theme.of(tester.element(input)).brightness, Brightness.dark);
-    await local('/skin light', () => c.theme == 'light');
+    await local('/skin light', () => c.prefs.theme == 'light');
     debugPrint(
       'QA DEVICE: local display commands and persisted native appearance passed',
     );
@@ -197,7 +196,7 @@ void main() {
       );
     }
     final old = (c.node.messages[conversationId] ?? [])
-        .map((m) => m['messageId'])
+        .map((m) => m.messageId)
         .toSet();
     await send(
       'Harmless real image acceptance. Describe only the two shapes and their colors in the attached image. Do not use tools.',
@@ -205,22 +204,22 @@ void main() {
     await until(
       () => (c.node.messages[conversationId] ?? []).any(
         (m) =>
-            !old.contains(m['messageId']) &&
-            m['author']['type'] == 'bot' &&
-            m['status'] == 'done' &&
-            '${m['content']['text']}'.toLowerCase().contains('red') &&
-            '${m['content']['text']}'.toLowerCase().contains('blue'),
+            !old.contains(m.messageId) &&
+            m.author.type == 'bot' &&
+            m.status == 'done' &&
+            '${m.content['text']}'.toLowerCase().contains('red') &&
+            '${m.content['text']}'.toLowerCase().contains('blue'),
       ),
       seconds: 240,
     );
-    await until(() => c.node.activities[conversationId]?['state'] == 'idle');
+    await until(() => c.node.activities[conversationId]?.state == 'idle');
     final reply = (c.node.messages[conversationId] ?? []).lastWhere(
-      (m) => m['author']['type'] == 'bot' && m['kind'] == 'text',
+      (m) => m.author.type == 'bot' && m.kind == 'text',
     );
     await local('/copy', () => true);
     expect(
       (await Clipboard.getData(Clipboard.kTextPlain))?.text,
-      reply['content']['text'],
+      reply.content['text'],
     );
     debugPrint(
       'QA DEVICE: actual clipboard image, file upload, model vision and reply copy passed',

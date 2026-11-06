@@ -1,6 +1,9 @@
+import '../data/chat_models.dart';
+
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../ui/design.dart';
 
 /// Hermes's own friendly verbs for its built-in tools (`display.verb` in its
@@ -49,9 +52,9 @@ String stepLabel(NekodotClient c, Json body) {
 
 /// A line the Bot wrote, cleaned for one line of status: no markup, no
 /// closing punctuation.
-String? _said(Json m) {
+String? _said(ChatMessage m) {
   if (!_canContainProgress(m)) return null;
-  final words = '${m['content']?['text'] ?? ''}'
+  final words = '${m.content['text'] ?? ''}'
       .split('\n')
       .where(_progressLine)
       .lastOrNull
@@ -62,9 +65,9 @@ String? _said(Json m) {
   return words == null || words.isEmpty ? null : words;
 }
 
-bool _canContainProgress(Json message) =>
-    message['kind'] == 'commentary' ||
-    (message['kind'] == 'text' && message['status'] == 'streaming');
+bool _canContainProgress(ChatMessage message) =>
+    message.kind == 'commentary' ||
+    (message.kind == 'text' && message.status == 'streaming');
 
 bool _progressLine(String line) {
   final words = line.trim().replaceAll(RegExp(r'^[*_`#>]+\s*'), '');
@@ -77,8 +80,8 @@ bool _progressLine(String line) {
 }
 
 /// Keep an acknowledgement even when Hermes streams it beside a progress line.
-String visibleMessageText(Json message) {
-  final text = '${message['content']?['text'] ?? ''}';
+String visibleMessageText(ChatMessage message) {
+  final text = '${message.content['text'] ?? ''}';
   if (!_canContainProgress(message)) return text;
   return text
       .split('\n')
@@ -87,23 +90,23 @@ String visibleMessageText(Json message) {
       .trim();
 }
 
-bool isProgressMessage(Json message) =>
+bool isProgressMessage(ChatMessage message) =>
     _said(message) != null && visibleMessageText(message).isEmpty;
 
 /// What the Bot says it is doing in this turn: the newest line it wrote
 /// (one line may announce several steps), else Hermes's own label of the
 /// running step. Null before it has done or said anything.
-String? botPhrase(NekodotClient c, List<Json> turn) {
+String? botPhrase(NekodotClient c, List<ChatMessage> turn) {
   for (final m in turn.reversed) {
     final words = _said(m);
     if (words != null) return words;
   }
   final running = turn
-      .where((m) => m['kind'] == 'tool' && m['status'] == 'streaming')
+      .where((m) => m.kind == 'tool' && m.status == 'streaming')
       .lastOrNull;
   if (running == null) return null;
-  final tool = '${running['content']['tool']}';
-  final label = stepLabel(c, object(running['content']));
+  final tool = '${running.content['tool']}';
+  final label = stepLabel(c, object(running.content));
   return _verbs.containsKey(tool)
       ? c.tr('正在$label', label)
       : c.tr('正在使用 $tool', 'Using $tool');
@@ -111,7 +114,7 @@ String? botPhrase(NekodotClient c, List<Json> turn) {
 
 /// The line above the composer while a Bot works: its name and what it says
 /// it is doing, e.g. "Lumi 正在查看推文" or "Lumi is checking the tweets".
-String workingLine(NekodotClient c, String name, List<Json> turn) {
+String workingLine(NekodotClient c, String name, List<ChatMessage> turn) {
   final phrase = botPhrase(c, turn) ?? c.tr('正在思考', 'Thinking');
   if (RegExp(r'^[A-Za-z]').hasMatch(phrase)) {
     final verb = phrase.split(RegExp(r'\s')).first.toLowerCase();
@@ -126,7 +129,7 @@ String workingLine(NekodotClient c, String name, List<Json> turn) {
 /// line: while it works, what it is doing; afterwards, how many steps it took.
 class WorkBlock extends StatefulWidget {
   final NekodotClient client;
-  final List<Json> steps;
+  final List<ChatMessage> steps;
   final bool live;
   const WorkBlock({
     super.key,
@@ -144,16 +147,16 @@ class _WorkBlockState extends State<WorkBlock> {
   Widget build(BuildContext context) {
     final c = widget.client, tone = context.tone;
     final text = Theme.of(context).textTheme.bodySmall!;
-    final tools = widget.steps.where((m) => m['kind'] == 'tool').toList();
+    final tools = widget.steps.where((m) => m.kind == 'tool').toList();
     // An allowed command is the step its tool call runs; it shows only when no call came with it.
     final hasTool = tools.isNotEmpty;
     final failed = tools
-        .where((m) => m['status'] == 'failed' || m['content']['error'] == true)
+        .where((m) => m.status == 'failed' || m.content['error'] == true)
         .length;
     final seconds =
         tools.fold<num>(
           0,
-          (sum, m) => sum + ((m['content']['durationMs'] as num?) ?? 0),
+          (sum, m) => sum + ((m.content['durationMs'] as num?) ?? 0),
         ) /
         1000;
     // What it is doing is said under the box, beside its avatar; the box
@@ -198,15 +201,15 @@ class _WorkBlockState extends State<WorkBlock> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       for (final step in widget.steps)
-                        if (step['kind'] == 'tool')
+                        if (step.kind == 'tool')
                           StepRow(
-                            key: ValueKey('step-${step['messageId']}'),
+                            key: ValueKey('step-${step.messageId}'),
                             client: c,
                             message: step,
                           )
-                        else if (step['kind'] == 'approval' && !hasTool)
+                        else if (step.kind == 'approval' && !hasTool)
                           ApprovalStep(
-                            key: ValueKey('step-${step['messageId']}'),
+                            key: ValueKey('step-${step.messageId}'),
                             client: c,
                             message: step,
                           ),
@@ -287,7 +290,7 @@ class StepLine extends StatelessWidget {
 /// call and its result.
 class StepRow extends StatefulWidget {
   final NekodotClient client;
-  final Json message;
+  final ChatMessage message;
   final bool initiallyOpen;
   const StepRow({
     super.key,
@@ -304,9 +307,9 @@ class _StepRowState extends State<StepRow> {
   @override
   Widget build(BuildContext context) {
     final tone = context.tone;
-    final m = widget.message, body = object(m['content']);
-    final running = m['status'] == 'streaming',
-        failed = m['status'] == 'failed' || body['error'] == true;
+    final m = widget.message, body = object(m.content);
+    final running = m.status == 'streaming',
+        failed = m.status == 'failed' || body['error'] == true;
     final duration = ((body['durationMs'] as num?) ?? 0) / 1000;
     final detail = [
       '${body['preview'] ?? ''}'.trim(),
@@ -353,12 +356,12 @@ class _StepRowState extends State<StepRow> {
 /// A command you allowed: one line in the box, like any other step.
 class ApprovalStep extends StatelessWidget {
   final NekodotClient client;
-  final Json message;
+  final ChatMessage message;
   const ApprovalStep({super.key, required this.client, required this.message});
   @override
   Widget build(BuildContext context) {
     final tone = context.tone;
-    final command = firstLine('${object(message['content'])['command'] ?? ''}');
+    final command = firstLine('${object(message.content)['command'] ?? ''}');
     return StepLine(
       leading: Icon(Icons.check, size: 14, color: tone.ink3),
       label: client.tr('运行命令 $command', 'Running $command'),

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/account.dart';
 import 'package:nekodot_native/features/auth_errors.dart';
 
 void main() {
@@ -15,7 +16,7 @@ void main() {
     );
     expect(authError(client, rejected, checkingPassword: true), '密码或邮箱错误');
     expect(authError(client, rejected), '登录已过期，请重新登录');
-    client.language = 'en';
+    client.prefs.language = 'en';
     expect(
       authError(client, rejected, checkingPassword: true),
       'Email or password incorrect',

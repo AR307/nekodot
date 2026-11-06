@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../ui/message_markdown.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
+import '../data/account.dart';
 import '../ui/design.dart';
 
 class BotSessionsPage extends StatefulWidget {

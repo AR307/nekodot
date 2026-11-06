@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
+
 import 'package:nekodot_native/features/auth.dart';
 import 'package:nekodot_native/features/settings.dart';
 import 'package:nekodot_native/ui/design.dart';

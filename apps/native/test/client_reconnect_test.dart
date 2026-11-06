@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/account.dart';
 
 /// A Relay stand-in that holds the handshake until the test releases it.
 class Relay {
@@ -49,18 +50,18 @@ void main() {
     final client = NekodotClient(
       server: 'http://127.0.0.1:${relay.server.port}',
     );
-    client.token = 'test';
-    await client.connect();
+    client.account.token = 'test';
+    await client.connection.connect();
     await until(() => relay.hello.length == 1);
     relay.accept(relay.hello[0]);
-    await until(() => client.ready);
+    await until(() => client.connection.ready);
 
     // An answer still owed by the old socket fails instead of waiting 30 seconds.
     final owed = client.rpc('messages.list', {}, 'node');
     await until(() => relay.requests.length == 1);
-    final reconnecting = client.connect();
+    final reconnecting = client.connection.connect();
 
-    expect(client.ready, isFalse);
+    expect(client.connection.ready, isFalse);
     await expectLater(owed, throwsA(isA<RelayError>()));
     await expectLater(
       client.rpc('messages.list', {}, 'node'),
@@ -68,11 +69,11 @@ void main() {
     );
     await reconnecting;
     await until(() => relay.hello.length == 2);
-    expect(client.ready, isFalse);
+    expect(client.connection.ready, isFalse);
     expect(relay.requests, hasLength(1));
 
     relay.accept(relay.hello[1]);
-    await until(() => client.ready);
+    await until(() => client.connection.ready);
     unawaited(
       client
           .rpc('messages.list', {}, 'node')

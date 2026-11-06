@@ -1,3 +1,5 @@
+import '../data/chat_models.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -6,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
 import '../ui/message_markdown.dart';
@@ -56,7 +59,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   String? commandBotId;
   List<Json> commands = [];
   bool loadingCommands = false;
-  Json? commandOperation;
+  CommandOperation? commandOperation;
   String? submittedCommand;
   String? commandNodeId;
   String? focusedMessage;
@@ -174,7 +177,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
     if ((text.isEmpty && attached.isEmpty) ||
         sending ||
         uploading ||
-        (commandOperation?['status'] == 'running' &&
+        (commandOperation?.status == 'running' &&
             !(sideCommand && !text.startsWith('/')))) {
       return;
     }
@@ -220,15 +223,16 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       // A user can already be drafting the next instruction while RPC returns.
       if (!command && input.text.trim() == text) input.clear();
       if (command) {
+        final operation = CommandOperation.fromJson(result);
         setState(() {
-          commandOperation = result;
+          commandOperation = operation;
           submittedCommand = text;
           commandNodeId = nodeId;
         });
         pendingId = null;
         pendingText = null;
         if (sideCommand && input.text.trim() == text) input.clear();
-        unawaited(followCommand(result));
+        unawaited(followCommand(operation));
       } else {
         pendingId = null;
         pendingText = null;
@@ -300,44 +304,46 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
     }
   }
 
-  Future<void> followCommand(Json operation) async {
+  Future<void> followCommand(CommandOperation operation) async {
     try {
-      while (operation['status'] == 'running' && mounted) {
+      while (operation.status == 'running' && mounted) {
         await Future<void>.delayed(const Duration(seconds: 1));
         if (!mounted) return;
-        operation = await c.rpc('operations.get', {
-          'operationId': operation['operationId'],
-        }, commandNodeId);
+        operation = CommandOperation.fromJson(
+          await c.rpc('operations.get', {
+            'operationId': operation.operationId,
+          }, commandNodeId),
+        );
         if (mounted) setState(() => commandOperation = operation);
       }
       if (!mounted) return;
-      if (operation['status'] != 'done') {
-        setState(() => error = '${operation['detail']}');
+      if (operation.status != 'done') {
+        setState(() => error = operation.detail);
       } else if (input.text.trim() == submittedCommand) {
         input.clear();
       }
-      for (final result in objects(operation['results'])) {
+      for (final result in operation.results) {
         if (!mounted) return;
-        final prefill = result['native']?['prefill'];
+        final prefill = result.prefill;
         if (prefill is String && input.text.isEmpty) input.text = prefill;
-        final action = result['native']?['action'];
+        final action = result.action;
         if (action is String && commandNodeId == c.selectedNodeId) {
           await clientCommand(
             context,
             c,
             action,
-            '${result['native']?['argument'] ?? ''}',
+            result.argument,
             c.node.messages[id] ?? [],
             attachFile,
           );
           if (!mounted) return;
         }
-        final export = result['native']?['export'];
-        if (export is Map) {
+        final export = result.export;
+        if (export != null) {
           final saved = await FilePicker.saveFile(
             dialogTitle: c.tr('保存原生会话', 'Save native transcript'),
-            fileName: '${export['filename']}',
-            bytes: Uint8List.fromList(utf8.encode('${export['content']}')),
+            fileName: export.filename,
+            bytes: Uint8List.fromList(utf8.encode(export.content)),
           );
           if (saved != null && mounted) {
             showNotice(
@@ -349,15 +355,15 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       }
       await c.loadMessages(id);
       if (!mounted || commandNodeId != c.selectedNodeId) return;
-      for (final result in objects(operation['results'])) {
-        final page = result['native']?['page'];
+      for (final result in operation.results) {
+        final page = result.page;
         if (page is String) {
           await openCommandPage(
             context,
             c,
             page,
-            '${result['botId']}',
-            '${result['native']?['argument'] ?? ''}',
+            result.botId,
+            result.argument,
           );
           if (!mounted) return;
         }
@@ -378,7 +384,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: c,
+    listenable: Listenable.merge([c, c.node, c.node.conversation(id)]),
     builder: (context, child) {
       final conversation = c.node.conversations
           .where((x) => x['conversationId'] == id)
@@ -389,8 +395,9 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 .where((x) => x['groupId'] == conversation['groupId'])
                 .firstOrNull
           : null;
-      final activity = c.node.activities[id] ?? {'state': 'idle'};
-      final state = activity['state'],
+      final activity =
+          c.node.activities[id] ?? const ConversationActivity.idle();
+      final state = activity.state,
           running = state != 'idle',
           working = state != 'idle' && state != 'unknown',
           waiting =
@@ -407,21 +414,23 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       final messages = (c.node.messages[id] ?? [])
           .where(
             (row) =>
-                (c.chatDisplay['focus'] != true || row['kind'] != 'tool') &&
+                (c.prefs.chatDisplay['focus'] != true || row.kind != 'tool') &&
                 // A text segment that ended empty when a tool started has nothing to show.
-                !(row['kind'] == 'commentary' &&
-                    '${row['content']?['text'] ?? ''}'.trim().isEmpty),
+                !(row.kind == 'commentary' &&
+                    '${row.content['text'] ?? ''}'.trim().isEmpty),
           )
           .toList();
       final lastBot = messages
-          .where((m) => m['author']['type'] == 'bot')
-          .lastOrNull?['author']['id'];
+          .where((m) => m.author.type == 'bot')
+          .lastOrNull
+          ?.author
+          .id;
       final bot =
           members
               .where(
                 (b) =>
                     b['botId'] ==
-                    (activity['botId'] ??
+                    (activity.botId ??
                         lastBot ??
                         group?['leadBotId'] ??
                         conversation['botId']),
@@ -436,26 +445,26 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       ];
       // Steps fold together: the tool calls in a row and what the Bot wrote
       // between them, until it writes its reply or asks you something.
-      final items = <List<Json>>[];
+      final items = <List<ChatMessage>>[];
       // An approval the user allowed is one of the steps: it runs inside the box.
-      bool allowed(Json m) =>
-          m['kind'] == 'approval' &&
-          m['status'] != 'streaming' &&
+      bool allowed(ChatMessage m) =>
+          m.kind == 'approval' &&
+          m.status != 'streaming' &&
           const {
             'once',
             'session',
             'always',
-          }.contains(object(m['content'])['choice']);
-      bool step(Json m) => m['kind'] == 'tool' || allowed(m);
-      bool work(List<Json> item) =>
-          item.any((m) => m['kind'] == 'tool' || allowed(m));
+          }.contains(object(m.content)['choice']);
+      bool step(ChatMessage m) => m.kind == 'tool' || allowed(m);
+      bool work(List<ChatMessage> item) =>
+          item.any((m) => m.kind == 'tool' || allowed(m));
       for (final m in messages) {
         if (isProgressMessage(m)) continue;
         final last = items.lastOrNull;
         if (step(m) &&
             last != null &&
             step(last.first) &&
-            last.first['author']['id'] == m['author']['id']) {
+            last.first.author.id == m.author.id) {
           last.add(m);
         } else {
           items.add([m]);
@@ -469,15 +478,15 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
         }
       }
       // This turn of the working Bot: what it did since your last message.
-      List<Json> currentTurn() {
-        final all = c.node.messages[id] ?? const <Json>[];
-        final start = all.lastIndexWhere((m) => m['author']['type'] == 'user');
+      List<ChatMessage> currentTurn() {
+        final all = c.node.messages[id] ?? const <ChatMessage>[];
+        final start = all.lastIndexWhere((m) => m.author.type == 'user');
         return all
             .skip(start + 1)
             .where(
               (m) =>
-                  m['author']['type'] == 'bot' &&
-                  (bot == null || m['author']['id'] == bot['botId']),
+                  m.author.type == 'bot' &&
+                  (bot == null || m.author.id == bot['botId']),
             )
             .toList();
       }
@@ -485,14 +494,14 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       final tail = messages.lastOrNull;
       final thinking =
           (state == 'thinking' || state == 'tool') &&
-          (tail?['status'] != 'streaming' ||
-              tail?['kind'] == 'tool' ||
+          (tail?.status != 'streaming' ||
+              tail?.kind == 'tool' ||
               (tail != null && isProgressMessage(tail)));
       // While it works, the row above the composer says what it is doing.
       final lead = thinking && messages.isNotEmpty ? 1 : 0;
       final status = !c.online
           ? c.tr('离线', 'Offline')
-          : activity['connection'] == 'reconnecting'
+          : activity.connection == 'reconnecting'
           ? c.tr('重连中', 'Reconnecting')
           : switch (state) {
               'thinking' => c.tr('回复中', 'Replying'),
@@ -502,7 +511,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
               'unknown' => c.tr('执行中断，待确认', 'Execution interrupted'),
               _ => null,
             };
-      final chain = activity['chain'] as Map?;
+      final chain = activity.chain;
       final hasText = input.text.trim().isNotEmpty || attached.isNotEmpty;
       final queueCommand =
           state != 'unknown' && RegExp(r'^/queue(?:\s|$)').hasMatch(input.text);
@@ -556,10 +565,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 if (chain != null) ...[
-                                  ChainDots(
-                                    count: chain['count'] as int,
-                                    max: chain['max'] as int,
-                                  ),
+                                  ChainDots(count: chain.count, max: chain.max),
                                   const SizedBox(width: 5),
                                 ],
                                 if (status != null)
@@ -684,10 +690,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                             ),
                             if (chain != null) ...[
                               const SizedBox(width: 8),
-                              ChainDots(
-                                count: chain['count'] as int,
-                                max: chain['max'] as int,
-                              ),
+                              ChainDots(count: chain.count, max: chain.max),
                             ],
                             if (status != null) ...[
                               const SizedBox(width: 8),
@@ -814,7 +817,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
           (!waiting || queueCommand) &&
           !sending &&
           !uploading &&
-          !(commandOperation?['status'] == 'running' &&
+          !(commandOperation?.status == 'running' &&
               !(sideCommand && !input.text.startsWith('/'))) &&
           hasText;
       final composerAction = Row(
@@ -928,7 +931,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                           ),
                       ],
                     ),
-                  if (commandOperation?['status'] == 'running')
+                  if (commandOperation?.status == 'running')
                     Padding(
                       padding: const EdgeInsets.all(8),
                       child: Row(
@@ -1015,14 +1018,14 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                     hasContent: hasText || uploading,
                     running: running,
                   ),
-                  if (c.chatDisplay['statusbar'] == true ||
-                      c.chatDisplay['battery'] == true)
+                  if (c.prefs.chatDisplay['statusbar'] == true ||
+                      c.prefs.chatDisplay['battery'] == true)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(8, 5, 8, 0),
                       child: Row(
                         key: const ValueKey('chat-statusbar'),
                         children: [
-                          if (c.chatDisplay['statusbar'] == true)
+                          if (c.prefs.chatDisplay['statusbar'] == true)
                             Expanded(
                               child: Text(
                                 '${status ?? c.tr('已连接', 'Connected')} · ${c.tr('Bot 配置', 'Bot config')}: ${bot?['model'] ?? ''}',
@@ -1033,7 +1036,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                             )
                           else
                             const Spacer(),
-                          if (c.chatDisplay['battery'] == true)
+                          if (c.prefs.chatDisplay['battery'] == true)
                             DeviceBattery(client: c),
                         ],
                       ),
@@ -1069,7 +1072,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                     itemCount: items.length + 1 + lead,
                     findChildIndexCallback: (key) {
                       final index = items.indexWhere(
-                        (item) => ValueKey(item.first['messageId']) == key,
+                        (item) => ValueKey(item.first.messageId) == key,
                       );
                       return index < 0 ? null : items.length - 1 - index + lead;
                     },
@@ -1105,7 +1108,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                                     try {
                                       await c.loadMessages(
                                         id,
-                                        before: messages.first['seq'] as int,
+                                        before: messages.first.seq,
                                       );
                                     } catch (e) {
                                       if (mounted) setState(() => error = '$e');
@@ -1120,18 +1123,15 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                           m = item.first,
                           previous = at == 0 ? null : items[at - 1].last,
                           author = members
-                              .where((b) => b['botId'] == m['author']['id'])
+                              .where((b) => b['botId'] == m.author.id)
                               .firstOrNull;
                       return Align(
-                        key: ValueKey(m['messageId']),
+                        key: ValueKey(m.messageId),
                         alignment: Alignment.topCenter,
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 720),
                           child: KeyedSubtree(
-                            key:
-                                item.any(
-                                  (m) => m['messageId'] == focusedMessage,
-                                )
+                            key: item.any((m) => m.messageId == focusedMessage)
                                 ? focusedKey
                                 : null,
                             child: MessageTile(
@@ -1147,18 +1147,16 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                                         (later) => const {
                                           'approval',
                                           'question',
-                                        }.contains(later.first['kind']),
+                                        }.contains(later.first.kind),
                                       ),
                               bot: author,
                               showName: group != null,
                               working: working && index == 0,
                               continued:
                                   previous != null &&
-                                  previous['kind'] != 'system' &&
-                                  previous['author']['id'] ==
-                                      m['author']['id'] &&
-                                  previous['author']['type'] ==
-                                      m['author']['type'],
+                                  previous.kind != 'system' &&
+                                  previous.author.id == m.author.id &&
+                                  previous.author.type == m.author.type,
                               onRetry: (text) {
                                 input.text = text;
                               },
@@ -1228,10 +1226,10 @@ class ThinkingRow extends StatelessWidget {
 
 class MessageTile extends StatefulWidget {
   final NekodotClient client;
-  final Json message;
+  final ChatMessage message;
 
   /// The steps folded with this one, and whether the Bot is still on them.
-  final List<Json>? steps;
+  final List<ChatMessage>? steps;
   final bool live;
   final Json? bot;
   final bool continued, showName, working;
@@ -1255,11 +1253,11 @@ class MessageTile extends StatefulWidget {
 class _MessageTileState extends State<MessageTile> {
   bool hovered = false, focused = false;
   NekodotClient get client => widget.client;
-  Json get message => widget.message;
+  ChatMessage get message => widget.message;
   Json? get bot => widget.bot;
   bool get showName => widget.showName;
   bool get continued => widget.continued;
-  List<Json>? get steps => widget.steps;
+  List<ChatMessage>? get steps => widget.steps;
   bool get live => widget.live;
   bool get working => widget.working;
   ValueChanged<String> get onRetry => widget.onRetry;
@@ -1277,9 +1275,9 @@ class _MessageTileState extends State<MessageTile> {
     final c = client,
         m = message,
         tone = context.tone,
-        body = object(m['content']),
-        user = m['author']['type'] == 'user',
-        kind = m['kind'];
+        body = object(m.content),
+        user = m.author.type == 'user',
+        kind = m.kind;
     if (kind == 'system') {
       final raw = '${body['text']}';
       final command =
@@ -1319,11 +1317,7 @@ class _MessageTileState extends State<MessageTile> {
                   ),
           ),
           for (final fileId in (body['files'] as List? ?? []))
-            FileCard(
-              client: c,
-              fileId: '$fileId',
-              messageId: '${m['messageId']}',
-            ),
+            FileCard(client: c, fileId: '$fileId', messageId: m.messageId),
           if (body['retryText'] != null)
             TextButton(
               onPressed: () => onRetry(body['retryText'] as String),
@@ -1338,8 +1332,8 @@ class _MessageTileState extends State<MessageTile> {
     final text = body['files'] is List && (body['files'] as List).isNotEmpty
             ? withoutDeliveries('${body['text'] ?? ''}')
             : visibleMessageText(m),
-        streaming = m['status'] == 'streaming',
-        stopped = m['status'] == 'failed' || m['status'] == 'cancelled';
+        streaming = m.status == 'streaming',
+        stopped = m.status == 'failed' || m.status == 'cancelled';
     // Files stand on their own under the words, never inside the bubble.
     final attachments = [
       if (body['files'] is List)
@@ -1350,7 +1344,7 @@ class _MessageTileState extends State<MessageTile> {
               client: c,
               fileId: '$fileId',
               botId: user ? null : bot?['botId'] as String?,
-              messageId: m['messageId'] as String,
+              messageId: m.messageId,
             ),
           ),
     ];
@@ -1360,7 +1354,7 @@ class _MessageTileState extends State<MessageTile> {
     Widget? content;
     if (kind == 'secret') {
       content = SecretCard(
-        key: ValueKey(m['messageId']),
+        key: ValueKey(m.messageId),
         client: c,
         content: body,
       );
@@ -1368,17 +1362,13 @@ class _MessageTileState extends State<MessageTile> {
       content = RoutineCard(client: c, content: body);
     } else if (steps != null) {
       content = WorkBlock(
-        key: ValueKey('work-${m['messageId']}'),
+        key: ValueKey('work-${m.messageId}'),
         client: c,
         steps: steps!,
         live: live,
       );
     } else if (kind == 'question' || kind == 'approval') {
-      content = ControlCard(
-        key: ValueKey(m['messageId']),
-        client: c,
-        message: m,
-      );
+      content = ControlCard(key: ValueKey(m.messageId), client: c, message: m);
     } else if (text.trim().isNotEmpty ||
         streaming ||
         stopped ||
@@ -1410,14 +1400,14 @@ class _MessageTileState extends State<MessageTile> {
                   RoutinePage(
                     client: c,
                     botId: user
-                        ? '${c.node.conversations.firstWhere((row) => row['conversationId'] == m['conversationId'])['botId']}'
-                        : '${m['author']['id']}',
+                        ? '${c.node.conversations.firstWhere((row) => row['conversationId'] == m.conversationId)['botId']}'
+                        : '${m.author.id}',
                     routineId: '${body['routine']['routineId']}',
                     executionId: '${body['routine']['executionId']}',
                   ),
                 ),
                 icon: const Icon(Icons.webhook, size: 16),
-                key: ValueKey('routine-result-${m['messageId']}'),
+                key: ValueKey('routine-result-${m.messageId}'),
                 style: user
                     ? TextButton.styleFrom(foregroundColor: tone.base)
                     : null,
@@ -1431,12 +1421,12 @@ class _MessageTileState extends State<MessageTile> {
               Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: Text(
-                  m['status'] == 'cancelled'
+                  m.status == 'cancelled'
                       ? c.tr('已停止', 'Stopped')
                       : body['failureReason'] as String? ??
                             c.tr('已中断', 'Interrupted'),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: m['status'] == 'cancelled' ? tone.ink3 : tone.danger,
+                    color: m.status == 'cancelled' ? tone.ink3 : tone.danger,
                   ),
                 ),
               ),
@@ -1447,7 +1437,7 @@ class _MessageTileState extends State<MessageTile> {
                     : () async {
                         try {
                           await c.rpc('bots.welcome.retry', {
-                            'messageId': m['messageId'],
+                            'messageId': m.messageId,
                           });
                         } catch (e) {
                           if (context.mounted) {
@@ -1462,14 +1452,14 @@ class _MessageTileState extends State<MessageTile> {
         ),
       );
     }
-    if (content != null && c.chatDisplay['timestamps'] == true) {
-      final at = DateTime.parse('${m['createdAt']}').toLocal();
+    if (content != null && c.prefs.chatDisplay['timestamps'] == true) {
+      final at = DateTime.parse(m.createdAt).toLocal();
       content = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}',
-            key: ValueKey('message-time-${m['messageId']}'),
+            key: ValueKey('message-time-${m.messageId}'),
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: user ? tone.base.withValues(alpha: .7) : tone.ink3,
             ),
@@ -1478,7 +1468,7 @@ class _MessageTileState extends State<MessageTile> {
         ],
       );
     }
-    final compact = c.chatDisplay['density'] == true;
+    final compact = c.prefs.chatDisplay['density'] == true;
     if (user) {
       return Padding(
         padding: EdgeInsets.only(top: continued || compact ? 3 : 12, left: 56),
@@ -1512,7 +1502,7 @@ class _MessageTileState extends State<MessageTile> {
             child: IgnorePointer(
               ignoring: !hovered && !focused,
               child: CopyButton(
-                key: ValueKey('copy-${m['messageId']}'),
+                key: ValueKey('copy-${m.messageId}'),
                 client: c,
                 text: text,
               ),
@@ -1636,7 +1626,7 @@ class _CopyButtonState extends State<CopyButton> {
 
 class ControlCard extends StatefulWidget {
   final NekodotClient client;
-  final Json message;
+  final ChatMessage message;
   const ControlCard({super.key, required this.client, required this.message});
   @override
   State<ControlCard> createState() => _ControlCardState();
@@ -1663,10 +1653,8 @@ class _ControlCardState extends State<ControlCard> {
       sending = tried = value;
       error = '';
     });
-    final question = widget.message['kind'] == 'question';
-    final routine = '${widget.message['messageId']}'.startsWith(
-      'routine-approval:',
-    );
+    final question = widget.message.kind == 'question';
+    final routine = widget.message.messageId.startsWith('routine-approval:');
     try {
       await widget.client.rpc(
         routine
@@ -1676,13 +1664,13 @@ class _ControlCardState extends State<ControlCard> {
             : 'approvals.respond',
         routine
             ? {
-                'botId': object(widget.message['content'])['botId'],
-                'executionId': object(widget.message['content'])['runId'],
-                'promptId': object(widget.message['content'])['requestId'],
+                'botId': object(widget.message.content)['botId'],
+                'executionId': object(widget.message.content)['runId'],
+                'promptId': object(widget.message.content)['requestId'],
                 'choice': value,
               }
             : {
-                'messageId': widget.message['messageId'],
+                'messageId': widget.message.messageId,
                 question ? 'answer' : 'choice': value,
               },
       );
@@ -1700,9 +1688,9 @@ class _ControlCardState extends State<ControlCard> {
         m = widget.message,
         tone = context.tone,
         text = Theme.of(context).textTheme,
-        data = object(m['content']),
-        question = m['kind'] == 'question',
-        pending = m['status'] == 'streaming' && sent == null,
+        data = object(m.content),
+        question = m.kind == 'question',
+        pending = m.status == 'streaming' && sent == null,
         multi = data['multiSelect'] == true,
         open = c.online && sending == null,
             // An interrupted question or approval ends without an answer.
@@ -1797,7 +1785,7 @@ class _ControlCardState extends State<ControlCard> {
                     for (final (index, choice) in choices.indexed)
                       index == 0
                           ? FilledButton(
-                              key: ValueKey('choice-${m['messageId']}-$index'),
+                              key: ValueKey('choice-${m.messageId}-$index'),
                               style: optionStyle(context),
                               onPressed: !open
                                   ? null
@@ -1807,7 +1795,7 @@ class _ControlCardState extends State<ControlCard> {
                                   : Text(label(choice)),
                             )
                           : OutlinedButton(
-                              key: ValueKey('choice-${m['messageId']}-$index'),
+                              key: ValueKey('choice-${m.messageId}-$index'),
                               style: optionStyle(context),
                               onPressed: !open
                                   ? null
@@ -1858,7 +1846,7 @@ class _ControlCardState extends State<ControlCard> {
           else ...[
             for (final (index, choice) in choices.indexed)
               ChoiceRow(
-                key: ValueKey('choice-${m['messageId']}-$index'),
+                key: ValueKey('choice-${m.messageId}-$index'),
                 index: index,
                 label: label(choice),
                 selected: selected.contains('$choice'),
@@ -1883,7 +1871,7 @@ class _ControlCardState extends State<ControlCard> {
               Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: TextField(
-                  key: ValueKey('answer-${m['messageId']}'),
+                  key: ValueKey('answer-${m.messageId}'),
                   controller: answer,
                   enabled: open,
                   minLines: 1,

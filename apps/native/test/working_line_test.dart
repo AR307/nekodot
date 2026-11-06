@@ -1,17 +1,29 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/chat_models.dart';
 import 'package:nekodot_native/features/work.dart';
 
-Json said(String text) => {
+ChatMessage said(String text) => ChatMessage.fromJson({
+  'messageId': 'work',
+  'conversationId': 'dm',
+  'seq': 0,
+  'createdAt': '2026-11-06T00:00:00Z',
+  'author': {'type': 'bot', 'id': 'bot'},
   'kind': 'commentary',
   'status': 'done',
   'content': {'text': text},
-};
-Json step(String tool, {String context = '', bool running = false}) => {
-  'kind': 'tool',
-  'status': running ? 'streaming' : 'done',
-  'content': {'tool': tool, 'preview': '', 'context': context},
-};
+});
+ChatMessage step(String tool, {String context = '', bool running = false}) =>
+    ChatMessage.fromJson({
+      'messageId': 'work',
+      'conversationId': 'dm',
+      'seq': 0,
+      'createdAt': '2026-11-06T00:00:00Z',
+      'author': {'type': 'bot', 'id': 'bot'},
+      'kind': 'tool',
+      'status': running ? 'streaming' : 'done',
+      'content': {'tool': tool, 'preview': '', 'context': context},
+    });
 
 void main() {
   final c = NekodotClient();
@@ -56,7 +68,7 @@ void main() {
   });
 
   test('English reads as a sentence', () async {
-    c.language = 'en';
+    c.prefs.language = 'en';
     expect(
       workingLine(c, 'Lumi', [said('Checking the tweets.')]),
       'Lumi is checking the tweets',

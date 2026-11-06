@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import '../data/client.dart';
+import '../data/account.dart';
 
 String authError(
   NekodotClient client,

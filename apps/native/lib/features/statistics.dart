@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../data/usage.dart';
 import '../ui/design.dart';
 
@@ -47,7 +48,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
     });
     try {
       if (refresh) {
-        final result = await c.request(
+        final result = await c.account.request(
           '/usage/refresh',
           method: 'POST',
           body: {'nodeId': ?selectedNode},
@@ -61,7 +62,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
         }
       }
       final timezone = await FlutterTimezone.getLocalTimezone();
-      final result = await c.request(
+      final result = await c.account.request(
         '/usage/query',
         method: 'POST',
         body: {
@@ -157,7 +158,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                           value: '',
                           child: Text(c.tr('全部电脑', 'All computers')),
                         ),
-                        for (final n in objects(c.me?['nodes'] ?? []))
+                        for (final n in objects(c.account.me?['nodes'] ?? []))
                           DropdownMenuItem(
                             value: '${n['nodeId']}',
                             child: Text(

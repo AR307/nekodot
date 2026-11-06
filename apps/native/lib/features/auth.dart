@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/client.dart';
+import '../data/account.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
 import '../ui/auth_layout.dart';
@@ -60,7 +61,7 @@ class _AuthPageState extends State<AuthPage> {
       notice = '';
     });
     try {
-      await c.request(
+      await c.account.request(
         '/auth/code',
         method: 'POST',
         body: {
@@ -115,7 +116,7 @@ class _AuthPageState extends State<AuthPage> {
       if (mode == 'login') {
         await c.login(email.text.trim(), password.text);
       } else if (mode == 'reset') {
-        await c.request(
+        await c.account.request(
           '/auth/password/reset',
           method: 'POST',
           body: {
@@ -134,7 +135,7 @@ class _AuthPageState extends State<AuthPage> {
         }
       } else {
         await c.acceptSession(
-          await c.request(
+          await c.account.request(
             '/auth/${mode == 'verify' ? 'verify' : 'signup'}',
             method: 'POST',
             body: {
@@ -486,7 +487,7 @@ class _AuthPageState extends State<AuthPage> {
               right: 12 + WindowChrome.reserved(context),
               top: 8,
               child: TextButton(
-                onPressed: () => c.preferences(locale: c.zh ? 'en' : 'zh'),
+                onPressed: () => c.prefs.update(locale: c.zh ? 'en' : 'zh'),
                 child: Text(c.zh ? 'EN' : '中'),
               ),
             ),

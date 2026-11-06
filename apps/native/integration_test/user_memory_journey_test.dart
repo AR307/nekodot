@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/features/user_memory.dart';
 import 'package:nekodot_native/ui/design.dart';
@@ -96,7 +97,7 @@ void main() {
       await tester.pageBack();
       await tester.pump(const Duration(milliseconds: 400));
       await until(() => find.byType(HomePage).evaluate().isNotEmpty);
-      final second = objects(client.me?['nodes'])
+      final second = objects(client.account.me?['nodes'])
           .firstWhere((n) => n['name'] == 'Computer B');
       await client.selectNode(second['nodeId'] as String);
       await until(() => client.online && client.node.bots.isNotEmpty);
@@ -114,7 +115,7 @@ void main() {
       await tap(find.byTooltip('刷新'));
       final field = tester.widget<TextField>(editor);
       expect(field.controller!.text, contains('Draft stays on refresh.'));
-      await client.connect();
+      await client.connection.connect();
       await until(() => client.online);
       expect(
         tester.widget<TextField>(editor).controller!.text,

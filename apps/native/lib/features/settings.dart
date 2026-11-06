@@ -5,6 +5,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../local/runtime.dart';
 import '../platform/desktop.dart';
 import 'extensions.dart';
@@ -37,7 +38,7 @@ class SettingsPage extends StatelessWidget {
     builder: (context, child) {
       final c = client;
       final tone = context.tone;
-      final email = '${c.me?['user']['email'] ?? ''}';
+      final email = '${c.account.me?['user']['email'] ?? ''}';
       final name = email.split('@').first;
       Widget link(String key, String title, Widget page) => ListTile(
         key: ValueKey(key),
@@ -128,15 +129,15 @@ class SettingsPage extends StatelessWidget {
                 ListTile(
                   title: Text(c.tr('语言', 'Language')),
                   trailing: Segment<String>(
-                    value: c.language,
+                    value: c.prefs.language,
                     options: const {'zh': Text('中'), 'en': Text('EN')},
-                    onChanged: (value) => c.preferences(locale: value),
+                    onChanged: (value) => c.prefs.update(locale: value),
                   ),
                 ),
                 ListTile(
                   title: Text(c.tr('外观', 'Appearance')),
                   trailing: Segment<String>(
-                    value: c.theme,
+                    value: c.prefs.theme,
                     options: {
                       'system': Tooltip(
                         message: c.tr('跟随系统', 'System'),
@@ -151,7 +152,7 @@ class SettingsPage extends StatelessWidget {
                         child: const Icon(Icons.dark_mode_outlined),
                       ),
                     },
-                    onChanged: (value) => c.preferences(appearance: value),
+                    onChanged: (value) => c.prefs.update(appearance: value),
                   ),
                 ),
                 ListTile(
@@ -641,7 +642,7 @@ class _PasswordPageState extends State<PasswordPage> {
           child: FilledButton(
             onPressed: () async {
               try {
-                await widget.client.request(
+                await widget.client.account.request(
                   '/auth/password/change',
                   method: 'POST',
                   body: {'currentPassword': old.text, 'password': next.text},

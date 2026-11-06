@@ -1,3 +1,5 @@
+import 'package:nekodot_native/data/chat_models.dart';
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -13,6 +15,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/chat.dart';
 import 'package:nekodot_native/features/work.dart';
 import 'package:nekodot_native/local/location.dart';
@@ -173,7 +176,7 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 300));
       await tap(find.widgetWithText(FilledButton, '登录'));
-      await until(() => client.ready, what: 'signed in');
+      await until(() => client.connection.ready, what: 'signed in');
       await until(
         () =>
             client.online &&
@@ -197,8 +200,8 @@ void main() {
       final input = find.byKey(const ValueKey('chat-input'));
       await until(() => input.evaluate().isNotEmpty);
       await until(() => client.node.messages[id] != null);
-      List<Json> messages() => client.node.messages[id] ?? [];
-      bool idle() => client.node.activities[id]?['state'] == 'idle';
+      List<ChatMessage> messages() => client.node.messages[id] ?? [];
+      bool idle() => client.node.activities[id]?.state == 'idle';
       await until(idle);
       if (!android) {
         await tester.drag(
@@ -206,7 +209,7 @@ void main() {
           const Offset(-700, 0),
         );
         await settle();
-        expect(client.sidebarWidth, 240);
+        expect(client.prefs.sidebarWidth, 240);
         expect(tester.takeException(), isNull);
         await shot('narrow-sidebar');
       }
@@ -351,7 +354,7 @@ void main() {
       expect(find.text('已切换会话'), findsWidgets);
       note('commands', ['new', 'resume']);
       await shot('command-notice');
-      final seen = messages().map((m) => m['messageId']).toSet();
+      final seen = messages().map((m) => m.messageId).toSet();
       final task = android
           ? '请先用一句正常的话回应我，再用 terminal 执行 python -c "print(17*19)"，最后只告诉我真实结果。'
           : '请先用一句自然的话回应我，然后用 terminal 运行 python -c "print(17*19)"。接着创建一个名字为 UI提醒验收的定时任务：3分钟后只回复“UI例行任务执行完成”，单次执行。请使用真实工具，最后简洁告诉我计算结果和已安排的任务。';
@@ -360,16 +363,14 @@ void main() {
       await tap(find.byTooltip('发送'));
       final statuses = <String>[];
       final end = DateTime.now().add(const Duration(minutes: 8));
-      Json? reply;
+      ChatMessage? reply;
       var liveShot = false;
       while (DateTime.now().isBefore(end)) {
         final pending = messages()
-            .where((m) => m['kind'] == 'approval' && m['status'] == 'streaming')
+            .where((m) => m.kind == 'approval' && m.status == 'streaming')
             .lastOrNull;
         if (pending != null) {
-          final allow = find.byKey(
-            ValueKey('choice-${pending['messageId']}-0'),
-          );
+          final allow = find.byKey(ValueKey('choice-${pending.messageId}-0'));
           if (allow.evaluate().isNotEmpty) {
             await tap(allow);
             continue;
@@ -386,7 +387,7 @@ void main() {
           if (line != null && line != statuses.lastOrNull) statuses.add(line);
           if (!liveShot &&
               messages().any(
-                (m) => !seen.contains(m['messageId']) && m['kind'] == 'tool',
+                (m) => !seen.contains(m.messageId) && m.kind == 'tool',
               )) {
             await shot('working');
             liveShot = true;
@@ -395,10 +396,10 @@ void main() {
         reply = messages()
             .where(
               (m) =>
-                  !seen.contains(m['messageId']) &&
-                  m['kind'] == 'text' &&
-                  m['author']['type'] == 'bot' &&
-                  m['status'] == 'done',
+                  !seen.contains(m.messageId) &&
+                  m.kind == 'text' &&
+                  m.author.type == 'bot' &&
+                  m.status == 'done',
             )
             .lastOrNull;
         if (reply != null && idle()) break;
@@ -406,14 +407,14 @@ void main() {
       }
       note('statuses', statuses);
       expect(reply, isNotNull);
-      expect(reply!['content']['text'], contains('323'));
+      expect(reply!.content['text'], contains('323'));
       final tools = messages()
-          .where((m) => !seen.contains(m['messageId']) && m['kind'] == 'tool')
+          .where((m) => !seen.contains(m.messageId) && m.kind == 'tool')
           .toList();
       expect(tools, isNotEmpty);
-      note('tools', tools.map((m) => m['content']['tool']).toList());
+      note('tools', tools.map((m) => m.content['tool']).toList());
       final acknowledgements = messages().where(
-        (m) => !seen.contains(m['messageId']) && m['kind'] == 'commentary',
+        (m) => !seen.contains(m.messageId) && m.kind == 'commentary',
       );
       for (final message in acknowledgements) {
         expect(visibleMessageText(message), isNot(contains('\n正在')));
@@ -426,20 +427,19 @@ void main() {
             .toList(),
       );
       final progress = messages()
-          .where((m) => !seen.contains(m['messageId']) && isProgressMessage(m))
+          .where((m) => !seen.contains(m.messageId) && isProgressMessage(m))
           .toList();
       for (final m in progress) {
         expect(
           find.byWidgetPredicate(
-            (w) => w is MessageTile && w.message['messageId'] == m['messageId'],
+            (w) => w is MessageTile && w.message.messageId == m.messageId,
           ),
           findsNothing,
         );
       }
       await shot('chat-result');
       final tile = find.byWidgetPredicate(
-        (w) =>
-            w is MessageTile && w.message['messageId'] == reply!['messageId'],
+        (w) => w is MessageTile && w.message.messageId == reply!.messageId,
       );
       await reveal(tile);
       if (!android) {
@@ -461,9 +461,9 @@ void main() {
         await until(
           () => messages().any(
             (m) =>
-                m['kind'] == 'routine' &&
-                !seen.contains(m['messageId']) &&
-                m['content']['action'] == 'executed',
+                m.kind == 'routine' &&
+                !seen.contains(m.messageId) &&
+                m.content['action'] == 'executed',
           ),
           seconds: 300,
           what: 'native scheduled task completed',
@@ -482,18 +482,14 @@ void main() {
         note(
           'routineNotices',
           messages()
-              .where(
-                (m) => m['kind'] == 'routine' && !seen.contains(m['messageId']),
-              )
-              .map((m) => m['content']['action'])
+              .where((m) => m.kind == 'routine' && !seen.contains(m.messageId))
+              .map((m) => m.content['action'])
               .toList(),
         );
         expect(
           messages()
-              .where(
-                (m) => m['kind'] == 'routine' && !seen.contains(m['messageId']),
-              )
-              .map((m) => m['content']['action']),
+              .where((m) => m.kind == 'routine' && !seen.contains(m.messageId))
+              .map((m) => m.content['action']),
           isNot(contains('stopped')),
         );
       }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+
 import 'package:nekodot_native/features/chat.dart';
 import 'package:nekodot_native/features/work.dart';
 import 'package:nekodot_native/platform/desktop.dart';
@@ -27,7 +28,7 @@ void main() {
     addTearDown(tester.testTextInput.unregister);
     final c = NekodotClient();
     await tester.runAsync(() async {
-      final auth = await c.request(
+      final auth = await c.account.request(
         '/auth/login',
         method: 'POST',
         body: {
@@ -35,11 +36,11 @@ void main() {
           'password': const String.fromEnvironment('QA_PASSWORD'),
         },
       );
-      c.token = auth['token'];
+      c.account.token = auth['token'];
       await c.bootstrap();
       await c.selectNode(const String.fromEnvironment('QA_NODE'));
     });
-    c.language = 'zh';
+    c.prefs.language = 'zh';
     await tester.runAsync(() async {
       final end = DateTime.now().add(const Duration(seconds: 90));
       while (!c.node.bots.any((b) => b['handle'] == 'tool_lead') &&
@@ -82,7 +83,7 @@ void main() {
     const prompt =
         '工具详情和Markdown真实复验20261103：请实际调用terminal执行printf输出nekodot-tool-card-ok；再实际调用terminal执行cat research-tool-qa/does-not-exist-for-ui-check.txt，预期文件不存在。不得创建该文件或读取其他文件。不需要审批的无害只读工具即可。最后用Markdown展示：一级标题、以**摘要。**紧接中文的句子、一个成功/预期失败的表格、列表和一个围栏代码块。内容只陈述本次真实观察，明确第二个工具失败不等于整个任务失败。不发送其他成员。';
     final sentBefore = (c.node.messages[id] ?? []).any(
-      (m) => m['content']['text'] == prompt,
+      (m) => m.content['text'] == prompt,
     );
     if (!sentBefore) {
       await tester.enterText(find.byKey(const ValueKey('chat-input')), prompt);
@@ -91,38 +92,33 @@ void main() {
     }
     await until(() {
       final rows = c.node.messages[id] ?? [];
-      final user = rows
-          .where((m) => m['content']['text'] == prompt)
-          .firstOrNull;
+      final user = rows.where((m) => m.content['text'] == prompt).firstOrNull;
       if (user == null) return false;
       return rows.any(
             (m) =>
-                m['kind'] == 'text' &&
-                m['author']['type'] == 'bot' &&
-                m['status'] == 'done' &&
-                (m['seq'] as int) > (user['seq'] as int),
+                m.kind == 'text' &&
+                m.author.type == 'bot' &&
+                m.status == 'done' &&
+                m.seq > user.seq,
           ) &&
           find.byTooltip('停止').evaluate().isEmpty;
     });
     final user = c.node.messages[id]!.firstWhere(
-      (m) => m['content']['text'] == prompt,
+      (m) => m.content['text'] == prompt,
     );
     final tools = c.node.messages[id]!
-        .where(
-          (m) =>
-              m['kind'] == 'tool' && (m['seq'] as int) > (user['seq'] as int),
-        )
+        .where((m) => m.kind == 'tool' && m.seq > user.seq)
         .toList();
     expect(tools.length, greaterThanOrEqualTo(2));
     expect(
       tools.every(
         (m) =>
-            (m['content']['preview'] as String).isNotEmpty &&
-            (m['content']['resultPreview'] as String).isNotEmpty,
+            (m.content['preview'] as String).isNotEmpty &&
+            (m.content['resultPreview'] as String).isNotEmpty,
       ),
       isTrue,
     );
-    expect(tools.any((m) => m['content']['error'] == true), isTrue);
+    expect(tools.any((m) => m.content['error'] == true), isTrue);
     await tester.runAsync(() => c.loadMessages(id));
     expect(tester.takeException(), isNull);
     binding.reportData = {
@@ -162,7 +158,7 @@ void main() {
       await tester.tap(box);
       await tester.pump(const Duration(milliseconds: 400));
       final failedTool = find.byWidgetPredicate(
-        (w) => w is StepRow && w.message['content']['error'] == true,
+        (w) => w is StepRow && w.message.content['error'] == true,
       );
       await Scrollable.ensureVisible(tester.element(failedTool), alignment: .2);
       await tester.pump(const Duration(milliseconds: 300));

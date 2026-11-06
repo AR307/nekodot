@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
 import 'bot_details.dart';
@@ -51,7 +52,9 @@ class _HomePageState extends State<HomePage> {
   Future<void> openDestination(Json target) async {
     c.pendingDestination = null;
     final nodeId = target['nodeId'] as String;
-    if (!objects(c.me?['nodes']).any((n) => n['nodeId'] == nodeId)) return;
+    if (!objects(c.account.me?['nodes']).any((n) => n['nodeId'] == nodeId)) {
+      return;
+    }
     await c.selectNode(nodeId);
     final value = c.node.conversations
         .where((v) => v['conversationId'] == target['conversationId'])
@@ -86,7 +89,7 @@ class _HomePageState extends State<HomePage> {
       : RunLocationPage(client: c);
 
   Widget nodePicker() {
-    final nodes = objects(c.me?['nodes']);
+    final nodes = objects(c.account.me?['nodes']);
     final current = nodes
         .where((n) => n['nodeId'] == c.selectedNodeId)
         .firstOrNull;
@@ -131,7 +134,7 @@ class _HomePageState extends State<HomePage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (current != null) ...[
-              c.online || c.ready
+              c.online || c.connection.ready
                   ? StatusDot(on: c.online)
                   : ShiningText(
                       text: c.tr('连接中…', 'Connecting…'),
@@ -303,32 +306,28 @@ class _HomePageState extends State<HomePage> {
     final loaded = (c.node.messages[id] ?? [])
         .where(
           (x) =>
-              (x['kind'] == 'text' || x['kind'] == 'commentary') &&
-              '${x['content']?['text'] ?? ''}'.trim().isNotEmpty,
+              (x.kind == 'text' || x.kind == 'commentary') &&
+              '${x.content['text'] ?? ''}'.trim().isNotEmpty,
         )
         .lastOrNull;
     // Loaded messages are newer than the node's first report once they pass it.
     final reported = c.node.latest[id];
     final last =
-        loaded == null ||
-            (reported != null &&
-                (reported['seq'] as int) > (loaded['seq'] as int))
+        loaded == null || (reported != null && reported.seq > loaded.seq)
         ? reported
         : loaded;
     if (last == null) return null;
-    final words = '${last['content']['text']}';
-    final files = last['content']['files'];
+    final words = '${last.content['text']}';
+    final files = last.content['files'];
     final text =
         (files is List && files.isNotEmpty ? withoutDeliveries(words) : words)
             .replaceAll(RegExp(r'[*_`#>]+'), '')
             .replaceAll(RegExp(r'\s+'), ' ')
             .trim();
     if (!isGroup) return text;
-    final author = object(last['author']);
-    final bot = c.node.bots
-        .where((b) => b['botId'] == author['id'])
-        .firstOrNull;
-    final speaker = author['type'] == 'bot'
+    final author = last.author;
+    final bot = c.node.bots.where((b) => b['botId'] == author.id).firstOrNull;
+    final speaker = author.type == 'bot'
         ? (bot?['displayName'])
         : c.tr('你', 'You');
     return speaker == null ? text : c.tr('$speaker：$text', '$speaker: $text');
@@ -343,7 +342,7 @@ class _HomePageState extends State<HomePage> {
         ? c.node.groups.firstWhere((x) => x['groupId'] == value['groupId'])
         : c.node.bots.firstWhere((x) => x['botId'] == value['botId']);
     final id = value['conversationId'] as String;
-    final state = c.node.activities[id]?['state'];
+    final state = c.node.activities[id]?.state;
     final working = state != null && state != 'idle';
     final selected = !narrow && conversation == id;
     // The selected row lifts off the list; hovering a row only raises it.
@@ -544,7 +543,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget bottom(bool narrow) {
     final tone = context.tone;
-    final email = '${c.me?['user']['email'] ?? ''}';
+    final email = '${c.account.me?['user']['email'] ?? ''}';
     final name = email.split('@').first;
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
@@ -628,14 +627,14 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: c,
+    listenable: Listenable.merge([c, c.node]),
     builder: (context, child) => LayoutBuilder(
       builder: (context, constraints) {
         final tone = context.tone;
         final narrow = constraints.maxWidth < 840;
         final roomy = constraints.maxWidth >= 1000;
         final updateCommand =
-            objects(c.me?['nodes'])
+            objects(c.account.me?['nodes'])
                     .where((n) => n['nodeId'] == c.selectedNodeId)
                     .firstOrNull?['updateCommand']
                 as String?;
@@ -658,35 +657,38 @@ class _HomePageState extends State<HomePage> {
               .toLowerCase()
               .contains(search);
         }).toList();
-        final conversations = active.isEmpty
-            ? Center(
-                child: IconButton(
-                  tooltip: c.selectedNodeId == null
-                      ? c.tr('添加电脑', 'Add computer')
-                      : c.tr('新建 Bot', 'New Bot'),
-                  onPressed: () => pushPage(
-                    context,
-                    c.selectedNodeId == null
-                        ? _addComputer()
-                        : BotEditor(client: c),
+        final conversations = ListenableBuilder(
+          listenable: c.node.summaries,
+          builder: (context, _) => active.isEmpty
+              ? Center(
+                  child: IconButton(
+                    tooltip: c.selectedNodeId == null
+                        ? c.tr('添加电脑', 'Add computer')
+                        : c.tr('新建 Bot', 'New Bot'),
+                    onPressed: () => pushPage(
+                      context,
+                      c.selectedNodeId == null
+                          ? _addComputer()
+                          : BotEditor(client: c),
+                    ),
+                    icon: const CatAvatar(size: 56),
                   ),
-                  icon: const CatAvatar(size: 56),
+                )
+              : ListView(
+                  padding: EdgeInsets.fromLTRB(8, 0, 8, tone.glass ? 92 : 8),
+                  children: [
+                    ...section('groups', c.tr('群聊', 'Groups'), [
+                      for (final x in shown)
+                        if (x['kind'] == 'group') x,
+                    ], narrow),
+                    const SizedBox(height: 16),
+                    ...section('bots', 'Bot', [
+                      for (final x in shown)
+                        if (x['kind'] == 'dm') x,
+                    ], narrow),
+                  ],
                 ),
-              )
-            : ListView(
-                padding: EdgeInsets.fromLTRB(8, 0, 8, tone.glass ? 92 : 8),
-                children: [
-                  ...section('groups', c.tr('群聊', 'Groups'), [
-                    for (final x in shown)
-                      if (x['kind'] == 'group') x,
-                  ], narrow),
-                  const SizedBox(height: 16),
-                  ...section('bots', 'Bot', [
-                    for (final x in shown)
-                      if (x['kind'] == 'dm') x,
-                  ], narrow),
-                ],
-              );
+        );
         final list = Column(
           children: [
             tone.glass ? glassTop() : top(),
@@ -741,10 +743,8 @@ class _HomePageState extends State<HomePage> {
         final panel = roomy && hasChat ? details : null;
         final widest = (constraints.maxWidth - 420).clamp(240.0, 560.0);
         final sidebar =
-            (dragging ?? c.sidebarWidth ?? constraints.maxWidth * .34).clamp(
-              240.0,
-              widest,
-            );
+            (dragging ?? c.prefs.sidebarWidth ?? constraints.maxWidth * .34)
+                .clamp(240.0, widest);
         final flowShown = hasChat && flowFocus != null;
         final inlineFlow = flowShown && constraints.maxWidth - sidebar >= 760;
         Widget flowPanel() => FlowchartPanel(
@@ -865,7 +865,7 @@ class _HomePageState extends State<HomePage> {
                           onEnd: () {
                             final width = dragging;
                             setState(() => dragging = null);
-                            if (width != null) c.setSidebarWidth(width);
+                            if (width != null) c.prefs.setSidebarWidth(width);
                           },
                         ),
                       ),

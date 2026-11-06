@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:nekodot_native/data/client.dart';
+
 import 'package:nekodot_native/features/auth.dart';
 import 'package:nekodot_native/ui/design.dart';
 

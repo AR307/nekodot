@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/chat.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/features/routines.dart';
@@ -75,7 +76,7 @@ void main() {
 
     // Do not overwrite the installed user's login credentials with a QA session.
     await tester.runAsync(() async {
-      final session = await client.request(
+      final session = await client.account.request(
         '/auth/login',
         method: 'POST',
         body: {
@@ -83,7 +84,7 @@ void main() {
           'password': const String.fromEnvironment('QA_PASSWORD'),
         },
       );
-      client.token = session['token'] as String;
+      client.account.token = session['token'] as String;
       await client.bootstrap();
       await client.selectNode(nodeId);
     });
@@ -116,13 +117,13 @@ void main() {
     Json? routine;
     await until(() {
       final card = (client.node.messages[conversationId] ?? [])
-          .where((m) => m['kind'] == 'routine' && m['content']['name'] == name)
+          .where((m) => m.kind == 'routine' && m.content['name'] == name)
           .firstOrNull;
       if (card != null) {
-        routine = object(card['content']);
+        routine = object(card.content);
       }
       return routine != null &&
-          client.node.activities[conversationId]?['state'] == 'idle';
+          client.node.activities[conversationId]?.state == 'idle';
     }, seconds: 300);
     final routineId = '${routine!['routineId']}';
     final target = {'botId': botId, 'routineId': routineId};
@@ -249,15 +250,15 @@ void main() {
     expect(
       (client.node.messages[conversationId] ?? []).any(
         (m) =>
-            m['kind'] == 'routine' &&
-            m['content']['routineId'] == routineId &&
-            m['content']['card'] == 'credentials',
+            m.kind == 'routine' &&
+            m.content['routineId'] == routineId &&
+            m.content['card'] == 'credentials',
       ),
       isTrue,
     );
     expect(
       (client.node.messages[conversationId] ?? []).any(
-        (m) => m['content']['routine']?['sessionId'] == execution['sessionId'],
+        (m) => m.content['routine']?['sessionId'] == execution['sessionId'],
       ),
       isTrue,
     );

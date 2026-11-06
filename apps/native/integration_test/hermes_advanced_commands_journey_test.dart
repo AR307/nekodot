@@ -1,9 +1,12 @@
+import 'package:nekodot_native/data/chat_models.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/platform/desktop.dart';
 import 'package:nekodot_native/ui/design.dart';
@@ -15,9 +18,9 @@ void main() {
     tester,
   ) async {
     if (Platform.isWindows) await DesktopHost.initialize();
-    final c = NekodotClient()..language = 'en';
+    final c = NekodotClient()..prefs.language = 'en';
     final botId = const String.fromEnvironment('QA_BOT');
-    final login = await c.request(
+    final login = await c.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -25,7 +28,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    c.token = login['token'] as String;
+    c.account.token = login['token'] as String;
     c.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await c.bootstrap();
     addTearDown(c.dispose);
@@ -54,7 +57,7 @@ void main() {
     final input = find.byKey(const ValueKey('chat-input'));
     await until(() => input.evaluate().isNotEmpty, 'Composer');
     await c.loadMessages(conversationId);
-    List<Json> messages() => c.node.messages[conversationId] ?? [];
+    List<ChatMessage> messages() => c.node.messages[conversationId] ?? [];
     Future<void> submit(String text, {bool rejected = false}) async {
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump(const Duration(milliseconds: 150));
@@ -90,15 +93,15 @@ void main() {
       await until(
         () => messages().any(
           (r) =>
-              r['kind'] == 'text' &&
-              r['author']['type'] == 'bot' &&
-              r['status'] == 'done' &&
-              '${r['content']['text']}'.contains(marker),
+              r.kind == 'text' &&
+              r.author.type == 'bot' &&
+              r.status == 'done' &&
+              '${r.content['text']}'.contains(marker),
         ),
         'Actual model reply: $marker',
       );
       await until(
-        () => c.node.activities[conversationId]?['state'] == 'idle',
+        () => c.node.activities[conversationId]?.state == 'idle',
         'Native task settled',
       );
     }
@@ -142,7 +145,7 @@ void main() {
         '/moa Do not use tools. Consider this harmless arithmetic, 19 + 23, then reply exactly $marker-MOA-42.',
       );
       await until(
-        () => c.node.activities[conversationId]?['state'] != 'idle',
+        () => c.node.activities[conversationId]?.state != 'idle',
         'MoA is actually running',
       );
       await submit('/moa $marker-DO-NOT-STEER', rejected: true);
@@ -228,7 +231,7 @@ void main() {
           'value': fields.firstWhere((r) => r['key'] == key)['value'],
         });
       }
-      if (c.node.activities[conversationId]?['state'] == 'idle') {
+      if (c.node.activities[conversationId]?.state == 'idle') {
         await submit('/resume $original');
       }
     }

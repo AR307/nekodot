@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/data/hermes_zh.dart';
 import 'package:nekodot_native/features/hermes_settings.dart';
 import 'package:nekodot_native/ui/design.dart';
@@ -84,7 +85,7 @@ void main() {
       await (FontLoader(
         'MaterialIcons',
       )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
-      final client = SettingsClient()..language = 'en';
+      final client = SettingsClient()..prefs.language = 'en';
       await tester.pumpWidget(
         MaterialApp(
           theme: appTheme(Brightness.light),
@@ -153,7 +154,7 @@ void main() {
   testWidgets('In Chinese a setting leads with its name and keeps its key', (
     tester,
   ) async {
-    final client = SettingsClient()..language = 'zh';
+    final client = SettingsClient()..prefs.language = 'zh';
     await tester.pumpWidget(
       MaterialApp(
         theme: appTheme(Brightness.light),

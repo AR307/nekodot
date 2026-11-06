@@ -7,6 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+
 import 'package:nekodot_native/features/auth.dart';
 import 'package:nekodot_native/features/bot_details.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
@@ -30,7 +31,7 @@ void main() {
     final navigator = GlobalKey<NavigatorState>();
     final mode = ValueNotifier(ThemeMode.light);
     var glass = true;
-    client.token = const String.fromEnvironment('QA_TOKEN');
+    client.account.token = const String.fromEnvironment('QA_TOKEN');
     await tester.runAsync(() async {
       await client.bootstrap();
       await client.selectNode(const String.fromEnvironment('QA_NODE'));

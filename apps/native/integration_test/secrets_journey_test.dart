@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/features/secrets.dart';
 import 'package:nekodot_native/platform/desktop.dart';
@@ -49,7 +50,7 @@ void main() {
     }
 
     await tester.runAsync(() async {
-      final session = await client.request(
+      final session = await client.account.request(
         '/auth/login',
         method: 'POST',
         body: {
@@ -57,7 +58,7 @@ void main() {
           'password': const String.fromEnvironment('QA_PASSWORD'),
         },
       );
-      client.token = session['token'];
+      client.account.token = session['token'];
       await client.bootstrap();
       await client.selectNode(const String.fromEnvironment('QA_NODE'));
     });
@@ -82,9 +83,7 @@ void main() {
     );
     await tester.runAsync(() => client.loadMessages(conversationId));
     await until(
-      () =>
-          (client.node.activities[conversationId]?['state'] ?? 'idle') ==
-          'idle',
+      () => (client.node.activities[conversationId]?.state ?? 'idle') == 'idle',
     );
     final native = mode.startsWith('native');
     final service = native
@@ -162,21 +161,21 @@ void main() {
     await tap(find.byTooltip('发送'));
     await until(
       () => (client.node.messages[conversationId] ?? []).any(
-        (m) => m['kind'] == 'secret' && m['content']['service'] == service,
+        (m) => m.kind == 'secret' && m.content['service'] == service,
       ),
       seconds: 300,
     );
     final requestCard = (client.node.messages[conversationId] ?? [])
         .where(
           (m) =>
-              m['kind'] == 'secret' &&
-              m['content']['state'] == 'pending' &&
-              m['content']['service'] == service,
+              m.kind == 'secret' &&
+              m.content['state'] == 'pending' &&
+              m.content['service'] == service,
         )
         .last;
-    final requestId = '${requestCard['content']['requestId']}';
+    final requestId = '${requestCard.content['requestId']}';
     final previousMessages = (client.node.messages[conversationId] ?? [])
-        .map((m) => m['messageId'])
+        .map((m) => m.messageId)
         .toSet();
     final card = find.byWidgetPredicate(
       (w) => w is SecretCard && w.content['requestId'] == requestId,
@@ -204,9 +203,9 @@ void main() {
       await until(
         () => (client.node.messages[conversationId] ?? []).any(
           (m) =>
-              m['kind'] == 'secret' &&
-              m['content']['requestId'] == requestId &&
-              m['content']['state'] ==
+              m.kind == 'secret' &&
+              m.content['requestId'] == requestId &&
+              m.content['state'] ==
                   (mode == 'native-cancel' ? 'cancelled' : 'expired'),
         ),
         seconds: 160,
@@ -267,18 +266,18 @@ void main() {
     await until(
       () => (client.node.messages[conversationId] ?? []).any(
         (m) =>
-            m['kind'] == 'secret' &&
-            m['content']['requestId'] == requestId &&
-            m['content']['state'] == 'applied',
+            m.kind == 'secret' &&
+            m.content['requestId'] == requestId &&
+            m.content['state'] == 'applied',
       ),
     );
     await until(
       () => (client.node.messages[conversationId] ?? []).any(
         (m) =>
-            m['kind'] == 'text' &&
-            !previousMessages.contains(m['messageId']) &&
-            m['status'] == 'done' &&
-            '${m['content']['text']}'.contains(switch (mode) {
+            m.kind == 'text' &&
+            !previousMessages.contains(m.messageId) &&
+            m.status == 'done' &&
+            '${m.content['text']}'.contains(switch (mode) {
               'private-key' => 'CONFIDENTIAL_KEY_FILE_OK',
               'login' || 'login-save' => 'CONFIDENTIAL_LOGIN_OK',
               'native' => 'CONFIDENTIAL_NATIVE_SECRET_OK',
@@ -299,7 +298,7 @@ void main() {
     ))!;
     expect(
       objects(metadata['credentials'])
-          .any((c) => c['service'] == requestCard['content']['service']),
+          .any((c) => c['service'] == requestCard.content['service']),
       mode == 'api' || mode == 'login-save',
     );
     debugPrint('QA encrypted real-model service configuration passed');

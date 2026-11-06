@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../platform/updates.dart';
 import '../ui/design.dart';
 
@@ -38,10 +39,10 @@ class _UpdatesPageState extends State<UpdatesPage> {
     try {
       final installed = await InstalledVersion.read();
       if (mounted) setState(() => current = installed);
-      final result = await c.request('/releases');
+      final result = await c.account.request('/releases');
       final release = result['latest']?['artifacts']?[clientPlatform] == null
           ? null
-          : ProductRelease(object(result['latest']), c.origin);
+          : ProductRelease(object(result['latest']), c.account.origin);
       if (mounted) {
         setState(() {
           current = installed;
@@ -204,7 +205,7 @@ class _UpdatesPageState extends State<UpdatesPage> {
           children: [
             ListTile(
               title: Text(c.tr('连接的 Relay', 'Connected Relay')),
-              subtitle: Text(c.origin.host),
+              subtitle: Text(c.account.origin.host),
             ),
             ListTile(
               title: Text(c.tr('服务端版本', 'Server version')),

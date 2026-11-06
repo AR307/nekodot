@@ -45,7 +45,7 @@ void main() {
     final client = tester
         .widget<product.NekodotApp>(find.byType(product.NekodotApp))
         .client;
-    expect(client.origin.host, anyOf('127.0.0.1', 'localhost'));
+    expect(client.account.origin.host, anyOf('127.0.0.1', 'localhost'));
     await until(
       () =>
           find.byType(AuthPage).evaluate().isNotEmpty ||
@@ -64,9 +64,11 @@ void main() {
       }
     }
     await tester.runAsync(
-      () => client.preferences(locale: 'zh', appearance: 'light'),
+      () => client.prefs.update(locale: 'zh', appearance: 'light'),
     );
-    if (client.token != null) await tester.runAsync(client.clearSession);
+    if (client.account.token != null) {
+      await tester.runAsync(client.clearSession);
+    }
     await until(() => find.byType(AuthPage).evaluate().isNotEmpty);
     if (Platform.isWindows) await windowManager.setSize(const Size(1280, 900));
     await tester.pump(const Duration(milliseconds: 400));
@@ -149,16 +151,23 @@ void main() {
     );
     await tapKey('auth-submit');
     await until(
-      () => client.ready && find.byType(HomePage).evaluate().isNotEmpty,
+      () =>
+          client.connection.ready &&
+          find.byType(HomePage).evaluate().isNotEmpty,
     );
-    expect(client.me?['email'] ?? client.me?['user']?['email'], email);
+    expect(
+      client.account.me?['email'] ?? client.account.me?['user']?['email'],
+      email,
+    );
     await tester.runAsync(client.logout);
     await until(() => find.byType(AuthPage).evaluate().isNotEmpty);
     expect(find.byKey(const ValueKey('auth-code')), findsNothing);
     await fillCredentials(email, password);
     await tapKey('auth-submit');
     await until(
-      () => client.ready && find.byType(HomePage).evaluate().isNotEmpty,
+      () =>
+          client.connection.ready &&
+          find.byType(HomePage).evaluate().isNotEmpty,
     );
     await tester.runAsync(client.logout);
     await until(() => find.byType(AuthPage).evaluate().isNotEmpty);
@@ -175,7 +184,9 @@ void main() {
       account['password'] as String,
     );
     await tapKey('auth-submit');
-    await until(() => client.ready && client.online && !client.node.syncing);
+    await until(
+      () => client.connection.ready && client.online && !client.node.syncing,
+    );
     final providers = await tester.runAsync(() => client.rpc('providers.list'));
     expect(providers, isNotNull);
     await until(() => find.byTooltip('账户').evaluate().isNotEmpty);
@@ -192,7 +203,7 @@ void main() {
     expect(tester.takeException(), isNull);
     final report = {
       'platform': Platform.operatingSystem,
-      'relay': client.origin.toString(),
+      'relay': client.account.origin.toString(),
       'emailCodeRegistration': true,
       'missingCodeBlockedLocally': true,
       'passwordLoginAfterLogout': true,

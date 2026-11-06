@@ -1,9 +1,12 @@
+import 'package:nekodot_native/data/chat_models.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
 import 'package:nekodot_native/features/files.dart';
 import 'package:nekodot_native/features/home.dart';
@@ -17,9 +20,9 @@ void main() {
     tester,
   ) async {
     if (Platform.isWindows) await DesktopHost.initialize();
-    final c = NekodotClient()..language = 'en';
+    final c = NekodotClient()..prefs.language = 'en';
     final botId = const String.fromEnvironment('QA_SECOND_BOT');
-    final login = await c.request(
+    final login = await c.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -27,7 +30,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    c.token = login['token'];
+    c.account.token = login['token'];
     c.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await c.bootstrap();
     addTearDown(c.dispose);
@@ -65,10 +68,10 @@ void main() {
     final input = find.byKey(const ValueKey('chat-input'));
     await until(() => input.evaluate().isNotEmpty);
     await c.loadMessages(conversationId);
-    await until(() => c.node.activities[conversationId]?['state'] == 'idle');
-    List<Json> messages() => c.node.messages[conversationId] ?? [];
-    Future<Json> command(String text, String expected) async {
-      final before = messages().map((r) => r['messageId']).toSet();
+    await until(() => c.node.activities[conversationId]?.state == 'idle');
+    List<ChatMessage> messages() => c.node.messages[conversationId] ?? [];
+    Future<ChatMessage> command(String text, String expected) async {
+      final before = messages().map((r) => r.messageId).toSet();
       await tap(input);
       await tester.enterText(input, text);
       await tester.pump(const Duration(milliseconds: 250));
@@ -85,10 +88,10 @@ void main() {
       await until(
         () => messages().any(
           (r) =>
-              !before.contains(r['messageId']) &&
-              r['kind'] == 'system' &&
-              '${r['content']['text']}'.startsWith(text) &&
-              '${r['content']['text']}'.contains(expected),
+              !before.contains(r.messageId) &&
+              r.kind == 'system' &&
+              '${r.content['text']}'.startsWith(text) &&
+              '${r.content['text']}'.contains(expected),
         ),
         seconds: 300,
       );
@@ -97,9 +100,9 @@ void main() {
       );
       return messages().firstWhere(
         (r) =>
-            !before.contains(r['messageId']) &&
-            r['kind'] == 'system' &&
-            '${r['content']['text']}'.startsWith(text),
+            !before.contains(r.messageId) &&
+            r.kind == 'system' &&
+            '${r.content['text']}'.startsWith(text),
       );
     }
 
@@ -124,7 +127,7 @@ void main() {
       'sessionId': session,
     });
     expect(afterHistory['messages'], originalHistory['messages']);
-    expect(c.node.activities[conversationId]?['state'], 'idle');
+    expect(c.node.activities[conversationId]?.state, 'idle');
     debugPrint(
       'QA HOST: real background/btw models left the main context unchanged',
     );
@@ -132,11 +135,11 @@ void main() {
     await command('/tools disable terminal', 'profile tools: terminal');
     await command('/new Tools-disabled QA', 'New Hermes session:');
     final disabled = await command('/tools', 'Hermes tools (');
-    expect('${disabled['content']['text']}', isNot(contains('\nterminal:')));
+    expect('${disabled.content['text']}', isNot(contains('\nterminal:')));
     await command('/tools enable terminal', 'profile tools: terminal');
     await command('/new Tools-enabled QA', 'New Hermes session:');
     final enabled = await command('/tools', 'Hermes tools (');
-    expect('${enabled['content']['text']}', contains('\nterminal:'));
+    expect('${enabled.content['text']}', contains('\nterminal:'));
     final settings = await c.rpc('hermes.settings.get', {'botId': botId});
     final cwd = objects(settings['fields'])
         .firstWhere((r) => r['key'] == 'terminal.cwd')['value'];
@@ -171,7 +174,7 @@ void main() {
       '/snapshot create',
       'Hermes native backup created',
     );
-    final backupId = (backup['content']['files'] as List).single as String;
+    final backupId = (backup.content['files'] as List).single as String;
     final backupBytes = await downloadFile(c, backupId);
     expect(backupBytes.take(2), [0x50, 0x4b]);
     debugPrint(
@@ -182,7 +185,7 @@ void main() {
     final memoryBefore = objects(memory['documents'])
         .firstWhere((r) => r['name'] == 'MEMORY.md')['content'];
     final exported = await command('/export', 'Hermes profile exported');
-    final fileId = (exported['content']['files'] as List).single as String;
+    final fileId = (exported.content['files'] as List).single as String;
     final bytes = await downloadFile(c, fileId);
     expect(bytes.take(2), [0x1f, 0x8b]);
     final card = find.byWidgetPredicate(
@@ -241,13 +244,13 @@ void main() {
             )['conversationId']
             as String;
     await until(
-      () => c.node.activities[importedDm]?['state'] == 'idle',
+      () => c.node.activities[importedDm]?.state == 'idle',
       seconds: 240,
     );
     await c.loadMessages(importedDm);
     expect(
       c.node.messages[importedDm]!.where(
-        (r) => r['author']['type'] == 'bot' && r['status'] == 'done',
+        (r) => r.author.type == 'bot' && r.status == 'done',
       ),
       isNotEmpty,
     );

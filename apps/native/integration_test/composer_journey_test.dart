@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
 import 'package:nekodot_native/features/commands.dart';
 import 'package:nekodot_native/features/files.dart';
@@ -23,7 +24,7 @@ void main() {
     addTearDown(tester.testTextInput.unregister);
     final client = NekodotClient();
     await tester.runAsync(() async {
-      final login = await client.request(
+      final login = await client.account.request(
         '/auth/login',
         method: 'POST',
         body: {
@@ -31,7 +32,7 @@ void main() {
           'password': const String.fromEnvironment('QA_PASSWORD'),
         },
       );
-      client.token = '${login['token']}';
+      client.account.token = '${login['token']}';
       await client.bootstrap();
       await client.selectNode(const String.fromEnvironment('QA_NODE'));
     });
@@ -103,8 +104,7 @@ void main() {
     await until(
       () => client.node.messages[id]!.any(
         (m) =>
-            m['kind'] == 'system' &&
-            '${m['content']['text']}'.contains('Profile:'),
+            m.kind == 'system' && '${m.content['text']}'.contains('Profile:'),
       ),
     );
     await until(() => tester.widget<TextField>(input).controller!.text.isEmpty);
@@ -121,14 +121,14 @@ void main() {
         ),
       ]) {
         final created = await client.rpc('imports.create', {});
-        final response = await client.transport.put(
-          client
+        final response = await client.account.transport.put(
+          client.account
               .url(
                 '/api/nodes/${client.selectedNodeId}/imports/${created['importId']}',
               )
               .replace(queryParameters: {'path': name, 'offset': '0'}),
           headers: {
-            'Authorization': 'Bearer ${client.token}',
+            'Authorization': 'Bearer ${client.account.token}',
             'Content-Type': 'application/octet-stream',
           },
           body: data,
@@ -151,16 +151,16 @@ void main() {
     await tester.pump();
     expect(find.textContaining('中文资料.txt ·'), findsOneWidget);
     final previous = client.node.messages[id]!
-        .where((m) => m['author']['type'] == 'bot')
+        .where((m) => m.author.type == 'bot')
         .length;
     await tap(find.byTooltip('发送'));
     await until(
       () =>
           client.node.messages[id]!
-                  .where((m) => m['author']['type'] == 'bot')
+                  .where((m) => m.author.type == 'bot')
                   .length >
               previous &&
-          client.node.activities[id]?['state'] == 'idle',
+          client.node.activities[id]?.state == 'idle',
     );
     await until(() => find.text('中文资料.txt').evaluate().isNotEmpty);
     await until(
@@ -223,15 +223,15 @@ void main() {
     await until(
       () =>
           client.node.messages[groupId]!
-                  .where((m) => m['author']['type'] == 'bot')
-                  .map((m) => m['author']['id'])
+                  .where((m) => m.author.type == 'bot')
+                  .map((m) => m.author.id)
                   .toSet()
                   .length ==
               2 &&
-          client.node.activities[groupId]?['state'] == 'idle',
+          client.node.activities[groupId]?.state == 'idle',
     );
     final response = await tester.runAsync(
-      () => http.get(client.url('/qa/inspect')),
+      () => http.get(client.account.url('/qa/inspect')),
     );
     final runs = objects(object(jsonDecode(response!.body))['runs']);
     final upload = runs.firstWhere(

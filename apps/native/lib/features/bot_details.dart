@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
 import '../screen/viewer.dart';
@@ -31,7 +32,7 @@ class BotDetails extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: client,
+    listenable: Listenable.merge([client, client.node]),
     builder: (context, child) {
       final c = client;
       final bot = c.node.bots

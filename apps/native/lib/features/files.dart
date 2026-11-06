@@ -12,6 +12,8 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
+import '../data/account.dart';
 import '../platform/file_actions.dart';
 import '../ui/design.dart';
 import 'bot_editor.dart';
@@ -19,8 +21,8 @@ import 'bot_editor.dart';
 Future<Uint8List> downloadFile(NekodotClient c, String id) async {
   final response = await http
       .get(
-        c.url('/api/nodes/${c.selectedNodeId}/files/$id'),
-        headers: {'Authorization': 'Bearer ${c.token}'},
+        c.account.url('/api/nodes/${c.selectedNodeId}/files/$id'),
+        headers: {'Authorization': 'Bearer ${c.account.token}'},
       )
       .timeout(const Duration(minutes: 2));
   if (response.statusCode != 200) {
@@ -113,13 +115,13 @@ Future<Json?> pickChatFile(
   await for (final chunk in bytes) {
     for (var start = 0; start < chunk.length; start += 196608) {
       final end = (start + 196608).clamp(0, chunk.length);
-      final response = await client.transport
+      final response = await client.account.transport
           .put(
-            client
+            client.account
                 .url('/api/nodes/$nodeId/imports/$importId')
                 .replace(queryParameters: {'path': name, 'offset': '$offset'}),
             headers: {
-              'Authorization': 'Bearer ${client.token}',
+              'Authorization': 'Bearer ${client.account.token}',
               'Content-Type': 'application/octet-stream',
             },
             body: chunk.sublist(start, end),
@@ -133,12 +135,12 @@ Future<Json?> pickChatFile(
     }
   }
   if (offset == 0) {
-    final response = await client.transport.put(
-      client
+    final response = await client.account.transport.put(
+      client.account
           .url('/api/nodes/$nodeId/imports/$importId')
           .replace(queryParameters: {'path': name, 'offset': '0'}),
       headers: {
-        'Authorization': 'Bearer ${client.token}',
+        'Authorization': 'Bearer ${client.account.token}',
         'Content-Type': 'application/octet-stream',
       },
       body: <int>[],

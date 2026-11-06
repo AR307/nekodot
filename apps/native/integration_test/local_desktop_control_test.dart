@@ -7,6 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/local/location.dart';
 import 'package:nekodot_native/local/runtime.dart';
 import 'package:nekodot_native/main.dart';
@@ -184,7 +185,7 @@ void main() {
       return fresh();
     }
 
-    bool idle() => client.node.activities[conversationId]?['state'] == 'idle';
+    bool idle() => client.node.activities[conversationId]?.state == 'idle';
     List<String> tools(List<Json> messages) => [
       for (final m in messages)
         if (m['kind'] == 'tool') '${m['content']['tool']}:${m['status']}',

@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
+import '../data/account.dart';
 import '../ui/design.dart';
 
 /// The device captures audio; Hermes owns detection, transcription and settings.

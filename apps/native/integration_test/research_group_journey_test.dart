@@ -1,3 +1,5 @@
+import 'package:nekodot_native/data/chat_models.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -97,7 +99,7 @@ void main() {
       }
 
       await tester.runAsync(() async {
-        final auth = await c.request(
+        final auth = await c.account.request(
           '/auth/login',
           method: 'POST',
           body: {
@@ -105,11 +107,11 @@ void main() {
             'password': const String.fromEnvironment('QA_PASSWORD'),
           },
         );
-        c.token = auth['token'];
+        c.account.token = auth['token'];
         await c.bootstrap();
         await c.selectNode(const String.fromEnvironment('QA_NODE'));
       });
-      c.language = 'zh';
+      c.prefs.language = 'zh';
       runApp(
         MaterialApp(
           theme: appTheme(Brightness.light),
@@ -161,9 +163,9 @@ void main() {
         await until(
           () => (c.node.messages[id] ?? []).any(
             (m) =>
-                m['kind'] == 'text' &&
-                m['content']['welcome'] == true &&
-                m['status'] == 'done',
+                m.kind == 'text' &&
+                m.content['welcome'] == true &&
+                m.status == 'done',
           ),
           seconds: 900,
           label: '${member[0]} real welcome',
@@ -204,7 +206,7 @@ void main() {
 任务范围：以一个可复现的开源7B级模型+固定检索器，研究answer/retrieve-more/abstain三选一路由；不训练基础大模型。HotpotQA按问题ID划分训练/校准/测试，构造有依据的证据移除与干扰条件，防止校准和测试泄漏。明确相对已有工作到底多了什么，若创新弱就直说。给出至少一个1-2周可执行MVP、固定预算公平比较、EM/F1与risk-coverage、引用支撑率和成本，列出消融、失败判据与不确定性。
 接力规则：按统筹、文献、方法、实验顺序每人先贡献一段中文（约600字，不要使用工具或修改文件，本轮依据提供文献与已有知识，并标明未核实细节）。统筹第一轮只给问题与分工，结尾用 @paper_lit 请求文献审查（他已经在队列，不应重复调用）。文献和方法不要@任何人。实验审稿完成后用 @paper_lead 请求综合。统筹第二轮整合其他三人意见，输出约1800字的完整研究构思，包括摘要、假设、算法、数据与基线、算力/时间、消融、风险、真实参考文献；不再@任何人。''';
       if (!(c.node.messages[id] ?? []).any(
-        (m) => m['author']['type'] == 'user' && m['content']?['text'] == prompt,
+        (m) => m.author.type == 'user' && m.content['text'] == prompt,
       )) {
         await tester.enterText(
           find.byKey(const ValueKey('chat-input')),
@@ -216,21 +218,19 @@ void main() {
         sentPrompt = true;
       }
       final members = (group['botIds'] as List).cast<String>();
-      List<Json> replies() => (c.node.messages[id] ?? [])
+      List<ChatMessage> replies() => (c.node.messages[id] ?? [])
           .where(
             (m) =>
-                m['kind'] == 'text' &&
-                m['author']['type'] == 'bot' &&
-                m['status'] == 'done',
+                m.kind == 'text' &&
+                m.author.type == 'bot' &&
+                m.status == 'done',
           )
           .toList();
       var seen = -1;
       await until(
         () {
           final messages = c.node.messages[id] ?? [];
-          final failures = messages
-              .where((m) => m['status'] == 'failed')
-              .toList();
+          final failures = messages.where((m) => m.status == 'failed').toList();
           expect(failures, isEmpty, reason: 'Real research model run failed');
           final n = replies().length;
           if (n != seen) {
@@ -238,9 +238,7 @@ void main() {
             seen = n;
           }
           return n >= 5 &&
-              members.every(
-                (b) => replies().any((m) => m['author']['id'] == b),
-              ) &&
+              members.every((b) => replies().any((m) => m.author.id == b)) &&
               find.byTooltip('停止').evaluate().isEmpty;
         },
         seconds: 1200,
@@ -251,9 +249,9 @@ void main() {
         5,
         reason: 'Queued literature reviewer must not run twice',
       );
-      final messageIds = replies().map((m) => m['messageId']).toList();
+      final messageIds = replies().map((m) => m.messageId).toList();
       await tester.runAsync(() => c.loadMessages(id));
-      expect(replies().map((m) => m['messageId']).toList(), messageIds);
+      expect(replies().map((m) => m.messageId).toList(), messageIds);
       if (Platform.isAndroid) {
         await binding.convertFlutterSurfaceToImage();
         await tester.pump();

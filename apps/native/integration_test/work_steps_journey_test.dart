@@ -1,3 +1,5 @@
+import 'package:nekodot_native/data/chat_models.dart';
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -11,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
 import 'package:nekodot_native/features/chat.dart';
 import 'package:nekodot_native/features/files.dart';
@@ -176,7 +179,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 300));
     await tap(find.widgetWithText(FilledButton, '登录'));
-    await until(() => client.ready, what: 'signed in');
+    await until(() => client.connection.ready, what: 'signed in');
     await until(
       () =>
           client.online &&
@@ -245,8 +248,8 @@ void main() {
     await until(() => client.node.messages[id] != null, what: 'history');
     await settle(800);
 
-    List<Json> messages() => client.node.messages[id] ?? [];
-    bool idle() => client.node.activities[id]?['state'] == 'idle';
+    List<ChatMessage> messages() => client.node.messages[id] ?? [];
+    bool idle() => client.node.activities[id]?.state == 'idle';
     String? shown(Finder finder) {
       final found = finder.evaluate();
       if (found.isEmpty) return null;
@@ -256,7 +259,7 @@ void main() {
     // Files and pictures already in this chat open over it, not as a page.
     final files = [
       for (final m in messages())
-        for (final fileId in (m['content']?['files'] as List? ?? []))
+        for (final fileId in (m.content['files'] as List? ?? []))
           await client.rpc('files.get', {'fileId': fileId}),
     ].where((f) => f['available'] == true).toList();
     // The chat shows its latest messages; a file from an older one is not there.
@@ -337,11 +340,11 @@ void main() {
     // A task with steps: the box below the message says what the Bot is
     // doing while it works, with every step folded under it.
     // An earlier run cut off mid-task waits for Stop to be acknowledged.
-    if (client.node.activities[id]?['state'] == 'unknown') {
+    if (client.node.activities[id]?.state == 'unknown') {
       await tap(find.byTooltip('停止'));
     }
     await until(idle, seconds: 300, what: 'idle before sending');
-    final seen = messages().map((m) => m['messageId']).toSet();
+    final seen = messages().map((m) => m.messageId).toSet();
     const task =
         '请看一下 https://nekodot.com 首页的大标题写了什么，'
         '再用 terminal 工具（不要用 execute_code）运行 python -c "print(6*7)"。'
@@ -389,7 +392,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await settle(1500);
     expect(field.text, 'zhong');
-    expect(messages().where((m) => !seen.contains(m['messageId'])), isEmpty);
+    expect(messages().where((m) => !seen.contains(m.messageId)), isEmpty);
     field.value = const TextEditingValue(
       text: task,
       selection: TextSelection.collapsed(offset: task.length),
@@ -399,9 +402,9 @@ void main() {
     await until(
       () => messages().any(
         (m) =>
-            !seen.contains(m['messageId']) &&
-            m['author']['type'] == 'user' &&
-            m['content']['text'] == task,
+            !seen.contains(m.messageId) &&
+            m.author.type == 'user' &&
+            m.content['text'] == task,
       ),
       what: 'Enter sent the task',
     );
@@ -420,13 +423,13 @@ void main() {
     }
 
     var liveShot = false, approvals = 0;
-    Json? reply() => messages()
+    ChatMessage? reply() => messages()
         .where(
           (m) =>
-              !seen.contains(m['messageId']) &&
-              m['author']['type'] == 'bot' &&
-              m['kind'] == 'text' &&
-              m['status'] == 'done',
+              !seen.contains(m.messageId) &&
+              m.author.type == 'bot' &&
+              m.kind == 'text' &&
+              m.status == 'done',
         )
         .lastOrNull;
     final end = DateTime.now().add(const Duration(seconds: 420));
@@ -441,22 +444,20 @@ void main() {
         }
       }
       final pending = messages()
-          .where((m) => m['kind'] == 'approval' && m['status'] == 'streaming')
+          .where((m) => m.kind == 'approval' && m.status == 'streaming')
           .lastOrNull;
       final allow = pending == null
           ? null
-          : find.byKey(ValueKey('choice-${pending['messageId']}-0'));
+          : find.byKey(ValueKey('choice-${pending.messageId}-0'));
       if (allow != null && allow.evaluate().isNotEmpty) {
         final fold = find.descendant(
           of: find.byWidgetPredicate(
             (w) =>
-                w is MessageTile &&
-                w.message['messageId'] == pending!['messageId'],
+                w is MessageTile && w.message.messageId == pending!.messageId,
           ),
           matching: find.byKey(const ValueKey('command-fold')),
         );
-        if (approvals++ == 0 &&
-            object(pending!['content'])['command'] != null) {
+        if (approvals++ == 0 && object(pending!.content)['command'] != null) {
           // The command shows as one line until opened.
           expect(fold, findsOneWidget);
           expect(
@@ -480,7 +481,7 @@ void main() {
               of: find.byWidgetPredicate(
                 (w) =>
                     w is MessageTile &&
-                    w.message['messageId'] == pending['messageId'],
+                    w.message.messageId == pending.messageId,
               ),
               matching: find.byType(SelectableText),
             ),
@@ -497,15 +498,15 @@ void main() {
     note('statuses', statuses);
     expect(reply(), isNotNull, reason: 'Bot replied');
     final steps = messages()
-        .where((m) => !seen.contains(m['messageId']) && m['kind'] == 'tool')
+        .where((m) => !seen.contains(m.messageId) && m.kind == 'tool')
         .toList();
     note('steps', [
       for (final s in steps)
-        {'tool': s['content']['tool'], 'context': s['content']['context']},
+        {'tool': s.content['tool'], 'context': s.content['context']},
     ]);
     expect(steps, isNotEmpty);
     expect(
-      steps.any((s) => '${s['content']['context'] ?? ''}'.isNotEmpty),
+      steps.any((s) => '${s.content['context'] ?? ''}'.isNotEmpty),
       isTrue,
     );
     // Every line was the Bot's name and what it was doing, and at least one
@@ -514,9 +515,9 @@ void main() {
     expect(statuses.every((s) => s.startsWith(name)), isTrue);
     final own = [
       for (final m in messages().where(
-        (m) => !seen.contains(m['messageId']) && m['kind'] == 'commentary',
+        (m) => !seen.contains(m.messageId) && m.kind == 'commentary',
       ))
-        '${m['content']['text']}'
+        '${m.content['text']}'
             .trim()
             .split('\n')
             .first
@@ -535,7 +536,7 @@ void main() {
     final box = find.byWidgetPredicate(
       (w) =>
           w is WorkBlock &&
-          w.steps.any((s) => s['messageId'] == steps.first['messageId']),
+          w.steps.any((s) => s.messageId == steps.first.messageId),
     );
     await until(() => box.evaluate().isNotEmpty, what: 'work box');
     final summary = find.descendant(
@@ -563,7 +564,7 @@ void main() {
           in find
               .descendant(of: box, matching: find.byType(StepRow))
               .evaluate())
-        stepLabel(client, object((row.widget as StepRow).message['content'])),
+        stepLabel(client, object((row.widget as StepRow).message.content)),
     ];
     note('labels', labels);
     expect(labels.any((l) => l.startsWith('{')), isFalse);
@@ -574,7 +575,7 @@ void main() {
     // A drawing the Bot makes shows as a drawing in the chat and in the
     // viewer, its source a tap away; on Windows the viewer hands it to the
     // system too.
-    final before = messages().map((m) => m['messageId']).toSet();
+    final before = messages().map((m) => m.messageId).toSet();
     const drawingTask =
         '用 terminal 工具在你的工作目录里写一个 SVG 文件 badge.svg：240x120，'
         '一个圆角矩形，用从橙色到紫色的线性渐变填充，中间写白色文字 nekodot。'
@@ -586,15 +587,15 @@ void main() {
     );
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    Json? drawing;
+    ChatMessage? drawing;
     final drawingEnd = DateTime.now().add(const Duration(seconds: 420));
     while (DateTime.now().isBefore(drawingEnd)) {
       final pending = messages()
-          .where((m) => m['kind'] == 'approval' && m['status'] == 'streaming')
+          .where((m) => m.kind == 'approval' && m.status == 'streaming')
           .lastOrNull;
       final allow = pending == null
           ? null
-          : find.byKey(ValueKey('choice-${pending['messageId']}-0'));
+          : find.byKey(ValueKey('choice-${pending.messageId}-0'));
       if (allow != null && allow.evaluate().isNotEmpty) {
         await tap(allow);
         continue;
@@ -602,10 +603,10 @@ void main() {
       drawing = messages()
           .where(
             (m) =>
-                !before.contains(m['messageId']) &&
-                m['kind'] == 'text' &&
-                m['status'] == 'done' &&
-                (m['content']['files'] as List?)?.isNotEmpty == true,
+                !before.contains(m.messageId) &&
+                m.kind == 'text' &&
+                m.status == 'done' &&
+                (m.content['files'] as List?)?.isNotEmpty == true,
           )
           .lastOrNull;
       if (drawing != null && idle()) break;
@@ -614,7 +615,7 @@ void main() {
     }
     expect(drawing, isNotNull, reason: 'the Bot delivered the drawing');
     final delivered = [
-      for (final fileId in drawing!['content']['files'] as List)
+      for (final fileId in drawing!.content['files'] as List)
         await client.rpc('files.get', {'fileId': fileId}),
     ];
     final svgFile = delivered.firstWhere(isSvg);

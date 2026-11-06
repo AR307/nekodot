@@ -1,7 +1,9 @@
+import 'package:nekodot_native/data/chat_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
+
 import 'package:nekodot_native/features/auth.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
 import 'package:nekodot_native/features/chat.dart';
@@ -88,14 +90,22 @@ void main() {
     final client = JourneyClient();
     client.node.messages['dm'] = [
       for (var i = 0; i < 40; i++)
-        {
-          'messageId': 'reply-$i',
+        ChatMessage.fromJson({
+          'messageId': 'fixture',
           'conversationId': 'dm',
-          'author': {'type': 'bot', 'id': bot['botId']},
-          'kind': 'text',
-          'status': 'done',
-          'content': {'text': 'Reply $i\n\nA separate paragraph for reading.'},
-        },
+          'createdAt': '2026-11-06T00:00:00Z',
+          'seq': 0,
+          ...{
+            'messageId': 'reply-$i',
+            'conversationId': 'dm',
+            'author': {'type': 'bot', 'id': bot['botId']},
+            'kind': 'text',
+            'status': 'done',
+            'content': {
+              'text': 'Reply $i\n\nA separate paragraph for reading.',
+            },
+          },
+        }),
     ];
     await tester.pumpWidget(
       MaterialApp(
