@@ -39,6 +39,9 @@ def _setup(parser):
         sub.add_argument("--skills", default="")
         sub.add_argument("--cron-job")
     commands.add_parser("list")
+    approvals = commands.add_parser("approvals")
+    approvals.add_argument("job_id")
+    approvals.add_argument("--policy", required=True, help="JSON: default, timezone, windows")
     for action in ("get", "send"):
         sub = commands.add_parser(action)
         sub.add_argument("routine_id")
@@ -60,6 +63,9 @@ def _command(args):
         params["routineId"] = args.routine_id
     if action == "send":
         params.update(payload=json.loads(args.payload), requestId=args.request_id)
+    if action == "approvals":
+        action = "approvalPolicy"
+        params = dict(routineId="cron:" + args.job_id, policy=json.loads(args.policy))
     # No credential-read operation is exposed to the agent or its scripts.
     print(json.dumps(_call(action, **params), ensure_ascii=False))
 
@@ -144,20 +150,24 @@ def _approval_policy(raw_args):
     from cron.jobs import get_job, resume_job
     from cron.approval_policy import POLICY_PENDING_REASON
     from hermes_cli.config import load_config_readonly, save_config
+    from hermes_cli.profiles import get_profile_dir
+    from gateway.run import _profile_runtime_scope
     params = json.loads(raw_args)
-    job = get_job(params["jobId"])
-    if not job:
-        raise ValueError("Scheduled task not found")
     policy = params["policy"]
     ZoneInfo(policy["timezone"])
     for window in policy["windows"]:
         if window["start"] == window["end"]:
             raise ValueError("Approval window must have a duration")
-    approvals = (load_config_readonly().get("approvals") or {}).get("cron_policies") or {}
-    save_config({"approvals": {"cron_policies": {**approvals, job["id"]: policy}}},
-        merge_existing=True)
-    if job.get("paused_reason") == POLICY_PENDING_REASON:
-        resume_job(job["id"])
+    # A sessionless command.dispatch does not bind its profile parameter.
+    with _profile_runtime_scope(get_profile_dir(params["profile"])):
+        job = get_job(params["jobId"])
+        if not job:
+            raise ValueError("Scheduled task not found")
+        approvals = (load_config_readonly().get("approvals") or {}).get("cron_policies") or {}
+        save_config({"approvals": {"cron_policies": {**approvals, job["id"]: policy}}},
+            merge_existing=True)
+        if job.get("paused_reason") == POLICY_PENDING_REASON:
+            resume_job(job["id"])
     return json.dumps(policy)
 
 
@@ -170,10 +180,17 @@ def register(ctx):
 
 const skill = `---
 name: nekodot-routines
-description: Create webhook routines and attach webhook triggers to scheduled jobs in nekodot.
+description: Manage nekodot routines, scheduled-task approval rules and webhook triggers.
 ---
 # nekodot routines
 Use the native terminal tool to run \`hermes routine\` with your current profile.
+## Scheduled-task authorization
+- Explain what the task will need authorization for, then ask the user in the conversation. They can answer in their own words: ask each time, always allow, always deny, or time-based combinations. Use native clarify when suitable; do not ask them to configure a form or write JSON.
+- Do not enable a new task until this question is answered. When no preference is stated, propose ask; never infer permission from silence. If the user already gave an explicit rule, use it without asking again.
+- After the user's answer, save the rule using \`hermes routine approvals JOB_ID --policy '{"default":"ask","timezone":"Asia/Kuala_Lumpur","windows":[{"start":"22:00","end":"08:00","days":[0,1,2,3,4,5,6],"mode":"deny"}]}'\`.
+- Modes are \`ask\`, \`approve\`, \`deny\`. The example asks during the day and denies from 22:00 until 08:00. Days are Monday=0 through Sunday=6; an overnight window belongs to its starting weekday. Outside windows the default applies; later matching windows take priority. Use the user's timezone and clarify ambiguous times before saving.
+- Read back the saved rule with \`hermes routine get cron:JOB_ID\`. Resume with native \`hermes cron resume JOB_ID\` if it was paused only to await this answer; keep an intentional user pause. Changing a rule never reruns a completed task.
+## Webhook routines
 - Create: \`hermes routine create --name "Title" --description "Purpose" --prompt "Fixed task. External event: {__raw__}"\`.
 - To add a webhook to an existing native scheduled job, also pass \`--cron-job JOB_ID\`. Do not create a second scheduled job.
 - List/get/update use \`hermes routine list\`, \`hermes routine get ID\`, and \`hermes routine update ID ...\`.

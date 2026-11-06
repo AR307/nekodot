@@ -32,7 +32,7 @@ export const routineExecutionSchema = z.strictObject({
   updatedAt: z.string(),
 });
 export const cronApprovalPolicySchema = z.strictObject({
-  default: z.enum(['ask', 'approve']),
+  default: z.enum(['ask', 'approve', 'deny']),
   timezone: z.string().min(1),
   windows: z
     .array(
@@ -40,7 +40,7 @@ export const cronApprovalPolicySchema = z.strictObject({
         start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
         end: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
         days: z.array(z.number().int().min(0).max(6)).min(1),
-        mode: z.enum(['ask', 'approve']),
+        mode: z.enum(['ask', 'approve', 'deny']),
       }),
     )
     .max(12),

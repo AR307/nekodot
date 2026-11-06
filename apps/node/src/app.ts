@@ -468,12 +468,6 @@ export class NodeApplication {
         return this.routines.list(request.params.botId);
       case 'routines.get':
         return this.routines.get(request.params.botId, request.params.routineId);
-      case 'routines.approvalPolicy':
-        return this.routines.approvalPolicy(
-          request.params.botId,
-          request.params.routineId,
-          request.params.policy,
-        );
       case 'routines.approvalRespond':
         return this.routines.approvalRespond(
           request.params.botId,

@@ -1254,7 +1254,9 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 ## 2026-11-06 Cron 结果接续与授权规则
 
 - 普通 cron 结果关联至原生执行会话并检查用户所选会话是否已包含结果，避免遗漏或重复注入；用户可从执行详情发起一次明确的新回合来追问。执行会话只读。
-- 定时任务的配置入口直接出现在新建任务卡片；详情页会提示未配置的任务进入授权设置。默认询问，用户可配置自动允许，并按时区、星期及跨午夜时间段切换；新建时段默认询问。Hermes 在规则确认前暂停新任务。
+- 按最新确认，定时任务授权由 Agent 在聊天中询问，用户自然语言回答后由 Agent 调用 `hermes routine approvals JOB_ID --policy JSON` 设置。支持询问、允许、拒绝及按时区/星期/跨午夜时段组合；移除任务卡配置按钮、详情弹窗及公开设置 RPC。运行时人工审批卡保留。
 - cron 回合内出现原生审批时，经对应 Bot 私聊展示并对同一 admission 提交用户选择；不默认拒绝、不停止或重跑任务。Bot 指引要求配置任务时先询问用户的授权偏好。
-- 验证：Hermes `scripts/run_tests.sh tests/tools/test_cron_approval_policy.py tests/cron/test_approval_policy.py tests/gateway/test_cron_approval_bridge.py` 通过 7 项；nekodot Node 24 全部 38 个测试文件/76 项通过，TypeScript typecheck 与相关 ESLint/Prettier 通过；Flutter analyze 和 33 项测试通过。
-- 未验：尚未在实际 Windows 客户端与固定 Android 模拟器执行真实 cron + 真实模型审批/追问旅程；QA Relay health 返回 200，但本轮未部署服务或候选包。Windows/Android 真机未验。
+- 实际 Windows 候选完成真实 gpt-6.1-sol 的聊天设置、允许一次、默认拒绝、自动允许及两种结果追问；三次原生执行对应文件两行，没有因追问重跑。验收发现并修复用户追问消息打开执行详情时 Bot ID 错误、深色气泡链接不可读。
+- 固定 Android 模拟器已通过真实聊天创建/设置规则、原生允许一次、默认拒绝、自动允许、普通追问和执行详情的选定结果追问；三次执行实际写入两行 UUID，最终任务暂停。配置规则的工具已成功，后续模型回读停滞时仅停止该回读回合，再继续验收，没有重放配置或已完成任务。结果及截图见 `docs/cron-conversational-approval-acceptance.md`。
+- 工程：Hermes 官方测试入口 11 项、代码检查 13 项通过；Node 24 的 38 文件/76 项、typecheck、相关 ESLint/Prettier、Node bundle、Flutter analyze/33 项测试与 Windows/Android release 构建通过。
+- 边界：Android 真机未验；跨日时间边界用自动化验证，未宣称实等跨日。安装包只在本地构建，本轮不发布、不 push、不更新正式服务，所有 QA 文件与历史保留。

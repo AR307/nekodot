@@ -120,26 +120,12 @@ class RoutineCard extends StatelessWidget {
         ),
       ),
     );
-    final scheduled =
-        content['trigger'] == 'schedule' || content['trigger'] == 'both';
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ChatNotice(
-          text: '$action ${content['name']}',
-          icon: content['card'] == 'credentials'
-              ? Icons.lock_outline
-              : Icons.schedule,
-          onTap: openRoutine,
-        ),
-        if (content['action'] == 'created' && scheduled)
-          TextButton.icon(
-            key: ValueKey('routine-approval-setup-${content['routineId']}'),
-            onPressed: openRoutine,
-            icon: const Icon(Icons.verified_user_outlined, size: 16),
-            label: Text(client.tr('配置授权', 'Set approvals')),
-          ),
-      ],
+    return ChatNotice(
+      text: '$action ${content['name']}',
+      icon: content['card'] == 'credentials'
+          ? Icons.lock_outline
+          : Icons.schedule,
+      onTap: openRoutine,
     );
   }
 }
@@ -162,7 +148,7 @@ class RoutinePage extends StatefulWidget {
 class _RoutinePageState extends State<RoutinePage> {
   Json? data;
   String error = '', receipt = '';
-  bool busy = false, loading = false, approvalPrompted = false;
+  bool busy = false, loading = false;
   Timer? timer;
   NekodotClient get c => widget.client;
   Json get target => {'botId': widget.botId, 'routineId': widget.routineId};
@@ -191,16 +177,6 @@ class _RoutinePageState extends State<RoutinePage> {
           data = value;
           error = '';
         });
-        final routine = object(value['routine']);
-        final native = object(routine['native'] ?? {});
-        if (!approvalPrompted &&
-            routine['cronJobId'] != null &&
-            native['approvalPolicy'] == null) {
-          approvalPrompted = true;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) unawaited(editApprovalPolicy(routine));
-          });
-        }
       }
     } catch (e) {
       if (mounted) setState(() => error = '$e');
@@ -245,176 +221,6 @@ class _RoutinePageState extends State<RoutinePage> {
       'name': data!['routine']['name'],
     };
     await pushPage(context, ChatPage(client: c, conversationId: id));
-  }
-
-  Future<void> editApprovalPolicy(Json routine) async {
-    final native = object(routine['native'] ?? {});
-    final saved = object(native['approvalPolicy'] ?? {});
-    final zone = TextEditingController(text: '${saved['timezone'] ?? 'UTC'}');
-    var mode = '${saved['default'] ?? 'ask'}';
-    final windows = objects(saved['windows'])
-        .map(
-          (row) => <String, dynamic>{
-            'start': row['start'],
-            'end': row['end'],
-            'mode': row['mode'],
-            'days': List<int>.from(row['days'] as List),
-          },
-        )
-        .toList();
-    final policy = await showDialog<Json>(
-      context: context,
-      builder: (dialog) => StatefulBuilder(
-        builder: (dialog, update) {
-          Future<void> pickTime(Json window, String field) async {
-            final parts = '${window[field]}'.split(':');
-            final picked = await showTimePicker(
-              context: dialog,
-              initialTime: TimeOfDay(
-                hour: int.parse(parts[0]),
-                minute: int.parse(parts[1]),
-              ),
-            );
-            if (picked != null) {
-              update(
-                () => window[field] =
-                    '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}',
-              );
-            }
-          }
-
-          Widget modes(String selected, ValueChanged<String> change) =>
-              SegmentedButton<String>(
-                segments: [
-                  ButtonSegment(value: 'ask', label: Text(c.tr('询问', 'Ask'))),
-                  ButtonSegment(
-                    value: 'approve',
-                    label: Text(c.tr('自动允许', 'Auto allow')),
-                  ),
-                ],
-                selected: {selected},
-                onSelectionChanged: (value) => change(value.first),
-              );
-          return AlertDialog(
-            title: Text(c.tr('任务授权规则', 'Task approvals')),
-            content: SizedBox(
-              width: 440,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    modes(mode, (value) => update(() => mode = value)),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: zone,
-                      decoration: InputDecoration(
-                        labelText: c.tr('时区', 'Time zone'),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    for (final window in windows) ...[
-                      const Divider(),
-                      Row(
-                        children: [
-                          TextButton(
-                            onPressed: () => pickTime(window, 'start'),
-                            child: Text('${window['start']}'),
-                          ),
-                          const Text('—'),
-                          TextButton(
-                            onPressed: () => pickTime(window, 'end'),
-                            child: Text('${window['end']}'),
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            tooltip: c.tr('移除时段', 'Remove window'),
-                            onPressed: () =>
-                                update(() => windows.remove(window)),
-                            icon: const Icon(Icons.close),
-                          ),
-                        ],
-                      ),
-                      modes(
-                        '${window['mode']}',
-                        (value) => update(() => window['mode'] = value),
-                      ),
-                      Wrap(
-                        spacing: 4,
-                        children: [
-                          for (var day = 0; day < 7; day++)
-                            FilterChip(
-                              label: Text(
-                                c.tr(
-                                  '一二三四五六日'[day],
-                                  const [
-                                    'M',
-                                    'T',
-                                    'W',
-                                    'T',
-                                    'F',
-                                    'S',
-                                    'S',
-                                  ][day],
-                                ),
-                              ),
-                              selected: (window['days'] as List<int>).contains(
-                                day,
-                              ),
-                              onSelected: (selected) => update(() {
-                                final days = window['days'] as List<int>;
-                                if (selected) {
-                                  if (!days.contains(day)) days.add(day);
-                                } else if (days.length > 1) {
-                                  days.remove(day);
-                                }
-                              }),
-                            ),
-                        ],
-                      ),
-                    ],
-                    TextButton.icon(
-                      onPressed: windows.length >= 12
-                          ? null
-                          : () => update(
-                              () => windows.add({
-                                'start': '22:00',
-                                'end': '08:00',
-                                'days': [0, 1, 2, 3, 4, 5, 6],
-                                'mode': 'ask',
-                              }),
-                            ),
-                      icon: const Icon(Icons.add),
-                      label: Text(c.tr('添加时段', 'Add window')),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialog),
-                child: Text(c.tr('取消', 'Cancel')),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(dialog, {
-                  'default': mode,
-                  'timezone': zone.text.trim(),
-                  'windows': windows,
-                }),
-                child: Text(c.tr('确认', 'Confirm')),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    zone.dispose();
-    if (policy == null || !mounted) return;
-    await action(() async {
-      await c.rpc('routines.approvalPolicy', {...target, 'policy': policy});
-    });
   }
 
   Future<void> test(Json routine) async {
@@ -573,14 +379,6 @@ class _RoutinePageState extends State<RoutinePage> {
                             ],
                           ),
                         ),
-                      OutlinedButton.icon(
-                        key: const ValueKey('routine-approval-policy'),
-                        onPressed: allowed
-                            ? () => editApprovalPolicy(routine)
-                            : null,
-                        icon: const Icon(Icons.verified_user_outlined),
-                        label: Text(c.tr('授权规则', 'Approvals')),
-                      ),
                     ],
                     if (webhook) ...[
                       const SizedBox(height: 12),

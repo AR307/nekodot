@@ -1338,12 +1338,18 @@ class _MessageTileState extends State<MessageTile> {
                   context,
                   RoutinePage(
                     client: c,
-                    botId: '${m['author']['id']}',
+                    botId: user
+                        ? '${c.node.conversations.firstWhere((row) => row['conversationId'] == m['conversationId'])['botId']}'
+                        : '${m['author']['id']}',
                     routineId: '${body['routine']['routineId']}',
                     executionId: '${body['routine']['executionId']}',
                   ),
                 ),
                 icon: const Icon(Icons.webhook, size: 16),
+                key: ValueKey('routine-result-${m['messageId']}'),
+                style: user
+                    ? TextButton.styleFrom(foregroundColor: tone.base)
+                    : null,
                 label: Text(c.tr('例行任务 · 查看执行', 'Routine · view execution')),
               ),
             MessageMarkdown(

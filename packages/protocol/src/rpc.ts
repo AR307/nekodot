@@ -4,7 +4,6 @@ import {
   routineInputSchema,
   routineSchema,
   routineExecutionSchema,
-  cronApprovalPolicySchema,
   routineReceiptSchema,
   routineDeliveryRecordSchema,
 } from './routines';
@@ -214,14 +213,6 @@ export const rpcContracts = {
   'routines.list': {
     params: z.strictObject(botTarget),
     result: z.strictObject({ routines: z.array(routineSchema) }),
-  },
-  'routines.approvalPolicy': {
-    params: z.strictObject({
-      ...botTarget,
-      routineId: z.string(),
-      policy: cronApprovalPolicySchema,
-    }),
-    result: cronApprovalPolicySchema,
   },
   'routines.approvalRespond': {
     params: z.strictObject({

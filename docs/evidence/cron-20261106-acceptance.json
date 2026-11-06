@@ -1,0 +1,93 @@
+{
+  "recordedAt": "2026-11-06T02:52:29.234Z",
+  "model": "gpt-6.1-sol",
+  "hermesCommit": "8ac43a3e2a",
+  "androidAvd": "NekodotNativePhase3",
+  "realDeviceTested": false,
+  "trigger": "Native cron run from candidate GUI",
+  "notes": [
+    "Journeys continued against the same executions after test-runner interruptions.",
+    "After the model saved approve, a stalled Android readback turn was explicitly stopped; configuration and completed cron actions were not replayed.",
+    "Denied model turns can be completed while their tool did not execute; actual output files were checked separately."
+  ],
+  "results": [
+    {
+      "platform": "windows",
+      "jobId": "ee2f34600dad",
+      "state": "paused",
+      "finalPolicy": {
+        "default": "approve",
+        "timezone": "Asia/Kuala_Lumpur",
+        "windows": []
+      },
+      "fileLines": [
+        "a6f30345e3cc45b78a81010e3c898cc9",
+        "61e7a58c31d149d4b92717b713a4053a"
+      ],
+      "executions": [
+        {
+          "executionId": "cron:ee2f34600dad:local-b174adc697ecab598f8e17181c52aa2da5777b20d9d862b2b9069a66655cc052",
+          "originSessionId": "local-6d6edf7977aa5aa3147b4b636373f6be263b1c247bd7e66cd640d39cb1853de3",
+          "state": "completed",
+          "text": "61e7a58c31d149d4b92717b713a4053a"
+        },
+        {
+          "executionId": "cron:ee2f34600dad:local-1769fb66cbde39f7a99840ebef673d55847137b7829653ae3ea69badc5d48356",
+          "originSessionId": "local-6d6edf7977aa5aa3147b4b636373f6be263b1c247bd7e66cd640d39cb1853de3",
+          "state": "completed",
+          "text": "execute_code 被拒绝：无人值守的定时任务不允许执行任意本地 Python。代码未运行，未写入文件。"
+        },
+        {
+          "executionId": "cron:ee2f34600dad:local-a4311d1ebefb62eee6b438e547f79cdffdbac88cfa7ef759b0b1ec524327a443",
+          "originSessionId": "local-6d6edf7977aa5aa3147b4b636373f6be263b1c247bd7e66cd640d39cb1853de3",
+          "state": "completed",
+          "text": "a6f30345e3cc45b78a81010e3c898cc9"
+        }
+      ],
+      "followup": {
+        "ordinary": true,
+        "selectedExecution": true,
+        "reranTask": false
+      }
+    },
+    {
+      "platform": "android-emulator",
+      "jobId": "da809955d468",
+      "state": "paused",
+      "finalPolicy": {
+        "default": "approve",
+        "timezone": "Asia/Kuala_Lumpur",
+        "windows": []
+      },
+      "fileLines": [
+        "a275ed5e4ec846d9a5e1020b6fca2404",
+        "345cdb068ed9476ea7236b1b3b621a8b"
+      ],
+      "executions": [
+        {
+          "executionId": "cron:da809955d468:local-edb1d1e8910314d9ce88ae2889cd78a92a42b0b33f2de4c2b1bdd6de8ea8386a",
+          "originSessionId": "local-21190fc0bf385fb22d64446ea74dd4ac52e241568835f6c7984a38103a48976b",
+          "state": "completed",
+          "text": "345cdb068ed9476ea7236b1b3b621a8b"
+        },
+        {
+          "executionId": "cron:da809955d468:local-652e68ff18e71cf90e5eba0f24ec3ccc9ca4fafb7ee97d5b3182f303b6d6ade7",
+          "originSessionId": "local-21190fc0bf385fb22d64446ea74dd4ac52e241568835f6c7984a38103a48976b",
+          "state": "completed",
+          "text": "execute_code 被拒绝：无人值守的定时任务不允许执行任意本地 Python。代码未运行，文件未写入。"
+        },
+        {
+          "executionId": "cron:da809955d468:local-847202dbeef89bbfa0c546296a3d8afbf78502e24e9b523ec41d7e13dde07d20",
+          "originSessionId": "local-21190fc0bf385fb22d64446ea74dd4ac52e241568835f6c7984a38103a48976b",
+          "state": "completed",
+          "text": "a275ed5e4ec846d9a5e1020b6fca2404"
+        }
+      ],
+      "followup": {
+        "ordinary": true,
+        "selectedExecution": true,
+        "reranTask": false
+      }
+    }
+  ]
+}

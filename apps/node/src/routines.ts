@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import {
   routineInputSchema,
+  cronApprovalPolicySchema,
   rpcContracts,
   type Routine,
   type RoutineInput,
@@ -492,7 +493,7 @@ export class Routines {
     }
     const base = z
       .object({
-        action: z.enum(['create', 'update', 'get', 'list', 'send']),
+        action: z.enum(['create', 'update', 'get', 'list', 'send', 'approvalPolicy']),
         botId: z.string(),
       })
       .parse(value);
@@ -500,6 +501,16 @@ export class Routines {
     const params = { ...(value as Record<string, unknown>) };
     delete params.action;
     switch (base.action) {
+      case 'approvalPolicy': {
+        const p = z
+          .strictObject({
+            botId: z.string(),
+            routineId: z.string().min(1),
+            policy: cronApprovalPolicySchema,
+          })
+          .parse(params);
+        return this.approvalPolicy(p.botId, p.routineId, p.policy);
+      }
       case 'create':
         return this.create(routineInputSchema.parse(params));
       case 'update':
@@ -820,7 +831,7 @@ export class Routines {
     };
   }
 
-  async approvalPolicy(botId: string, routineId: string, policy: CronApprovalPolicy) {
+  private async approvalPolicy(botId: string, routineId: string, policy: CronApprovalPolicy) {
     const routine = await this.get(botId, routineId);
     const jobId = routine.routine.cronJobId;
     if (!jobId) throw new NodeFault('invalid_params', 'This task has no schedule');
