@@ -32,6 +32,8 @@ export function registerDownloads(app: FastifyInstance, directory: string, publi
       const path = join(directory, 'hermes', version, file);
       if (!existsSync(path)) return reply.code(404).send();
       const { size } = await stat(path);
+      // Cache filling at the CDN can discard Range for these large runtime archives.
+      reply.header('Cache-Control', 'no-store');
       reply.type(file.endsWith('.json') ? 'application/json' : 'application/gzip');
       reply.header('Accept-Ranges', 'bytes');
       const range = request.headers.range;

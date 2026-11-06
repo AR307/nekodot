@@ -92,6 +92,7 @@ it('resumes an interrupted runtime download without sending the completed prefix
     const rest = await fetch(path, { headers: { Range: 'bytes=9-' } });
     expect(first.status).toBe(206);
     expect(rest.status).toBe(206);
+    expect(rest.headers.get('cache-control')).toBe('no-store');
     expect(
       Buffer.concat([
         Buffer.from(await first.arrayBuffer()),
