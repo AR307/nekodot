@@ -266,6 +266,17 @@ class LocalRuntime extends ChangeNotifier {
     phase = LocalPhase.starting;
     notifyListeners();
     try {
+      // Another account may have installed the shared runtime first. Its ready
+      // marker does not mean this account's plugin environment is prepared.
+      if (_installer == null) {
+        await RuntimeInstaller(
+          location!,
+          support.platform!,
+          client.transport,
+          _progress,
+          origin: client.origin,
+        ).prepareAccount(joinPath(_home, 'hermes'));
+      }
       await _applyUpdateMarkers();
       final port = await _port();
       final log = File(joinPath(_home, 'logs', 'desktop-node.log'))
