@@ -118,6 +118,7 @@ class _ModelSelectionState extends State<ModelSelection> {
               children: [
                 TextField(
                   key: const ValueKey('model-search'),
+                  autofocus: true,
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search),
                     hintText: c.tr('搜索模型', 'Search models'),

@@ -237,7 +237,9 @@ class _BotEditorState extends State<BotEditor> {
                           button: true,
                           selected: value == shape,
                           child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 160),
+                            duration: MediaQuery.disableAnimationsOf(context)
+                                ? Duration.zero
+                                : const Duration(milliseconds: 160),
                             width: tone.glass ? 52 : 44,
                             height: tone.glass ? 52 : 44,
                             padding: const EdgeInsets.all(7),
@@ -261,37 +263,47 @@ class _BotEditorState extends State<BotEditor> {
             const SizedBox(height: 10),
             Center(
               child: SizedBox(
-                width: (tone.glass ? 46.0 : 38.0) * 8,
+                width: 44 * 8 + 4 * 7,
                 child: Wrap(
                   alignment: WrapAlignment.center,
                   spacing: 4,
                   runSpacing: 4,
                   children: [
                     for (final value in avatarColors)
-                      GestureDetector(
+                      InkResponse(
+                        key: ValueKey('avatar-color-$value'),
+                        radius: 24,
                         onTap: () => setState(() => color = value),
                         child: Semantics(
                           button: true,
                           selected: value == color,
                           label: value,
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 160),
-                            width: tone.glass ? 40 : 30,
-                            height: tone.glass ? 40 : 30,
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: value == color
-                                    ? tone.ink
-                                    : Colors.transparent,
-                                width: 1.5,
-                              ),
-                            ),
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: hexColor(value),
+                          child: SizedBox.square(
+                            dimension: 44,
+                            child: Center(
+                              child: AnimatedContainer(
+                                duration:
+                                    MediaQuery.disableAnimationsOf(context)
+                                    ? Duration.zero
+                                    : const Duration(milliseconds: 160),
+                                width: tone.glass ? 40 : 30,
+                                height: tone.glass ? 40 : 30,
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: value == color
+                                        ? tone.ink
+                                        : Colors.transparent,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: hexColor(value),
+                                  ),
+                                ),
                               ),
                             ),
                           ),

@@ -1170,3 +1170,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 两 Node/Relay/Hermes 重启后总量保持 744728；Node B 离线真实调用新增 30632，重连后补传至 775360，重发实际已采集身份不翻倍、不重跑模型。证据按各自时间点保留，未把后续数字覆盖到旧导出。
 - Flutter analyze、36 项辅助测试与双端 Release 构建通过；正式 Node CJS、Relay/协议 ESM bundle 已复核。Windows 安装器未做 Authenticode 签名，版本保持 0.3.1+7，仅本地候选。
 - 详见 docs/statistics-acceptance.md。非零缓存写入、MoA、组合触发完整旅程、Android 真机/系统导出及其他未验矩阵明确保留；手动压缩缺少原生会话身份时仅按真实 profile 归属。用户停止电脑操作后未继续窗口操作，本轮 QA 监听已停止，无关改动保留；未 push、发布或修改正式服务。
+
+## 2026-11-06 Ferris：原生交互增量移植
+
+- 实时 fetch 核对：Ferris 在 PR #1 的 `4e7445ddf9` 之后新增 11 个提交，末端 `fad4d1cd78`，全部针对已回收 Web UI/测试；main 和 PR head 没有新提交。用户确认只移植适用交互，不恢复 Web/Tauri。
+- Flutter 增加密码显隐与键盘下一项、44px 头像颜色命中区及键盘选择、聊天历史原生键盘翻页、模型搜索打开聚焦；不改原生执行、草稿、任务或群聊路由。密码显隐的两条提示已获用户批准。
+- 已有原生菜单/弹窗焦点、反向列表底部锚定、授权布局和 reduced-motion 保留；不引入 React 依赖、额外说明段落、粒子动画或严格探针门禁。对应关系见 docs/ferris-native-integration.md。
+- Flutter analyze、40 项辅助测试通过。真实窗口旅程已准备，待用户允许恢复上一轮停止的窗口操作后运行；不以 Ferris 的 Web 报告代替原生结果。仅本地提交，不 push、发布；现有未提交内容保留。

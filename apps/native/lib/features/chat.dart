@@ -1057,104 +1057,118 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                     : GroupAvatar(size: 56, avatars: memberAvatars),
               )
             else
-              ListView.builder(
-                key: const ValueKey('chat-messages'),
+              PrimaryScrollController(
                 controller: scroll,
-                reverse: true,
-                padding: EdgeInsets.fromLTRB(14, 6, 14, composerHeight + 2),
-                itemCount: items.length + 1 + lead,
-                findChildIndexCallback: (key) {
-                  final index = items.indexWhere(
-                    (item) => ValueKey(item.first['messageId']) == key,
-                  );
-                  return index < 0 ? null : items.length - 1 - index + lead;
-                },
-                itemBuilder: (context, position) {
-                  if (position < lead) {
-                    return Align(
-                      alignment: Alignment.topCenter,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 720),
-                        child: ThinkingRow(
-                          key: const ValueKey('thinking-row'),
-                          bot: bot,
-                          line: workingLine(
-                            c,
-                            '${bot?['displayName'] ?? 'Bot'}',
-                            currentTurn(),
+                child: Focus(
+                  key: const ValueKey('chat-history-focus'),
+                  child: ListView.builder(
+                    key: const ValueKey('chat-messages'),
+                    controller: scroll,
+                    reverse: true,
+                    padding: EdgeInsets.fromLTRB(14, 6, 14, composerHeight + 2),
+                    itemCount: items.length + 1 + lead,
+                    findChildIndexCallback: (key) {
+                      final index = items.indexWhere(
+                        (item) => ValueKey(item.first['messageId']) == key,
+                      );
+                      return index < 0 ? null : items.length - 1 - index + lead;
+                    },
+                    itemBuilder: (context, position) {
+                      if (position < lead) {
+                        return Align(
+                          alignment: Alignment.topCenter,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 720),
+                            child: ThinkingRow(
+                              key: const ValueKey('thinking-row'),
+                              bot: bot,
+                              line: workingLine(
+                                c,
+                                '${bot?['displayName'] ?? 'Bot'}',
+                                currentTurn(),
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                      final index = position - lead;
+                      if (index == items.length) {
+                        return (c.node.messages[id]?.length ?? 0) < 50
+                            ? const SizedBox.shrink()
+                            : Center(
+                                child: IconButton(
+                                  tooltip: c.tr(
+                                    '加载更早消息',
+                                    'Load earlier messages',
+                                  ),
+                                  onPressed: () async {
+                                    try {
+                                      await c.loadMessages(
+                                        id,
+                                        before: messages.first['seq'] as int,
+                                      );
+                                    } catch (e) {
+                                      if (mounted) setState(() => error = '$e');
+                                    }
+                                  },
+                                  icon: const Icon(Icons.expand_less),
+                                ),
+                              );
+                      }
+                      final at = items.length - 1 - index,
+                          item = items[at],
+                          m = item.first,
+                          previous = at == 0 ? null : items[at - 1].last,
+                          author = members
+                              .where((b) => b['botId'] == m['author']['id'])
+                              .firstOrNull;
+                      return Align(
+                        key: ValueKey(m['messageId']),
+                        alignment: Alignment.topCenter,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 720),
+                          child: KeyedSubtree(
+                            key:
+                                item.any(
+                                  (m) => m['messageId'] == focusedMessage,
+                                )
+                                ? focusedKey
+                                : null,
+                            child: MessageTile(
+                              client: c,
+                              message: m,
+                              steps: work(item) ? item : null,
+                              // Still going while only its questions follow it.
+                              live:
+                                  working &&
+                                  items
+                                      .skip(at + 1)
+                                      .every(
+                                        (later) => const {
+                                          'approval',
+                                          'question',
+                                        }.contains(later.first['kind']),
+                                      ),
+                              bot: author,
+                              showName: group != null,
+                              working: working && index == 0,
+                              continued:
+                                  previous != null &&
+                                  previous['kind'] != 'system' &&
+                                  previous['author']['id'] ==
+                                      m['author']['id'] &&
+                                  previous['author']['type'] ==
+                                      m['author']['type'],
+                              onRetry: (text) {
+                                input.text = text;
+                              },
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  }
-                  final index = position - lead;
-                  if (index == items.length) {
-                    return (c.node.messages[id]?.length ?? 0) < 50
-                        ? const SizedBox.shrink()
-                        : Center(
-                            child: IconButton(
-                              tooltip: c.tr('加载更早消息', 'Load earlier messages'),
-                              onPressed: () async {
-                                try {
-                                  await c.loadMessages(
-                                    id,
-                                    before: messages.first['seq'] as int,
-                                  );
-                                } catch (e) {
-                                  if (mounted) setState(() => error = '$e');
-                                }
-                              },
-                              icon: const Icon(Icons.expand_less),
-                            ),
-                          );
-                  }
-                  final at = items.length - 1 - index,
-                      item = items[at],
-                      m = item.first,
-                      previous = at == 0 ? null : items[at - 1].last,
-                      author = members
-                          .where((b) => b['botId'] == m['author']['id'])
-                          .firstOrNull;
-                  return Align(
-                    key: ValueKey(m['messageId']),
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 720),
-                      child: KeyedSubtree(
-                        key: item.any((m) => m['messageId'] == focusedMessage)
-                            ? focusedKey
-                            : null,
-                        child: MessageTile(
-                          client: c,
-                          message: m,
-                          steps: work(item) ? item : null,
-                          // Still going while only its questions follow it.
-                          live:
-                              working &&
-                              items
-                                  .skip(at + 1)
-                                  .every(
-                                    (later) => const {
-                                      'approval',
-                                      'question',
-                                    }.contains(later.first['kind']),
-                                  ),
-                          bot: author,
-                          showName: group != null,
-                          working: working && index == 0,
-                          continued:
-                              previous != null &&
-                              previous['kind'] != 'system' &&
-                              previous['author']['id'] == m['author']['id'] &&
-                              previous['author']['type'] == m['author']['type'],
-                          onRetry: (text) {
-                            input.text = text;
-                          },
-                        ),
-                      ),
-                    ),
-                  );
-                },
+                      );
+                    },
+                  ),
+                ),
               ),
             Positioned(
               left: 0,
