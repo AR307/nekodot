@@ -10,6 +10,7 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
+import { parse } from 'yaml';
 import type { SecretEnvelope } from '@nekodot/protocol';
 import { NodeDatabase } from './database';
 import { BotSecrets } from './secrets';
@@ -193,6 +194,21 @@ it('delivers a multiline key once, saves only when selected, and isolates refere
   expect(service.get('nk-abcdef', nativeRow.requestId).request.state).toBe('delivered');
   await service.finish(db.runs().find((r) => r.botId === 'nk-abcdef')!);
   expect(service.get('nk-abcdef', nativeRow.requestId).request.state).toBe('applied');
+  const yamlPath = join(home, 'approved', 'service.yaml');
+  const yamlRequest = (await local('request', {
+    spec: {
+      service: 'YAML service',
+      purpose: 'Set the test service token',
+      fields: [{ name: 'TOKEN', label: 'Token', kind: 'password' }],
+      target: { kind: 'file', path: yamlPath, format: 'yaml' },
+    },
+  })) as { requestId: string };
+  const yamlKey = service.get('nk-abcdef', yamlRequest.requestId).publicKey;
+  await service.submit('nk-abcdef', yamlRequest.requestId, {
+    envelope: encrypt(yamlKey, 'nk-abcdef', yamlRequest.requestId, { TOKEN: 'off' }),
+    save: false,
+  });
+  expect(parse(await readFile(yamlPath, 'utf8'), { version: '1.1' })).toEqual({ TOKEN: 'off' });
   service.close();
   service = new BotSecrets(db, hermes);
   expect(service.list('nk-abcdef').credentials[0]!.enabled).toBe(false);

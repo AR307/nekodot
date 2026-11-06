@@ -482,7 +482,7 @@ export class BotSecrets {
       } else if (target.format === 'json')
         output = JSON.stringify({ ...(raw ? JSON.parse(raw) : {}), ...values }, null, 2) + '\n';
       else {
-        const document = parseDocument(raw || '{}');
+        const document = parseDocument(raw || '{}', { compat: 'yaml-1.1' });
         if (document.errors.length) throw new Error('Invalid target YAML');
         for (const [key, value] of Object.entries(values)) document.set(key, value);
         output = document.toString();

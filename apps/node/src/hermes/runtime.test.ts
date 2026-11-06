@@ -7,6 +7,7 @@ import { parse } from 'yaml';
 import { describe, expect, it, vi } from 'vitest';
 import { ManagedHermes, managedRules, withManagedRules } from './runtime';
 import type { Bot } from '@nekodot/protocol';
+import * as cli from './cli';
 
 async function existingProfile(config: string) {
   const directory = await mkdtemp(join(tmpdir(), 'nekodot-native-config-'));
@@ -104,6 +105,47 @@ it.each(['null', '{}'])(
     }
   },
 );
+
+it('keeps disabled approvals as a string for the native YAML reader after profile edits', async () => {
+  const { home, runtime, bot, close } = await existingProfile('approvals:\n  mode: off\n');
+  try {
+    await runtime.configureBot(bot, false);
+    expect(
+      parse(await readFile(join(home, 'config.yaml'), 'utf8'), { version: '1.1' }),
+    ).toMatchObject({
+      approvals: { mode: 'off' },
+    });
+    await runtime.configureBot(bot, false, 'manual');
+    await runtime.configureBot(bot, false, 'off');
+    expect(
+      parse(await readFile(join(home, 'config.yaml'), 'utf8'), { version: '1.1' }),
+    ).toMatchObject({
+      approvals: { mode: 'off' },
+    });
+  } finally {
+    await runtime.close();
+    await close();
+  }
+});
+
+it('reports the same approval mode as the native boolean normalizer', async () => {
+  const { runtime, close } = await existingProfile('{}');
+  const read = vi.spyOn(cli, 'runHermesCli');
+  try {
+    for (const [native, expected] of [
+      [false, 'off'],
+      [true, 'manual'],
+      ['smart', 'smart'],
+    ] as const) {
+      read.mockResolvedValueOnce(JSON.stringify(native));
+      expect(await runtime.approvalMode('default')).toBe(expected);
+    }
+  } finally {
+    read.mockRestore();
+    await runtime.close();
+    await close();
+  }
+});
 
 describe('nekodot managed SOUL rules', () => {
   const bot = { displayName: '笔笔', handle: 'bibi' } as Bot;

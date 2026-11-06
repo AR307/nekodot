@@ -182,7 +182,8 @@ export class ManagedHermes implements HermesRuntime {
       () => readFile(path, 'utf8'),
       () => '{}',
     );
-    const document = parseDocument(raw);
+    // Hermes reads YAML with PyYAML: string values such as "off" must stay strings.
+    const document = parseDocument(raw, { compat: 'yaml-1.1' });
     if (document.errors.length) throw new Error('Hermes config is not valid YAML');
     const apiTools = document.toJS().platform_toolsets?.api_server as string[] | undefined;
     document.setIn(
@@ -255,11 +256,13 @@ export class ManagedHermes implements HermesRuntime {
       'approvals.mode',
       '--json',
     ]);
-    return approvalModeSchema.parse(JSON.parse(output.trim()));
+    const value: unknown = JSON.parse(output.trim());
+    // Hermes v0.22.6's native normalizer explicitly accepts YAML booleans.
+    return approvalModeSchema.parse(value === false ? 'off' : value === true ? 'manual' : value);
   }
   async configureScreen(profile: string) {
     const path = join(this.profileHome(profile), 'config.yaml');
-    const document = parseDocument(await readFile(path, 'utf8'));
+    const document = parseDocument(await readFile(path, 'utf8'), { compat: 'yaml-1.1' });
     if (document.errors.length) throw new Error('Hermes config is not valid YAML');
     document.setIn(['browser', 'headed'], true);
     document.setIn(['bot_desktop', 'geometry'], '1440x900');
