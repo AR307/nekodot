@@ -68,6 +68,7 @@ export async function createRelay(options: RelayOptions) {
     options.publicUrl,
   );
   const tunnels = registerTunnels(app, database, auth.authenticate, routing);
+  routing.usage.register(app, auth.authenticate, routing);
   routing.routines.register(app, routing.deliverRoutine);
   registerFileTransfer(app, auth.authenticate, routing.transfer, (userId, nodeId) =>
     database.owns(userId, nodeId),
