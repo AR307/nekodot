@@ -1,5 +1,4 @@
 import { once } from 'node:events';
-import { setTimeout as delay } from 'node:timers/promises';
 import { SMTPServer } from 'smtp-server';
 
 /** A real loopback SMTP inbox used only by automated account/browser journeys. */
@@ -31,13 +30,10 @@ export async function startMailbox() {
       password: '',
       from: 'nekodot@example.test',
     },
-    /** The Relay answers before SMTP delivery finishes, so wait briefly for the message. */
-    code: async () => {
-      for (const until = Date.now() + 10_000; Date.now() < until; await delay(50)) {
-        const code = messages.at(-1)?.match(/\b\d{6}\b/)?.[0];
-        if (code) return code;
-      }
-      throw new Error('No verification email received');
+    code: () => {
+      const code = messages.at(-1)?.match(/\b\d{6}\b/)?.[0];
+      if (!code) throw new Error('No verification email received');
+      return code;
     },
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };

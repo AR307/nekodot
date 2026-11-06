@@ -5,7 +5,7 @@ import { parseSseText, readSse } from './sse';
 
 describe('real Hermes stream transport', () => {
   it('decodes JSON event names across byte chunks and CRLF boundaries', async () => {
-    const recorded = await readFile(resolve('docs/fixtures/runs-tools-approval.sse'), 'utf8');
+    const recorded = await readFile(resolve('tests/fixtures/runs-tools-approval.sse'), 'utf8');
     const expected = parseSseText(recorded);
     const bytes = new TextEncoder().encode(': open\r\n\r\n' + recorded.replace(/\n/g, '\r\n'));
     const stream = new ReadableStream<Uint8Array>({

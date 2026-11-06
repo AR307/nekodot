@@ -10,7 +10,7 @@ describe('recorded Hermes HTTP journeys', () => {
   let api: HermesApi;
   beforeAll(async () => {
     server = await startFakeHermes({
-      fixturesDirectory: resolve('docs/fixtures'),
+      fixturesDirectory: resolve('tests/fixtures'),
       profiles: ['nk-abcdef', 'nk-ghijkl'],
       apiKey: 'test-local-key',
     });

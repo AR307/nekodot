@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import {
   routineInputSchema,
+  cronApprovalPolicySchema,
   rpcContracts,
   type Routine,
   type RoutineInput,
@@ -12,6 +13,7 @@ import {
   type RoutineRoute,
   type RoutineDelivery,
   type RoutineReceipt,
+  type CronApprovalPolicy,
   type Message,
 } from '@nekodot/protocol';
 import type { NodeDatabase } from './database';
@@ -30,6 +32,7 @@ const nativeEvent = z.object({
   phase: z.enum(['started', 'ended']),
   botId: z.string(),
   sessionId: z.string(),
+  admissionId: z.string(),
   route: z.string().nullable(),
   jobId: z.string().nullable(),
   requestId: z.string().nullable(),
@@ -39,6 +42,14 @@ const nativeEvent = z.object({
   interrupted: z.boolean().optional(),
   failed: z.boolean().optional(),
   reason: z.string().optional(),
+  approval: z
+    .object({
+      promptId: z.string(),
+      generation: z.number(),
+      description: z.string(),
+      command: z.string(),
+    })
+    .optional(),
 });
 const time = () => new Date().toISOString();
 
@@ -121,7 +132,11 @@ export class Routines {
         'default',
       ),
       this.hermes.management.request<{
-        approvals?: { mode?: string; cron_mode?: string };
+        approvals?: {
+          mode?: string;
+          cron_mode?: string;
+          cron_policies?: Record<string, CronApprovalPolicy>;
+        };
         platform_toolsets?: Record<string, string[]>;
       }>('/api/config?include_defaults=true', botId),
     ]);
@@ -133,7 +148,7 @@ export class Routines {
         ...(row.cronJobId ? { schedule: jobs.find((j) => j.id === row.cronJobId) } : {}),
       };
       row.permissions = row.cronJobId
-        ? `Hermes cron · approvals.cron_mode=${config.approvals?.cron_mode ?? config.approvals?.mode ?? 'native default'} · ${String((row.native.schedule && (row.native.schedule as Record<string, unknown>).enabled_toolsets) || 'native cron toolsets')}`
+        ? `Hermes cron · task approval policy · ${String((row.native.schedule && (row.native.schedule as Record<string, unknown>).enabled_toolsets) || 'native cron toolsets')}`
         : `Hermes webhook · approvals.mode=${config.approvals?.mode ?? 'native default'} · ${(config.platform_toolsets?.webhook ?? ['hermes-webhook']).join(', ')}`;
       // Hermes is authoritative, including edits made through its own CLI.
       row.enabled = row.enabled && native?.enabled === true;
@@ -161,9 +176,18 @@ export class Routines {
         granted: false,
         url: '',
         createdAt: String(job.created_at ?? ''),
-        permissions: 'Hermes native cron / approvals.cron_mode',
-        native: job,
+        permissions: 'Hermes native cron / task approval policy',
+        native: {
+          ...job,
+          approvalPolicy: config.approvals?.cron_policies?.[String(job.id)] ?? null,
+        },
       }));
+    for (const row of rows)
+      if (row.cronJobId)
+        row.native = {
+          ...row.native,
+          approvalPolicy: config.approvals?.cron_policies?.[row.cronJobId] ?? null,
+        };
     return { routines: [...rows.map((r) => this.view(r)), ...schedules] };
   }
   async get(botId: string, id: string) {
@@ -174,9 +198,15 @@ export class Routines {
         '/api/cron/jobs/' + encodeURIComponent(routine.cronJobId!) + '/runs?limit=20',
         botId,
       );
+      await this.drain();
       return {
         routine: { ...routine, native: { ...routine.native, runs: native.runs } },
-        executions: [],
+        executions: this.database.db
+          .prepare(
+            'SELECT data FROM routine_executions WHERE routine_id=? ORDER BY rowid DESC LIMIT 100',
+          )
+          .all(id)
+          .map((row) => JSON.parse(String(row.data)) as RoutineExecution),
         receipts: [],
       };
     }
@@ -269,27 +299,45 @@ export class Routines {
     const row = { ...old, ...input };
     await this.subscribe(row);
     this.save(row);
-    this.card(row);
+    this.card(row, 'updated');
     return this.view(row);
   }
-  private card(row: StoredRoutine, card: 'task' | 'credentials' = 'task') {
+  private card(
+    row: Routine,
+    action:
+      | 'created'
+      | 'updated'
+      | 'enabled'
+      | 'stopped'
+      | 'started'
+      | 'executed'
+      | 'failed'
+      | 'credentials' = 'created',
+    executionId?: string,
+  ) {
+    const card = action === 'credentials' ? 'credentials' : 'task';
     const conversation = this.database
       .conversations()
       .find((c) => c.kind === 'dm' && c.botId === row.botId)!;
     const message: Message = {
-      messageId: 'routine:' + card + ':' + row.routineId,
+      messageId: executionId
+        ? 'routine-status:' + executionId
+        : 'routine:' + row.routineId + ':' + randomUUID(),
       conversationId: conversation.conversationId,
       seq: this.database.head(),
       author: { type: 'bot', id: row.botId },
       kind: 'routine',
       status: 'done',
-      createdAt: row.createdAt,
+      createdAt: time(),
       content: {
         routineId: row.routineId,
         botId: row.botId,
         name: row.name,
+        trigger: row.trigger,
         granted: row.granted,
         card,
+        ...(action !== 'credentials' ? { action } : {}),
+        ...(executionId ? { executionId } : {}),
       },
     };
     this.database.putMessage(message);
@@ -310,7 +358,7 @@ export class Routines {
     row.enabled = enabled;
     this.save(row);
     await this.syncRoutes();
-    this.card(row);
+    this.card(row, enabled ? 'enabled' : 'stopped');
     if (grant) this.card(row, 'credentials');
     return this.view(row);
   }
@@ -331,7 +379,7 @@ export class Routines {
     if (!row.granted || !row.enabled)
       throw new NodeFault(
         'forbidden',
-        'Open the routine in nekoDOT and approve secure credential delivery first',
+        'Open the routine in nekodot and approve secure credential delivery first',
       );
     const url = this.view(row).url;
     if (!url.startsWith('https://'))
@@ -445,7 +493,7 @@ export class Routines {
     }
     const base = z
       .object({
-        action: z.enum(['create', 'update', 'get', 'list', 'send']),
+        action: z.enum(['create', 'update', 'get', 'list', 'send', 'approvalPolicy']),
         botId: z.string(),
       })
       .parse(value);
@@ -453,6 +501,16 @@ export class Routines {
     const params = { ...(value as Record<string, unknown>) };
     delete params.action;
     switch (base.action) {
+      case 'approvalPolicy': {
+        const p = z
+          .strictObject({
+            botId: z.string(),
+            routineId: z.string().min(1),
+            policy: cronApprovalPolicySchema,
+          })
+          .parse(params);
+        return this.approvalPolicy(p.botId, p.routineId, p.policy);
+      }
       case 'create':
         return this.create(routineInputSchema.parse(params));
       case 'update':
@@ -475,16 +533,62 @@ export class Routines {
     }));
   }
   private async collect() {
-    const routines = this.all();
-    for (const botId of new Set(routines.map((r) => r.botId))) {
+    const hooks = this.all();
+    for (const bot of this.database.allBots().filter((b) => !b.archived)) {
+      const botId = bot.botId;
+      const jobs = await this.hermes.management.request<Record<string, unknown>[]>(
+        '/api/cron/jobs',
+        botId,
+      );
+      const snapshot = jobs.map((job) => ({
+        id: String(job.id),
+        name: String(job.name ?? job.id),
+        prompt: String(job.prompt ?? ''),
+        schedule: job.schedule,
+        enabled: job.enabled !== false,
+      }));
+      const previous = this.database.setting<typeof snapshot>('routine-schedules:' + botId);
+      const routines: Routine[] = hooks.filter((r) => r.botId === botId);
+      for (const job of jobs) {
+        const routine: Routine = routines.find((r) => r.cronJobId === job.id) ?? {
+          routineId: 'cron:' + String(job.id),
+          botId,
+          name: String(job.name ?? job.id),
+          description: String(job.prompt ?? ''),
+          prompt: String(job.prompt ?? ''),
+          events: [],
+          skills: [],
+          trigger: 'schedule',
+          cronJobId: String(job.id),
+          enabled: job.enabled !== false,
+          granted: false,
+          url: '',
+          createdAt: String(job.created_at ?? ''),
+          permissions: 'Hermes native cron / task approval policy',
+          native: job,
+        };
+        if (!routines.includes(routine)) routines.push(routine);
+        const saved = previous?.find((p) => p.id === job.id);
+        const current = snapshot.find((p) => p.id === job.id)!;
+        // Completing a one-shot disables it natively; that is execution, not a user stop.
+        if (
+          previous &&
+          job.state !== 'completed' &&
+          JSON.stringify(saved) !== JSON.stringify(current)
+        )
+          this.card(routine, !saved ? 'created' : !current.enabled ? 'stopped' : 'updated');
+      }
+      this.database.setSetting('routine-schedules:' + botId, snapshot);
+      if (!routines.length) continue;
+      const ids = new Set(routines.map((r) => r.routineId));
       const settled = this.database.db
         .prepare(
-          `SELECT e.data FROM routine_executions e
-          JOIN routines r ON r.routine_id=e.routine_id WHERE r.bot_id=?
-          AND json_extract(e.data,'$.state')!='running'`,
+          `SELECT data FROM routine_executions WHERE json_extract(data,'$.state') NOT IN ('running','waiting_approval')`,
         )
-        .all(botId)
-        .map((r) => (JSON.parse(String(r.data)) as RoutineExecution).sessionId);
+        .all()
+        .map((r) => JSON.parse(String(r.data)) as RoutineExecution)
+        .filter((r) => ids.has(r.routineId))
+        .map((r) => r.sessionId);
       const result = await this.hermes.management.rpc<{ output: string }>('command.dispatch', {
         profile: botId,
         name: 'nekodot-routine-status',
@@ -493,26 +597,51 @@ export class Routines {
       const events = z.array(nativeEvent).parse(JSON.parse(result.output));
       for (const event of events) {
         if (event.botId !== botId) throw new Error('Routine event has the wrong profile');
+        if (event.phase === 'started' && event.jobId) {
+          const snapshot = await this.hermes.gateway(botId).rpc<{
+            prompts?: {
+              kind: string;
+              prompt_id: string;
+              execution_generation: number;
+              description?: string;
+              command?: string;
+            }[];
+          }>('cron.status', { session_id: event.sessionId, admission_id: event.admissionId });
+          const prompt = snapshot.prompts?.find((item) => item.kind === 'approval');
+          if (prompt)
+            event.approval = {
+              promptId: prompt.prompt_id,
+              generation: prompt.execution_generation,
+              description: prompt.description ?? '',
+              command: prompt.command ?? '',
+            };
+        }
         const routine = routines.find(
           (r) =>
             r.botId === botId &&
-            (event.route ? r.route === event.route : r.cronJobId === event.jobId),
+            (event.route
+              ? hooks.some((h) => h.routineId === r.routineId && h.route === event.route)
+              : r.cronJobId === event.jobId),
         );
         if (routine) this.record(routine, event);
       }
     }
   }
-  private record(routine: StoredRoutine, event: z.infer<typeof nativeEvent>) {
+  private record(routine: Routine, event: z.infer<typeof nativeEvent>) {
     const id = routine.routineId + ':' + event.sessionId;
     const old = this.database.db
       .prepare('SELECT data FROM routine_executions WHERE execution_id=?')
       .get(id);
     const previous = old ? (JSON.parse(String(old.data)) as RoutineExecution) : undefined;
-    if (previous && previous.state !== 'running' && this.database.message('routine-result:' + id))
+    if (
+      previous &&
+      !['running', 'waiting_approval'].includes(previous.state) &&
+      this.database.message('routine-result:' + id)
+    )
       return;
     // Native admission verdicts include failures that occur before agent/session hooks run.
     const state =
-      previous && previous.state !== 'running'
+      previous && !['running', 'waiting_approval'].includes(previous.state)
         ? previous.state
         : event.phase === 'ended'
           ? event.interrupted
@@ -525,8 +654,13 @@ export class Routines {
       executionId: id,
       routineId: routine.routineId,
       sessionId: event.sessionId,
+      admissionId: event.admissionId,
+      ...(routine.native?.origin &&
+      typeof (routine.native.origin as Record<string, unknown>).chat_id === 'string'
+        ? { originSessionId: String((routine.native.origin as Record<string, unknown>).chat_id) }
+        : {}),
       ...(event.requestId ? { requestId: event.requestId } : {}),
-      state,
+      state: event.approval && state === 'running' ? 'waiting_approval' : state,
       text: event.text || previous?.text || '',
       ...(event.reason ? { reason: event.reason } : {}),
       updatedAt: new Date(event.time * 1000).toISOString(),
@@ -536,7 +670,68 @@ export class Routines {
         'INSERT INTO routine_executions VALUES(?,?,?) ON CONFLICT(execution_id) DO UPDATE SET data=excluded.data',
       )
       .run(id, routine.routineId, JSON.stringify(execution));
+    if (
+      previous?.state !== execution.state &&
+      execution.state !== 'waiting_approval' &&
+      !(previous?.state === 'waiting_approval' && state === 'running')
+    )
+      this.card(
+        routine,
+        state === 'running'
+          ? 'started'
+          : state === 'completed'
+            ? 'executed'
+            : state === 'cancelled'
+              ? 'stopped'
+              : 'failed',
+        id,
+      );
+    if (event.approval && state === 'running') {
+      const conversation = this.database
+        .conversations()
+        .find((c) => c.kind === 'dm' && c.botId === routine.botId)!;
+      const approvalMessage: Message = {
+        messageId: 'routine-approval:' + id + ':' + event.approval.promptId,
+        conversationId: conversation.conversationId,
+        seq: this.database.head(),
+        author: { type: 'bot', id: routine.botId },
+        kind: 'approval',
+        status: 'streaming',
+        createdAt: time(),
+        content: {
+          runId: id,
+          botId: routine.botId,
+          requestId: event.approval.promptId,
+          executionGeneration: event.approval.generation,
+          prompt: event.approval.description,
+          command: event.approval.command,
+          choices: ['once', 'deny'],
+        },
+      };
+      if (!this.database.message(approvalMessage.messageId)) {
+        this.database.putMessage(approvalMessage);
+        this.notifications.send({
+          notificationId: approvalMessage.messageId,
+          conversationId: conversation.conversationId,
+          kind: 'approval',
+        });
+      }
+      return;
+    }
     if (state === 'running') return;
+    for (const message of this.database.messages(
+      this.database.conversations().find((c) => c.kind === 'dm' && c.botId === routine.botId)!
+        .conversationId,
+    )) {
+      if (
+        message.kind === 'approval' &&
+        message.content.runId === id &&
+        message.status === 'streaming'
+      ) {
+        message.status = 'done';
+        this.database.putMessage(message);
+      }
+    }
     const conversation = this.database
       .conversations()
       .find((c) => c.kind === 'dm' && c.botId === routine.botId)!;
@@ -573,26 +768,103 @@ export class Routines {
     if (this.server) await new Promise<void>((resolve) => this.server!.close(() => resolve()));
   }
 
-  /** Add native session references to the next input, never mutate a cached conversation prefix. */
-  context(botId: string) {
-    const since = this.database.setting<string>('routine-context:' + botId) ?? '';
-    const results = this.database.db
+  execution(botId: string, executionId: string) {
+    this.bot(botId);
+    const row = this.database.db
       .prepare(
         `SELECT e.data FROM routine_executions e
-      JOIN routines r ON r.routine_id=e.routine_id WHERE r.bot_id=?
-      AND json_extract(e.data,'$.state')!='running' AND json_extract(e.data,'$.updatedAt')>?
-      ORDER BY json_extract(e.data,'$.updatedAt') DESC LIMIT 10`,
+      WHERE e.execution_id=? AND EXISTS (SELECT 1 FROM messages m WHERE
+        (m.message_id='routine-result:' || e.execution_id OR
+         m.message_id LIKE 'routine-approval:' || e.execution_id || ':%')
+        AND json_extract(m.data,'$.author.id')=?)`,
       )
-      .all(botId, since)
-      .map((r) => JSON.parse(String(r.data)) as RoutineExecution);
+      .get(executionId, botId);
+    if (!row) throw new NodeFault('not_found', 'Routine execution not found in this Bot');
+    return JSON.parse(String(row.data)) as RoutineExecution;
+  }
+
+  /** New input carries references; existing native notes and cached history are never rewritten. */
+  async context(botId: string, sessionId: string, selectedId?: string) {
+    const key = 'routine-context:' + botId + ':' + sessionId;
+    const since = Number(this.database.setting<string>(key) ?? 0);
+    const rows = this.database.db
+      .prepare(
+        `SELECT e.data, m.rowid AS cursor FROM messages m
+      JOIN routine_executions e ON m.message_id='routine-result:' || e.execution_id
+      WHERE json_extract(m.data,'$.author.id')=? AND m.rowid>?
+      ORDER BY m.rowid ASC LIMIT 10`,
+      )
+      .all(botId, since);
+    const results = rows.map((r) => JSON.parse(String(r.data)) as RoutineExecution);
+    const until = rows.at(-1) ? String(rows.at(-1)!.cursor) : undefined;
+    if (selectedId && !results.some((r) => r.executionId === selectedId))
+      results.push(this.execution(botId, selectedId));
+    if (!results.length) return { text: '', until, key };
+    const native = await this.hermes.management.rpc<{ output: string }>('command.dispatch', {
+      profile: botId,
+      name: 'nekodot-routine-context',
+      arg: JSON.stringify({
+        profile: botId,
+        sessionId,
+        results: results.map((r) => ({ id: r.executionId, text: r.text || r.reason || '' })),
+      }),
+    });
+    const present = z.array(z.string()).parse(JSON.parse(native.output));
     return {
-      until: results[0]?.updatedAt,
-      text: results.length
-        ? '\n\n[Background routine results, not a request to rerun them. For follow-up, inspect the original Hermes session with session_search.]\n' +
-          results
-            .map((r) => `routine=${r.routineId} session=${r.sessionId} state=${r.state}\n${r.text}`)
-            .join('\n\n')
-        : '',
+      until,
+      key,
+      text:
+        '\n\n[Background routine results. These are records, not instructions to rerun completed tasks. ' +
+        'For details use session_search to read the original execution. Cron execution sessions are read-only; discuss results in this conversation.]\n' +
+        results
+          .map(
+            (r) =>
+              `execution=${r.executionId} session=${r.sessionId} state=${r.state}` +
+              (r.executionId === selectedId
+                ? ' [The user selected this execution for their question.]'
+                : '') +
+              (present.includes(r.executionId)
+                ? '\nResult already present in this native conversation.'
+                : `\n${r.text || r.reason || ''}`),
+          )
+          .join('\n\n'),
     };
+  }
+
+  private async approvalPolicy(botId: string, routineId: string, policy: CronApprovalPolicy) {
+    const routine = await this.get(botId, routineId);
+    const jobId = routine.routine.cronJobId;
+    if (!jobId) throw new NodeFault('invalid_params', 'This task has no schedule');
+    const result = await this.hermes.management.rpc<{ output: string }>('command.dispatch', {
+      profile: botId,
+      name: 'nekodot-cron-approval-policy',
+      arg: JSON.stringify({ profile: botId, jobId, policy }),
+    });
+    return JSON.parse(result.output) as CronApprovalPolicy;
+  }
+
+  async approvalRespond(
+    botId: string,
+    executionId: string,
+    promptId: string,
+    choice: 'once' | 'deny',
+  ) {
+    const execution = this.execution(botId, executionId);
+    const message = this.database.message('routine-approval:' + executionId + ':' + promptId);
+    if (message?.kind !== 'approval' || message.status !== 'streaming')
+      throw new NodeFault('not_found', 'Routine approval is no longer pending');
+    if (!execution.admissionId)
+      throw new NodeFault('not_found', 'Native approval admission is unavailable');
+    await this.hermes.gateway(botId).rpc('cron.approve', {
+      session_id: execution.sessionId,
+      admission_id: execution.admissionId,
+      execution_generation: message.content.executionGeneration,
+      prompt_id: promptId,
+      choice,
+    });
+    message.content.choice = choice;
+    message.status = 'done';
+    this.database.putMessage(message);
+    return {};
   }
 }

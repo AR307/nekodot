@@ -11,12 +11,13 @@ import 'bot_details.dart';
 import 'chat.dart';
 import 'bot_editor.dart';
 import 'extensions.dart';
+import 'files.dart';
 import 'settings.dart';
 import 'pairing.dart';
 import 'local_setup.dart';
 import '../local/runtime.dart';
 import 'node_update.dart';
-import 'files.dart';
+import 'flowchart.dart';
 
 class HomePage extends StatefulWidget {
   final NekodotClient client;
@@ -29,11 +30,14 @@ class _HomePageState extends State<HomePage> {
   StreamSubscription<Json>? destinations;
   String? conversation;
   Json? details;
-  FileSelection? preview;
+  FlowMessageFocus? flowFocus;
   String search = '';
   String? hovered;
   bool searching = false;
   final folded = <String>{};
+
+  /// The sidebar's width while it is being dragged; saved when let go.
+  double? dragging;
   NekodotClient get c => widget.client;
   @override
   void initState() {
@@ -71,7 +75,7 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         conversation = id;
         details = null;
-        preview = null;
+        flowFocus = null;
       });
     }
   }
@@ -89,6 +93,7 @@ class _HomePageState extends State<HomePage> {
     return PopupMenuButton<String>(
       tooltip: c.tr('电脑', 'Computer'),
       position: PopupMenuPosition.under,
+      constraints: menuConstraints,
       onSelected: (id) {
         if (id == '') {
           pushPage(context, _addComputer());
@@ -96,32 +101,29 @@ class _HomePageState extends State<HomePage> {
           setState(() {
             conversation = null;
             details = null;
-            preview = null;
+            flowFocus = null;
           });
           c.selectNode(id);
         }
       },
-      itemBuilder: (_) => [
+      itemBuilder: (context) => [
         for (final node in nodes)
-          PopupMenuItem(
+          menuItem(
+            context,
             value: node['nodeId'] as String,
-            child: Row(
-              children: [
-                StatusDot(on: node['online'] == true),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '${node['name']}',
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (node['nodeId'] == c.selectedNodeId)
-                  const Icon(Icons.check, size: 18),
-              ],
-            ),
+            leading: StatusDot(on: node['online'] == true, size: 7),
+            label: '${node['name']}',
+            trailing: node['nodeId'] == c.selectedNodeId
+                ? const Icon(Icons.check)
+                : null,
           ),
-        if (nodes.isNotEmpty) const PopupMenuDivider(),
-        PopupMenuItem(value: '', child: Text(c.tr('添加电脑', 'Add computer'))),
+        if (nodes.isNotEmpty) menuDivider,
+        menuItem(
+          context,
+          value: '',
+          icon: Icons.add_to_queue_outlined,
+          label: c.tr('添加电脑', 'Add computer'),
+        ),
       ],
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
@@ -192,14 +194,44 @@ class _HomePageState extends State<HomePage> {
   Widget createMenu() => PopupMenuButton<String>(
     tooltip: c.tr('新建', 'Create'),
     position: PopupMenuPosition.under,
+    constraints: menuConstraints,
     icon: const Icon(Icons.add),
-    onSelected: (value) =>
-        pushPage(context, BotEditor(client: c, group: value == 'group')),
-    itemBuilder: (_) => [
-      PopupMenuItem(value: 'bot', child: Text(c.tr('新建 Bot', 'New Bot'))),
-      PopupMenuItem(value: 'group', child: Text(c.tr('新建群组', 'New group'))),
-    ],
+    onSelected: create,
+    itemBuilder: createItems,
   );
+
+  /// New Bot, new group, and the skills and plugins a Bot can be given.
+  List<PopupMenuEntry<String>> createItems(BuildContext context) => [
+    menuItem(
+      context,
+      value: 'bot',
+      icon: Icons.smart_toy_outlined,
+      label: c.tr('新建 Bot', 'New Bot'),
+    ),
+    menuItem(
+      context,
+      value: 'group',
+      icon: Icons.groups_outlined,
+      label: c.tr('新建群组', 'New group'),
+    ),
+    menuDivider,
+    menuItem(
+      context,
+      value: 'plugins',
+      icon: Icons.extension_outlined,
+      label: c.tr('添加插件', 'Add plugins'),
+    ),
+  ];
+
+  void create(String value) {
+    if (value != 'plugins') {
+      pushPage(context, BotEditor(client: c, group: value == 'group'));
+    } else if (MediaQuery.sizeOf(context).width < 840) {
+      pushPage(context, ExtensionsPage(client: c, kind: 'skills'));
+    } else {
+      showExtensionsDialog(context, c);
+    }
+  }
 
   /// Phone header: the mark, the computer, search.
   Widget glassTop() => Padding(
@@ -236,22 +268,6 @@ class _HomePageState extends State<HomePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  tooltip: 'Skills',
-                  onPressed: () => pushPage(
-                    context,
-                    ExtensionsPage(client: c, kind: 'skills'),
-                  ),
-                  icon: const Icon(Icons.auto_awesome_outlined),
-                ),
-                IconButton(
-                  tooltip: c.tr('插件', 'Plugins'),
-                  onPressed: () => pushPage(
-                    context,
-                    ExtensionsPage(client: c, kind: 'plugins'),
-                  ),
-                  icon: const Icon(Icons.extension_outlined),
-                ),
-                IconButton(
                   tooltip: c.tr('设置', 'Settings'),
                   onPressed: () => pushPage(context, SettingsPage(client: c)),
                   icon: const Icon(Icons.tune),
@@ -263,6 +279,7 @@ class _HomePageState extends State<HomePage> {
           PopupMenuButton<String>(
             tooltip: c.tr('新建', 'Create'),
             position: PopupMenuPosition.over,
+            constraints: menuConstraints,
             icon: const Icon(Icons.add),
             iconColor: tone.base,
             style: IconButton.styleFrom(
@@ -272,20 +289,8 @@ class _HomePageState extends State<HomePage> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onSelected: (value) => pushPage(
-              context,
-              BotEditor(client: c, group: value == 'group'),
-            ),
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: 'bot',
-                child: Text(c.tr('新建 Bot', 'New Bot')),
-              ),
-              PopupMenuItem(
-                value: 'group',
-                child: Text(c.tr('新建群组', 'New group')),
-              ),
-            ],
+            onSelected: create,
+            itemBuilder: createItems,
           ),
         ],
       ),
@@ -293,7 +298,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// The latest thing said there, as one line; a group names who said it.
-  String? messagePreview(Json value, bool isGroup) {
+  String? preview(Json value, bool isGroup) {
     final id = value['conversationId'];
     final loaded = (c.node.messages[id] ?? [])
         .where(
@@ -311,12 +316,10 @@ class _HomePageState extends State<HomePage> {
         ? reported
         : loaded;
     if (last == null) return null;
-    final content = object(last['content']);
+    final words = '${last['content']['text']}';
+    final files = last['content']['files'];
     final text =
-        readableMessageText(
-              '${content['text'] ?? ''}',
-              hasFiles: (content['files'] as List? ?? []).isNotEmpty,
-            )
+        (files is List && files.isNotEmpty ? withoutDeliveries(words) : words)
             .replaceAll(RegExp(r'[*_`#>]+'), '')
             .replaceAll(RegExp(r'\s+'), ' ')
             .trim();
@@ -348,18 +351,15 @@ class _HomePageState extends State<HomePage> {
     final note = isGroup
         ? ''
         : '${entity['role'] ?? ''}'.split('\n').first.trim();
-    final last = messagePreview(value, isGroup);
+    final last = preview(value, isGroup);
     final size = glass ? 44.0 : 40.0;
-    final still = MediaQuery.disableAnimationsOf(context);
     final corners = BorderRadius.circular(12);
     return MouseRegion(
       onEnter: (_) => setState(() => hovered = id),
       onExit: (_) => setState(() => hovered = null),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 1),
-        child: AnimatedContainer(
-          duration: still ? Duration.zero : const Duration(milliseconds: 160),
-          curve: Curves.easeOutCubic,
+        child: Container(
           decoration: BoxDecoration(
             color: raised ? tone.surface : tone.surface.withValues(alpha: 0),
             borderRadius: corners,
@@ -408,7 +408,8 @@ class _HomePageState extends State<HomePage> {
                           Row(
                             children: [
                               Flexible(
-                                flex: 0,
+                                flex: 2,
+                                fit: FlexFit.tight,
                                 child: Text(
                                   '${entity[isGroup ? 'name' : 'displayName']}',
                                   maxLines: 1,
@@ -519,8 +520,8 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-      AnimatedSize(
-        duration: still ? Duration.zero : const Duration(milliseconds: 200),
+      SizeMotion(
+        duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
         alignment: Alignment.topCenter,
         child: open
@@ -555,27 +556,16 @@ class _HomePageState extends State<HomePage> {
               child: PopupMenuButton<String>(
                 tooltip: c.tr('账户', 'Account'),
                 position: PopupMenuPosition.over,
+                constraints: menuConstraints,
                 onSelected: (value) {
-                  if (value == 'extensions') {
-                    narrow
-                        ? pushPage(
-                            context,
-                            ExtensionsPage(client: c, kind: 'skills'),
-                          )
-                        : showExtensionsDialog(context, c);
-                  } else if (value == 'settings') {
+                  if (value == 'settings') {
                     pushPage(context, SettingsPage(client: c));
                   } else {
                     signOut();
                   }
                 },
-                itemBuilder: (_) => [
+                itemBuilder: (context) => [
                   for (final (value, icon, label) in [
-                    (
-                      'extensions',
-                      Icons.extension_outlined,
-                      c.tr('Skills 与插件', 'Skills & plugins'),
-                    ),
                     (
                       'settings',
                       Icons.settings_outlined,
@@ -583,17 +573,8 @@ class _HomePageState extends State<HomePage> {
                     ),
                     ('logout', Icons.logout, c.tr('退出账号', 'Sign out')),
                   ]) ...[
-                    if (value == 'logout') const PopupMenuDivider(),
-                    PopupMenuItem(
-                      value: value,
-                      child: Row(
-                        children: [
-                          Icon(icon, size: 18),
-                          const SizedBox(width: 12),
-                          Text(label),
-                        ],
-                      ),
-                    ),
+                    if (value == 'logout') menuDivider,
+                    menuItem(context, value: value, icon: icon, label: label),
                   ],
                 ],
                 child: Padding(
@@ -758,94 +739,177 @@ class _HomePageState extends State<HomePage> {
               (x) => x['conversationId'] == conversation,
             );
         final panel = roomy && hasChat ? details : null;
-        final selected = preview?.nodeId == c.selectedNodeId ? preview : null;
-        Widget filePreview(bool embedded) => FilePage(
-          key: ValueKey(selected!.key),
+        final widest = (constraints.maxWidth - 420).clamp(240.0, 560.0);
+        final sidebar =
+            (dragging ?? c.sidebarWidth ?? constraints.maxWidth * .34).clamp(
+              240.0,
+              widest,
+            );
+        final flowShown = hasChat && flowFocus != null;
+        final inlineFlow = flowShown && constraints.maxWidth - sidebar >= 760;
+        Widget flowPanel() => FlowchartPanel(
+          key: ValueKey('flow:${c.selectedNodeId}:$conversation'),
           client: c,
-          file: selected.file,
-          nodeId: selected.nodeId,
-          embedded: embedded,
-          onClose: () => setState(() => preview = null),
+          conversationId: conversation!,
+          reserveControls: true,
+          onClose: () => setState(() => flowFocus = null),
+          onMessage: (id) async {
+            final focus = flowFocus!;
+            setState(() => flowFocus = null);
+            await focus(id);
+          },
         );
         return PopScope(
           canPop: !Platform.isAndroid,
           onPopInvokedWithResult: (didPop, result) {
             if (!didPop && Platform.isAndroid) {
-              const MethodChannel('app.nekodot/lifecycle')
-                  .invokeMethod('background');
+              if (flowShown) {
+                setState(() => flowFocus = null);
+              } else if (panel != null) {
+                setState(() => details = null);
+              } else {
+                const MethodChannel('app.nekodot/lifecycle')
+                    .invokeMethod('background');
+              }
             }
           },
-          child: FilePreviewScope(
-            onOpen: (value) => setState(() {
-              preview = value;
-              details = null;
-            }),
-            child: Scaffold(
-              body: selected != null && !roomy
-                  ? filePreview(false)
-                  : narrow
-                  ? SafeArea(child: list)
-                  : Row(
-                      children: [
-                        SizedBox(
-                          width: (constraints.maxWidth * .34).clamp(272, 500),
-                          child: Material(color: tone.sidebar, child: list),
-                        ),
-                        const VerticalDivider(width: 1),
-                        Expanded(
-                          child: hasChat
-                              ? ChatPage(
-                                  key: ValueKey(
-                                    '${c.selectedNodeId}:$conversation',
-                                  ),
-                                  client: c,
-                                  conversationId: conversation!,
-                                  embedded: true,
-                                  reserveControls:
-                                      panel == null && selected == null,
-                                  onDetails: roomy
-                                      ? (bot) => setState(() {
-                                          details = bot;
-                                          preview = null;
-                                        })
-                                      : null,
-                                )
-                              : Stack(
-                                  children: const [
-                                    Positioned.fill(child: WindowDrag()),
-                                    Center(
-                                      child: Opacity(
-                                        opacity: .08,
-                                        child: CatAvatar(size: 72),
-                                      ),
+          child: Scaffold(
+            body: narrow
+                ? SafeArea(child: list)
+                : Stack(
+                    children: [
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: sidebar,
+                            child: Material(color: tone.sidebar, child: list),
+                          ),
+                          const VerticalDivider(width: 1),
+                          Expanded(
+                            child: hasChat
+                                ? ChatPage(
+                                    key: ValueKey(
+                                      '${c.selectedNodeId}:$conversation',
                                     ),
-                                  ],
-                                ),
+                                    client: c,
+                                    conversationId: conversation!,
+                                    embedded: true,
+                                    reserveControls:
+                                        panel == null && !flowShown,
+                                    onDetails: roomy
+                                        ? (bot) => setState(() {
+                                            details = bot;
+                                            flowFocus = null;
+                                          })
+                                        : null,
+                                    flowOpen: flowShown,
+                                    onFlow: (focus) => setState(() {
+                                      details = null;
+                                      flowFocus = flowFocus == null
+                                          ? focus
+                                          : null;
+                                    }),
+                                  )
+                                : Stack(
+                                    children: const [
+                                      Positioned.fill(child: WindowDrag()),
+                                      Center(
+                                        child: Opacity(
+                                          opacity: .08,
+                                          child: CatAvatar(size: 72),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                          SidePanel(
+                            child: inlineFlow
+                                ? flowPanel()
+                                : panel == null
+                                ? null
+                                : BotDetails(
+                                    key: ValueKey(panel['botId']),
+                                    client: c,
+                                    bot: panel,
+                                    onClose: () =>
+                                        setState(() => details = null),
+                                  ),
+                          ),
+                        ],
+                      ),
+                      if (flowShown && !inlineFlow)
+                        Positioned.fill(
+                          child: GestureDetector(
+                            onTap: () => setState(() => flowFocus = null),
+                            child: const ColoredBox(color: Colors.black26),
+                          ),
                         ),
-                        SidePanel(
-                          width: selected == null
-                              ? 340
-                              : (constraints.maxWidth * .36).clamp(
-                                  350.0,
-                                  560.0,
-                                ),
-                          child: selected != null
-                              ? filePreview(true)
-                              : panel == null
-                              ? null
-                              : BotDetails(
-                                  key: ValueKey(panel['botId']),
-                                  client: c,
-                                  bot: panel,
-                                  onClose: () => setState(() => details = null),
-                                ),
+                      Positioned(
+                        top: 0,
+                        bottom: 0,
+                        right: 0,
+                        child: SidePanel(
+                          child: flowShown && !inlineFlow ? flowPanel() : null,
                         ),
-                      ],
-                    ),
-            ),
+                      ),
+                      Positioned(
+                        left: sidebar - 4,
+                        top: 0,
+                        bottom: 0,
+                        width: 9,
+                        child: SplitHandle(
+                          onDrag: (dx) => setState(
+                            () =>
+                                dragging = (sidebar + dx).clamp(240.0, widest),
+                          ),
+                          onEnd: () {
+                            final width = dragging;
+                            setState(() => dragging = null);
+                            if (width != null) c.setSidebarWidth(width);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         );
       },
+    ),
+  );
+}
+
+/// The line between the sidebar and the chat: drag it to resize.
+class SplitHandle extends StatefulWidget {
+  final ValueChanged<double> onDrag;
+  final VoidCallback onEnd;
+  const SplitHandle({super.key, required this.onDrag, required this.onEnd});
+  @override
+  State<SplitHandle> createState() => _SplitHandleState();
+}
+
+class _SplitHandleState extends State<SplitHandle> {
+  bool hovered = false, held = false;
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    cursor: SystemMouseCursors.resizeColumn,
+    onEnter: (_) => setState(() => hovered = true),
+    onExit: (_) => setState(() => hovered = false),
+    child: GestureDetector(
+      key: const ValueKey('sidebar-split'),
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragStart: (_) => setState(() => held = true),
+      onHorizontalDragUpdate: (details) => widget.onDrag(details.delta.dx),
+      onHorizontalDragEnd: (_) {
+        setState(() => held = false);
+        widget.onEnd();
+      },
+      child: Center(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: held || hovered ? 2 : 0,
+          color: context.tone.ink3,
+        ),
+      ),
     ),
   );
 }

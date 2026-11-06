@@ -25,7 +25,7 @@ const runtime = resolve(values.runtime);
 const dataRoot = await mkdtemp(join(dirname(runtime), 'spike-'));
 const home = join(dataRoot, 'hermes');
 const work = join(dataRoot, 'workspace');
-const fixtures = join(root, 'docs/fixtures');
+const fixtures = join(root, 'tests/fixtures');
 const privateRoot = join(root, '.runtime');
 await Promise.all([
   mkdir(home, { recursive: true }),

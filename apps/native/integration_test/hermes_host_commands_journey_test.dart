@@ -172,11 +172,7 @@ void main() {
       'Hermes native backup created',
     );
     final backupId = (backup['content']['files'] as List).single as String;
-    final backupBytes = await downloadFile(
-      c,
-      backupId,
-      nodeId: c.selectedNodeId!,
-    );
+    final backupBytes = await downloadFile(c, backupId);
     expect(backupBytes.take(2), [0x50, 0x4b]);
     debugPrint(
       'QA HOST: official logs, update check and actual ZIP backup downloaded',
@@ -187,15 +183,15 @@ void main() {
         .firstWhere((r) => r['name'] == 'MEMORY.md')['content'];
     final exported = await command('/export', 'Hermes profile exported');
     final fileId = (exported['content']['files'] as List).single as String;
-    final bytes = await downloadFile(c, fileId, nodeId: c.selectedNodeId!);
+    final bytes = await downloadFile(c, fileId);
     expect(bytes.take(2), [0x1f, 0x8b]);
     final card = find.byWidgetPredicate(
       (w) => w is FileCard && w.fileId == fileId,
     );
     await until(() => card.evaluate().isNotEmpty);
     await tap(card);
-    await until(() => find.byType(FilePage).evaluate().isNotEmpty);
-    await tap(find.text('Import as a new Bot'));
+    await until(() => find.byType(FileViewer).evaluate().isNotEmpty);
+    await tap(find.byTooltip('Import as a new Bot'));
     await until(() => find.byType(BotEditor).evaluate().isNotEmpty);
     final editorScroll = find
         .descendant(
@@ -216,11 +212,9 @@ void main() {
 
     final name = 'Imported command QA ${DateTime.now().millisecondsSinceEpoch}';
     await fill('Name', name);
+    await tester.tap(find.text('高级').last);
+    await tester.pump(const Duration(milliseconds: 300));
     await fill('@handle', 'importqa${DateTime.now().millisecondsSinceEpoch}');
-    await fill(
-      'Role',
-      'Isolated profile import acceptance. Keep native learned memories.',
-    );
     await fill('Model', '${bot['model']}');
     final save = find.widgetWithText(FilledButton, 'Save');
     await tester.scrollUntilVisible(save, 180, scrollable: editorScroll);

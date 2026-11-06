@@ -119,14 +119,6 @@ void main() {
       ),
     );
     await until(() => find.byType(SecretCard).evaluate().isNotEmpty);
-    await tap(
-      find
-          .descendant(
-            of: find.byType(SecretCard),
-            matching: find.byType(ListTile),
-          )
-          .first,
-    );
     final field = find.byKey(
       ValueKey('secret-field-${objects(entry['fields']).first['name']}'),
     );
@@ -136,9 +128,7 @@ void main() {
         .content['requestId'];
     expect(tester.widget<TextField>(field).controller!.text, isEmpty);
     expect(
-      tester
-          .widget<CheckboxListTile>(find.byKey(const ValueKey('secret-save')))
-          .value,
+      tester.widget<Checkbox>(find.byKey(const ValueKey('secret-save'))).value,
       isFalse,
     );
     if (mode == 'management-sync') {

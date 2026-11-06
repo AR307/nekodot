@@ -94,7 +94,7 @@ child.on('exit', async (code) => {
     const pubspec = await readFile(resolve(root, 'apps/native/pubspec.yaml'), 'utf8');
     const version = pubspec.match(/^version: (\S+)$/m)?.[1];
     await mkdir(resolve(root, 'dist/native'), { recursive: true });
-    const output = resolve(root, `dist/native/nekoDOT_${version}_${targetPlatform}.apk`);
+    const output = resolve(root, `dist/native/nekodot_${version}_${targetPlatform}.apk`);
     await copyFile(
       resolve(root, `apps/native/build/app/outputs/flutter-apk/app-${abi}-release.apk`),
       output,

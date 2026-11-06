@@ -15,5 +15,3 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
-      - run: pnpm exec playwright install --with-deps msedge
-      - run: pnpm test:e2e

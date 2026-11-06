@@ -74,7 +74,7 @@ Future<File> downloadUpdate(
   final folder = Directory('${directory.path}/updates');
   await folder.create(recursive: true);
   final file = File(
-    '${folder.path}/nekoDOT-${release.version}-${release.build}.$packageExtension',
+    '${folder.path}/nekodot-${release.version}-${release.build}.$packageExtension',
   );
   final client = http.Client();
   final sink = file.openWrite();

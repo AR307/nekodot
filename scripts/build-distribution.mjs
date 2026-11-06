@@ -14,7 +14,14 @@ try {
   if (error.code !== 'ENOENT') throw error;
 }
 await copyFile('apps/node/dist/index.cjs', 'dist/distribution/nekodot-node.cjs');
-await copyFile('deploy/install.sh', 'dist/distribution/install.sh');
+const runtime = JSON.parse(await readFile('deploy/hermes-runtime-recipe.json', 'utf8'));
+await writeFile(
+  'dist/distribution/install.sh',
+  (await readFile('deploy/install.sh', 'utf8')).replaceAll(
+    '__NEKODOT_HERMES_RUNTIME__',
+    runtime.version,
+  ),
+);
 const pubspec = await readFile('apps/native/pubspec.yaml', 'utf8');
 const buildNumber = pubspec.match(/^version: \d+\.\d+\.\d+\+(\d+)$/m)?.[1];
 if (!buildNumber) throw new Error('Native release build number is missing');

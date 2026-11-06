@@ -1,12 +1,12 @@
 name: nekodot-product
 services:
   relay:
-    image: ${NEKODOT_RELAY_IMAGE:-nekodot-relay:product-0.3.1}
+    image: ${NEKODOT_RELAY_IMAGE:-nekodot-relay:product-0.3.2-b9}
     container_name: nekodot-product-relay
     restart: unless-stopped
     env_file: .env
     environment:
-      WEB_DIR: /app/site
+      SITE_DIR: /app/site
     ports:
       - '127.0.0.1:4349:4329'
     volumes:

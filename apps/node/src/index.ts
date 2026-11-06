@@ -13,6 +13,7 @@ import { NodeApplication } from './app';
 import { NodeUpdater } from './updater';
 import { bridgeEndpoint } from './bridge';
 import { nodeVersion, releaseKey, isRelease } from './release';
+import { NodeUsage } from './usage';
 
 async function main() {
   const { values, positionals } = parseArgs({
@@ -44,6 +45,7 @@ async function main() {
       app?: NodeApplication;
       updater?: NodeUpdater;
       connection?: ReturnType<typeof connectRelay>;
+      usage?: NodeUsage;
     } = {};
     const bridge = bridgeEndpoint(home);
     const runtime = new ManagedHermes({
@@ -69,6 +71,7 @@ async function main() {
         report('stopping');
         parts.updater?.close();
         parts.connection?.close();
+        await parts.usage?.close();
         await parts.app?.close();
         await runtime.close();
       })());
@@ -99,6 +102,8 @@ async function main() {
     await runtime.start();
     const app = new NodeApplication(home, runtime, desktop);
     parts.app = app;
+    const usage = (parts.usage = new NodeUsage(app.database, runtime));
+    usage.onError = (message) => log.error({ service: 'nekodot-node', message });
     app.routines.onError = (message) => log.error({ service: 'nekodot-node', message });
     await app.routines.start(bridge);
     const updater = (parts.updater = new NodeUpdater({
@@ -126,6 +131,7 @@ async function main() {
       },
       userMemory: app.userMemory,
       routines: app.routines,
+      usage,
       handleTransfer: (request) => app.files.transfer(request),
       onTunnel: (request) => app.screens.openTunnel(credentials, request),
       onReady: async () => {
@@ -133,7 +139,7 @@ async function main() {
         if (process.env.NOTIFY_SOCKET)
           execFile(
             'systemd-notify',
-            ['--ready', '--status=Connected to nekoDOT Relay'],
+            ['--ready', '--status=Connected to nekodot Relay'],
             (error) => {
               if (error) log.error('Could not notify systemd that the node is ready');
             },

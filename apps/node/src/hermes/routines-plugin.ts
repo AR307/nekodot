@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pythonBridgeCall } from '../bridge';
 
-const plugin = String.raw`"""nekoDOT UI/transport adapter. All tasks execute in native Hermes."""
+const plugin = String.raw`"""nekodot UI/transport adapter. All tasks execute in native Hermes."""
 import base64
 import json
 import socket
@@ -19,7 +19,7 @@ def _call(action, **params):
     settings = load_config().get("plugins", {}).get("entries", {}).get("nekodot-routines", {})
     path = settings.get("socket")
     if not path:
-        raise RuntimeError("nekoDOT routine bridge is not configured")
+        raise RuntimeError("nekodot routine bridge is not configured")
     result = _bridge_call(path, {"action": action, "botId": _home().name, **params}, 120)
     if not result.get("ok"):
         raise RuntimeError(result.get("error", "Routine operation failed"))
@@ -39,6 +39,9 @@ def _setup(parser):
         sub.add_argument("--skills", default="")
         sub.add_argument("--cron-job")
     commands.add_parser("list")
+    approvals = commands.add_parser("approvals")
+    approvals.add_argument("job_id")
+    approvals.add_argument("--policy", required=True, help="JSON: default, timezone, windows")
     for action in ("get", "send"):
         sub = commands.add_parser(action)
         sub.add_argument("routine_id")
@@ -60,6 +63,9 @@ def _command(args):
         params["routineId"] = args.routine_id
     if action == "send":
         params.update(payload=json.loads(args.payload), requestId=args.request_id)
+    if action == "approvals":
+        action = "approvalPolicy"
+        params = dict(routineId="cron:" + args.job_id, policy=json.loads(args.policy))
     # No credential-read operation is exposed to the agent or its scripts.
     print(json.dumps(_call(action, **params), ensure_ascii=False))
 
@@ -110,7 +116,8 @@ def _status(raw_args):
                     text = result.get("final_response") or ""
                     reason = str(result.get("error") or reason)
                 events.append(dict(phase="ended" if terminal else "started", botId=profile,
-                    sessionId=sid, route=route, jobId=job_id, requestId=request_id, text=text,
+                    sessionId=sid, admissionId=admission["admission_id"],
+                    route=route, jobId=job_id, requestId=request_id, text=text,
                     time=row.get("ended_at") or row.get("last_active") or row["started_at"],
                     completed=outcome == "completed", failed=outcome in ("failed", "rejected"),
                     interrupted=outcome in ("interrupted", "cancelled"),
@@ -123,21 +130,71 @@ def _status(raw_args):
     return json.dumps(events, ensure_ascii=False)
 
 
+def _context(raw_args):
+    from hermes_state import SessionDB
+    from hermes_cli.profiles import get_profile_dir
+    params = json.loads(raw_args)
+    db = SessionDB(db_path=get_profile_dir(params["profile"]) / "state.db", read_only=True)
+    try:
+        sid = db.get_compression_tip(params["sessionId"]) or params["sessionId"]
+        messages = db.get_messages_as_conversation(sid, include_ancestors=True)
+        bodies = [str(message.get("content") or "") for message in messages]
+        return json.dumps([result["id"] for result in params["results"]
+            if result["text"] and any(result["text"] in body for body in bodies)])
+    finally:
+        db.close()
+
+
+def _approval_policy(raw_args):
+    from zoneinfo import ZoneInfo
+    from cron.jobs import get_job, resume_job
+    from cron.approval_policy import POLICY_PENDING_REASON
+    from hermes_cli.config import load_config_readonly, save_config
+    from hermes_cli.profiles import get_profile_dir
+    from gateway.run import _profile_runtime_scope
+    params = json.loads(raw_args)
+    policy = params["policy"]
+    ZoneInfo(policy["timezone"])
+    for window in policy["windows"]:
+        if window["start"] == window["end"]:
+            raise ValueError("Approval window must have a duration")
+    # A sessionless command.dispatch does not bind its profile parameter.
+    with _profile_runtime_scope(get_profile_dir(params["profile"])):
+        job = get_job(params["jobId"])
+        if not job:
+            raise ValueError("Scheduled task not found")
+        approvals = (load_config_readonly().get("approvals") or {}).get("cron_policies") or {}
+        save_config({"approvals": {"cron_policies": {**approvals, job["id"]: policy}}},
+            merge_existing=True)
+        if job.get("paused_reason") == POLICY_PENDING_REASON:
+            resume_job(job["id"])
+    return json.dumps(policy)
+
+
 def register(ctx):
-    ctx.register_cli_command("routine", "Manage nekoDOT routines and send approved webhook events", _setup, _command)
+    ctx.register_cli_command("routine", "Manage nekodot routines and send approved webhook events", _setup, _command)
     ctx.register_command("nekodot-routine-status", _status, "Read native routine execution records")
+    ctx.register_command("nekodot-routine-context", _context, "Check routine results already in a conversation")
+    ctx.register_command("nekodot-cron-approval-policy", _approval_policy, "Confirm a scheduled task's approval policy")
 `;
 
 const skill = `---
 name: nekodot-routines
-description: Create webhook routines and attach webhook triggers to scheduled jobs in nekoDOT.
+description: Manage nekodot routines, scheduled-task approval rules and webhook triggers.
 ---
-# nekoDOT routines
+# nekodot routines
 Use the native terminal tool to run \`hermes routine\` with your current profile.
+## Scheduled-task authorization
+- Explain what the task will need authorization for, then ask the user in the conversation. They can answer in their own words: ask each time, always allow, always deny, or time-based combinations. Use native clarify when suitable; do not ask them to configure a form or write JSON.
+- Do not enable a new task until this question is answered. When no preference is stated, propose ask; never infer permission from silence. If the user already gave an explicit rule, use it without asking again.
+- After the user's answer, save the rule using \`hermes routine approvals JOB_ID --policy '{"default":"ask","timezone":"Asia/Kuala_Lumpur","windows":[{"start":"22:00","end":"08:00","days":[0,1,2,3,4,5,6],"mode":"deny"}]}'\`.
+- Modes are \`ask\`, \`approve\`, \`deny\`. The example asks during the day and denies from 22:00 until 08:00. Days are Monday=0 through Sunday=6; an overnight window belongs to its starting weekday. Outside windows the default applies; later matching windows take priority. Use the user's timezone and clarify ambiguous times before saving.
+- Read back the saved rule with \`hermes routine get cron:JOB_ID\`. Resume with native \`hermes cron resume JOB_ID\` if it was paused only to await this answer; keep an intentional user pause. Changing a rule never reruns a completed task.
+## Webhook routines
 - Create: \`hermes routine create --name "Title" --description "Purpose" --prompt "Fixed task. External event: {__raw__}"\`.
 - To add a webhook to an existing native scheduled job, also pass \`--cron-job JOB_ID\`. Do not create a second scheduled job.
 - List/get/update use \`hermes routine list\`, \`hermes routine get ID\`, and \`hermes routine update ID ...\`.
-- After creation, ask the user to open the routine card/details in nekoDOT and approve secure credential delivery. Never ask them to paste a secret into chat or scripts. The entry remains disabled until approved.
+- After creation, ask the user to open the routine card/details in nekodot and approve secure credential delivery. Never ask them to paste a secret into chat or scripts. The entry remains disabled until approved.
 - Once approved, scripts use \`hermes routine send ID --request-id STABLE_EVENT_ID --payload '{"message":"event"}'\`. This helper calls the actual public HTTPS URL without printing or embedding its secret. New events need new IDs; retries reuse the original ID.
 - Each webhook runs as a separate native background task; it does not steer the private conversation. Native cron/webhook permissions still apply. Do not promise terminal access that native webhook mode does not grant.
 - Never print credentials, read the credential store, enable a route without the user, or claim a 202 receipt means task completion. A test must check the resulting routine execution.
@@ -149,7 +206,7 @@ export async function installRoutinePlugin(home: string) {
   await mkdir(directory, { recursive: true, mode: 0o700 });
   await writeFile(
     join(directory, 'plugin.yaml'),
-    'name: nekodot-routines\nversion: 0.1.0\ndescription: nekoDOT native routine UI and transport bridge\n',
+    'name: nekodot-routines\nversion: 0.1.0\ndescription: nekodot native routine UI and transport bridge\n',
   );
   await writeFile(join(directory, '__init__.py'), plugin);
   const skills = join(home, 'skills', 'nekodot-routines');

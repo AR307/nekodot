@@ -74,6 +74,306 @@ class Panel extends StatelessWidget {
   }
 }
 
+/// What a Bot puts in the chat besides words: a question, an approval, a
+/// file. One hairline, no shadow, nothing nested inside.
+class ChatCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  const ChatCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.fromLTRB(16, 14, 16, 12),
+  });
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: tone.surface,
+        border: Border.all(color: tone.line),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// A row of a menu, as the reference account menu draws them: a small
+/// outlined icon, the words at body size, and grey extras at the end.
+class MenuRow extends StatelessWidget {
+  final IconData? icon;
+  final Widget? leading;
+  final String label;
+  final Widget? trailing;
+  const MenuRow({
+    super.key,
+    this.icon,
+    this.leading,
+    required this.label,
+    this.trailing,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    final text = Theme.of(context).textTheme.bodyMedium!;
+    return Row(
+      children: [
+        if (icon != null || leading != null) ...[
+          SizedBox(
+            width: 18,
+            child: Center(
+              child: leading ?? Icon(icon, size: 17, color: tone.ink2),
+            ),
+          ),
+          const SizedBox(width: 10),
+        ],
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: text.copyWith(
+              fontSize: tone.glass ? 15 : 14,
+              color: tone.ink,
+            ),
+          ),
+        ),
+        if (trailing != null) ...[
+          const SizedBox(width: 12),
+          IconTheme.merge(
+            data: IconThemeData(size: 16, color: tone.ink3),
+            child: DefaultTextStyle.merge(
+              style: TextStyle(fontSize: 13, color: tone.ink3),
+              child: trailing!,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// How wide every menu opens: never narrower than the reference menu.
+const menuConstraints = BoxConstraints(minWidth: 220, maxWidth: 340);
+
+/// One entry of a popup menu or a select, as a [MenuRow] at the menu's height.
+PopupMenuItem<T> menuItem<T>(
+  BuildContext context, {
+  Key? key,
+  required T value,
+  IconData? icon,
+  Widget? leading,
+  required String label,
+  Widget? trailing,
+  bool enabled = true,
+}) => PopupMenuItem<T>(
+  key: key,
+  value: value,
+  enabled: enabled,
+  height: context.tone.glass ? 44 : 36,
+  padding: const EdgeInsets.symmetric(horizontal: 16),
+  child: MenuRow(
+    icon: icon,
+    leading: leading,
+    label: label,
+    trailing: trailing,
+  ),
+);
+
+/// The hairline between groups of a menu, inset from both edges.
+const menuDivider = PopupMenuDivider(
+  height: 9,
+  thickness: 1,
+  indent: 16,
+  endIndent: 16,
+);
+
+/// A field that opens its choices as a menu like every other one: the
+/// chosen words, a chevron, and on a tap the rows with a tick on the chosen.
+class MenuSelect<T> extends StatelessWidget {
+  final T? value;
+  final List<(T, String)> options;
+  final ValueChanged<T>? onChanged;
+  final String? label;
+  const MenuSelect({
+    super.key,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+    this.label,
+  });
+
+  /// Opens the choices under the field, exactly as wide as it.
+  Future<void> open(BuildContext context) async {
+    final field = context.findRenderObject()! as RenderBox;
+    final overlay =
+        Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
+    final top = field.localToGlobal(
+      Offset(0, field.size.height + 4),
+      ancestor: overlay,
+    );
+    final picked = await showMenu<T>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(top.dx, top.dy, field.size.width, 0),
+        Offset.zero & overlay.size,
+      ),
+      constraints: BoxConstraints.tightFor(width: field.size.width),
+      initialValue: value,
+      items: [
+        for (final (option, words) in options)
+          menuItem(
+            context,
+            key: ValueKey('select-$option'),
+            value: option,
+            label: words,
+            trailing: option == value ? const Icon(Icons.check) : null,
+          ),
+      ],
+    );
+    if (picked != null) onChanged?.call(picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final chosen = options.where((o) => o.$1 == value).firstOrNull;
+    final enabled = onChanged != null && options.isNotEmpty;
+    return Builder(
+      builder: (field) => InkWell(
+        borderRadius: BorderRadius.circular(context.tone.corner),
+        onTap: enabled ? () => open(field) : null,
+        child: InputDecorator(
+          isEmpty: chosen == null,
+          decoration: InputDecoration(
+            labelText: label,
+            enabled: enabled,
+            suffixIcon: const Icon(Icons.expand_more, size: 20),
+          ),
+          child: Text(
+            chosen?.$2 ?? '',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A list of choices on the menu card, under a field (suggestions).
+Widget menuOptions<T extends Object>(
+  BuildContext context,
+  Iterable<T> options,
+  AutocompleteOnSelected<T> onSelected,
+  String Function(T) words,
+) {
+  final tone = context.tone;
+  return Align(
+    alignment: Alignment.topLeft,
+    child: Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: MenuCard(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 280),
+          child: ListView(
+            shrinkWrap: true,
+            padding: EdgeInsets.zero,
+            children: [
+              for (final option in options)
+                InkWell(
+                  onTap: () => onSelected(option),
+                  child: Container(
+                    height: tone.glass ? 44 : 36,
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: MenuRow(label: words(option)),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// The card a menu sits on, for lists that are not popup menus (suggestions).
+class MenuCard extends StatelessWidget {
+  final Widget child;
+  const MenuCard({super.key, required this.child});
+  @override
+  Widget build(BuildContext context) {
+    final menu = Theme.of(context).popupMenuTheme;
+    return Material(
+      color: menu.color,
+      surfaceTintColor: Colors.transparent,
+      elevation: menu.elevation ?? 6,
+      shadowColor: menu.shadowColor,
+      shape: menu.shape,
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: menu.menuPadding ?? const EdgeInsets.symmetric(vertical: 6),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// One lettered choice in a question or an approval.
+class ChoiceRow extends StatelessWidget {
+  final int index;
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+  const ChoiceRow({
+    super.key,
+    required this.index,
+    required this.label,
+    this.selected = false,
+    this.onTap,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    final text = Theme.of(context).textTheme;
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: onTap,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: 2,
+          vertical: tone.glass ? 9 : 7,
+        ),
+        child: Row(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              width: 24,
+              height: 24,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: selected ? tone.ink : tone.bubble,
+                border: Border.all(color: selected ? tone.ink : tone.line),
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Text(
+                String.fromCharCode(65 + index % 26),
+                style: text.labelSmall?.copyWith(
+                  color: selected ? tone.base : tone.ink2,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(label, style: text.bodyMedium)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// The small pill for a choice inside a card: approval options, answers.
 ButtonStyle optionStyle(BuildContext context) {
   final glass = context.tone.glass;
@@ -248,6 +548,46 @@ class SectionLabel extends StatelessWidget {
   );
 }
 
+/// A dot that breathes beside a step that is under way.
+class Breathing extends StatefulWidget {
+  final double size;
+  const Breathing({super.key, this.size = 10});
+  @override
+  State<Breathing> createState() => _BreathingState();
+}
+
+class _BreathingState extends State<Breathing>
+    with SingleTickerProviderStateMixin {
+  late final controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  );
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      controller.value = 1;
+    } else if (!controller.isAnimating) {
+      controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FadeTransition(
+    opacity: Tween<double>(
+      begin: .25,
+      end: 1,
+    ).animate(CurvedAnimation(parent: controller, curve: Curves.easeInOut)),
+    child: StatusDot(size: widget.size),
+  );
+}
+
 /// State without words: solid is on, a hollow ring is off.
 class StatusDot extends StatelessWidget {
   final bool on;
@@ -382,6 +722,31 @@ class Segment<T> extends StatelessWidget {
 /// A panel that slides in from the right edge, pushing the content beside it
 /// aside, and slides back out when [child] becomes null. It casts its shadow
 /// over that content, so the opening reads as the panel rising above it.
+/// Bypass the size animator for reduced motion: a zero-duration AnimatedSize
+/// can notify its render object from inside layout when the child changes size.
+class SizeMotion extends StatelessWidget {
+  final Widget child;
+  final Duration duration;
+  final Alignment alignment;
+  final Curve curve;
+  const SizeMotion({
+    super.key,
+    required this.child,
+    required this.duration,
+    this.alignment = Alignment.center,
+    this.curve = Curves.easeOutCubic,
+  });
+  @override
+  Widget build(BuildContext context) => MediaQuery.disableAnimationsOf(context)
+      ? child
+      : AnimatedSize(
+          duration: duration,
+          alignment: alignment,
+          curve: curve,
+          child: child,
+        );
+}
+
 class SidePanel extends StatefulWidget {
   final Widget? child;
   final double width;

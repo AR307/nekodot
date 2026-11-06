@@ -148,12 +148,17 @@ export class BotSessions {
       });
       persist(session);
       return {
-        output: `New Hermes session: ${session.session_id}\nPrevious sessions and nekoDOT messages are retained. Future messages use the new context.`,
+        output: `New Hermes session: ${session.session_id}\nPrevious sessions and nekodot messages are retained. Future messages use the new context.`,
       };
     }
     if (name === '/resume') {
       const { sessions } = await this.list(botId);
       const found = sessions.find((row) => row.session_id === arg || row.id === arg);
+      if (found?.source === 'cron')
+        throw new NodeFault(
+          'invalid_params',
+          'Cron executions are read-only. Continue from the routine result in a regular conversation.',
+        );
       const session = await gateway.rpc<NativeSessionSnapshot>(
         'session.resume',
         found
@@ -171,7 +176,7 @@ export class BotSessions {
         );
       persist(session);
       return {
-        output: `Resumed Hermes session: ${session.session_id}\nOpen /history to read its actual context. Existing nekoDOT messages are retained.`,
+        output: `Resumed Hermes session: ${session.session_id}\nOpen /history to read its actual context. Existing nekodot messages are retained.`,
       };
     }
     if (name === '/branch') {
@@ -209,7 +214,7 @@ export class BotSessions {
         type: name === '/retry' ? ('send' as const) : ('prefill' as const),
         message: message.content,
         output:
-          'Hermes context rewound. Existing nekoDOT messages and tool effects are retained; this does not roll back files.',
+          'Hermes context rewound. Existing nekodot messages and tool effects are retained; this does not roll back files.',
       };
     }
     if (name === '/compress') {

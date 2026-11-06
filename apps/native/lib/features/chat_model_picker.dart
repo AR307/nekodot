@@ -3,68 +3,53 @@ import 'package:flutter/material.dart';
 import '../data/client.dart';
 import '../ui/design.dart';
 
+/// The Bot's models on the menu card at [anchor]: its own model and its
+/// source's catalog, then a row for the Bot's model settings. Gives the model
+/// picked, an empty string for the settings, or null when dismissed.
 Future<String?> pickChatModel(
-  BuildContext context,
-  NekodotClient client,
+  BuildContext anchor,
+  NekodotClient c,
   Json bot,
-) {
+) async {
+  final button = anchor.findRenderObject()! as RenderBox;
+  final overlay =
+      Navigator.of(anchor).overlay!.context.findRenderObject()! as RenderBox;
+  final position = RelativeRect.fromRect(
+    button.localToGlobal(Offset.zero, ancestor: overlay) & button.size,
+    Offset.zero & overlay.size,
+  );
   final source = bot['sourceId'];
-  final catalog = source == null
-      ? Future<Json>.value({'models': <String>[]})
-      : client.rpc('models.options', {'sourceId': source});
-  return showDialog<String>(
-    context: context,
-    builder: (context) => SimpleDialog(
-      title: Text(client.tr('选择模型', 'Choose model')),
-      children: [
-        SizedBox(
-          width: 320,
-          child: FutureBuilder<Json>(
-            future: catalog,
-            builder: (context, snapshot) {
-              final models = <String>{
-                '${bot['model'] ?? ''}',
-                ...((snapshot.data?['models'] as List?) ?? []).cast<String>(),
-              }..remove('');
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (snapshot.connectionState != ConnectionState.done)
-                    const ShiningText(),
-                  if (snapshot.hasError)
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text(
-                        '${snapshot.error}',
-                        style: TextStyle(color: context.tone.danger),
-                      ),
-                    ),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 320),
-                    child: ListView(
-                      shrinkWrap: true,
-                      children: [
-                        for (final model in models)
-                          ListTile(
-                            title: Text(model),
-                            trailing: model == bot['model']
-                                ? const Icon(Icons.check, size: 18)
-                                : null,
-                            onTap: () => Navigator.pop(context, model),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
+  final current = '${bot['model'] ?? ''}';
+  final listed = source == null
+      ? const <String>[]
+      : ((await c.rpc('models.options', {'sourceId': source}))['models']
+                as List)
+            .cast<String>();
+  if (!anchor.mounted) return null;
+  final models = <String>{current, ...listed}..remove('');
+  return showMenu<String>(
+    context: anchor,
+    position: position,
+    constraints: menuConstraints,
+    initialValue: current,
+    items: [
+      for (final model in models)
+        menuItem(
+          anchor,
+          key: ValueKey('model-$model'),
+          value: model,
+          icon: Icons.memory_outlined,
+          label: model,
+          trailing: model == current ? const Icon(Icons.check) : null,
         ),
-        SimpleDialogOption(
-          onPressed: () => Navigator.pop(context, ''),
-          child: Text(client.tr('Bot 模型设置', 'Bot model settings')),
-        ),
-      ],
-    ),
+      menuDivider,
+      menuItem(
+        anchor,
+        key: const ValueKey('model-settings'),
+        value: '',
+        icon: Icons.tune,
+        label: c.tr('Bot 模型设置', 'Bot model settings'),
+      ),
+    ],
   );
 }

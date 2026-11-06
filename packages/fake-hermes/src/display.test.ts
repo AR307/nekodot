@@ -5,7 +5,7 @@ import { HermesManagement } from '../../../apps/node/src/hermes/management';
 
 it('replays captured native display state per profile and broadcasts native lease changes', async () => {
   const fake = await startFakeHermes({
-    fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
+    fixturesDirectory: join(process.cwd(), 'tests/fixtures'),
     apiKey: 'display-replay-key',
     profiles: ['default'],
   });

@@ -106,7 +106,7 @@ class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: widget.client,
     builder: (_, child) => MaterialApp(
-      title: 'nekoDOT',
+      title: 'nekodot',
       navigatorKey: navigation,
       navigatorObservers: [nativeRoutes],
       debugShowCheckedModeBanner: false,
@@ -128,7 +128,7 @@ class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
       ),
       home: loading
           ? const Scaffold(
-              body: Center(child: ShiningText(text: 'nekoDOT')),
+              body: Center(child: ShiningText(text: 'nekodot')),
             )
           : error.isNotEmpty
           ? Scaffold(

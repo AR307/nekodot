@@ -61,7 +61,9 @@ void main() {
     Future<void> shot(String name) async {
       await run(const Duration(milliseconds: 900));
       final view = tester.binding.renderViews.first;
-      final layer = view.debugLayer! as OffsetLayer;
+      // The root layer itself, so the tour also runs in profile builds.
+      // ignore: invalid_use_of_protected_member
+      final layer = view.layer! as OffsetLayer;
       final size = tester.view.physicalSize;
       await tester.runAsync(() async {
         final ui.Image image = await layer.toImage(Offset.zero & size);
@@ -162,7 +164,12 @@ void main() {
           await tester.tap(find.byTooltip('账户'));
           await run(const Duration(milliseconds: 400));
           await shot('$tag-account-menu');
-          await tester.tap(find.text('Skills 与插件').last);
+          navigator.currentState!.pop();
+          await run(const Duration(milliseconds: 300));
+          await tester.tap(find.byTooltip('新建').first);
+          await run(const Duration(milliseconds: 400));
+          await shot('$tag-create-menu');
+          await tester.tap(find.text('添加插件').last);
           await shot('$tag-dialog');
           navigator.currentState!.pop();
           await run(const Duration(milliseconds: 300));
@@ -189,7 +196,7 @@ void main() {
                       ),
                     for (final color in avatarColors)
                       CatAvatar(color: color, size: 36),
-                    ThinkingRow(bot: bot),
+                    ThinkingRow(bot: bot, line: '${bot['displayName']} 正在工作'),
                   ],
                 ),
               ),

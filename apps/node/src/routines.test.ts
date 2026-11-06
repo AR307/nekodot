@@ -59,7 +59,7 @@ it('keeps credentials out of chat, requires a user grant and rotates the same sc
   await expect(routines.enable(botId, routine.routineId, true)).rejects.toThrow('Approve');
   await routines.enable(botId, routine.routineId, true, true);
   expect(routes[0]!.enabled).toBe(true);
-  expect(db.messages(conversationId).filter((m) => m.kind === 'routine')).toHaveLength(2);
+  expect(db.messages(conversationId).filter((m) => m.kind === 'routine')).toHaveLength(3);
   const oldDigest = routes[0]!.digest;
   await routines.rotate(botId, routine.routineId);
   expect(routes[0]!.digest).not.toBe(oldDigest);
@@ -102,7 +102,7 @@ it('recovers a native admission failure after restart without rerunning it or du
     cli: async () => 'Secret: internal',
     profileHome: (profile: string) => join(home, profile),
     management: {
-      request: async () => ({}),
+      request: async (path: string) => (path === '/api/cron/jobs' ? [] : {}),
       rpc: async (_method: string, params: { profile: string; arg: string }) => {
         expect(params.profile).toBe(botId);
         const { profile, settled } = JSON.parse(params.arg) as {
@@ -132,6 +132,7 @@ it('recovers a native admission failure after restart without rerunning it or du
   const base = {
     botId,
     sessionId: 'native-session',
+    admissionId: 'native-admission',
     route: 'nk-' + task.routineId,
     jobId: null,
     requestId: 'scan-001',
@@ -166,7 +167,169 @@ it('recovers a native admission failure after restart without rerunning it or du
   await routines.drain();
   expect(db.messages(conversationId).filter((m) => m.kind === 'text')).toHaveLength(1);
   expect(signals.map((s) => s.kind)).toEqual(['failed']);
-  expect(routines.context(botId).text).toContain('session=native-session');
+  expect(routines.execution(botId, task.routineId + ':native-session').sessionId).toBe(
+    'native-session',
+  );
+  await routines.close();
+  db.db.close();
+});
+
+it('shows a one-shot completion without reporting a user stop, while a pause still reports stopped', async () => {
+  const db = new NodeDatabase(await mkdtemp(join(tmpdir(), 'nekodot-cron-notice-')));
+  const botId = 'nk-abcdef',
+    conversationId = randomUUID();
+  db.putBot({
+    botId,
+    displayName: 'Notice Bot',
+    handle: 'notice',
+    role: '',
+    model: 'qa',
+    avatar: { shape: 'dot', color: '#E8603C' },
+    archived: false,
+    createdAt: new Date().toISOString(),
+  });
+  db.putConversation({ conversationId, botId, kind: 'dm', createdAt: new Date().toISOString() });
+  const job = {
+    id: 'once',
+    name: 'Reminder',
+    prompt: 'Test reminder',
+    schedule: { kind: 'once' },
+    enabled: true,
+    state: 'scheduled',
+  };
+  const jobs = [job];
+  let events: Record<string, unknown>[] = [];
+  const hermes = {
+    management: {
+      request: async () => jobs,
+      rpc: async (_method: string, params: { name: string }) => ({
+        output: params.name === 'nekodot-routine-context' ? '[]' : JSON.stringify(events),
+      }),
+    },
+  } as unknown as HermesRuntime;
+  const routines = new Routines(db, hermes, new Notifications(db));
+  await routines.drain();
+  job.enabled = false;
+  job.state = 'completed';
+  events = [
+    {
+      phase: 'ended',
+      botId,
+      sessionId: 'once-session',
+      admissionId: 'once-admission',
+      route: null,
+      jobId: 'once',
+      requestId: null,
+      text: 'Reminder completed',
+      time: Date.now() / 1000,
+      completed: true,
+    },
+  ];
+  await routines.drain();
+  const context = await routines.context(botId, 'ordinary-chat');
+  expect(context.text).toContain('Reminder completed');
+  expect(context.text).toContain('session=once-session');
+  expect(
+    db
+      .messages(conversationId)
+      .filter((m) => m.kind === 'routine')
+      .map((m) => m.content.action),
+  ).toEqual(['executed']);
+  await routines.drain();
+  expect(db.messages(conversationId).filter((m) => m.kind === 'routine')).toHaveLength(1);
+  const later = { ...job, id: 'later', name: 'Later reminder', enabled: true, state: 'scheduled' };
+  jobs.push(later);
+  await routines.drain();
+  later.enabled = false;
+  later.state = 'paused';
+  await routines.drain();
+  expect(
+    db
+      .messages(conversationId)
+      .filter((m) => m.kind === 'routine')
+      .map((m) => m.content.action),
+  ).toEqual(['executed', 'created', 'stopped']);
+  await routines.close();
+  db.db.close();
+});
+
+it('shows a cron approval in the Bot chat and answers that exact native admission', async () => {
+  const db = new NodeDatabase(await mkdtemp(join(tmpdir(), 'nekodot-cron-approval-')));
+  const botId = 'nk-abcdef',
+    conversationId = randomUUID();
+  db.putBot({
+    botId,
+    displayName: 'Routine Bot',
+    handle: 'routine',
+    role: '',
+    model: 'qa',
+    avatar: { shape: 'dot', color: '#E8603C' },
+    archived: false,
+    createdAt: new Date().toISOString(),
+  });
+  db.putConversation({ conversationId, botId, kind: 'dm', createdAt: new Date().toISOString() });
+  const calls: { method: string; params: Record<string, unknown> }[] = [];
+  const hermes = {
+    management: {
+      request: async () => [{ id: 'job', name: 'Report', prompt: 'Write report', enabled: true }],
+      rpc: async () => ({
+        output: JSON.stringify([
+          {
+            phase: 'started',
+            botId,
+            sessionId: 'cron-session',
+            admissionId: 'admission-1',
+            route: null,
+            jobId: 'job',
+            requestId: null,
+            text: '',
+            time: Date.now() / 1000,
+          },
+        ]),
+      }),
+    },
+    gateway: () => ({
+      rpc: async (method: string, params: Record<string, unknown>) => {
+        calls.push({ method, params });
+        return method === 'cron.status'
+          ? {
+              prompts: [
+                {
+                  kind: 'approval',
+                  prompt_id: 'prompt-1',
+                  execution_generation: 4,
+                  description: 'Run test command',
+                  command: 'test',
+                },
+              ],
+            }
+          : { status: 'resolved', prompt_id: 'prompt-1' };
+      },
+    }),
+  } as unknown as HermesRuntime;
+  const routines = new Routines(db, hermes, new Notifications(db));
+  await routines.drain();
+  const approval = db.messages(conversationId).find((m) => m.kind === 'approval');
+  expect(approval?.content).toMatchObject({ requestId: 'prompt-1', choices: ['once', 'deny'] });
+  expect(calls[0]).toEqual({
+    method: 'cron.status',
+    params: {
+      session_id: 'cron-session',
+      admission_id: 'admission-1',
+    },
+  });
+  await routines.approvalRespond(botId, 'cron:job:cron-session', 'prompt-1', 'once');
+  expect(calls[1]).toEqual({
+    method: 'cron.approve',
+    params: {
+      session_id: 'cron-session',
+      admission_id: 'admission-1',
+      execution_generation: 4,
+      prompt_id: 'prompt-1',
+      choice: 'once',
+    },
+  });
+  expect(db.message(approval!.messageId)?.status).toBe('done');
   await routines.close();
   db.db.close();
 });

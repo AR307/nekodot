@@ -22,7 +22,7 @@ class _AuthPageState extends State<AuthPage> {
       password = TextEditingController(),
       code = TextEditingController();
   String mode = 'login', error = '', notice = '';
-  bool busy = false;
+  bool busy = false, showPassword = false;
   int seconds = 0;
   Timer? countdown;
   DateTime? retryAt;
@@ -121,6 +121,7 @@ class _AuthPageState extends State<AuthPage> {
         if (mounted) {
           setState(() {
             mode = 'login';
+            showPassword = false;
             code.clear();
             notice = c.tr('密码已更新', 'Password updated');
           });
@@ -143,6 +144,7 @@ class _AuthPageState extends State<AuthPage> {
         setState(() {
           if (e.code == 'verification_required') {
             mode = 'verify';
+            showPassword = false;
             code.clear();
             error = c.tr(
               '请验证这个账号的邮箱，已有电脑和历史会保留。',
@@ -162,6 +164,7 @@ class _AuthPageState extends State<AuthPage> {
 
   void switchTo(String next) => setState(() {
     mode = next;
+    showPassword = false;
     code.clear();
     error = '';
     notice = '';
@@ -223,6 +226,7 @@ class _AuthPageState extends State<AuthPage> {
               controller: email,
               enabled: !busy,
               keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
               autofillHints: const [AutofillHints.email],
               decoration: InputDecoration(
                 hintText: 'you@example.com',
@@ -239,7 +243,7 @@ class _AuthPageState extends State<AuthPage> {
                 TextButton(
                   onPressed: busy ? null : () => switchTo('reset'),
                   style: TextButton.styleFrom(
-                    minimumSize: const Size(0, 24),
+                    minimumSize: const Size(44, 44),
                     padding: EdgeInsets.zero,
                   ),
                   child: Text(
@@ -254,7 +258,12 @@ class _AuthPageState extends State<AuthPage> {
             key: const ValueKey('auth-password'),
             controller: password,
             enabled: !busy,
-            obscureText: true,
+            obscureText: !showPassword,
+            enableSuggestions: false,
+            autocorrect: false,
+            textInputAction: mode == 'login'
+                ? TextInputAction.done
+                : TextInputAction.next,
             autofillHints: [
               mode == 'signup' || mode == 'reset'
                   ? AutofillHints.newPassword
@@ -263,6 +272,19 @@ class _AuthPageState extends State<AuthPage> {
             decoration: InputDecoration(
               hintText: c.tr('至少 8 位密码', 'At least 8 characters'),
               prefixIcon: const Icon(Icons.lock_outline, size: 18),
+              suffixIcon: IconButton(
+                key: const ValueKey('auth-reveal-password'),
+                tooltip: showPassword
+                    ? c.tr('隐藏密码', 'Hide password')
+                    : c.tr('显示密码', 'Show password'),
+                isSelected: showPassword,
+                style: IconButton.styleFrom(minimumSize: const Size.square(44)),
+                onPressed: busy
+                    ? null
+                    : () => setState(() => showPassword = !showPassword),
+                icon: const Icon(Icons.visibility_outlined),
+                selectedIcon: const Icon(Icons.visibility_off_outlined),
+              ),
             ),
             onSubmitted: (_) {
               if (mode == 'login' && !busy) submit();

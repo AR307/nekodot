@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "version": "v0.22.6-r1",
+  "hermesVersion": "v0.22.6",
+  "commit": "f0d94882e89ab8d4098b5bb2f166adfb9ee0a0ab",
+  "extras": ["all"],
+  "tools": ["python", "uv", "node", "npm", "ripgrep", "ffmpeg", "git", "chromium", "cua-driver"],
+  "patches": [
+    {
+      "file": "webhook-listener.patch",
+      "commit": "67e4f384b8929926438c9bb014f371d0238a532a"
+    },
+    {
+      "file": "windows-workspace.patch",
+      "commit": "965356659e016e62b38014d05e5616cc8ead0e74"
+    },
+    {
+      "file": "cron-approvals.patch",
+      "commit": "31c4fa2bf7b91e61aa67b252507c952e0d7c86f4"
+    },
+    {
+      "file": "cron-approval-decisions.patch",
+      "commit": "8ac43a3e2a047413e8bb70be0b671c321b8b0c15"
+    }
+  ]
+}

@@ -74,7 +74,7 @@ class AuthWordmark extends StatelessWidget {
       const CatAvatar(size: 28),
       const SizedBox(width: 10),
       Text(
-        'nekoDOT',
+        'nekodot',
         style: Theme.of(context).textTheme.titleLarge
             ?.copyWith(fontSize: 22, fontWeight: FontWeight.w800),
       ),

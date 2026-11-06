@@ -24,9 +24,9 @@ void main() {
       final end = DateTime.now().add(Duration(seconds: seconds));
       while (!ready() && DateTime.now().isBefore(end)) {
         await tester.pump(const Duration(milliseconds: 200));
-        final allow = find.widgetWithText(OutlinedButton, '允许一次');
+        final allow = find.widgetWithText(FilledButton, '允许一次');
         if (allow.evaluate().isNotEmpty &&
-            tester.widget<OutlinedButton>(allow.first).onPressed != null) {
+            tester.widget<FilledButton>(allow.first).onPressed != null) {
           await Scrollable.ensureVisible(
             tester.element(allow.first),
             alignment: .4,
@@ -182,7 +182,6 @@ void main() {
       (w) => w is SecretCard && w.content['requestId'] == requestId,
     );
     await until(() => card.evaluate().isNotEmpty);
-    await tap(find.descendant(of: card, matching: find.byType(ListTile)).first);
     final details = (await tester.runAsync(
       () => client.rpc('secrets.get', {'botId': botId, 'requestId': requestId}),
     ))!;
@@ -192,8 +191,15 @@ void main() {
     );
     await until(() => field.evaluate().isNotEmpty);
     if (mode == 'native-cancel' || mode == 'native-timeout') {
+      // The card asks only for the value; a request nobody answers is
+      // cancelled by the Bot's side.
       if (mode == 'native-cancel') {
-        await tap(find.widgetWithText(TextButton, '取消请求').last);
+        await tester.runAsync(
+          () => client.rpc('secrets.cancel', {
+            'botId': botId,
+            'requestId': requestId,
+          }),
+        );
       }
       await until(
         () => (client.node.messages[conversationId] ?? []).any(
@@ -219,7 +225,7 @@ void main() {
     } else {
       expect(
         tester
-            .widget<CheckboxListTile>(find.byKey(const ValueKey('secret-save')))
+            .widget<Checkbox>(find.byKey(const ValueKey('secret-save')))
             .value,
         isFalse,
       );
@@ -234,8 +240,14 @@ void main() {
       'code': '879421',
       'NEKODOT_SECRET_NATIVE_QA': 'nekodot-qa-native-value-20261103',
     };
-    for (final definition in definitions) {
+    final inputController = tester.widget<TextField>(field).controller!;
+    if (mode == 'api' || mode == 'login-save') {
+      await tap(find.byKey(const ValueKey('secret-save')));
+    }
+    // One field at a time: each moves on to the next, the last one delivers.
+    for (final (index, definition) in definitions.indexed) {
       final finder = find.byKey(ValueKey('secret-field-${definition['name']}'));
+      await until(() => finder.evaluate().isNotEmpty);
       await Scrollable.ensureVisible(tester.element(finder), alignment: .4);
       await tester.enterText(
         finder,
@@ -243,12 +255,15 @@ void main() {
             ? 'nekodot-qa-native-value-20261103'
             : values['${definition['name']}']!,
       );
+      await tester.pump();
+      await tap(
+        find.byKey(
+          ValueKey(
+            index == definitions.length - 1 ? 'secret-submit' : 'secret-next',
+          ),
+        ),
+      );
     }
-    final inputController = tester.widget<TextField>(field).controller!;
-    if (mode == 'api' || mode == 'login-save') {
-      await tap(find.byKey(const ValueKey('secret-save')));
-    }
-    await tap(find.byKey(const ValueKey('secret-submit')));
     await until(
       () => (client.node.messages[conversationId] ?? []).any(
         (m) =>

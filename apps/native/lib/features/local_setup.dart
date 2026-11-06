@@ -163,8 +163,8 @@ class _LocalSetupPageState extends State<LocalSetupPage> {
     'install-dir' => c.tr('不能放在应用安装目录内', 'Cannot be inside the app folder'),
     'not-fixed' => c.tr('请选择本机固定磁盘', 'Choose a local fixed disk'),
     'not-empty' => c.tr(
-      '请选择空文件夹或已有的 nekoDOT 目录',
-      'Choose an empty or existing nekoDOT folder',
+      '请选择空文件夹或已有的 nekodot 目录',
+      'Choose an empty or existing nekodot folder',
     ),
     _ => c.tr(
       '空间不足，至少需要 ${_gigabytes(kind == FolderKind.runtime ? runtimeSpace : dataSpace)} GB',

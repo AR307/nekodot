@@ -118,7 +118,7 @@ try {
   )
     throw new Error('Real steer did not preserve the run and return the requested final response.');
 
-  const fixtures = join(root, 'docs/fixtures');
+  const fixtures = join(root, 'tests/fixtures');
   await mkdir(fixtures, { recursive: true });
   await writeFile(
     join(fixtures, 'runs-steer.sse'),
@@ -131,7 +131,7 @@ try {
   console.log(
     'Real Hermes steer passed: accepted on the existing run, one tool execution, expected final marker.',
   );
-  console.log('Recorded sanitized SSE and state fixtures under docs/fixtures.');
+  console.log('Recorded sanitized SSE and state fixtures under tests/fixtures.');
 } catch (error) {
   console.error(
     'Real Hermes steer did not pass: ' +

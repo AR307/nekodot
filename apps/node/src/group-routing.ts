@@ -27,7 +27,7 @@ export function groupPrompt(chain: GroupChainRecord, botId: string, messages: Me
     return [`${name}: ${message.content.text}`];
   });
   return {
-    input: `[nekoDOT group "${chain.group.name}"] New messages since your last turn:\n${lines.join('\n')}\nReply to the group as @${members.get(botId)!.handle}.`,
+    input: `[nekodot group "${chain.group.name}"] New messages since your last turn:\n${lines.join('\n')}\nReply to the group as @${members.get(botId)!.handle}.`,
     instructions: `Group members: ${chain.roster
       .map((bot) => `${bot.displayName} (@${bot.handle}) — ${bot.role}`)
       .join(', ')}. Mention a teammate with @handle only when you need them to act.`,

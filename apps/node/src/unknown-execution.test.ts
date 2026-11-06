@@ -17,7 +17,7 @@ it.each(['dm', 'group'] as const)(
     const home = await mkdtemp(join(tmpdir(), 'nekodot-unknown-execution-'));
     const profiles = ['default', 'nk-abcdef', 'nk-ghijkl'];
     const recorded = await startFakeHermes({
-      fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
+      fixturesDirectory: join(process.cwd(), 'tests/fixtures'),
       profiles,
       apiKey: key,
       eventDelayMs: 1,
@@ -33,6 +33,7 @@ it.each(['dm', 'group'] as const)(
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',
+      syncRules: async () => {},
       configureBot: async () => {},
       gateway: (profile) => {
         const gateway = baseRuntime.gateway(profile);

@@ -5,7 +5,7 @@ import type { HermesRuntime } from './hermes/runtime';
 import { BotCommands } from './commands';
 
 async function commandJourney() {
-  const { catalog } = JSON.parse(await readFile('docs/fixtures/commands-native.json', 'utf8'));
+  const { catalog } = JSON.parse(await readFile('tests/fixtures/commands-native.json', 'utf8'));
   const rpc = vi.fn(async (method: string) => {
     if (method === 'commands.catalog') return catalog;
     if (method === 'session.create')

@@ -16,6 +16,7 @@ import {
   type NodeRelease,
   routineRouteSchema,
   routineReceiptSchema,
+  usageBatchSchema,
   type RoutineDelivery,
   type RoutineReceipt,
 } from '@nekodot/protocol';
@@ -24,6 +25,7 @@ import { RoutineIngress } from './routines';
 import type { RelayDatabase, NodeRow } from './database';
 import { HttpFault } from './auth';
 import { AccountUserMemory } from './user-memory';
+import { AccountUsage } from './usage';
 
 const frame = (type: Envelope['type'], payload: unknown, nodeId?: string): Envelope => ({
   v: 1,
@@ -50,6 +52,8 @@ export function registerRouting(
 ) {
   const wss = new WebSocketServer({ noServer: true });
   const userMemory = new AccountUserMemory(database);
+  const usage = new AccountUsage(database);
+  const usageRefresh = new Map<string, { nodeId: string; resolve(value: boolean): void }>();
   const clients = new Set<Client>();
   const nodes = new Map<string, WebSocket>();
   const versions = new Map<string, string>();
@@ -84,6 +88,11 @@ export function registerRouting(
     for (const client of clients) if (client.userId === userId) send(client.socket, value);
   }
   function clearPending(nodeId: string) {
+    for (const [id, waiter] of usageRefresh)
+      if (waiter.nodeId === nodeId) {
+        waiter.resolve(false);
+        usageRefresh.delete(id);
+      }
     for (const [id, p] of routinePending)
       if (p.nodeId === nodeId) {
         clearTimeout(p.timer);
@@ -201,6 +210,15 @@ export function registerRouting(
           }, protocolTimings.rpcTimeoutMs);
           pending.set(envelope.id, { socket, nodeId, timer });
           send(nodes.get(nodeId)!, envelope);
+        } else if (node && envelope.type === 'usage.batch') {
+          usage.ingest(node, usageBatchSchema.parse(envelope.payload).records);
+          send(socket, { ...frame('usage.ack', {}, node.node_id), replyTo: envelope.id });
+        } else if (node && envelope.type === 'usage.refreshed') {
+          const waiter = usageRefresh.get(envelope.replyTo!);
+          if (waiter?.nodeId === node.node_id) {
+            waiter.resolve(z.object({ ok: z.boolean() }).parse(envelope.payload).ok);
+            usageRefresh.delete(envelope.replyTo!);
+          }
         } else if (node && envelope.type === 'routine.routes') {
           routines.publish(node, z.array(routineRouteSchema).parse(envelope.payload));
           send(socket, { ...frame('routine.routes.ack', {}, node.node_id), replyTo: envelope.id });
@@ -286,6 +304,26 @@ export function registerRouting(
     socket.on('error', () => socket.terminate());
   });
   return {
+    usage,
+    refreshUsage: (nodeId: string): Promise<boolean> => {
+      const socket = nodes.get(nodeId);
+      if (!socket || socket.readyState !== WebSocket.OPEN) return Promise.resolve(false);
+      const request = frame('usage.refresh', {}, nodeId);
+      return new Promise((resolve) => {
+        const timer = setTimeout(() => {
+          usageRefresh.delete(request.id);
+          resolve(false);
+        }, 20_000);
+        usageRefresh.set(request.id, {
+          nodeId,
+          resolve: (value) => {
+            clearTimeout(timer);
+            resolve(value);
+          },
+        });
+        send(socket, request);
+      });
+    },
     routines,
     deliverRoutine: (nodeId: string, payload: RoutineDelivery) => {
       const socket = nodes.get(nodeId);

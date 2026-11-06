@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../data/client.dart';
 import '../data/hermes_zh.dart';
 import '../ui/design.dart';
+import 'model_selection.dart';
 
 /// The kinds a Bot's own settings fall into, in page order; Node assigns each
 /// Hermes setting its kind. Settings about the installation are app-wide.
@@ -73,6 +74,7 @@ class HermesSettings extends StatefulWidget {
 class _HermesSettingsState extends State<HermesSettings> {
   final search = TextEditingController();
   String query = '';
+  bool advanced = false;
   NekodotClient get c => widget.client;
   bool get shared => widget.botId == null;
 
@@ -92,8 +94,27 @@ class _HermesSettingsState extends State<HermesSettings> {
     builder: (context, data, reload) {
       final text = Theme.of(context).textTheme;
       String groupOf(Json field) => '${field['group'] ?? 'other'}';
-      final all = objects(data['fields'])
+      final fields = objects(data['fields']);
+      final all = fields
           .where((f) => widget.group == null || groupOf(f) == widget.group)
+          .where(
+            (f) => !const ['model', 'model_context_length'].contains(f['key']),
+          )
+          .where(
+            (f) =>
+                !RegExp(r'^(auxiliary\.[^.]+|delegation)\.(provider|base_url)$')
+                    .hasMatch('${f['key']}') &&
+                f['key'] != 'cron.model_provider',
+          )
+          .where(
+            (f) =>
+                !((f['type'] == 'string' &&
+                        RegExp(r'(^|[._])model(_id)?$')
+                            .hasMatch('${f['key']}') &&
+                        !_catalogModel('${f['key']}')) ||
+                    '${f['key']}'.startsWith('moa.presets.') ||
+                    '${f['key']}'.endsWith('fallback_providers')),
+          )
           .toList();
       final filtered = all.where((field) {
         final (name, note) = settingText(c, field);
@@ -112,24 +133,36 @@ class _HermesSettingsState extends State<HermesSettings> {
       final order = shared ? sharedSettingGroups : botSettingGroups;
       return PageList(
         children: [
-          TextField(
-            controller: search,
-            onChanged: (value) => setState(() => query = value),
-            decoration: InputDecoration(
-              hintText: c.tr('搜索设置', 'Search settings'),
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: query.isEmpty
-                  ? null
-                  : IconButton(
-                      tooltip: c.tr('清除搜索', 'Clear search'),
-                      onPressed: () {
-                        search.clear();
-                        setState(() => query = '');
-                      },
-                      icon: const Icon(Icons.close),
-                    ),
+          if (!shared && widget.group == null)
+            SwitchListTile.adaptive(
+              key: const ValueKey('advanced-settings'),
+              title: Text(c.tr('高级设置', 'Advanced settings')),
+              value: advanced,
+              onChanged: (value) => setState(() {
+                advanced = value;
+                query = '';
+                search.clear();
+              }),
             ),
-          ),
+          if (shared || widget.group != null || advanced)
+            TextField(
+              controller: search,
+              onChanged: (value) => setState(() => query = value),
+              decoration: InputDecoration(
+                hintText: c.tr('搜索设置', 'Search settings'),
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: query.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: c.tr('清除搜索', 'Clear search'),
+                        onPressed: () {
+                          search.clear();
+                          setState(() => query = '');
+                        },
+                        icon: const Icon(Icons.close),
+                      ),
+              ),
+            ),
           if (overview && shared) ...[
             // Settings for every Bot have no app items beside them: one card
             // of kinds.
@@ -150,12 +183,13 @@ class _HermesSettingsState extends State<HermesSettings> {
           ] else if (overview) ...[
             for (final group in order)
               if ((widget.extras[group] ?? const []).isNotEmpty ||
-                  all.any((field) => groupOf(field) == group)) ...[
+                  (advanced &&
+                      all.any((field) => groupOf(field) == group))) ...[
                 SectionLabel(settingGroupName(c, group)),
                 PanelGroup(
                   children: [
                     ...?widget.extras[group],
-                    if (all.any((field) => groupOf(field) == group))
+                    if (advanced && all.any((field) => groupOf(field) == group))
                       groupRow(context, group, all, categories),
                   ],
                 ),
@@ -169,7 +203,7 @@ class _HermesSettingsState extends State<HermesSettings> {
                     for (final field in filtered.where(
                       (field) => field['category'] == category,
                     ))
-                      fieldTile(field, reload),
+                      fieldTile(field, fields, reload),
                   ],
                 ),
               ],
@@ -234,7 +268,7 @@ class _HermesSettingsState extends State<HermesSettings> {
 
   /// The translated name leads; Hermes's key stays under it, small, so a
   /// setting can still be matched to Hermes's own documentation.
-  Widget fieldTile(Json field, VoidCallback reload) {
+  Widget fieldTile(Json field, List<Json> fields, VoidCallback reload) {
     final key = '${field['key']}';
     final (name, note) = settingText(c, field);
     Widget subtitle(List<String> lines) => Text.rich(
@@ -276,7 +310,7 @@ class _HermesSettingsState extends State<HermesSettings> {
                 : null,
             onTap: field['editable'] != true
                 ? null
-                : () => _edit(field, reload),
+                : () => _edit(field, fields, reload),
           );
   }
 
@@ -308,7 +342,92 @@ class _HermesSettingsState extends State<HermesSettings> {
     }
   }
 
-  Future<void> _edit(Json field, VoidCallback reload) async {
+  Future<void> _edit(Json field, List<Json> fields, VoidCallback reload) async {
+    if (_catalogModel('${field['key']}')) {
+      final bot = c.node.bots.firstWhere((b) => b['botId'] == widget.botId);
+      final providerKey = field['key'] == 'cron.model'
+          ? 'cron.model_provider'
+          : '${field['key']}'.replaceFirst(RegExp(r'\.model$'), '.provider');
+      final provider = fields
+          .where((f) => f['key'] == providerKey)
+          .firstOrNull?['value'];
+      final sources = objects((await c.rpc('providers.list'))['sources']);
+      if (!mounted) return;
+      String? source =
+          provider == null ||
+              provider == '' ||
+              provider == 'auto' ||
+              provider == 'main'
+          ? bot['sourceId'] as String?
+          : sources
+                    .where((s) => s['provider'] == provider)
+                    .firstOrNull?['sourceId']
+                as String?;
+      var model = '${field['value'] ?? ''}';
+      var busy = false;
+      var error = '';
+      await showDialog<void>(
+        context: context,
+        builder: (dialog) => StatefulBuilder(
+          builder: (context, update) => AlertDialog(
+            title: Text(settingText(c, field).$1),
+            content: SizedBox(
+              width: 440,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ModelSelection(
+                      client: c,
+                      sourceId: source,
+                      model: model,
+                      enabled: !busy,
+                      onChanged: (id, value) => update(() {
+                        source = id;
+                        model = value;
+                      }),
+                    ),
+                    ErrorNotice(error),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: busy ? null : () => Navigator.pop(dialog),
+                child: Text(c.tr('取消', 'Cancel')),
+              ),
+              FilledButton(
+                onPressed: busy || source == null || model.isEmpty
+                    ? null
+                    : () async {
+                        update(() => busy = true);
+                        try {
+                          await c.rpc('models.assign', {
+                            'botId': widget.botId,
+                            'key': field['key'],
+                            'sourceId': source,
+                            'model': model,
+                          });
+                          if (dialog.mounted) Navigator.pop(dialog);
+                          reload();
+                        } catch (e) {
+                          if (dialog.mounted) {
+                            update(() {
+                              error = '$e';
+                              busy = false;
+                            });
+                          }
+                        }
+                      },
+                child: Text(c.tr('保存', 'Save')),
+              ),
+            ],
+          ),
+        ),
+      );
+      return;
+    }
     final type = '${field['type']}';
     final initial = field['value'];
     final controller = TextEditingController(
@@ -346,15 +465,14 @@ class _HermesSettingsState extends State<HermesSettings> {
               children: [
                 Flexible(
                   child: type == 'select'
-                      ? DropdownButtonFormField<String>(
-                          initialValue: selectedKey,
-                          items: [
+                      ? MenuSelect<String>(
+                          key: const ValueKey('setting-select'),
+                          value: selectedKey,
+                          options: [
                             for (final entry in selected.entries)
-                              DropdownMenuItem(
-                                value: entry.key,
-                                child: Text(
-                                  entry.key == 'clear' ? '—' : '${entry.value}',
-                                ),
+                              (
+                                entry.key,
+                                entry.key == 'clear' ? '—' : '${entry.value}',
                               ),
                           ],
                           onChanged: (key) =>
@@ -426,6 +544,9 @@ class _HermesSettingsState extends State<HermesSettings> {
     if (result != null) await _save(field, result.value, reload);
   }
 }
+
+bool _catalogModel(String key) =>
+    RegExp(r'^(auxiliary\.[^.]+|delegation|cron)\.model$').hasMatch(key);
 
 List<String> strings(Object? value) =>
     (value as List? ?? const []).whereType<String>().toList();

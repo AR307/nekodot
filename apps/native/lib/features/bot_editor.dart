@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../data/client.dart';
 import '../ui/design.dart';
 import 'files.dart';
+import 'model_selection.dart';
 
 class BotEditor extends StatefulWidget {
   final NekodotClient client;
@@ -27,7 +28,6 @@ class BotEditor extends StatefulWidget {
 class _BotEditorState extends State<BotEditor> {
   final name = TextEditingController(),
       handle = TextEditingController(),
-      role = TextEditingController(),
       model = TextEditingController(),
       contextLength = TextEditingController();
   // A new Bot starts as a random face, so a team looks varied by default.
@@ -38,8 +38,6 @@ class _BotEditorState extends State<BotEditor> {
   String? lead, source;
   Json? archive;
   final members = <String>{};
-  List<Json> sources = [];
-  List<String> models = [];
   bool busy = false, permissionsReady = true;
   bool handleEdited = false;
   NekodotClient get c => widget.client;
@@ -55,7 +53,6 @@ class _BotEditorState extends State<BotEditor> {
         lead = b['leadBotId'] as String;
       } else {
         handle.text = '${b['handle']}';
-        role.text = '${b['role']}';
         model.text = '${b['model']}';
         color = '${b['avatar']['color']}';
         shape = '${b['avatar']['shape']}';
@@ -65,7 +62,6 @@ class _BotEditorState extends State<BotEditor> {
         loadPermissions();
       }
     }
-    if (!widget.group) loadSources();
   }
 
   Future<void> loadPermissions() async {
@@ -85,39 +81,6 @@ class _BotEditorState extends State<BotEditor> {
     }
   }
 
-  Future<void> loadSources() async {
-    try {
-      final values = objects((await c.rpc('providers.list'))['sources'])
-          .where((source) => source['ready'] == true)
-          .toList();
-      if (!mounted) return;
-      setState(() {
-        sources = values;
-        source ??= values.firstOrNull?['sourceId'] as String?;
-      });
-      if (source != null) await loadModels();
-    } catch (e) {
-      if (mounted) setState(() => error = '$e');
-    }
-  }
-
-  Future<void> loadModels() async {
-    final selected = source;
-    if (selected == null) return;
-    setState(() {
-      models = [];
-      error = '';
-    });
-    try {
-      final values = await c.rpc('models.options', {'sourceId': selected});
-      if (mounted && selected == source) {
-        setState(() => models = (values['models'] as List).cast<String>());
-      }
-    } catch (e) {
-      if (mounted && selected == source) setState(() => error = '$e');
-    }
-  }
-
   Future<void> save() async {
     setState(() {
       busy = true;
@@ -133,6 +96,9 @@ class _BotEditorState extends State<BotEditor> {
           'leadBotId': lead,
         });
       } else {
+        if (source == null || model.text.isEmpty) {
+          throw RelayError(c.tr('请选择模型', 'Choose a model'));
+        }
         if (widget.importProfile && archive == null) {
           throw RelayError(
             c.tr(
@@ -145,7 +111,8 @@ class _BotEditorState extends State<BotEditor> {
           if (existing != null) 'botId': existing['botId'],
           'displayName': name.text,
           if (existing != null || handleEdited) 'handle': handle.text,
-          'role': role.text,
+          // The role is written in the chat once the Bot is open, not here.
+          if (existing == null) 'role': '',
           'model': model.text.trim(),
           'avatar': {'shape': shape, 'color': color},
           'approvalMode': mode,
@@ -170,7 +137,6 @@ class _BotEditorState extends State<BotEditor> {
   void dispose() {
     name.dispose();
     handle.dispose();
-    role.dispose();
     model.dispose();
     contextLength.dispose();
     super.dispose();
@@ -241,7 +207,7 @@ class _BotEditorState extends State<BotEditor> {
                   key: ValueKey('$shape$color'),
                   color: color,
                   shape: shape,
-                  size: tone.glass ? 72 : 56,
+                  size: tone.glass ? 104 : 88,
                 ),
               ),
             ),
@@ -265,16 +231,18 @@ class _BotEditorState extends State<BotEditor> {
                         _ => c.tr('机器人', 'Robot'),
                       },
                       child: InkResponse(
-                        radius: 24,
+                        radius: 30,
                         onTap: () => setState(() => shape = value),
                         child: Semantics(
                           button: true,
                           selected: value == shape,
                           child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 160),
-                            width: tone.glass ? 40 : 32,
-                            height: tone.glass ? 40 : 32,
-                            padding: const EdgeInsets.all(5),
+                            duration: MediaQuery.disableAnimationsOf(context)
+                                ? Duration.zero
+                                : const Duration(milliseconds: 160),
+                            width: tone.glass ? 52 : 44,
+                            height: tone.glass ? 52 : 44,
+                            padding: const EdgeInsets.all(7),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
@@ -295,37 +263,47 @@ class _BotEditorState extends State<BotEditor> {
             const SizedBox(height: 10),
             Center(
               child: SizedBox(
-                width: (tone.glass ? 34.0 : 26.0) * 8,
+                width: 44 * 8 + 4 * 7,
                 child: Wrap(
                   alignment: WrapAlignment.center,
                   spacing: 4,
                   runSpacing: 4,
                   children: [
                     for (final value in avatarColors)
-                      GestureDetector(
+                      InkResponse(
+                        key: ValueKey('avatar-color-$value'),
+                        radius: 24,
                         onTap: () => setState(() => color = value),
                         child: Semantics(
                           button: true,
                           selected: value == color,
                           label: value,
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 160),
-                            width: tone.glass ? 30 : 22,
-                            height: tone.glass ? 30 : 22,
-                            padding: const EdgeInsets.all(2.5),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: value == color
-                                    ? tone.ink
-                                    : Colors.transparent,
-                                width: 1.5,
-                              ),
-                            ),
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: hexColor(value),
+                          child: SizedBox.square(
+                            dimension: 44,
+                            child: Center(
+                              child: AnimatedContainer(
+                                duration:
+                                    MediaQuery.disableAnimationsOf(context)
+                                    ? Duration.zero
+                                    : const Duration(milliseconds: 160),
+                                width: tone.glass ? 40 : 30,
+                                height: tone.glass ? 40 : 30,
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: value == color
+                                        ? tone.ink
+                                        : Colors.transparent,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: hexColor(value),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -396,120 +374,41 @@ class _BotEditorState extends State<BotEditor> {
             const SizedBox(height: 14),
             LabeledField(
               label: c.tr('主答', 'Lead'),
-              child: DropdownButtonFormField<String>(
-                key: ValueKey(lead),
-                initialValue: lead,
-                borderRadius: BorderRadius.circular(20),
-                decoration: InputDecoration(),
-                items: c.node.bots
-                    .where((b) => members.contains(b['botId']))
-                    .map(
-                      (b) => DropdownMenuItem(
-                        value: b['botId'] as String,
-                        child: Text('${b['displayName']}'),
-                      ),
-                    )
-                    .toList(),
+              child: MenuSelect<String>(
+                value: lead,
+                options: [
+                  for (final b in c.node.bots.where(
+                    (b) => members.contains(b['botId']),
+                  ))
+                    (b['botId'] as String, '${b['displayName']}'),
+                ],
                 onChanged: (value) => setState(() => lead = value),
               ),
             ),
           ] else ...[
-            LabeledField(
-              label: '@handle',
-              child: TextField(
-                controller: handle,
-                onChanged: (_) => handleEdited = true,
-                decoration: InputDecoration(
-                  helperText: c.tr(
-                    '默认按名称填写，支持中文；也可自己修改 @代号',
-                    'Filled from the name, including Chinese; you can customize the @handle',
-                  ),
-                  helperMaxLines: 3,
-                ),
-              ),
-            ),
-            gap,
-            LabeledField(
-              label: c.tr('角色设定', 'Role'),
-              child: TextField(
-                controller: role,
-                minLines: 3,
-                maxLines: 8,
-                decoration: InputDecoration(),
-              ),
-            ),
-            gap,
-            LabeledField(
-              label: c.tr('模型来源', 'Model source'),
-              child: DropdownButtonFormField<String>(
-                key: ValueKey(source),
-                initialValue: source,
-                isExpanded: true,
-                borderRadius: BorderRadius.circular(20),
-                decoration: InputDecoration(),
-                items: sources
-                    .map(
-                      (s) => DropdownMenuItem(
-                        value: s['sourceId'] as String,
-                        child: Text(
-                          '${s['name']}',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    source = value;
-                    model.clear();
-                  });
-                  loadModels();
-                },
-              ),
-            ),
-            gap,
-            Autocomplete<String>(
-              key: ValueKey(source),
-              initialValue: model.value,
-              optionsBuilder: (value) => models.where(
-                (m) => m.toLowerCase().contains(value.text.toLowerCase()),
-              ),
-              onSelected: (value) => model.text = value,
-              fieldViewBuilder: (context, controller, focus, submit) =>
-                  LabeledField(
-                    label: c.tr('模型', 'Model'),
-                    child: TextField(
-                      controller: controller,
-                      focusNode: focus,
-                      onChanged: (value) => model.text = value,
-                      decoration: InputDecoration(),
-                    ),
-                  ),
+            ModelSelection(
+              client: c,
+              sourceId: source,
+              model: model.text,
+              enabled: !busy,
+              onChanged: (selected, value) => setState(() {
+                source = selected;
+                model.text = value;
+              }),
             ),
             gap,
             LabeledField(
               label: c.tr('审批', 'Approval'),
-              child: DropdownButtonFormField<String>(
-                key: ValueKey('approval-$mode-$permissionsReady'),
-                initialValue: mode,
-                borderRadius: BorderRadius.circular(20),
-                decoration: InputDecoration(),
-                items: [
-                  DropdownMenuItem(
-                    value: 'manual',
-                    child: Text(c.tr('每次询问', 'Ask each time')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'smart',
-                    child: Text(c.tr('智能审批', 'Smart approval')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'off',
-                    child: Text(c.tr('全部允许', 'Allow all')),
-                  ),
+              child: MenuSelect<String>(
+                key: const ValueKey('approval-mode'),
+                value: mode,
+                options: [
+                  ('manual', c.tr('每次询问', 'Ask each time')),
+                  ('smart', c.tr('智能审批', 'Smart approval')),
+                  ('off', c.tr('全部允许', 'Allow all')),
                 ],
                 onChanged: permissionsReady
-                    ? (value) => setState(() => mode = value!)
+                    ? (value) => setState(() => mode = value)
                     : null,
               ),
             ),
@@ -530,6 +429,21 @@ class _BotEditorState extends State<BotEditor> {
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               children: [
+                LabeledField(
+                  label: '@handle',
+                  child: TextField(
+                    controller: handle,
+                    onChanged: (_) => handleEdited = true,
+                    decoration: InputDecoration(
+                      helperText: c.tr(
+                        '默认与名称相同，支持中文；想换一个写法时再改',
+                        'Same as the name by default, Chinese included; change it only if you want another',
+                      ),
+                      helperMaxLines: 3,
+                    ),
+                  ),
+                ),
+                gap,
                 LabeledField(
                   label: c.tr('上下文覆盖', 'Context override'),
                   child: TextField(

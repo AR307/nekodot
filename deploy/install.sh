@@ -9,7 +9,6 @@ relay_ssh=''
 relay_ssh_key=''
 relay_ssh_known_hosts=''
 uninstall=false
-with_computer=false
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --pair|--relay|--relay-ssh|--relay-ssh-key|--relay-ssh-known-hosts)
@@ -23,10 +22,8 @@ while [ "$#" -gt 0 ]; do
       esac
       shift 2 ;;
     --uninstall) uninstall=true; shift ;;
-    --with-computer) with_computer=true; shift ;;
     --help)
       printf '%s\n' 'Usage: install.sh --pair ABCD-2345 [--relay http://127.0.0.1:4329]' \
-        '       install.sh --with-computer  (Linux VPS: install native Hermes screen dependencies)' \
         '       install.sh --uninstall  (stop and disable; retain all files and history)'
       exit 0 ;;
     *) printf 'Unknown option: %s\n' "$1" >&2; exit 2 ;;
@@ -54,7 +51,7 @@ fi
 for tool in curl tar git systemd-notify; do
   command -v "$tool" >/dev/null || { printf 'Install %s with your system package manager, then rerun.\n' "$tool" >&2; exit 1; }
 done
-if ! ldconfig -p 2>/dev/null | grep -qF 'libatomic.so.1'; then
+if ! ldconfig -p 2>/dev/null | grep -F 'libatomic.so.1' >/dev/null; then
   printf '%s\n' 'The Hermes runtime requires libatomic.so.1. Install the OS package that provides it (Ubuntu/Debian: libatomic1), then rerun.' >&2
   exit 1
 fi
@@ -110,7 +107,12 @@ fi
 export PATH="$node_root/bin:$PATH"
 export NEKODOT_HOME="$home"
 export HERMES_HOME="$home/hermes"
-export HERMES_RUNTIME_DIR="$home/hermes-runtime"
+hermes_version='__NEKODOT_HERMES_RUNTIME__'
+payload="$home/hermes-runtimes/$hermes_version"
+export HERMES_RUNTIME_DIR="$payload/tools"
+export UV_CACHE_DIR="$home/cache/uv"
+mkdir -p "$home/cache" "$HERMES_HOME"
+if [ ! -e "$HERMES_HOME/cache" ]; then ln -s "$home/cache" "$HERMES_HOME/cache"; fi
 export NEKODOT_HERMES_API_PORT="$api_port"
 # Hermes's dependency resolver needs upload times, which some system pip mirrors omit.
 export UV_INDEX_URL='https://pypi.org/simple'
@@ -145,40 +147,44 @@ if [ -n "$relay_ssh" ]; then
     [ "$ready" = true ] || { printf '%s\n' 'Could not connect the SSH tunnel to the Relay. Check WSL SSH key and known-host configuration.' >&2; exit 1; }
   fi
 fi
-source_dir="$home/hermes-source"
-if [ ! -f "$source_dir/scripts/run-in-hermes-env" ]; then
-  printf '%s\n' 'Installing isolated Hermes with the official installer...'
-  bootstrap="$home/downloads/hermes-install.sh"
-  curl -fSL --retry 3 --retry-delay 1 \
-    'https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh' -o "$bootstrap"
-  for stage in prerequisites repository venv python-deps config; do
-    bash "$bootstrap" --non-interactive --channel stable \
-      --dir "$source_dir" --hermes-home "$HERMES_HOME" --stage "$stage"
-  done
+if [ ! -x "$payload/bin/hermes" ]; then
+  printf 'Hermes %s\n' "$hermes_version"
+  archive="$home/downloads/hermes-$hermes_version-linux-x64.tar.gz"
+  curl -fsSL --retry 3 "$relay/downloads/hermes/$hermes_version/linux-x64.json" \
+    -o "$archive.json"
+  bytes=$(node -p "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')).bytes" "$archive.json")
+  if [ "$(stat -c %s "$archive" 2>/dev/null || printf 0)" != "$bytes" ]; then
+    curl -fSL --retry 3 --retry-delay 1 \
+      -C - "$relay/downloads/hermes/$hermes_version/linux-x64.tar.gz" -o "$archive"
+  fi
+  staging="$payload.extract-$(date +%s%N)"
+  mkdir -p "$staging"
+  tar -xzf "$archive" -C "$staging"
+  HERMES_HOME="$home/bootstrap-home" HERMES_RUNTIME_DIR="$staging/tools" "$staging/bin/hermes" --version
+  mv "$staging" "$payload"
 fi
 printf '%s\n' 'Preparing the official Hermes runtime...'
-(cd "$source_dir" && bash scripts/run-in-hermes-env python hermes --version)
-if [ "$with_computer" = true ]; then
-  if grep -qi microsoft /proc/sys/kernel/osrelease; then
-    printf '%s\n' 'Screen support currently requires a Linux VPS; WSL nodes can still use chat.' >&2
-    exit 1
-  fi
+if [ ! -f "$HERMES_HOME/config.yaml" ]; then
+  cp "$payload/hermes-agent/cli-config.yaml.example" "$HERMES_HOME/config.yaml"
+fi
+"$payload/bin/hermes" pm install --extra all
+"$payload/bin/hermes" --version
+if ! grep -qi microsoft /proc/sys/kernel/osrelease; then
   printf '%s\n' 'Installing the official Hermes computer-use runtime and screen packages...'
-  if ! (cd "$source_dir" && bash scripts/run-in-hermes-env python hermes computer-use screen install --yes); then
-    printf '%s\n' 'Screen dependencies were not installed. Run the administrator command printed by Hermes, then rerun with --with-computer. Existing data is retained.' >&2
+  if ! "$payload/bin/hermes" computer-use screen install --yes; then
+    printf '%s\n' 'Screen dependencies were not installed. Run the administrator command printed by Hermes, then rerun. Existing data is retained.' >&2
     exit 1
   fi
-  (cd "$source_dir" && bash scripts/run-in-hermes-env python hermes computer-use install)
-  (cd "$source_dir" && bash scripts/run-in-hermes-env python hermes pm install chromium)
+  "$payload/bin/hermes" computer-use install
   # The native screen package set does not include Chromium's audio shared library.
-  if command -v apt-get >/dev/null && ! ldconfig -p 2>/dev/null | grep -qF 'libasound.so.2'; then
+  if command -v apt-get >/dev/null && ! ldconfig -p 2>/dev/null | grep -F 'libasound.so.2' >/dev/null; then
     . /etc/os-release
     audio_package=libasound2
     if [ "$ID" = ubuntu ] && [ "$VERSION_ID" = 24.04 ]; then audio_package=libasound2t64; fi
     printf 'Chromium requires an OS library. Administrator command: apt-get install -y --no-install-recommends %s\n' "$audio_package"
     if [ "$(id -u)" -eq 0 ]; then apt-get install -y --no-install-recommends "$audio_package"
     elif command -v sudo >/dev/null && sudo -n true 2>/dev/null; then sudo -n apt-get install -y --no-install-recommends "$audio_package"
-    else printf '%s\n' 'Ask an administrator to run that command, then rerun --with-computer. Existing data is retained.' >&2; exit 1
+    else printf '%s\n' 'Ask an administrator to run that command, then rerun. Existing data is retained.' >&2; exit 1
     fi
   fi
 fi
@@ -194,8 +200,9 @@ cat > "$home/bin/nekodot-node" <<EOF
 #!/usr/bin/env bash
 set -e
 export NEKODOT_HOME='$home'
-export NEKODOT_HERMES_SOURCE='$source_dir'
+export NEKODOT_HERMES_LAUNCHER='$payload/bin/hermes'
 export NEKODOT_HERMES_RUNTIME='$HERMES_RUNTIME_DIR'
+export UV_CACHE_DIR='$UV_CACHE_DIR'
 export NEKODOT_HERMES_API_PORT='$api_port'
 export UV_INDEX_URL='https://pypi.org/simple'
 export PATH='$node_root/bin':\$PATH
@@ -251,7 +258,7 @@ EOF
   chmod 700 "$home/bin/nekodot-relay-tunnel"
   cat > "$unit_dir/nekodot-relay-tunnel.service" <<EOF
 [Unit]
-Description=nekoDOT Relay SSH tunnel
+Description=nekodot Relay SSH tunnel
 After=network-online.target
 
 [Service]
@@ -267,7 +274,7 @@ Requires=nekodot-relay-tunnel.service'
 fi
 cat > "$unit_dir/nekodot-node.service" <<EOF
 [Unit]
-Description=nekoDOT node
+Description=nekodot node
 $node_dependencies
 
 [Service]

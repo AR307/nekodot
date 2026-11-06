@@ -7,6 +7,8 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { build } from 'esbuild';
 import { createRelay } from './server';
+import Fastify from 'fastify';
+import { registerDownloads } from './downloads';
 
 it('downloads the installer and standalone node, then pairs outside the checkout', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'nekodot-download-'));
@@ -74,3 +76,32 @@ it('downloads the installer and standalone node, then pairs outside the checkout
     await relay.app.close();
   }
 }, 20000);
+
+it('resumes an interrupted runtime download without sending the completed prefix again', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'nekodot-runtime-download-'));
+  const runtime = join(directory, 'hermes/v0.22.6-r1');
+  await mkdir(runtime, { recursive: true });
+  const archive = Buffer.from('compressed-runtime-payload');
+  await writeFile(join(runtime, 'win32-x64.tar.gz'), archive);
+  const app = Fastify();
+  registerDownloads(app, directory, 'https://nekodot.example');
+  const base = await app.listen({ host: '127.0.0.1', port: 0 });
+  try {
+    const path = base + '/downloads/hermes/v0.22.6-r1/win32-x64.tar.gz';
+    const first = await fetch(path, { headers: { Range: 'bytes=0-8' } });
+    const rest = await fetch(path, { headers: { Range: 'bytes=9-' } });
+    expect(first.status).toBe(206);
+    expect(rest.status).toBe(206);
+    expect(rest.headers.get('cache-control')).toBe('no-store');
+    expect(
+      Buffer.concat([
+        Buffer.from(await first.arrayBuffer()),
+        Buffer.from(await rest.arrayBuffer()),
+      ]),
+    ).toEqual(archive);
+    expect((await fetch(path, { headers: { Range: 'bytes=900-' } })).status).toBe(416);
+    expect((await fetch(base + '/downloads/hermes/v0.22.6-r1/other.tar.gz')).status).toBe(404);
+  } finally {
+    await app.close();
+  }
+});

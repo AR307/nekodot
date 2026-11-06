@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { flowSnapshotSchema } from './flow';
 import { secretRequestSchema, savedSecretSchema, secretEnvelopeSchema } from './secrets';
 import {
   routineInputSchema,
@@ -214,6 +215,15 @@ export const rpcContracts = {
     params: z.strictObject(botTarget),
     result: z.strictObject({ routines: z.array(routineSchema) }),
   },
+  'routines.approvalRespond': {
+    params: z.strictObject({
+      ...botTarget,
+      executionId: z.string(),
+      promptId: z.string(),
+      choice: z.enum(['once', 'deny']),
+    }),
+    result: empty,
+  },
   'routines.get': {
     params: z.strictObject({ ...botTarget, routineId: idSchema }),
     result: z.strictObject({
@@ -359,6 +369,10 @@ export const rpcContracts = {
   },
   'files.backfill': { params: z.strictObject(botTarget), result: operationSchema },
   'imports.create': { params: empty, result: z.strictObject({ importId: z.uuid() }) },
+  'flow.get': {
+    params: z.strictObject({ conversationId: idSchema }),
+    result: z.strictObject({ flow: flowSnapshotSchema.nullable() }),
+  },
   'sync.snapshot': {
     params: empty,
     result: z.strictObject({
@@ -367,6 +381,7 @@ export const rpcContracts = {
       conversations: z.array(conversationSchema),
       // Each conversation's newest words, so a list previews it before it is opened.
       latest: z.array(messageSchema),
+      flows: z.array(flowSnapshotSchema),
       headSeq: seqSchema,
       node: nodeCapabilitiesSchema,
     }),
@@ -393,6 +408,7 @@ export const rpcContracts = {
       conversationId: idSchema,
       text: z.string(),
       files: z.array(z.uuid()).optional(),
+      routineExecutionId: z.string().min(1).optional(),
       clientMsgId: z.uuidv4(),
     }),
     result: z.strictObject({ messageId: idSchema }),
@@ -465,6 +481,15 @@ export const rpcContracts = {
     result: z.strictObject({ models: z.array(z.string()), warning: z.string().optional() }),
   },
   'models.info': { params: z.strictObject(botTarget), result: modelInfoSchema },
+  'models.assign': {
+    params: z.strictObject({
+      ...botTarget,
+      key: z.string().min(1),
+      sourceId: idSchema,
+      model: z.string().min(1),
+    }),
+    result: z.strictObject({ saved: z.literal(true) }),
+  },
   'hermes.settings.get': { params: z.strictObject(botTarget), result: hermesSettingsSchema },
   'hermes.settings.set': {
     params: z.strictObject({ ...botTarget, key: z.string().min(1), value: z.json() }),

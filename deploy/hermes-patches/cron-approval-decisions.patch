@@ -1,0 +1,64 @@
+--- a/gateway/session_cron.py
++++ b/gateway/session_cron.py
+@@ -321,7 +321,7 @@
+         with _profile_runtime_scope(db_path.parent):
+             # Keep the native stop marker while the scheduled run waits for approval.
+             stop = _CombinedCancelEvent(CancelRequest(execution_id), cancel)
+-            with approval_scope(authority, ref.session_id, row['generation'], job['id']):
++            with approval_scope(authority, ref.session_id, row['generation']):
+                 result = await asyncio.to_thread(_run_identified, run_job, job, execution_id,
+                                                  extra_prompt=data['extra_prompt'], cancel_event=stop)
+         # run_job stamps run-side verdicts on ITS job copy (quota hold, unreachable model); the
+--- a/gateway/session_cron_approvals.py
++++ b/gateway/session_cron_approvals.py
+@@ -3,14 +3,11 @@
+ 
+ 
+ @contextmanager
+-def approval_scope(authority, session_id, generation, job_id):
++def approval_scope(authority, session_id, generation):
+     from tools.approval import register_gateway_notify, unregister_gateway_notify
+     from tools.approval_context import set_current_session_key, reset_current_session_key, _get_approval_timeout
+-    from cron.approval_policy import current_mode
+-    from hermes_cli.config import load_config_readonly
+-    if current_mode(load_config_readonly(), job_id=job_id) != "ask":
+-        yield
+-        return
++    # Keep the bridge for the entire fire: an auto-allow window can end mid-run.
++    # The guard evaluates the current rule when each action needs approval.
+     route = "cron-approval:" + session_id
+     token = set_current_session_key(route)
+ 
+--- a/tools/approval.py
++++ b/tools/approval.py
+@@ -1254,10 +1254,12 @@
+ 
+     # (-q clears the presence flags, but its unattended context resolves first anyway.)
+     approval_callback, is_cli, is_gateway, is_ask = _presence()
+-    # No user is present to approve arbitrary code in -q / cron / unattended
+-    # sessions: the first active context resolves instantly from its mode.
++    # API runs with a registered notifier are interactive despite their api_server platform tag.
++    # Keep unattended defaults for every other programmatic run.
+     for ctx in _unattended_contexts():
+         if ctx.name == "cron" and is_ask:
++            continue
++        if ctx.name == "unattended" and is_ask:
+             continue
+         if ctx.mode() != "approve":
+             return _denied(
+--- a/tools/approval_context.py
++++ b/tools/approval_context.py
+@@ -295,6 +295,13 @@
+ 
+ def _get_approval_mode() -> str:
+     """Return 'manual', 'smart', or 'off' (a hosted-room policy overrides config)."""
++    if _is_cron_approval_context():
++        from cron.execution_identity import current_cron_execution
++        execution = current_cron_execution()
++        approvals = _get_approval_config()
++        if execution and (approvals.get("cron_require_policy")
++                          or execution.job_id in (approvals.get("cron_policies") or {})):
++            return "off" if _get_cron_approval_mode() == "approve" else "manual"
+     try:
+         from gateway.hosted_room_execution_policy import current_room_execution_policy
+         if (room_policy := current_room_execution_policy()) is not None:

@@ -19,7 +19,7 @@ def _call(operation, **params):
     response = _bridge_call(settings["socket"], dict(action="secret", operation=operation, botId=home.name,
         token=token, sessionId=os.environ.get("HERMES_SESSION_ID", ""), **params), 30)
     if not response.get("ok"):
-        raise RuntimeError("Confidential operation failed; open the nekoDOT card for status")
+        raise RuntimeError("Confidential operation failed; open the nekodot card for status")
     return response["result"]
 
 
@@ -100,7 +100,7 @@ def register(ctx):
     from tools.browser_vault_tool import _check_vault_available
     ctx.register_tool(name="nekodot_secret_browser", toolset="nekodot-secrets", check_fn=_check_vault_available,
         handler=_browser, schema={"name":"nekodot_secret_browser",
-        "description":"Fill an approved nekoDOT confidential reference in this profile browser using native vault/supervisor. No secret values in arguments. Open the approved site with browser_exec first.",
+        "description":"Fill an approved nekodot confidential reference in this profile browser using native vault/supervisor. No secret values in arguments. Open the approved site with browser_exec first.",
         "parameters":{"type":"object","properties":{"reference":{"type":"string"}},"required":["reference"]}})
 `;
 
@@ -115,7 +115,7 @@ Run \`hermes secret request --spec 'METADATA_JSON'\` from the active session. Fi
 - Website: target {"kind":"vault","origin":"https://actual-site.example"}; fields identifier/password. Use the actual site. After delivery use nekodot_secret_browser with the reference; it delegates to native browser_vault and also fills the confidential identifier. Never read form values. Then submit with native browser tools.
 - One-time codes: request a separate card with one field of kind otp and target {"kind":"browser-code","origin":"https://actual-site.example"}. Use nekodot_secret_browser with that reference. Codes cannot be saved. CAPTCHA and other human verification require screen takeover. Payments are not supported.
 Example: \`hermes secret request --spec '{"service":"Test API","purpose":"Configure the monitoring client","fields":[{"name":"TEST_API_KEY","label":"API Key","kind":"password"}],"target":{"kind":"file","path":"<absolute path>/monitor.env","format":"env"}}'\`.
-The command returns pending metadata/reference immediately. Tell the user to open the card, then finish this turn. nekoDOT queues ONE native continuation in the original session after submission; do not poll, wait in terminal, or rerun earlier tools.
+The command returns pending metadata/reference immediately. Tell the user to open the card, then finish this turn. nekodot queues ONE native continuation in the original session after submission; do not poll, wait in terminal, or rerun earlier tools.
 If the same Bot already has a saved exact service/purpose/target match, the command applies it and returns applied metadata. Continue the remaining work in this turn. A changed purpose/destination requires another user confirmation.
 Delivery applies only the displayed destination. \`hermes secret status REF\` and \`hermes secret apply REF\` return metadata and idempotent results, never values. Do not substitute another destination. For scripts, use the profile-bound reference to apply the approved config and load that file; never embed values in script source. Saved service credentials are not exported into unrelated profile-wide environment variables.
 Not saving means no extra reusable copy: approved config files and browser sessions can still persist. Temporary vault items are withdrawn at task completion. Saved entries can be replaced or disabled in Bot details.

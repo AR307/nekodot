@@ -109,8 +109,13 @@ export const messageSchema = z.discriminatedUnion('kind', [
       routineId: z.string(),
       botId: z.string(),
       name: z.string(),
+      trigger: z.enum(['schedule', 'webhook', 'both']).optional(),
       granted: z.boolean(),
       card: z.enum(['task', 'credentials']),
+      action: z
+        .enum(['created', 'updated', 'enabled', 'stopped', 'started', 'executed', 'failed'])
+        .optional(),
+      executionId: z.string().optional(),
     }),
   }),
   z.strictObject({
@@ -135,6 +140,7 @@ export const messageSchema = z.discriminatedUnion('kind', [
     content: z.strictObject({
       text: z.string(),
       retryText: z.string().optional(),
+      command: z.string().optional(),
       files: z.array(idSchema).optional(),
     }),
   }),
@@ -144,6 +150,8 @@ export const messageSchema = z.discriminatedUnion('kind', [
     content: z.strictObject({
       tool: idSchema,
       preview: z.string(),
+      // Hermes's own one-line label of the call: its primary argument.
+      context: z.string().optional(),
       resultPreview: z.string().optional(),
       durationMs: z.number().nonnegative().optional(),
       error: z.boolean().optional(),

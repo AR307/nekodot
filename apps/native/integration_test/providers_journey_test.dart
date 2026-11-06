@@ -137,24 +137,23 @@ void main() {
       await until(() => find.byType(BotEditor).evaluate().isNotEmpty);
       await until(() => find.byType(SnackBar).evaluate().isEmpty);
       await fill('名称', 'Maple');
+      await tester.tap(find.text('高级').last);
+      await tester.pump(const Duration(milliseconds: 300));
       await fill('@handle', 'maple-sources');
-      await fill('角色设定', 'Helpful source specialist');
       final sourceField = find.descendant(
         of: find.widgetWithText(LabeledField, '模型来源'),
-        matching: find.byType(DropdownButtonFormField<String>),
+        matching: find.byType(MenuSelect<String>),
       );
       await tap(sourceField);
       await tap(find.text('Writing API').last);
       // The picked source rebuilds the model field once its menu has closed.
-      await until(
-        () => find.byType(DropdownMenuItem<String>).evaluate().length <= 3,
-      );
+      await until(() => find.byType(PopupMenuItem<String>).evaluate().isEmpty);
       await tester.pump(const Duration(milliseconds: 500));
       await fill('模型', 'recorded-model');
       // Leaving the field closes its suggestions, which cover what is below.
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump(const Duration(milliseconds: 300));
-      await tap(find.text('高级'));
+      // Advanced is already open, for the @handle.
       await fill('上下文覆盖', '64000');
       debugPrint('QA: native source bot form ready');
       await screenshot('native-source-bot-form');

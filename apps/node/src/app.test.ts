@@ -19,7 +19,7 @@ const testKey = 'test-only-hermes-key';
 describe('Node private-chat journeys with the recorded Hermes HTTP service', () => {
   it('creates a profile and DM, replays text, tool approval, denial, stop, idempotency, and in-run steer', async () => {
     const relay = await startFakeHermes({
-      fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
+      fixturesDirectory: join(process.cwd(), 'tests/fixtures'),
       profiles: ['default'],
       apiKey: testKey,
       allowProfileCreate: true,
@@ -36,6 +36,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',
+      syncRules: async () => {},
       configureBot: async (bot: Bot) => {
         if (!profiles.has(bot.botId)) {
           const response = await fetch(relay.url + '/test/profiles', {
@@ -315,7 +316,7 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
   it('manages groups, relays recorded replies, resumes a run, and clears queued work on steer or stop', async () => {
     const schedule: string[] = [];
     const relay = await startFakeHermes({
-      fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
+      fixturesDirectory: join(process.cwd(), 'tests/fixtures'),
       profiles: ['default'],
       apiKey: testKey,
       allowProfileCreate: true,
@@ -343,6 +344,7 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',
+      syncRules: async () => {},
       configureBot: async (bot: Bot) => {
         if (profiles.has(bot.botId)) return;
         const response = await fetch(relay.url + '/test/profiles', {

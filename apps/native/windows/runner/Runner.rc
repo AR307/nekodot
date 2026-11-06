@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "nekoDOT contributors" "\0"
-            VALUE "FileDescription", "nekoDOT" "\0"
+            VALUE "CompanyName", "nekodot contributors" "\0"
+            VALUE "FileDescription", "nekodot" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "nekoDOT" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 nekoDOT contributors. MIT License." "\0"
-            VALUE "OriginalFilename", "nekoDOT.exe" "\0"
-            VALUE "ProductName", "nekoDOT" "\0"
+            VALUE "InternalName", "nekodot_native" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 nekodot contributors. MIT License." "\0"
+            VALUE "OriginalFilename", "nekodot_native.exe" "\0"
+            VALUE "ProductName", "nekodot" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

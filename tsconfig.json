@@ -9,11 +9,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "jsx": "react-jsx",
     "noEmit": true,
-    "types": ["node", "vite/client"],
+    "types": ["node"],
     "paths": {
-      "@/*": ["./apps/web/src/*"],
       "@nekodot/protocol": ["./packages/protocol/src/index.ts"],
       "@nekodot/fake-hermes": ["./packages/fake-hermes/src/index.ts"]
     }

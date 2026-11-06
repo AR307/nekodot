@@ -11,7 +11,7 @@ it('keeps Bot settings on one profile and shared settings on every profile', asy
   const home = await mkdtemp(join(tmpdir(), 'nekodot-hermes-settings-'));
   const key = 'test-only-management';
   const fake = await startFakeHermes({
-    fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
+    fixturesDirectory: join(process.cwd(), 'tests/fixtures'),
     profiles: ['default'],
     apiKey: key,
     allowProfileCreate: true,
@@ -21,6 +21,7 @@ it('keeps Bot settings on one profile and shared settings on every profile', asy
     start: async () => {},
     close: async () => {},
     approvalMode: async () => 'manual',
+    syncRules: async () => {},
     configureBot: async () => {},
   };
   const nativeRequest = runtime.management.request.bind(runtime.management);
@@ -47,16 +48,22 @@ it('keeps Bot settings on one profile and shared settings on every profile', asy
         description: 'Context window override',
         category: 'general',
       },
+      timezone: {
+        type: 'select',
+        description: 'Timezone',
+        category: 'general',
+        options: ['UTC', 'Asia/Shanghai'],
+      },
+      'proxy.enabled': {
+        type: 'boolean',
+        description: 'Use a proxy',
+        category: 'network',
+      },
       'logging.level': {
         type: 'select',
         description: 'Log level',
         category: 'logging',
         options: ['INFO', 'DEBUG'],
-      },
-      'slack.require_mention': {
-        type: 'boolean',
-        description: 'Require a mention in Slack',
-        category: 'slack',
       },
     },
   };
@@ -160,48 +167,51 @@ it('keeps Bot settings on one profile and shared settings on every profile', asy
     ).rejects.toThrow('Manage model settings in the Bot editor');
 
     // Installation settings leave the Bot page and are written to every profile at once.
-    expect(firstSettings.fields.map((field) => field.key)).not.toContain('logging.level');
+    expect(firstSettings.fields.map((field) => field.key)).not.toContain('timezone');
     await expect(
       app.handle(
         request('hermes.settings.set', {
           botId: first.bot.botId,
-          key: 'logging.level',
-          value: 'DEBUG',
+          key: 'timezone',
+          value: 'Asia/Shanghai',
         }),
       ),
     ).rejects.toThrow('change it in app settings');
+    // Settings nekodot does not use are hidden and refused, whatever the Bot.
+    expect(firstSettings.fields.map((field) => field.key)).not.toContain('logging.level');
+    await expect(
+      app.handle(request('hermes.shared.set', { key: 'logging.level', value: 'DEBUG' })),
+    ).rejects.toThrow('not available');
     const shared = (await app.handle(request('hermes.shared.get', {}))) as {
       fields: { key: string; group: string }[];
     };
     expect(shared.fields.map((field) => [field.key, field.group])).toEqual([
-      ['logging.level', 'general'],
-      ['slack.require_mention', 'channels'],
+      ['timezone', 'general'],
+      ['proxy.enabled', 'network'],
     ]);
     await expect(
       app.handle(request('hermes.shared.set', { key: 'compression.enabled', value: false })),
     ).rejects.toThrow('change it on that Bot');
     await expect(
-      app.handle(request('hermes.shared.set', { key: 'logging.level', value: 'TRACE' })),
+      app.handle(request('hermes.shared.set', { key: 'timezone', value: 'Mars/Base' })),
     ).rejects.toThrow('Value does not match the Hermes setting');
     expect(
-      await app.handle(request('hermes.shared.set', { key: 'logging.level', value: 'DEBUG' })),
-    ).toEqual({ key: 'logging.level', saved: true, profiles: 3 });
+      await app.handle(request('hermes.shared.set', { key: 'timezone', value: 'Asia/Shanghai' })),
+    ).toEqual({ key: 'timezone', saved: true, profiles: 3 });
     const level = async (profile: string) =>
       (
-        (
-          await runtime.management.request<Record<string, unknown>>(
-            '/api/config?include_defaults=true',
-            profile,
-          )
-        ).logging as Record<string, unknown> | undefined
-      )?.level;
+        await runtime.management.request<Record<string, unknown>>(
+          '/api/config?include_defaults=true',
+          profile,
+        )
+      ).timezone;
     expect([
       await level('default'),
       await level(first.bot.botId),
       await level(second.bot.botId),
-    ]).toEqual(['DEBUG', 'DEBUG', 'DEBUG']);
+    ]).toEqual(['Asia/Shanghai', 'Asia/Shanghai', 'Asia/Shanghai']);
     const third = await createBot('Settings C', 'settings-c');
-    expect(await level(third.bot.botId)).toBe('DEBUG');
+    expect(await level(third.bot.botId)).toBe('Asia/Shanghai');
   } finally {
     await app.close();
     runtime.management.close();

@@ -10,13 +10,6 @@ import 'location.dart';
 import 'owned_process.dart';
 import 'system.dart';
 
-/// Official Hermes v0.22.6 installers, fetched at the pinned commit and checked byte for byte.
-const _installerSha256 = {
-  'install.ps1':
-      '4ab816db4cc94ca4984e11f19559cb106ff00f857c8dfec54874401cfca7f7b3',
-  'install.sh':
-      'abf338605dae6dd28d101673ac6aed7995c955745db46d47676bc591a7957209',
-};
 const _nodeArchives = {
   LocalPlatform.windows: (
     'node-v24.22.1-win-x64.zip',
@@ -32,20 +25,8 @@ const _nodeArchives = {
   ),
 };
 
-/// Runtime steps in order. Official Hermes stages keep their protocol names; `setup` and
-/// `gateway` are never run (interactive configuration, system service installation).
-const runtimeSteps = [
-  'node',
-  'installer',
-  'prerequisites',
-  'repository',
-  'venv',
-  'python-deps',
-  'config',
-  'products',
-  'complete',
-  'verify',
-];
+/// Download, extract, then use Hermes's portable backend launcher. No source build.
+const runtimeSteps = ['node', 'repository', 'python-deps', 'verify'];
 
 class InstallFailure implements Exception {
   final String step, detail;
@@ -54,7 +35,7 @@ class InstallFailure implements Exception {
   String toString() => '$step: $detail';
 }
 
-/// Environment for anything nekoDOT starts: the user's own Hermes and uv settings never leak in.
+/// Environment for anything nekodot starts: the user's own Hermes and uv settings never leak in.
 Map<String, String> isolatedEnvironment(Map<String, String> extra) => {
   for (final entry in Platform.environment.entries)
     if (!RegExp(
@@ -70,21 +51,23 @@ class RuntimeInstaller {
   final LocalPlatform platform;
   final http.Client web;
   final void Function(String step, String state, String detail) progress;
+  final Uri origin;
   OwnedProcess? _current;
   bool _cancelled = false;
   final _abort = Completer<void>();
 
-  RuntimeInstaller(this.location, this.platform, this.web, this.progress);
+  RuntimeInstaller(
+    this.location,
+    this.platform,
+    this.web,
+    this.progress, {
+    required this.origin,
+  });
 
-  String get _scripts => joinPath(location.runtime, 'installer');
   Map<String, String> _environment(String home) => isolatedEnvironment({
     'HERMES_HOME': home,
-    'UV_PYTHON_INSTALL_DIR': joinPath(location.owner, 'cache', 'uv-python'),
-    'UV_CACHE_DIR': joinPath(location.owner, 'cache', 'uv'),
-    // The installer uses Windows PowerShell 5.1, not the launching shell's modules.
-    // A PowerShell 7 host can otherwise shadow Get-FileHash with incompatible modules.
-    if (Platform.isWindows)
-      'PSModulePath': windowsTool(r'WindowsPowerShell\v1.0\Modules'),
+    'HERMES_RUNTIME_DIR': location.tools,
+    'UV_CACHE_DIR': location.cache,
   });
 
   void cancel() {
@@ -93,13 +76,12 @@ class RuntimeInstaller {
     _current?.kill();
   }
 
-  /// Installs or resumes the shared runtime; completed steps are kept across retries.
   Future<void> run() async {
     final done = await location.completed();
     await Directory(location.logs).create(recursive: true);
     for (final step in runtimeSteps) {
       if (_cancelled) throw InstallFailure(step, 'cancelled');
-      if (done.contains(step) && step != 'installer' && step != 'verify') {
+      if (done.contains(step) && step != 'verify') {
         progress(step, 'done', '');
         continue;
       }
@@ -108,20 +90,145 @@ class RuntimeInstaller {
         switch (step) {
           case 'node':
             await _node();
-          case 'installer':
-            await _installer();
+          case 'repository':
+            await _runtimeDownload();
+          case 'python-deps':
+            await _extract();
           case 'verify':
-            await _verify();
-          default:
-            await stage(step, location.owner);
+            await prepareAccount(location.owner);
         }
-      } on http.RequestAbortedException {
-        throw InstallFailure(step, 'cancelled');
+      } catch (_) {
+        // Aborting the HTTP stream can surface as RequestAborted or a closed
+        // file sink. Both are the same user action, not an installation fault.
+        if (_cancelled) throw InstallFailure(step, 'cancelled');
+        rethrow;
       }
       done.add(step);
       await location.record(done);
       progress(step, 'done', '');
     }
+  }
+
+  String get _archive => joinPath(
+    location.runtime,
+    'downloads',
+    'hermes-$hermesRuntimeVersion.tar.gz',
+  );
+
+  Future<void> _runtimeDownload() async {
+    final target = switch (platform) {
+      LocalPlatform.windows => 'win32-x64',
+      LocalPlatform.macos => 'darwin-arm64',
+      LocalPlatform.linux => 'linux-x64',
+    };
+    final path = '/downloads/hermes/$hermesRuntimeVersion/$target';
+    final response = await http.Response.fromStream(
+      await web.send(
+        http.AbortableRequest(
+          'GET',
+          origin.resolve('$path.json'),
+          abortTrigger: _abort.future,
+        ),
+      ),
+    ).timeout(const Duration(minutes: 2));
+    if (response.statusCode != 200) {
+      throw InstallFailure('repository', 'HTTP ${response.statusCode}');
+    }
+    final manifest = jsonDecode(response.body) as Map<String, dynamic>;
+    if (manifest['version'] != hermesRuntimeVersion ||
+        manifest['target'] != target) {
+      throw const InstallFailure(
+        'repository',
+        'Runtime version or platform mismatch',
+      );
+    }
+    await Directory(joinPath(location.runtime, 'downloads'))
+        .create(recursive: true);
+    await _download(
+      'repository',
+      origin.resolve('$path.tar.gz'),
+      File(_archive),
+      null,
+      bytes: manifest['bytes'] as int,
+    );
+  }
+
+  Future<void> _extract() async {
+    // A previous interrupted extraction is retained; only a new staging directory is used.
+    if (await File(joinPath(location.payload, 'manifest.json')).exists()) {
+      return;
+    }
+    final staging = Directory(
+      '${location.payload}.extract-${DateTime.now().microsecondsSinceEpoch}',
+    );
+    await staging.create(recursive: true);
+    final log = File(joinPath(location.logs, 'install-runtime.log'))
+        .openWrite(mode: FileMode.append);
+    try {
+      _current = await OwnedProcess.start(
+        Platform.isWindows ? windowsTool('tar.exe') : 'tar',
+        ['-xzf', _archive, '-C', staging.path],
+        workingDirectory: location.runtime,
+        environment: _environment(location.owner),
+        log: log,
+      );
+      final code = await _current!.exitCode;
+      if (_cancelled) throw const InstallFailure('python-deps', 'cancelled');
+      if (code != 0) {
+        throw InstallFailure('python-deps', _current!.tail.join('\n'));
+      }
+      await staging.rename(location.payload);
+    } finally {
+      _current = null;
+      await log.close();
+    }
+  }
+
+  Future<void> prepareAccount(String home) async {
+    await Directory(home).create(recursive: true);
+    final config = File(joinPath(home, 'config.yaml'));
+    if (!await config.exists()) {
+      await File(joinPath(location.checkout, 'cli-config.yaml.example'))
+          .copy(config.path);
+    }
+    final cache = joinPath(home, 'cache');
+    // Hermes deliberately ignores UV_CACHE_DIR for its own PM. Share only its
+    // download cache through the documented home layout, never environments.
+    if (!await Directory(cache).exists()) {
+      final shared = Directory(joinPath(location.runtime, 'cache'));
+      await shared.create(recursive: true);
+      if (Platform.isWindows) {
+        String quote(String value) => "'${value.replaceAll("'", "''")}'";
+        final result = await runOwned(
+          windowsTool('WindowsPowerShell/v1.0/powershell.exe'),
+          [
+            '-NoProfile',
+            '-Command',
+            'New-Item -ItemType Junction -Path ${quote(cache)} -Target ${quote(shared.path)} | Out-Null',
+          ],
+        );
+        if (result.code != 0) throw InstallFailure('account', result.output);
+      } else {
+        await Link(cache).create(shared.path);
+      }
+    }
+    // PM no-ops against the shipped baseline for new accounts. On a package
+    // update it prepares existing plugin dependencies in this account's private
+    // generation; discovery alone would otherwise leave those plugins unloadable.
+    final sync = await runOwned(
+      location.launcher,
+      ['pm', 'install', '--extra', 'all'],
+      workingDirectory: home,
+      environment: _environment(home),
+    );
+    if (sync.code != 0) throw InstallFailure('account', sync.output);
+    final result = await runOwned(
+      location.launcher,
+      ['--version'],
+      workingDirectory: home,
+      environment: _environment(home),
+    );
+    if (result.code != 0) throw InstallFailure('account', result.output);
   }
 
   Future<void> _node() async {
@@ -161,253 +268,83 @@ class RuntimeInstaller {
     }
   }
 
-  Future<void> _installer() async {
-    await Directory(_scripts).create(recursive: true);
-    final name = Platform.isWindows ? 'install.ps1' : 'install.sh';
-    final response = await http.Response.fromStream(
-      await web
-          .send(
-            http.AbortableRequest(
-              'GET',
-              Uri.parse(
-                'https://raw.githubusercontent.com/NousResearch/hermes-agent/$hermesCommit/scripts/$name',
-              ),
-              abortTrigger: _abort.future,
-            ),
-          )
-          .timeout(const Duration(minutes: 2)),
-    );
-    if (response.statusCode != 200) {
-      throw InstallFailure('installer', 'HTTP ${response.statusCode}');
-    }
-    final digest = await Sha256().hash(response.bodyBytes);
-    if (_hex(digest.bytes) != _installerSha256[name]) {
-      throw const InstallFailure('installer', 'installer digest mismatch');
-    }
-    // Windows PowerShell 5.1 reads a -File script in the ANSI code page unless it has a BOM.
-    final bom = Platform.isWindows ? const [0xEF, 0xBB, 0xBF] : const <int>[];
-    await File(joinPath(_scripts, name))
-        .writeAsBytes([...bom, ...response.bodyBytes]);
-    await File(
-      joinPath(_scripts, Platform.isWindows ? 'products.ps1' : 'products.sh'),
-    ).writeAsBytes([
-      ...bom,
-      ...utf8.encode(Platform.isWindows ? _productsPs1 : _productsSh),
-    ]);
-    if (Platform.isWindows) {
-      await File(joinPath(_scripts, 'run-stage.ps1'))
-          .writeAsBytes([...bom, ...utf8.encode(_runStagePs1)]);
-    }
-  }
-
-  /// Runs one official protocol-1 stage and reads its final JSON frame.
-  Future<void> stage(String name, String home) async {
-    final installer = joinPath(
-      _scripts,
-      Platform.isWindows ? 'install.ps1' : 'install.sh',
-    );
-    final List<String> command;
-    if (name == 'products') {
-      // The official stage also rewrites the user PATH / shell profiles; this runs the same
-      // build through the installer's own functions without publishing a user command.
-      command = Platform.isWindows
-          ? [
-              ..._powershell,
-              joinPath(_scripts, 'products.ps1'),
-              '-Installer',
-              installer,
-              '-HermesHome',
-              home,
-              '-InstallDir',
-              location.checkout,
-            ]
-          : [
-              'bash',
-              joinPath(_scripts, 'products.sh'),
-              installer,
-              home,
-              location.checkout,
-            ];
-    } else {
-      command = Platform.isWindows
-          ? [
-              ..._powershell,
-              joinPath(_scripts, 'run-stage.ps1'),
-              installer,
-              '-Stage',
-              name,
-              '-Json',
-              '-NonInteractive',
-              '-Commit',
-              hermesCommit,
-              '-Branch',
-              'main',
-              '-HermesHome',
-              home,
-              '-InstallDir',
-              location.checkout,
-            ]
-          : [
-              'bash',
-              installer,
-              '--stage',
-              name,
-              '--json',
-              '--non-interactive',
-              '--commit',
-              hermesCommit,
-              '--branch',
-              'main',
-              '--hermes-home',
-              home,
-              '--dir',
-              location.checkout,
-            ];
-    }
-    final log = File(joinPath(location.logs, 'install-$name.log'))
-        .openWrite(mode: FileMode.append);
-    log.writeln('--- ${DateTime.now().toIso8601String()} ${command.join(' ')}');
-    try {
-      final process = _current = await OwnedProcess.start(
-        command.first,
-        command.sublist(1),
-        workingDirectory: location.runtime,
-        environment: _environment(home),
-        log: log,
-      );
-      process.lines.listen((line) {
-        if (line.trim().isNotEmpty && !line.startsWith('{')) {
-          progress(name, 'running', line.trim());
-        }
-      });
-      final code = await process.exitCode;
-      Map<String, dynamic>? frame;
-      for (final line in process.tail.reversed) {
-        try {
-          final value = jsonDecode(line);
-          if (value is Map<String, dynamic> &&
-              value.containsKey('ok') &&
-              value['stage'] == name) {
-            frame = value;
-            break;
-          }
-        } on FormatException {
-          continue;
-        }
-      }
-      if (_cancelled) throw InstallFailure(name, 'cancelled');
-      if (frame?['ok'] != true || code != 0) {
-        throw InstallFailure(
-          name,
-          '${frame?['reason'] ?? process.tail.where((l) => l.trim().isNotEmpty).lastOrNull ?? 'exit $code'}',
-        );
-      }
-    } finally {
-      _current = null;
-      await log.close();
-    }
-  }
-
-  Future<void> _verify() async {
-    if (!await File(location.launcher).exists()) {
-      throw InstallFailure(
-        'verify',
-        'Hermes launcher missing: ${location.launcher}',
-      );
-    }
-    final result = await runOwned(
-      location.launcher,
-      ['--version'],
-      workingDirectory: location.owner,
-      environment: _environment(location.owner),
-    );
-    if (result.code != 0) throw InstallFailure('verify', result.output);
-  }
-
-  /// Hermes shares its checkout, but each account home owns its PM dependency state.
-  /// Prepare it during installation, before the gateway's short health-check window.
-  Future<void> prepareAccount(String home) async {
-    final log = File(joinPath(location.logs, 'install-account.log'))
-        .openWrite(mode: FileMode.append);
-    try {
-      final process = _current = await OwnedProcess.start(
-        location.launcher,
-        ['pm', 'install', '--extra', 'all'],
-        workingDirectory: home,
-        environment: {
-          ..._environment(home),
-          'HERMES_RUNTIME_DIR': location.tools,
-        },
-        log: log,
-      );
-      process.lines.listen((line) {
-        if (line.trim().isNotEmpty) progress('account', 'running', line.trim());
-      });
-      final code = await process.exitCode;
-      if (_cancelled) throw const InstallFailure('account', 'cancelled');
-      if (code != 0) {
-        throw InstallFailure(
-          'account',
-          process.tail.lastOrNull ?? 'Hermes account preparation exited $code',
-        );
-      }
-    } finally {
-      _current = null;
-      await log.close();
-    }
-  }
-
   Future<void> _download(
     String step,
     Uri url,
     File target,
-    String sha256,
-  ) async {
-    if (await target.exists() &&
+    String? sha256, {
+    int? bytes,
+  }) async {
+    if (bytes != null &&
+        await target.exists() &&
+        await target.length() == bytes) {
+      return;
+    }
+    if (sha256 != null &&
+        await target.exists() &&
         _hex((await _hashFile(target)).bytes) == sha256) {
       return;
     }
     final partial = File('${target.path}.part');
+    final offset = bytes != null && await partial.exists()
+        ? await partial.length()
+        : 0;
+    final request = http.AbortableRequest(
+      'GET',
+      url,
+      abortTrigger: _abort.future,
+    );
+    if (offset > 0 && offset < bytes!) {
+      request.headers['Range'] = 'bytes=$offset-';
+    }
     final response = await web
-        .send(http.AbortableRequest('GET', url, abortTrigger: _abort.future))
+        .send(request)
         .timeout(const Duration(minutes: 2));
-    if (response.statusCode != 200) {
+    if (response.statusCode != 200 && response.statusCode != 206) {
       throw InstallFailure(step, 'HTTP ${response.statusCode}');
     }
-    final total = response.contentLength ?? 0;
-    final sink = partial.openWrite();
-    final hash = Sha256().newHashSink();
-    var received = 0;
+    final resumed = response.statusCode == 206;
+    if (resumed &&
+        !('${response.headers['content-range']}').startsWith(
+          'bytes $offset-',
+        )) {
+      throw InstallFailure(step, 'Invalid download range');
+    }
+    final total = bytes ?? response.contentLength ?? 0;
+    final sink = partial.openWrite(
+      mode: resumed ? FileMode.append : FileMode.write,
+    );
+    final hash = sha256 == null ? null : Sha256().newHashSink();
+    var received = resumed ? offset : 0;
+    var lastPercent = -1;
     try {
-      await for (final chunk in response.stream.timeout(
-        const Duration(seconds: 60),
-      )) {
-        if (_cancelled) {
-          throw InstallFailure(step, 'cancelled');
-        }
-        sink.add(chunk);
-        hash.add(chunk);
-        received += chunk.length;
-        if (total > 0) progress(step, 'running', '${received * 100 ~/ total}%');
-      }
+      await sink.addStream(
+        response.stream.timeout(const Duration(seconds: 60)).map((chunk) {
+          if (_cancelled) throw InstallFailure(step, 'cancelled');
+          hash?.add(chunk);
+          received += chunk.length;
+          if (total > 0) {
+            final percent = received * 100 ~/ total;
+            if (percent != lastPercent) {
+              lastPercent = percent;
+              progress(step, 'running', '$percent%');
+            }
+          }
+          return chunk;
+        }),
+      );
     } finally {
       await sink.close();
-      hash.close();
+      hash?.close();
     }
-    if (_hex((await hash.hash()).bytes) != sha256) {
+    if (bytes != null && received != bytes) {
+      throw InstallFailure(step, 'Incomplete download');
+    }
+    if (sha256 != null && _hex((await hash!.hash()).bytes) != sha256) {
       throw InstallFailure(step, 'download digest mismatch');
     }
     await partial.rename(target.path);
   }
-
-  static List<String> get _powershell => [
-    windowsTool(r'WindowsPowerShell\v1.0\powershell.exe'),
-    '-NoProfile',
-    '-NonInteractive',
-    '-ExecutionPolicy',
-    'Bypass',
-    '-File',
-  ];
 }
 
 Future<Hash> _hashFile(File file) async {
@@ -421,60 +358,3 @@ Future<Hash> _hashFile(File file) async {
 
 String _hex(List<int> bytes) =>
     bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-
-/// Windows PowerShell 5.1 writes the console code page (GBK on Chinese Windows); this runs an
-/// official stage with UTF-8 output so paths and errors reach the app intact.
-const _runStagePs1 = r'''
-$ErrorActionPreference = "Stop"
-[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
-$OutputEncoding = [Console]::OutputEncoding
-$script, $rest = $args
-& $script @rest
-exit $LASTEXITCODE
-''';
-
-/// Loads install.ps1's definitions (it stops before running anything when dot-sourced) and
-/// runs its own source completion, without Publish-UserCommand.
-const _productsPs1 = r'''
-param(
-  [Parameter(Mandatory = $true)][string]$Installer,
-  [Parameter(Mandatory = $true)][string]$HermesHome,
-  [Parameter(Mandatory = $true)][string]$InstallDir
-)
-$ErrorActionPreference = "Stop"
-[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
-$OutputEncoding = [Console]::OutputEncoding
-. $Installer -HermesHome $HermesHome -InstallDir $InstallDir -NonInteractive -Json
-Initialize-ResolvedPaths
-$env:UV_NO_CONFIG = "1"
-try {
-  Invoke-SourceCompletion $false
-  Emit-Frame $true "products" $false
-  exit 0
-} catch {
-  Write-Err "$_"
-  Emit-Frame $false "products" $false "$_"
-  exit 1
-}
-''';
-
-/// POSIX counterpart: sources install.sh for its functions (its main is guarded) and runs the
-/// same completion without `wire_shell_path`; `cli.expose_on_path: false` keeps launchers out
-/// of ~/.local/bin.
-const _productsSh = r'''
-#!/usr/bin/env bash
-installer="$1"; home="$2"; checkout="$3"
-set -- --hermes-home "$home" --dir "$checkout" --non-interactive --json
-# shellcheck disable=SC1090
-source "$installer"
-config="$home/config.yaml"
-if ! grep -q '^cli:' "$config" 2>/dev/null; then
-  printf '\ncli:\n  expose_on_path: false\n' >> "$config"
-fi
-STAGE=products
-trap 'stage_result "$?"' EXIT
-bootstrap_python
-(cd "$INSTALL_DIR" && run_logged "Building the hermes command and apps" \
-  "$boot_py" -I -B -X utf8 hermes_cli/source_completion.py --source "$INSTALL_DIR") \
-  || fail "app products failed" products_build_failed
-''';

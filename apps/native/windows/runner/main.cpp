@@ -12,7 +12,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   HANDLE singleton = ::CreateMutex(nullptr, FALSE, L"Local\\app.nekodot.client.native");
   if (::GetLastError() == ERROR_ALREADY_EXISTS) {
     HWND existing =
-        ::FindWindow(L"FLUTTER_RUNNER_WIN32_WINDOW", L"nekoDOT");
+        ::FindWindow(L"FLUTTER_RUNNER_WIN32_WINDOW", L"nekodot");
     if (existing) {
       ::ShowWindowAsync(existing, ::IsIconic(existing) ? SW_RESTORE : SW_SHOW);
       ::SetForegroundWindow(existing);
@@ -41,7 +41,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
-  if (!window.Create(L"nekoDOT", origin, size)) {
+  if (!window.Create(L"nekodot", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

@@ -1,6 +1,6 @@
 # Relay and node deployment
 
-The product page runs locally. The remote machine hosts only Relay and the node installer/downloads, on loopback. No domain, public web hosting or PWA is required.
+The Flutter client renders locally and connects to the HTTPS Relay. The remote machine hosts Relay and installer/downloads behind Caddy; Hermes management and VNC remain on loopback.
 
 ## Build and upload
 
@@ -9,6 +9,8 @@ Use Node 24 and the repository's pnpm version:
 ```sh
 pnpm install --frozen-lockfile
 pnpm build:distribution
+# Build the backend package on each supported host.
+node scripts/stage-hermes-runtime.mjs /build/windows/win32-x64.json /build/linux/linux-x64.json
 # Required for an auto-updating Node release; the key stays outside the repository/server.
 NEKODOT_RELEASE_KEY_FILE=/private/nekodot-release.pem pnpm release:node
 docker build -f deploy/docker/Dockerfile -t nekodot-relay:phase3 .
@@ -48,11 +50,11 @@ For a VPS, SSH into the Relay host and run the web-provided command as the Linux
 curl -fsSL http://127.0.0.1:4329/install.sh | bash -s -- --pair ABCD-2345
 ```
 
-The installer uses private Node 24 and the official Hermes installation stages, then starts `nekodot-node.service`. It retains the current node identity on repeated installation. For a different Relay address, pass `--relay <url>`.
+The installer downloads private Node 24 and the versioned Nekodot Hermes backend package, then starts `nekodot-node.service`. It does not clone the Hermes repository or build frontends. Repeated installation retains the node identity, profiles and history. For a different Relay address, pass `--relay <url>`.
 
 Some minimal Ubuntu images do not include Hermes PM's `libatomic.so.1` runtime dependency. The installer checks for it before downloading Node or Hermes; on Ubuntu/Debian, install it with `sudo apt-get install -y libatomic1`, then rerun the same command. This does not install or change the system Node runtime.
 
-On Windows, choose **This computer** in the web page and run its command inside WSL2 Ubuntu 24.04 with systemd enabled. Windows OpenSSH fetches the installer, then the installer privately copies the configured identity and known-hosts file into `~/.nekodot/ssh/` so WSL can maintain its own loopback tunnel and user service. No global WSL or SSH configuration is modified. The copied identity remains local to `~/.nekodot` and is kept by the non-destructive uninstall.
+On Windows, choose **This computer** in the native client. It uses the same backend recipe with a Windows package, installs into the selected runtime directory, and keeps account data in the separately selected data directory. No WSL or frontend build is needed.
 
 ```sh
 systemctl --user status nekodot-node
@@ -63,18 +65,18 @@ curl -fsSL http://127.0.0.1:4329/install.sh | bash -s -- --uninstall
 
 Do not run the foreground command while the service is active. Uninstall stops/disables the service and retains all files, profiles and history. Reinstall starts the existing node again.
 
-This phase supports Linux/WSL2 x64 only. macOS, ARM, full-machine reboot acceptance and real phone acceptance must not be reported as passed without their corresponding environment and evidence.
+The VPS installer supports Linux x64. The native local-node targets are Windows x64, Ubuntu 24.04 x64 and macOS arm64. Each package must be built on its target host; macOS and phone acceptance require their actual devices.
 
 ## Native Linux screen
 
-Add `--with-computer` to the downloaded installer command on a Linux VPS:
+The Linux VPS installer prepares native screen dependencies by default:
 
 ```sh
-curl -fsSL http://127.0.0.1:4329/install.sh | bash -s -- --pair ABCD-2345 --with-computer
+curl -fsSL http://127.0.0.1:4329/install.sh | bash -s -- --pair ABCD-2345
 ```
 
-For an already paired node, rerun with `--with-computer` and omit `--pair`. The installer retains the node identity, database, Hermes profiles and browser data. It uses the official Hermes CLI/PM to install the screen packages, computer-use driver and Chromium; it does not change the system Node or configure sudo. Missing administrator privileges produce an installation command to run separately.
+For an already paired node, rerun and omit `--pair`. The installer retains the node identity, database, profiles and browser data. Chromium, the computer-use driver and FFmpeg are packaged; OS desktop libraries use the official Hermes installer. It does not change the system Node or configure sudo. Missing administrator privileges produce an installation command to run separately.
 
-Open a Bot's screen in the web page and choose **Start screen**. Hermes owns its 1440×900 desktop, browser and control lease. The node connects out through the authenticated Relay screen channel; VNC and CDP do not need public ports. The existing development proxy and SSH tunnel also carry `/ws/tunnel`.
+Open a Bot's screen in the native client and choose **Start screen**. Hermes owns its 1440×900 desktop, browser and control lease. The node connects out through the authenticated Relay screen channel; VNC and CDP do not need public ports.
 
-WSL, Windows and macOS screens are not supported in this phase. Use the local loopback web page for screen access; ordinary LAN HTTP is not a secure context. See [native observations](../docs/hermes-screen-notes.md) and [acceptance results](../docs/phase4-acceptance.md).
+WSL nodes do not provide the Linux VPS screen. Desktop local-node control uses the host's native computer-use capability and permission flow. Packaging does not lower Hermes's screen memory requirements or change its execution policies.

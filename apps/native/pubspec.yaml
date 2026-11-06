@@ -1,5 +1,5 @@
 name: nekodot_native
-description: 'nekoDOT native desktop and Android client'
+description: 'nekodot native desktop and Android client'
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.3.1+7
+version: 0.3.2+9
 
 environment:
   sdk: ^3.13.7
@@ -41,7 +41,6 @@ dependencies:
   flutter_markdown_plus: ^1.0.12
   markdown: ^7.3.1
   flutter_svg: ^2.3.2
-  flutter_inappwebview: ^6.1.5
   go_router: ^18.1.2
   file_picker: ^13.3.0
   path_provider: ^2.1.6
@@ -60,6 +59,7 @@ dependencies:
   battery_plus: ^7.1.2
   record: 7.1.2
   cryptography: ^2.9.0
+  flutter_timezone: ^5.1.1
 
 dev_dependencies:
   integration_test:

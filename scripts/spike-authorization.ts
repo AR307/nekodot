@@ -151,7 +151,7 @@ try {
         : value,
     2,
   );
-  await writeFile(join(root, 'docs/fixtures/oauth-codex-native.json'), safe + '\n');
+  await writeFile(join(root, 'tests/fixtures/oauth-codex-native.json'), safe + '\n');
   await writeFile(
     join(root, 'docs/evidence/side-phase3-oauth-native.json'),
     JSON.stringify(

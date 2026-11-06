@@ -84,7 +84,7 @@ bool isFixedDisk(String path) {
   );
 }
 
-/// Makes a folder nekoDOT created readable only by this user (plus SYSTEM and Administrators on
+/// Makes a folder nekodot created readable only by this user (plus SYSTEM and Administrators on
 /// Windows, matching the DACL Hermes gives its own private directories).
 Future<void> makePrivate(Directory directory) async {
   if (!Platform.isWindows) {

@@ -12,7 +12,7 @@ it('keeps a queued gateway admission actionable after a replay error and cancels
   const key = 'queued-test-only';
   const home = await mkdtemp(join(tmpdir(), 'nekodot-queued-execution-'));
   const recorded = await startFakeHermes({
-    fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
+    fixturesDirectory: join(process.cwd(), 'tests/fixtures'),
     apiKey: key,
     profiles: ['default'],
   });
@@ -24,6 +24,7 @@ it('keeps a queued gateway admission actionable after a replay error and cancels
     ...baseRuntime,
     start: async () => {},
     close: async () => {},
+    syncRules: async () => {},
     configureBot: async () => {},
     approvalMode: async () => 'manual',
     gateway: (profile) => {

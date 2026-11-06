@@ -4,6 +4,7 @@ import '../data/client.dart';
 import '../data/hermes_zh.dart';
 import '../ui/design.dart';
 import 'bot_editor.dart';
+import 'bot_model.dart';
 import 'extensions.dart';
 import 'hermes_settings.dart';
 import 'sessions.dart';
@@ -40,7 +41,7 @@ Future<void> openCommandPage(
       title: client.tr('Hermes 设置', 'Hermes settings'),
       body: HermesSettings(client: client, botId: botId),
     ),
-    'model' => BotEditor(client: client, existing: bot),
+    'model' => BotModelPage(client: client, botId: botId),
     'profile-import' => BotEditor(client: client, importProfile: true),
     'plugins' => ExtensionsPage(client: client, kind: 'plugins'),
     'sessions' => BotSessionsPage(client: client, botId: botId),
@@ -128,22 +129,14 @@ class CommandPalette extends StatelessWidget {
             ],
           ),
           if (members.length > 1)
-            DropdownButtonFormField<String>(
-              key: ValueKey(botId),
-              initialValue: botId,
-              items: [
+            MenuSelect<String>(
+              value: botId,
+              label: client.tr('执行指令的 Bot', 'Run command as'),
+              options: [
                 for (final bot in members)
-                  DropdownMenuItem(
-                    value: '${bot['botId']}',
-                    child: Text('${bot['displayName']}'),
-                  ),
+                  ('${bot['botId']}', '${bot['displayName']}'),
               ],
-              onChanged: (value) {
-                if (value != null) onBot(value);
-              },
-              decoration: InputDecoration(
-                labelText: client.tr('执行指令的 Bot', 'Run command as'),
-              ),
+              onChanged: onBot,
             ),
           if (loading) const ShiningText(),
           ConstrainedBox(

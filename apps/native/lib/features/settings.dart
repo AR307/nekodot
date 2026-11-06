@@ -13,6 +13,7 @@ import 'local_setup.dart';
 import '../ui/design.dart';
 import 'updates.dart';
 import 'user_memory.dart';
+import 'statistics.dart';
 
 class SettingsPage extends StatelessWidget {
   final NekodotClient client;
@@ -75,6 +76,11 @@ class SettingsPage extends StatelessWidget {
                   title: Text(c.tr('修改密码', 'Change password')),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => pushPage(context, PasswordPage(client: c)),
+                ),
+                link(
+                  'settings-statistics',
+                  c.tr('统计', 'Statistics'),
+                  StatisticsPage(client: c),
                 ),
                 ListTile(
                   title: Text(c.tr('退出账号', 'Sign out')),

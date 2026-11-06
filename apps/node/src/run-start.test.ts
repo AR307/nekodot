@@ -14,7 +14,7 @@ async function setup(fixtures: string[]) {
   const key = 'run-start-test-only';
   const schedule: string[] = [];
   const fake = await startFakeHermes({
-    fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
+    fixturesDirectory: join(process.cwd(), 'tests/fixtures'),
     profiles: ['default'],
     apiKey: key,
     allowProfileCreate: true,
@@ -43,6 +43,7 @@ async function setup(fixtures: string[]) {
     start: async () => {},
     close: async () => {},
     approvalMode: async () => 'manual',
+    syncRules: async () => {},
     configureBot: async (bot: Bot) => {
       await fetch(fake.url + '/test/profiles', {
         method: 'POST',

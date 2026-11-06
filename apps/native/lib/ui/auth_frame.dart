@@ -33,7 +33,7 @@ class AuthFrame extends StatelessWidget {
                               CatAvatar(size: 30),
                               SizedBox(width: 10),
                               Text(
-                                'nekoDOT',
+                                'nekodot',
                                 style: TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.w800,

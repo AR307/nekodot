@@ -10,7 +10,7 @@ const [, version, build] = pubspec.match(/^version: (\d+\.\d+\.\d+)\+(\d+)$/m) ?
 if (!version || !build)
   throw new Error('pubspec.yaml must have a release version and build number.');
 const bundle = join(root, 'apps/native/build/windows/x64/runner/Release');
-await access(join(bundle, 'nekoDOT.exe'));
+await access(join(bundle, 'nekodot_native.exe'));
 const nsis = process.env.MAKENSIS ?? join(process.env.LOCALAPPDATA, 'tauri/NSIS/makensis.exe');
 await access(nsis);
 const vswhere = join(
@@ -38,7 +38,7 @@ if (!runtimeVersion)
   throw new Error('Install the official Visual Studio x64 C++ redistributable files.');
 const redist = join(runtimes, runtimeVersion, 'x64/Microsoft.VC143.CRT');
 await access(join(redist, 'vcruntime140.dll'));
-const output = resolve(root, `dist/native/nekoDOT_${version}_x64-setup.exe`);
+const output = resolve(root, `dist/native/nekodot_${version}_x64-setup.exe`);
 await mkdir(join(root, 'dist/native'), { recursive: true });
 const child = spawn(
   nsis,

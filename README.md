@@ -1,11 +1,11 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/nekodot-mark-dark.svg">
-    <img src="docs/assets/nekodot-mark.svg" alt="nekoDOT" width="72" height="72">
+    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/nekodot-mark-dark.svg">
+    <img src=".github/assets/nekodot-mark.svg" alt="nekodot" width="72" height="72">
   </picture>
 </p>
 
-<h1 align="center">nekoDOT</h1>
+<h1 align="center">nekodot</h1>
 
 <p align="center">
   <strong>一群替你干活的 Bot，装在你自己的电脑上。</strong><br>
@@ -16,7 +16,7 @@
 <p align="center">
   <a href="https://github.com/AR307/nekodot/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AR307/nekodot/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Node 24 LTS" src="https://img.shields.io/badge/node-24%20LTS-000000">
-  <a href="https://github.com/AR307/nekodot/releases/tag/v0.3.1"><img alt="Release v0.3.1" src="docs/assets/release-0.3.1.svg"></a>
+  <a href="https://github.com/AR307/nekodot/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/AR307/nekodot?label=release&color=000000"></a>
 </p>
 
 <p align="center">
@@ -31,14 +31,14 @@
 </p>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="apps/site/assets/shots/desk-group-dark.webp">
-  <img src="apps/site/assets/shots/desk-group-light.webp" alt="nekoDOT Windows 客户端：Bot 列表与群聊接力">
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/desk-group-dark.webp">
+  <img src=".github/assets/desk-group-light.webp" alt="nekodot Windows 客户端：Bot 列表与群聊接力">
 </picture>
 
 <p align="center"><sub>周报小组里，笔笔写完草稿后 @小研 核对数据来源。截图使用演示数据。</sub></p>
 
 > [!NOTE]
-> **0.3.1 正式版**采用 Flutter 原生客户端（`apps/native`）。[更新说明](docs/releases/v0.3.1.md)记录本机运行、保密交付、应用更新与安装进度。截图取自当前源码，界面细节可能比 0.3.1 新。
+> 正式版采用 Flutter 原生客户端（`apps/native`），各版本的更新内容见 [Releases](https://github.com/AR307/nekodot/releases)。截图取自当前源码，界面细节可能比最新正式版新。
 
 ## 它能做什么
 
@@ -61,11 +61,6 @@
 电脑只向外连接，不用开放端口。每样东西具体存在哪，见[工作原理](#工作原理)。
 
 ### 动手之前，先问你
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="apps/site/assets/shots/desk-dm-dark.webp">
-  <img src="apps/site/assets/shots/desk-dm-light.webp" alt="小研要运行一条命令，正在等你确认">
-</picture>
 
 它要跑命令、改文件时，会停下来等你选：允许一次、本会话允许、总是允许，或者拒绝。用了哪个工具、花了几秒，对话里一条条列着。
 
@@ -101,7 +96,7 @@ Android App 连的是同一台电脑，聊天和进度两边一样。Bot 回复�
 | **节点更新**    | 校验发布签名，空闲时切换，新版本启动失败自动回滚；历史和 Hermes 资料不受影响。                                          |
 | **客户端**      | Windows 与 Android 原生 Flutter 界面，黑白配色，只有 Bot 头像有颜色；屏幕用原生 RFB，不嵌网页。中文与英文，浅色与深色。 |
 
-nekoDOT 不重新发明 agent：每个 Bot 就是一个原生 Hermes profile，记忆、技能和工具循环都由 Hermes 完成。nekoDOT 只做界面、连接和多个 Bot 之间的协作，也不修改 Hermes。
+nekodot 不重新发明 agent：每个 Bot 就是一个原生 Hermes profile，记忆、技能和工具循环都由 Hermes 完成。nekodot 只做界面、连接和多个 Bot 之间的协作，也不修改 Hermes。
 
 ## 工作原理
 
@@ -126,18 +121,18 @@ App（Windows / Android）或网页
 | Node           | 聊天历史、运行记录、Bot 配置与交付文件。                  |
 | Hermes profile | 该 Bot 的原生会话、记忆、技能、插件，以及托管的模型密钥。 |
 
-App 本身不运行 Hermes。完整的模型密钥只保存在节点上，界面里永远只显示后四位。nekoDOT 不修改 Hermes，只通过官方 CLI 与 API 集成，Hermes 升级不需要改动 nekoDOT。
+App 本身不运行 Hermes。完整的模型密钥只保存在节点上，界面里永远只显示后四位。nekodot 不修改 Hermes，只通过官方 CLI 与 API 集成，Hermes 升级不需要改动 nekodot。
 
-请注意：模型请求会发往你配置的模型服务商。nekoDOT 让数据留在你自己的机器上，但它不是离线运行，也没有端到端加密。
+请注意：模型请求会发往你配置的模型服务商。nekodot 让数据留在你自己的机器上，但它不是离线运行，也没有端到端加密。
 
 ## 快速开始
 
 > [!NOTE]
-> 当前正式版本为 **0.3.1**。Windows 本机运行和固定 Android 模拟器完成真实模型验收；本轮真机及 macOS/Linux 桌面验收边界见更新说明。
+> 最新版本见上方 release 徽章。Windows 本机运行和 Android 模拟器已用真实模型验收；Android 真机与 macOS / Linux 桌面的验收范围见各版本的更新说明。
 
 ### 用 App
 
-1. **下载安装。** [Windows x64](https://nekodot.com/downloads/nekodot-windows-x64.exe)（Windows 10 / 11，未做 Authenticode 签名）或 [Android arm64](https://nekodot.com/downloads/nekodot-android-arm64.apk)（Android 10+，已签名）。
+1. **下载安装。** [Windows x64](https://github.com/AR307/nekodot/releases/latest/download/nekodot-windows-x64.exe)（Windows 10 / 11，未做 Authenticode 签名）或 [Android arm64](https://github.com/AR307/nekodot/releases/latest/download/nekodot-android-arm64.apk)（Android 10+，已签名）。
 2. **用邮箱验证码注册。** 登录继续使用密码；旧账号首次重新登录需补验邮箱，原节点和历史保留。注册不会取得其他账号的服务器访问权。
 3. **给 Bot 找一台电脑。** 在 Windows 上添加电脑时选「这台电脑」，App 自动准备独立的 Node 与 Hermes，并配对启动。想全天在线，就复制 App 生成的一行命令，在 **Linux x64** 或启用了 systemd 的 **WSL2 Ubuntu 24.04** 上运行；安装器把独立的 Node 24、Hermes 和节点服务装进 `~/.nekodot`，不改动系统环境。
 4. **添加模型来源。** 在设置里用账号授权登录，或填写自定义 API 的名称、地址和 Key。
@@ -148,46 +143,32 @@ App 本身不运行 Hermes。完整的模型密钥只保存在节点上，界面
 ### 自行部署
 
 - 一台可以 SSH 登录的 **Linux x64** 服务器（推荐 Ubuntu 24.04），装有 Docker，用来运行 Relay。Bot 也可以直接跑在这台服务器上。
-- 本机安装 **Node 24 LTS**、**pnpm 10.34.5** 和 OpenSSH 客户端。
+- 本机安装 **Node 24 LTS** 和 **pnpm 10.34.5**，用来构建 Relay 与节点发布包。
 
-构建 Relay 镜像，上传到服务器后 `docker compose up -d`，详见 [部署文档](deploy/README.md)。然后用网页连接：
-
-```sh
-git clone https://github.com/AR307/nekodot.git
-cd nekodot
-pnpm install --frozen-lockfile
-pnpm dev:remote --ssh <your-ssh-alias>
-```
-
-它通过 SSH 隧道连接远端 Relay，并在浏览器中打开 http://127.0.0.1:4318。加上 `--lan`，同一局域网内的手机也能访问。只想在本机跑起来看看、或参与开发，请看 [开发说明](docs/development.md)。
+构建 Relay 镜像，上传到服务器后 `docker compose up -d`，再让 App 连接你的 Relay 地址。完整步骤见 [部署文档](deploy/README.md)。
 
 ## 开发
 
-技术栈：Flutter · Rust · React 19 · TypeScript · Tailwind CSS v4 · Fastify · WebSocket · node:sqlite · Zod · Hermes Agent
+技术栈：Flutter · Rust · TypeScript · Fastify · WebSocket · node:sqlite · Zod · Hermes Agent
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm lint && pnpm typecheck && pnpm test
 pnpm build
-pnpm test:e2e
 pnpm native:analyze && pnpm native:test
 ```
 
-自动化测试使用录制的真实 Hermes 事件回放，不调用付费模型。本地运行、远程 Relay 调试、节点数据位置与测试策略见 [开发说明](docs/development.md)。Flutter 客户端的构建与验收范围见 [原生客户端记录](docs/side-phase-3-native-product.md)；旧 Tauri 客户端见 [客户端说明](docs/client-development.md)。
+自动化测试回放 `tests/fixtures` 里录制的真实 Hermes 事件，不调用付费模型。Flutter 客户端的结构与构建见 [apps/native](apps/native/README.md)。
 
 ```text
 apps/native            Flutter Windows / Android 产品客户端与原生 RFB 屏幕
-apps/web               React 网页与同步逻辑
-apps/client            旧 Tauri 2 宿主（保留源码，0.3.0 不构建此路径）
-apps/site              双语静态官网
 apps/relay             账号、配对、WebSocket 路由、文件转发与节点发布通知
 apps/node              节点：持久化、Hermes 接入、群聊路由与自动更新
 packages/protocol      共享协议与 Zod schema
-packages/tauri-plugin-nekodot Android FCM、生命周期与文件分享桥接
 packages/fake-hermes   测试专用：回放录制的真实 Hermes 事件
 deploy                 Relay 镜像、节点安装器与系统服务
-design                 原始视觉参考与九块设计画板
-docs                   开发说明、Hermes 调研、实施记录与截图
+scripts                构建、打包、发布与录制 Hermes 事件的脚本
+tests                  测试辅助与录制的 Hermes 事件
 ```
 
 ## 路线图

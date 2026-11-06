@@ -19,7 +19,6 @@ export async function userMemoryEnvironment(port = 0) {
     dataDir: join(home, 'relay'),
     jwtSecret: randomUUID(),
     publicUrl: 'http://127.0.0.1',
-    webDirectory: join(process.cwd(), 'apps/web/dist'),
   });
   const url = await relay.app.listen({ host: '127.0.0.1', port });
   const accounts = [];
@@ -52,7 +51,7 @@ export async function userMemoryEnvironment(port = 0) {
     const key = randomUUID(),
       nodeHome = join(home, 'node-' + i);
     const fake = await startFakeHermes({
-      fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
+      fixturesDirectory: join(process.cwd(), 'tests/fixtures'),
       profiles: ['default'],
       apiKey: key,
       allowProfileCreate: true,
@@ -62,6 +61,7 @@ export async function userMemoryEnvironment(port = 0) {
       start: async () => {},
       close: async () => {},
       approvalMode: async () => 'manual',
+      syncRules: async () => {},
       configureBot: async (bot, create) => {
         if (create)
           await fetch(fake.url + '/test/profiles', {

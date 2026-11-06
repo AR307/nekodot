@@ -207,24 +207,20 @@ void main() {
       await until(
         () => client.node.activities[id]?['state'] == 'waiting_question',
       );
-      await tap(find.widgetWithText(CheckboxListTile, 'Amber (Recommended)'));
       await tester.enterText(input, 'Draft survives a pending question');
       await client.connect();
       await until(() => client.online && !client.node.syncing);
       expect(
-        tester
-            .widget<CheckboxListTile>(
-              find.widgetWithText(CheckboxListTile, 'Amber (Recommended)'),
-            )
-            .value,
-        isTrue,
+        find.widgetWithText(ChoiceRow, 'Amber (Recommended)'),
+        findsOneWidget,
       );
       expect(
         tester.widget<TextField>(input).controller!.text,
         'Draft survives a pending question',
       );
       await screenshot('native-product-question');
-      await tap(find.text('提交'));
+      // A single choice answers as soon as it is picked.
+      await tap(find.widgetWithText(ChoiceRow, 'Amber (Recommended)'));
       await until(() => client.node.activities[id]?['state'] == 'idle');
       await tester.enterText(input, '');
 
@@ -291,25 +287,10 @@ void main() {
         (await client.rpc('files.list', {'botId': bot['botId']}))['files'],
       ).single;
       expect(
-        utf8.decode(
-          await downloadFile(
-            client,
-            file['fileId'] as String,
-            nodeId: client.selectedNodeId!,
-          ),
-        ),
+        utf8.decode(await downloadFile(client, file['fileId'] as String)),
         contains('你好，nekodot'),
       );
-      final navigator = Navigator.of(tester.element(find.byType(ChatPage)));
-      navigator.push(
-        MaterialPageRoute<void>(
-          builder: (_) => FilePage(
-            client: client,
-            file: file,
-            nodeId: client.selectedNodeId!,
-          ),
-        ),
-      );
+      showFileViewer(tester.element(find.byType(ChatPage)), client, file);
       await until(
         () => find.textContaining('你好，nekodot').evaluate().isNotEmpty,
       );
@@ -325,11 +306,11 @@ void main() {
       }
       await tap(
         find.descendant(
-          of: find.byType(FilePage),
-          matching: find.byType(BackButton),
+          of: find.byType(FileViewer),
+          matching: find.byTooltip('关闭'),
         ),
       );
-      await until(() => find.byType(FilePage).evaluate().isEmpty);
+      await until(() => find.byType(FileViewer).evaluate().isEmpty);
       if (!tester.widget<ChatPage>(find.byType(ChatPage)).embedded) {
         await tester.pageBack();
         await tester.pump(const Duration(milliseconds: 400));

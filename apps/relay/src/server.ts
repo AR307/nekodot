@@ -16,7 +16,7 @@ export interface RelayOptions {
   dataDir: string;
   jwtSecret: string;
   publicUrl: string;
-  webDirectory?: string;
+  siteDirectory?: string;
   distributionDirectory?: string;
   logger?: boolean;
   clientOrigins?: string[];
@@ -68,6 +68,7 @@ export async function createRelay(options: RelayOptions) {
     options.publicUrl,
   );
   const tunnels = registerTunnels(app, database, auth.authenticate, routing);
+  routing.usage.register(app, auth.authenticate, routing);
   routing.routines.register(app, routing.deliverRoutine);
   registerFileTransfer(app, auth.authenticate, routing.transfer, (userId, nodeId) =>
     database.owns(userId, nodeId),
@@ -76,6 +77,7 @@ export async function createRelay(options: RelayOptions) {
   registerReleases(app, options.distributionDirectory);
   if (options.distributionDirectory)
     registerDownloads(app, options.distributionDirectory, options.publicUrl);
+  if (options.siteDirectory) await app.register(staticFiles, { root: options.siteDirectory });
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof HttpFault)
       return reply.code(error.status).send({ error: { code: error.code, message: error.message } });
@@ -85,14 +87,6 @@ export async function createRelay(options: RelayOptions) {
         .send({ error: { code: 'unavailable', message: 'Too many login attempts' } });
     return reply.code(500).send({ error: { code: 'internal_error', message: 'Request failed' } });
   });
-  if (options.webDirectory) {
-    await app.register(staticFiles, { root: options.webDirectory });
-    app.setNotFoundHandler((request, reply) =>
-      request.method === 'GET' && !request.url.startsWith('/api/')
-        ? reply.sendFile('index.html')
-        : reply.code(404).send({ error: { code: 'not_found', message: 'Route not found' } }),
-    );
-  }
   app.addHook('preClose', async () => {
     tunnels.close();
     routing.close();

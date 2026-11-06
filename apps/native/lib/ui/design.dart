@@ -543,12 +543,17 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       splashFactory: NoSplash.splashFactory,
       overlayColor: const WidgetStatePropertyAll(Colors.transparent),
     ),
+    // Every menu: a white card, a hairline, a soft shadow and round corners.
     popupMenuTheme: PopupMenuThemeData(
       color: tone.menu,
       surfaceTintColor: Colors.transparent,
-      elevation: 10,
-      shadowColor: Colors.black.withValues(alpha: dark ? .6 : .16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 8,
+      shadowColor: Colors.black.withValues(alpha: dark ? .5 : .12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: tone.line),
+      ),
+      menuPadding: const EdgeInsets.symmetric(vertical: 6),
       textStyle: text.bodyMedium,
     ),
     tooltipTheme: TooltipThemeData(
@@ -976,7 +981,10 @@ class GroupAvatar extends StatelessWidget {
 
 class ErrorNotice extends StatelessWidget {
   final String text;
-  const ErrorNotice(this.text, {super.key});
+
+  /// What to do about it, such as trying again.
+  final Widget? action;
+  const ErrorNotice(this.text, {super.key, this.action});
   @override
   Widget build(BuildContext context) {
     if (text.isEmpty) return const SizedBox.shrink();
@@ -997,6 +1005,7 @@ class ErrorNotice extends StatelessWidget {
                   ?.copyWith(color: tone.danger),
             ),
           ),
+          if (action != null) ...[const SizedBox(width: 8), action!],
         ],
       ),
     );

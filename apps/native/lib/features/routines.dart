@@ -6,6 +6,10 @@ import 'package:flutter/services.dart';
 
 import '../data/client.dart';
 import '../ui/design.dart';
+import '../ui/chat_notice.dart';
+import '../ui/message_markdown.dart';
+import 'chat.dart';
+import 'sessions.dart';
 
 String triggerLabel(NekodotClient c, Json routine) =>
     switch (routine['trigger']) {
@@ -91,35 +95,39 @@ class RoutineCard extends StatelessWidget {
   final Json content;
   const RoutineCard({super.key, required this.client, required this.content});
 
+  /// One quiet line: what happened and to which routine; it opens the routine.
   @override
-  Widget build(BuildContext context) => Panel(
-    child: ListTile(
-      leading: Icon(
-        content['card'] == 'credentials' ? Icons.lock_outline : Icons.webhook,
-      ),
-      title: Text('${content['name']}'),
-      subtitle: Text(
-        content['card'] == 'credentials'
-            ? client.tr(
-                '已保密交付 · 脚本使用凭据引用',
-                'Securely delivered · scripts use a credential reference',
-              )
-            : client.tr(
-                '已创建例行任务 · 查看接入详情',
-                'Routine created · open connection details',
-              ),
-      ),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => pushPage(
+  Widget build(BuildContext context) {
+    final action = content['card'] == 'credentials'
+        ? client.tr('已保密交付', 'Delivered securely')
+        : switch (content['action']) {
+            'updated' => client.tr('已修改', 'Updated'),
+            'enabled' => client.tr('已启用', 'Enabled'),
+            'stopped' => client.tr('已停止', 'Stopped'),
+            'started' => client.tr('正在执行', 'Running'),
+            'executed' => client.tr('已执行', 'Executed'),
+            'failed' => client.tr('执行失败', 'Failed'),
+            _ => client.tr('已创建', 'Created'),
+          };
+    void openRoutine() => unawaited(
+      pushPage(
         context,
         RoutinePage(
           client: client,
           botId: '${content['botId']}',
           routineId: '${content['routineId']}',
+          executionId: content['executionId'] as String?,
         ),
       ),
-    ),
-  );
+    );
+    return ChatNotice(
+      text: '$action ${content['name']}',
+      icon: content['card'] == 'credentials'
+          ? Icons.lock_outline
+          : Icons.schedule,
+      onTap: openRoutine,
+    );
+  }
 }
 
 class RoutinePage extends StatefulWidget {
@@ -203,11 +211,23 @@ class _RoutinePageState extends State<RoutinePage> {
     }
   }
 
+  Future<void> continueExecution(Json execution) async {
+    final dm = c.node.conversations.firstWhere(
+      (row) => row['kind'] == 'dm' && row['botId'] == widget.botId,
+    );
+    final id = '${dm['conversationId']}';
+    c.routineDrafts['${c.selectedNodeId}:$id'] = {
+      'executionId': execution['executionId'],
+      'name': data!['routine']['name'],
+    };
+    await pushPage(context, ChatPage(client: c, conversationId: id));
+  }
+
   Future<void> test(Json routine) async {
     final input = TextEditingController(
       text: const JsonEncoder.withIndent('  ').convert({
         'event_type': (routine['events'] as List).firstOrNull ?? 'test',
-        'message': 'nekoDOT routine test',
+        'message': 'nekodot routine test',
       }),
     );
     final payload = await showDialog<String>(
@@ -595,8 +615,8 @@ class _RoutinePageState extends State<RoutinePage> {
                           ),
                           childrenPadding: const EdgeInsets.all(14),
                           children: [
-                            SelectableText(
-                              '${execution['text']}'.isEmpty
+                            MessageMarkdown(
+                              data: '${execution['text']}'.isEmpty
                                   ? c.tr(
                                       '原生任务未返回文本',
                                       'No text returned by the native task',
@@ -608,6 +628,39 @@ class _RoutinePageState extends State<RoutinePage> {
                             const SizedBox(height: 8),
                             SelectableText(
                               'Hermes session: ${execution['sessionId']}',
+                            ),
+                            Wrap(
+                              spacing: 8,
+                              children: [
+                                if (!const [
+                                  'running',
+                                  'waiting_approval',
+                                ].contains(execution['state']))
+                                  TextButton.icon(
+                                    key: ValueKey(
+                                      'routine-followup-${execution['executionId']}',
+                                    ),
+                                    onPressed: c.online
+                                        ? () => continueExecution(execution)
+                                        : null,
+                                    icon: const Icon(Icons.reply),
+                                    label: Text(c.tr('继续对话', 'Discuss result')),
+                                  ),
+                                TextButton(
+                                  onPressed: () => pushPage(
+                                    context,
+                                    SessionHistoryPage(
+                                      client: c,
+                                      botId: widget.botId,
+                                      row: {
+                                        'session_id': execution['sessionId'],
+                                        'source': 'cron',
+                                      },
+                                    ),
+                                  ),
+                                  child: Text(c.tr('查看执行记录', 'View execution')),
+                                ),
+                              ],
                             ),
                           ],
                         ),

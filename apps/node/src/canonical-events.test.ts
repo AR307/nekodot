@@ -4,6 +4,22 @@ import type { RunRecord } from './database';
 
 const run = { runId: 'current-user-admission' } as RunRecord;
 
+it('projects the native plan only for the current chat admission, not a background routine', () => {
+  const frame = {
+    type: 'todo.updated',
+    admission_id: run.runId,
+    payload: {
+      todos: [{ id: 'inspect', content: 'Inspect files', status: 'in_progress' }],
+      revision: 2,
+    },
+  };
+  expect(projectGatewayEvent(run, frame)).toMatchObject({
+    event: 'todo.updated',
+    todo_state: frame.payload,
+  });
+  expect(projectGatewayEvent(run, { ...frame, admission_id: 'cron-admission' })).toBeUndefined();
+});
+
 it('shows native research tool arguments and results without verbose mode', () => {
   expect(
     projectGatewayEvent(run, {
@@ -89,4 +105,23 @@ it('accepts a native receipt completion identifying its admission inside the pay
       payload: { admission_id: run.runId, status: 'interrupted' },
     }),
   ).toMatchObject({ event: 'run.interrupted', run_id: run.runId });
+});
+
+it('keeps Hermes’s one-line label of a step beside its full arguments', () => {
+  expect(
+    projectGatewayEvent(run, {
+      type: 'tool.start',
+      admission_id: run.runId,
+      payload: {
+        tool_id: 'open',
+        name: 'browser_navigate',
+        context: 'https://x.com/nekodot',
+        args: { url: 'https://x.com/nekodot' },
+      },
+    }),
+  ).toMatchObject({
+    tool: 'browser_navigate',
+    context: 'https://x.com/nekodot',
+    preview: JSON.stringify({ url: 'https://x.com/nekodot' }, null, 2),
+  });
 });

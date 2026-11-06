@@ -85,10 +85,7 @@ class _PetsPageState extends State<PetsPage> {
               ),
             ),
             if (error.isNotEmpty) ErrorNotice(error),
-            if (busy) ...[
-              const ShiningText(),
-              Text('${operation?['detail']}'),
-            ],
+            if (busy) ...[const ShiningText(), Text('${operation?['detail']}')],
             if (data['enabled'] == true)
               ListTile(
                 title: Text('${data['active']}'),
@@ -127,23 +124,19 @@ class _PetsPageState extends State<PetsPage> {
                   ),
                 ),
                 if (objects(generation['providers']).isNotEmpty)
-                  DropdownButtonFormField<String>(
-                    initialValue: null,
-                    decoration: InputDecoration(
-                      labelText: widget.client.tr('图像服务', 'Image provider'),
-                    ),
-                    items: [
+                  MenuSelect<String>(
+                    value: provider.isEmpty ? null : provider,
+                    label: widget.client.tr('图像服务', 'Image provider'),
+                    options: [
                       for (final row in objects(generation['providers']))
-                        DropdownMenuItem(
-                          value: '${row['id'] ?? row['name']}',
-                          child: Text(
-                            '${row['label'] ?? row['name'] ?? row['id']}',
-                          ),
+                        (
+                          '${row['id'] ?? row['name']}',
+                          '${row['label'] ?? row['name'] ?? row['id']}',
                         ),
                     ],
                     onChanged: busy
                         ? null
-                        : (value) => setState(() => provider = value ?? ''),
+                        : (value) => setState(() => provider = value),
                   ),
                 FilledButton(
                   onPressed: busy || generation['available'] != true

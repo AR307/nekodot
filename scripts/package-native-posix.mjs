@@ -19,8 +19,8 @@ await mkdir(dist, { recursive: true });
 // Keep packaging work for inspection; no cleanup touches user data or another build.
 const stage = await mkdtemp(join(dist, platform + '-package-'));
 if (platform === 'macos') {
-  const app = join(stage, 'nekoDOT.app');
-  await cp(join(root, 'apps/native/build/macos/Build/Products/Release/nekoDOT.app'), app, {
+  const app = join(stage, 'nekodot.app');
+  await cp(join(root, 'apps/native/build/macos/Build/Products/Release/nekodot.app'), app, {
     recursive: true,
   });
   const identity = process.env.NEKODOT_APPLE_SIGNING_IDENTITY;
@@ -43,14 +43,14 @@ if (platform === 'macos') {
     }
   }
   await symlink('/Applications', join(stage, 'Applications'));
-  const output = join(dist, 'nekoDOT_' + version + '+' + build + '_macos-arm64.dmg');
+  const output = join(dist, 'nekodot_' + version + '+' + build + '_macos-arm64.dmg');
   // Only include the application and Applications shortcut, not notary artifacts.
   const imageRoot = await mkdtemp(join(dist, 'dmg-'));
-  await cp(app, join(imageRoot, 'nekoDOT.app'), { recursive: true });
+  await cp(app, join(imageRoot, 'nekodot.app'), { recursive: true });
   await symlink('/Applications', join(imageRoot, 'Applications'));
   execFileSync(
     'hdiutil',
-    ['create', '-volname', 'nekoDOT', '-srcfolder', imageRoot, '-format', 'UDZO', output],
+    ['create', '-volname', 'nekodot', '-srcfolder', imageRoot, '-format', 'UDZO', output],
     { stdio: 'inherit' },
   );
   console.log(
@@ -63,15 +63,15 @@ if (platform === 'macos') {
   const bundle = join(stage, 'opt/nekodot');
   await cp(join(root, 'apps/native/build/linux/x64/release/bundle'), bundle, { recursive: true });
   await mkdir(join(stage, 'usr/bin'), { recursive: true });
-  await symlink('/opt/nekodot/nekoDOT', join(stage, 'usr/bin/nekoDOT'));
+  await symlink('/opt/nekodot/nekodot_native', join(stage, 'usr/bin/nekodot'));
   await mkdir(join(stage, 'usr/share/applications'), { recursive: true });
   await writeFile(
     join(stage, 'usr/share/applications/app.nekodot.client.desktop'),
     [
       '[Desktop Entry]',
       'Type=Application',
-      'Name=nekoDOT',
-      'Exec=nekoDOT',
+      'Name=nekodot',
+      'Exec=nekodot',
       'Icon=app.nekodot.client',
       'Terminal=false',
       'Categories=Network;Utility;',
@@ -89,15 +89,15 @@ if (platform === 'macos') {
       'Package: nekodot',
       'Version: ' + version + '-' + build,
       'Architecture: amd64',
-      'Maintainer: nekoDOT contributors',
+      'Maintainer: nekodot contributors',
       'Section: net',
       'Priority: optional',
       'Depends: libc6 (>= 2.39), libstdc++6, libgtk-3-0t64, libsecret-1-0, libx11-6, libxi6, libepoxy0, liblzma5, libpulse0, libatomic1, gnome-keyring, git, curl, ca-certificates',
-      'Description: Native nekoDOT client with optional local Hermes Bots',
+      'Description: Native nekodot client with optional local Hermes Bots',
       '',
     ].join('\n'),
   );
-  const output = join(dist, 'nekoDOT_' + version + '+' + build + '_linux-x64.deb');
+  const output = join(dist, 'nekodot_' + version + '+' + build + '_linux-x64.deb');
   execFileSync('dpkg-deb', ['--root-owner-group', '--build', stage, output], { stdio: 'inherit' });
   console.log(output);
 }

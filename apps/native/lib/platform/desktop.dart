@@ -24,7 +24,7 @@ class DesktopHost with WindowListener {
           prefs.getDouble('window-height') ?? 800,
         ),
         minimumSize: const Size(390, 600),
-        title: 'nekoDOT',
+        title: 'nekodot',
         titleBarStyle: TitleBarStyle.hidden,
         windowButtonVisibility: false,
       ),
@@ -41,10 +41,10 @@ class DesktopHost with WindowListener {
     tray.icon = ImageAsset.fromAsset(
       Platform.isWindows ? 'assets/nekodot.ico' : 'assets/nekodot.png',
     );
-    tray.setTooltip('nekoDOT');
+    tray.setTooltip('nekodot');
     final menu = Menu.create()!;
     final show = MenuItem.createWithLabelAndType(
-      '打开 / Open nekoDOT',
+      '打开 / Open nekodot',
       MenuItemType.normal,
     )!;
     show.addListener((event) {

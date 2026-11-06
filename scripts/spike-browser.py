@@ -44,7 +44,7 @@ with (home / 'chromium.log').open('w') as log:
             'pageCount': len([item for item in targets['result']['targetInfos'] if item['type'] == 'page']),
             'passed': version.get('success') is True and targets.get('success') is True,
         }
-        output = Path(args.root) / 'docs/fixtures/browser-cdp.json'
+        output = Path(args.root) / 'tests/fixtures/browser-cdp.json'
         output.write_text(json.dumps(result, indent=2) + '\n')
         print(json.dumps(result, indent=2))
         if not result['passed']:

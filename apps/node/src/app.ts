@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { hermesTodoStateSchema } from '@nekodot/protocol';
 import { BotSecrets } from './secrets';
 import type {
   LiveEvent,
@@ -34,6 +35,7 @@ import { Routines } from './routines';
 import { BotVoice } from './voice';
 import { NativeActivity } from './native-activity';
 import { openNativeSession, type NativeSessionSnapshot } from './hermes/session';
+import { ExecutionFlows } from './flow';
 
 type TextMessage = Extract<Message, { kind: 'text' }>;
 
@@ -77,6 +79,8 @@ export function projectGatewayEvent(run: RunRecord, frame: GatewayFrame): Hermes
   };
   const text = typeof payload.text === 'string' ? payload.text : undefined;
   switch (frame.type) {
+    case 'todo.updated':
+      return { ...base, event: 'todo.updated', todo_state: hermesTodoStateSchema.parse(payload) };
     case 'message.delta':
       return { ...base, event: 'message.delta', ...(text !== undefined ? { delta: text } : {}) };
     case 'message.interim':
@@ -97,6 +101,9 @@ export function projectGatewayEvent(run: RunRecord, frame: GatewayFrame): Hermes
             payload.args_text ??
             (payload.args ? JSON.stringify(payload.args, null, 2) : (payload.context ?? '')),
         ),
+        ...(typeof payload.context === 'string' && payload.context.trim()
+          ? { context: payload.context.trim() }
+          : {}),
       };
     case 'tool.complete': {
       const result = payload.result;
@@ -197,6 +204,7 @@ export class NodeApplication {
   readonly routines: Routines;
   readonly secrets: BotSecrets;
   readonly voice: BotVoice;
+  readonly flow: ExecutionFlows;
   private readonly nativeActivity: NativeActivity;
   onEvent: (event: PersistedEvent) => void = () => {};
   onLive: (event: LiveEvent) => void = () => {};
@@ -226,6 +234,7 @@ export class NodeApplication {
     readonly desktop = false,
   ) {
     this.database = new NodeDatabase(home);
+    this.flow = new ExecutionFlows(this.database);
     this.notifications = new Notifications(this.database);
     this.routines = new Routines(this.database, hermes, this.notifications);
     this.secrets = new BotSecrets(this.database, hermes);
@@ -465,6 +474,13 @@ export class NodeApplication {
         return this.routines.list(request.params.botId);
       case 'routines.get':
         return this.routines.get(request.params.botId, request.params.routineId);
+      case 'routines.approvalRespond':
+        return this.routines.approvalRespond(
+          request.params.botId,
+          request.params.executionId,
+          request.params.promptId,
+          request.params.choice,
+        );
       case 'routines.create':
         return this.routines.create(request.params);
       case 'routines.update':
@@ -528,6 +544,8 @@ export class NodeApplication {
         return this.extensions.toggle(request.params);
       case 'extensions.configure':
         return this.extensions.configure(request.params);
+      case 'flow.get':
+        return { flow: this.flow.get(request.params.conversationId) };
       case 'sync.snapshot':
         this.activities();
         return {
@@ -535,6 +553,7 @@ export class NodeApplication {
           groups: this.database.groups(),
           conversations: this.database.conversations(),
           latest: this.database.latestTexts(),
+          flows: this.flow.all(),
           headSeq: this.database.head(),
           node: this.desktopControl.capabilities(),
         } satisfies RpcResult<'sync.snapshot'>;
@@ -581,6 +600,8 @@ export class NodeApplication {
         return this.providers.models(request.params);
       case 'models.info':
         return this.providers.info(request.params.botId);
+      case 'models.assign':
+        return this.providers.assign(request.params);
       case 'hermes.settings.get':
         return this.settings.get(request.params.botId);
       case 'hermes.settings.set':
@@ -751,6 +772,7 @@ export class NodeApplication {
           }
           if (run.queue !== 'queued') this.activeRuns.set(run.conversationId, run);
           if (run.queue !== 'queued') this.restoreNativePrompts(run, snapshot.prompts ?? []);
+          if (receipt.status === 'started') this.flow.start(run);
           this.publishActivity(run);
           this.consume(run, gateway);
         } else {
@@ -828,7 +850,7 @@ export class NodeApplication {
     this.publishActivity(run);
     const admission = this.startRun(
       run,
-      'You have just been created as a nekoDOT Bot. Introduce yourself briefly using your own identity and role, then ask what task the user would like you to work on. Speak directly to the user. Do not claim the user has sent you a message. Do not use tools for this introduction.',
+      'You have just been created as a nekodot Bot. Introduce yourself briefly using your own identity and role, then ask what task the user would like you to work on. Speak directly to the user. Do not claim the user has sent you a message. Do not use tools for this introduction.',
     ).finally(() => this.welcomes.delete(run));
     this.welcomes.set(run, admission);
     return message.messageId;
@@ -888,6 +910,7 @@ export class NodeApplication {
           { botId: params.botId, input: result.message, modelOverride: result.modelOverride },
         );
       }
+      this.flow.sessionChanged(params.conversationId);
       const output = [result.output, result.warning, result.notice].filter(Boolean).join('\n');
       if (output) {
         const messageId = randomUUID();
@@ -908,7 +931,8 @@ export class NodeApplication {
           status: 'done',
           createdAt: now(),
           content: {
-            text: params.command + '\n\n' + output,
+            text: output,
+            command: params.command.split(/\s/)[0]!,
             ...(fileId ? { files: [fileId] } : {}),
           },
         });
@@ -1015,11 +1039,26 @@ export class NodeApplication {
         'conflict',
         'Hermes steer accepts text only. Wait for this run to finish or stop it before sending attachments.',
       );
-    if (conversation.kind === 'group') return this.sendGroupMessage(params, conversation, command);
+    if (conversation.kind === 'group') {
+      if (params.routineExecutionId)
+        throw new NodeFault(
+          'invalid_params',
+          'Continue a routine in its Bot private conversation.',
+        );
+      return this.sendGroupMessage(params, conversation, command);
+    }
     const bot = this.bots.get(conversation.botId);
     const active =
       this.activeRuns.get(conversation.conversationId) ??
       this.database.runs().find((run) => run.conversationId === conversation.conversationId);
+    const routine = params.routineExecutionId
+      ? this.routines.execution(bot.botId, params.routineExecutionId)
+      : undefined;
+    if (routine && active)
+      throw new NodeFault(
+        'conflict',
+        'Wait for the current task before discussing a routine result. Your draft is kept.',
+      );
     const userMessage: Message = {
       messageId: randomUUID(),
       conversationId: conversation.conversationId,
@@ -1028,7 +1067,18 @@ export class NodeApplication {
       kind: 'text',
       status: 'done',
       createdAt: now(),
-      content: { text: params.text },
+      content: {
+        text: params.text,
+        ...(routine
+          ? {
+              routine: {
+                routineId: routine.routineId,
+                executionId: routine.executionId,
+                sessionId: routine.sessionId,
+              },
+            }
+          : {}),
+      },
     };
 
     if (active) {
@@ -1208,12 +1258,14 @@ export class NodeApplication {
         kind: chain.failed ? 'failed' : 'completed',
       });
     if (chain.count >= MAX_CHAIN) {
+      this.flow.group(chain, 'paused');
       this.groupNotice(chain, 'Relay paused after 6 turns. Mention a group member to continue.');
       this.database.clearChain(chain.conversationId);
       this.publishGroupIdle(chain.conversationId);
       return;
     }
     if (!chain.queue.length) {
+      this.flow.group(chain, chain.failed ? 'failed' : 'done');
       this.database.clearChain(chain.conversationId);
       this.publishGroupIdle(chain.conversationId);
       return;
@@ -1287,6 +1339,9 @@ export class NodeApplication {
     try {
       this.secrets.attach(run.botId);
       await this.userMemory.sync();
+      // The model is applied when a Bot or its source changes, never on run start: a turn must
+      // not wait on the provider catalog probe that /api/model/set performs (F19).
+      await this.hermes.syncRules(this.bots.get(run.botId));
       const conversationId = run.groupId
         ? this.database
             .conversations()
@@ -1302,9 +1357,6 @@ export class NodeApplication {
             )
             .flatMap((message) => (message.kind === 'text' ? (message.content.files ?? []) : []))
         : (this.database.message(run.inputMessageId) as TextMessage | undefined)?.content.files;
-      const routineContext = run.welcome
-        ? { text: '', until: undefined }
-        : this.routines.context(run.botId);
       const gateway = this.hermes.gateway(run.botId);
       const snapshot = await openNativeSession(
         this.database,
@@ -1312,6 +1364,15 @@ export class NodeApplication {
         run.botId,
         conversationId,
       );
+      const inputMessage = this.database.message(run.inputMessageId);
+      const routineContext =
+        run.welcome || run.groupId
+          ? { text: '', until: undefined, key: '' }
+          : await this.routines.context(
+              run.botId,
+              snapshot.stored_session_id,
+              inputMessage?.kind === 'text' ? inputMessage.content.routine?.executionId : undefined,
+            );
       run.sessionId = snapshot.session_id;
       run.storedSessionId = snapshot.stored_session_id;
       run.replayEpoch = snapshot.replay_epoch;
@@ -1339,11 +1400,11 @@ export class NodeApplication {
       run.runId = admission.admission_id;
       run.executionGeneration = admission.execution_generation ?? snapshot.execution_generation;
       run.state = 'thinking';
-      if (routineContext.until)
-        this.database.setSetting('routine-context:' + run.botId, routineContext.until);
+      if (routineContext.until) this.database.setSetting(routineContext.key, routineContext.until);
       if (this.database.message(run.inputMessageId))
         this.database.setMessageRun(run.inputMessageId, admission.admission_id);
       this.database.saveRun(run);
+      if (admission.status === 'started' && run.queue !== 'queued') this.flow.start(run);
       if (admission.status === 'unknown') {
         this.pauseUnknown(run);
       } else if (admission.status === 'terminal') {
@@ -1535,6 +1596,7 @@ export class NodeApplication {
               run.queue = 'started';
               run.executionGeneration = receipt.execution_generation ?? run.executionGeneration;
               this.activeRuns.set(run.conversationId, run);
+              this.flow.start(run);
               this.queueMessage(run, 'running');
               this.restoreNativePrompts(run, snapshot.prompts ?? []);
               this.database.saveRun(run);
@@ -1607,6 +1669,14 @@ export class NodeApplication {
   private async acceptEvent(run: RunRecord, event: HermesEvent) {
     event = JSON.parse(this.secrets.scrub(run.botId, JSON.stringify(event))) as HermesEvent;
     const runId = run.runId!;
+    this.flow.start(run);
+    if (event.event === 'todo.updated') {
+      this.flow.plan(run, event.todo_state!);
+      run.lastSeq = event.seq;
+      this.database.saveRun(run);
+      return;
+    }
+    if (event.event === 'tool.generating') this.flow.phase(run, 'thinking', event.seq);
     if (event.event === 'clarify.request') {
       this.persistText(run, this.currentText(run), event.seq);
       this.restoreQuestion(run, {
@@ -1631,6 +1701,12 @@ export class NodeApplication {
         question.status = 'done';
         this.database.putMessage(question, { runId });
       }
+      this.flow.settle(
+        run,
+        'question',
+        event.prompt_id ?? '',
+        question?.kind === 'question' && question.content.answer ? 'done' : 'unknown',
+      );
       run.state = 'thinking';
       run.lastSeq = event.seq;
       this.database.saveRun(run);
@@ -1640,6 +1716,8 @@ export class NodeApplication {
     if (event.event === 'message.delta') {
       const textMessage = this.ensureText(run);
       const delta = event.delta ?? '';
+      // Canonical null deltas delimit segments; they are not a reply being emitted.
+      if (delta.trim()) this.flow.phase(run, 'reply', event.seq, textMessage.messageId);
       const previous = this.streamingTexts.get(textMessage.messageId) ?? textMessage.content.text;
       textMessage.content = { ...textMessage.content, text: previous + delta };
       this.streamingTexts.set(textMessage.messageId, textMessage.content.text);
@@ -1696,11 +1774,16 @@ export class NodeApplication {
         kind: 'tool',
         status: 'streaming',
         createdAt: now(),
-        content: { tool: event.tool ?? 'tool', preview: event.preview ?? '' },
+        content: {
+          tool: event.tool ?? 'tool',
+          preview: event.preview ?? '',
+          ...(event.context ? { context: event.context } : {}),
+        },
       };
       run.state = 'tool';
       run.lastSeq = event.seq;
       this.database.putMessage(tool, { runId, toolCallId }, run);
+      this.flow.tool(run, toolCallId, tool.content.tool, tool.messageId);
       this.publishActivity(run);
       return;
     }
@@ -1718,6 +1801,12 @@ export class NodeApplication {
           error: event.error === true || event.error === 'true',
         };
         this.database.putMessage(tool, { runId, ...(toolCallId ? { toolCallId } : {}) }, run);
+        this.flow.toolEnd(
+          run,
+          toolCallId!,
+          run.stopRequested ? 'cancelled' : tool.content.error ? 'failed' : 'done',
+          event.seq,
+        );
       } else this.database.saveRun(run);
       this.publishActivity(run);
       return;
@@ -1745,6 +1834,7 @@ export class NodeApplication {
       run.state = 'waiting_approval';
       run.lastSeq = event.seq;
       this.database.putMessage(approval, { runId }, run);
+      this.flow.prompt(run, 'approval', event.prompt_id ?? '', approval.messageId);
       this.notifications.send({
         notificationId: `approval:${runId}:${event.prompt_id}`,
         conversationId: run.conversationId,
@@ -1763,6 +1853,16 @@ export class NodeApplication {
         run.lastSeq = event.seq;
         this.database.saveRun(run);
       }
+      this.flow.settle(
+        run,
+        'approval',
+        event.prompt_id ?? '',
+        approval?.kind === 'approval' && approval.content.choice
+          ? approval.content.choice === 'deny'
+            ? 'cancelled'
+            : 'done'
+          : 'unknown',
+      );
       run.state = 'thinking';
       this.publishActivity(run);
       return;
@@ -1773,6 +1873,8 @@ export class NodeApplication {
       reply.status = 'done';
       await this.files.capture(reply);
       this.persistText(run, reply, event.seq);
+      if (reply.content.text) this.flow.phase(run, 'reply', event.seq, reply.messageId);
+      this.flow.finish(run, 'done');
       if (run.groupId) await this.finishGroupRun(run, 'completed', reply.content.text);
       else {
         this.notifications.send({
@@ -1809,6 +1911,7 @@ export class NodeApplication {
               'Hermes interrupted this turn. Send a message to continue; the task was not restarted.');
       reply.status = event.event === 'run.cancelled' ? 'cancelled' : 'failed';
       this.persistText(run, reply, event.seq);
+      this.flow.finish(run, event.event === 'run.cancelled' ? 'cancelled' : 'failed');
       if (run.groupId)
         await this.finishGroupRun(
           run,
@@ -1846,6 +1949,7 @@ export class NodeApplication {
       this.consumers.delete(run.runId);
     }
     if (!chain || status === 'cancelled') {
+      if (chain) this.flow.group(chain, 'cancelled');
       if (chain && status === 'cancelled') this.database.clearChain(run.conversationId);
       this.database.saveRun({ ...run, state: 'idle' });
       this.publishGroupIdle(run.conversationId);
@@ -1867,6 +1971,7 @@ export class NodeApplication {
     chain.requestId = randomUUID();
     this.database.saveRun({ ...run, state: 'idle' });
     this.database.saveChain(chain);
+    this.flow.group(chain);
     await this.userMemory.sync();
     await this.startNextGroupRun(chain);
   }
@@ -1960,6 +2065,7 @@ export class NodeApplication {
     const current = this.activeRuns.get(run.conversationId);
     if (run.state === 'idle' && current && current.runId !== run.runId) return;
     const chain = run.groupId ? this.database.chain(run.conversationId) : undefined;
+    if (chain) this.flow.group(chain);
     this.onLive({
       kind: 'activity',
       conversationId: run.conversationId,
@@ -2034,6 +2140,7 @@ export class NodeApplication {
   }
 
   private pauseUnknown(run: RunRecord) {
+    this.flow.finish(run, 'unknown');
     this.settleControls(run, 'failed');
     const reply = this.currentText(run) ?? this.newText(run, '', 'failed');
     reply.status = 'failed';
@@ -2066,6 +2173,12 @@ export class NodeApplication {
     message.status = 'done';
     run.state = 'thinking';
     this.database.putMessage(message, { runId }, run);
+    this.flow.settle(
+      run,
+      'approval',
+      message.content.requestId,
+      params.choice === 'deny' ? 'cancelled' : 'done',
+    );
     this.publishActivity(run);
     return {};
   }
@@ -2076,7 +2189,13 @@ export class NodeApplication {
         this.restoreQuestion(run, pending);
         continue;
       }
-      if (!run.runId || this.database.approval(run.runId, pending.prompt_id)) continue;
+      if (!run.runId) continue;
+      const existing = this.database.approval(run.runId, pending.prompt_id);
+      if (existing) {
+        if (existing.status === 'streaming')
+          this.flow.prompt(run, 'approval', pending.prompt_id, existing.messageId);
+        continue;
+      }
       run.state = 'waiting_approval';
       this.database.putMessage(
         {
@@ -2100,6 +2219,8 @@ export class NodeApplication {
         { runId: run.runId },
         run,
       );
+      const message = this.database.approval(run.runId, pending.prompt_id);
+      if (message) this.flow.prompt(run, 'approval', pending.prompt_id, message.messageId);
     }
   }
 
@@ -2135,6 +2256,12 @@ export class NodeApplication {
         run,
       );
     else this.database.saveRun(run);
+    const message =
+      existing ??
+      this.database
+        .messagesForRun(run.runId)
+        .find((m) => m.kind === 'question' && m.content.requestId === pending.prompt_id);
+    if (message) this.flow.prompt(run, 'question', pending.prompt_id, message.messageId);
     if (!existing)
       this.notifications.send({
         notificationId: `question:${run.runId}:${pending.prompt_id}`,
@@ -2173,6 +2300,7 @@ export class NodeApplication {
     message.status = 'done';
     run.state = 'thinking';
     this.database.putMessage(message, { runId: run.runId }, run);
+    this.flow.settle(run, 'question', message.content.requestId, 'done');
     this.publishActivity(run);
     return {};
   }
@@ -2217,6 +2345,11 @@ export class NodeApplication {
       run.queue = 'started';
       this.queueMessage(run, 'running');
     }
+    this.flow.start(run);
+    this.flow.finish(
+      run,
+      status === 'cancelled' ? 'cancelled' : status === 'completed' ? 'done' : 'failed',
+    );
     this.settleControls(
       run,
       status === 'cancelled' ? 'cancelled' : status === 'completed' ? 'done' : 'failed',
@@ -2273,6 +2406,7 @@ export class NodeApplication {
   }
 
   private async finishInterrupted(run: RunRecord, text: string) {
+    this.flow.finish(run, 'failed');
     this.settleControls(run, 'failed');
     const message = this.currentText(run) ?? this.newText(run, text, 'failed');
     if (!message.content.text) message.content = { ...message.content, text };

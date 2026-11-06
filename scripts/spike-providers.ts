@@ -184,7 +184,7 @@ try {
   };
   // Config and raw logs remain private; only the actual management shapes are recorded.
   await writeFile(
-    join(root, 'docs/fixtures/providers-native.json'),
+    join(root, 'tests/fixtures/providers-native.json'),
     safe({
       oauth: capture.nativeOauth,
       endpoints: capture.nativeEndpoints,

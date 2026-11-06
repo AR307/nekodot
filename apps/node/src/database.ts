@@ -8,6 +8,8 @@ import type {
   Message,
   PersistedEvent,
   RpcResult,
+  FlowSnapshot,
+  FlowChange,
 } from '@nekodot/protocol';
 
 export interface NativeModelOverride {
@@ -116,7 +118,10 @@ export class NodeDatabase {
         this.db.exec('ALTER TABLE hermes_sessions RENAME COLUMN session_id TO stored_session_id');
       this.db.exec('PRAGMA user_version=4');
     }
-    this.db.exec(`CREATE TABLE IF NOT EXISTS attachments(
+    this.db.exec(`CREATE TABLE IF NOT EXISTS usage_owners(
+      profile TEXT NOT NULL,kind TEXT NOT NULL,id TEXT NOT NULL,conversation_id TEXT NOT NULL,
+      PRIMARY KEY(profile,kind,id));
+    CREATE TABLE IF NOT EXISTS attachments(
       file_id TEXT PRIMARY KEY,bot_id TEXT NOT NULL,message_id TEXT NOT NULL,
       reference TEXT NOT NULL,storage_path TEXT,data TEXT NOT NULL,
       UNIQUE(message_id,reference)
@@ -399,6 +404,14 @@ export class NodeDatabase {
       )
       .run(key, JSON.stringify(value));
   }
+  saveFlow(flow: FlowSnapshot, steps: FlowSnapshot['steps'], reset = false) {
+    const change: FlowChange = { ...flow, steps, reset };
+    this.write('flow.changed', change, (seq) => {
+      flow.seq = seq;
+      change.seq = seq;
+      this.setSetting('flow:' + flow.conversationId, flow);
+    });
+  }
   updateMessage(message: Message, run?: RunRecord, metadata: { toolCallId?: string } = {}) {
     return this.putMessage(message, { runId: run?.runId, ...metadata }, run);
   }
@@ -406,6 +419,10 @@ export class NodeDatabase {
     this.db.prepare('UPDATE messages SET run_id=? WHERE message_id=?').run(runId, messageId);
   }
   saveRun(run: RunRecord) {
+    if (run.runId)
+      this.db
+        .prepare('INSERT OR IGNORE INTO usage_owners VALUES(?,?,?,?)')
+        .run(run.botId, 'execution', 'admission:' + run.runId, run.conversationId);
     if (run.queue || run.native) {
       this.setSetting(
         (run.native ? 'native-admission:' : 'native-queue:') + run.inputMessageId,
@@ -434,6 +451,9 @@ export class NodeDatabase {
       : undefined;
   }
   saveHermesSession(session: HermesSessionRecord) {
+    this.db
+      .prepare('INSERT OR IGNORE INTO usage_owners VALUES(?,?,?,?)')
+      .run(session.botId, 'session', session.storedSessionId, session.conversationId);
     this.db
       .prepare(
         'INSERT INTO hermes_sessions VALUES(?,?,?,?,?) ON CONFLICT(conversation_id) DO UPDATE SET bot_id=excluded.bot_id,stored_session_id=excluded.stored_session_id,replay_epoch=excluded.replay_epoch,last_sequence=excluded.last_sequence',

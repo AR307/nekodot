@@ -95,7 +95,13 @@ class LocalRuntime extends ChangeNotifier {
     steps = [for (final step in localSteps) LocalStep(step)];
     if (id != null && location != null) {
       nodeId = await _pairedNode();
-      if (nodeId != null && await ready()) unawaited(start());
+      if (nodeId != null) {
+        if (await ready()) {
+          unawaited(start());
+        } else {
+          unawaited(setup(location!));
+        }
+      }
     }
     notifyListeners();
   }
@@ -166,6 +172,7 @@ class LocalRuntime extends ChangeNotifier {
           step = id;
           _progress(id, state, detail);
         },
+        origin: client.origin,
       );
       await _installer!.run();
       step = 'account';
@@ -205,15 +212,6 @@ class LocalRuntime extends ChangeNotifier {
   Future<void> _prepareAccount() async {
     final hermes = joinPath(_home, 'hermes');
     await Directory(joinPath(_home, 'logs')).create(recursive: true);
-    if (!await File(joinPath(hermes, 'config.yaml')).exists()) {
-      await Directory(hermes).create(recursive: true);
-      await RuntimeInstaller(
-        location!,
-        support.platform!,
-        client.transport,
-        (_, state, detail) => _progress('account', 'running', detail),
-      ).stage('config', hermes);
-    }
     await _installer!.prepareAccount(hermes);
     final bundle = File(_bundle);
     if (await bundle.exists()) return;
@@ -268,6 +266,17 @@ class LocalRuntime extends ChangeNotifier {
     phase = LocalPhase.starting;
     notifyListeners();
     try {
+      // Another account may have installed the shared runtime first. Its ready
+      // marker does not mean this account's plugin environment is prepared.
+      if (_installer == null) {
+        await RuntimeInstaller(
+          location!,
+          support.platform!,
+          client.transport,
+          _progress,
+          origin: client.origin,
+        ).prepareAccount(joinPath(_home, 'hermes'));
+      }
       await _applyUpdateMarkers();
       final port = await _port();
       final log = File(joinPath(_home, 'logs', 'desktop-node.log'))
@@ -279,6 +288,7 @@ class LocalRuntime extends ChangeNotifier {
         environment: isolatedEnvironment({
           'NEKODOT_HOME': _home,
           'NEKODOT_HERMES_RUNTIME': location!.tools,
+          'UV_CACHE_DIR': location!.cache,
           'NEKODOT_HERMES_API_PORT': '$port',
           'HERMES_GATEWAY_LOCK_DIR': joinPath(_home, 'gateway-locks'),
         }),

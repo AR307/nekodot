@@ -95,23 +95,26 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // The page opens on kinds; the settings themselves sit one step in.
+      // Advanced settings stay hidden until explicitly opened.
+      expect(find.byType(TextField), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('advanced-settings')));
+      await tester.pumpAndSettle();
       expect(find.text('Model'), findsOneWidget);
       expect(find.text('Running'), findsOneWidget);
       expect(find.text('Voice'), findsNothing);
       expect(find.text('model_context_length'), findsNothing);
       await expectLater(
         find.byType(Scaffold),
-        matchesGoldenFile('goldens/hermes_settings_390.png'),
+        matchesGoldenFile('goldens/ui_refinements_settings_390.png'),
       );
       await tester.tap(find.byKey(const ValueKey('settings-group-model')));
       await tester.pumpAndSettle();
-      expect(find.text('model_context_length'), findsOneWidget);
+      expect(find.text('model_context_length'), findsNothing);
       expect(find.text('compression.enabled'), findsOneWidget);
       expect(find.text('agent.api_key'), findsNothing);
       expect(
         find.textContaining('Change this in Bot model settings'),
-        findsOneWidget,
+        findsNothing,
       );
       await tester.pageBack();
       await tester.pumpAndSettle();
@@ -139,7 +142,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         find.textContaining('Change this in Bot model settings'),
-        findsOneWidget,
+        findsNothing,
       );
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
@@ -161,6 +164,8 @@ void main() {
     );
     await tester.pumpAndSettle();
     final (name, note) = hermesSettingZh['compression.enabled']!;
+    await tester.tap(find.byKey(const ValueKey('advanced-settings')));
+    await tester.pumpAndSettle();
     // Found by its Chinese name as well as by its key.
     await tester.enterText(find.byType(TextField), name);
     await tester.pumpAndSettle();

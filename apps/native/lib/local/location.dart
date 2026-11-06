@@ -5,6 +5,7 @@ import 'system.dart';
 
 const hermesVersion = 'v0.22.6';
 const hermesCommit = 'f0d94882e89ab8d4098b5bb2f166adfb9ee0a0ab';
+const hermesRuntimeVersion = 'v0.22.6-r1';
 const nodeVersion = '24.22.1';
 
 /// Free space a fresh runtime needs (Python, Node, Chromium, computer-use driver, built products).
@@ -40,10 +41,12 @@ class LocalLocation {
     await file.writeAsString(jsonEncode({'runtime': runtime, 'data': data}));
   }
 
-  /// Owner HERMES_HOME that installs the shared checkout; account homes borrow it.
-  String get owner => joinPath(runtime, 'hermes');
-  String get checkout => joinPath(runtime, 'hermes', 'hermes-agent');
-  String get tools => joinPath(owner, 'tools');
+  String get owner => joinPath(runtime, 'bootstrap-home');
+  String get payload =>
+      joinPath(runtime, 'hermes-runtimes', hermesRuntimeVersion);
+  String get checkout => joinPath(payload, 'hermes-agent');
+  String get tools => joinPath(payload, 'tools');
+  String get cache => joinPath(runtime, 'cache', 'uv');
   String get logs => joinPath(runtime, 'logs');
   String get nodeRoot =>
       joinPath(runtime, 'node', 'node-v$nodeVersion-${_nodeTarget()}');
@@ -51,8 +54,8 @@ class LocalLocation {
       ? joinPath(nodeRoot, 'node.exe')
       : joinPath(nodeRoot, 'bin', 'node');
   String get launcher => Platform.isWindows
-      ? joinPath(checkout, '.hermes', 'bin', 'hermes.exe')
-      : joinPath(checkout, '.hermes', 'bin', 'hermes');
+      ? joinPath(payload, 'bin', 'hermes.exe')
+      : joinPath(payload, 'bin', 'hermes');
   File get manifest => File(joinPath(runtime, runtimeMarker));
   String account(String userId) => joinPath(data, 'accounts', userId);
 
@@ -60,14 +63,18 @@ class LocalLocation {
     if (!await manifest.exists()) return {};
     final value =
         jsonDecode(await manifest.readAsString()) as Map<String, dynamic>;
-    if (value['hermes']?['commit'] != hermesCommit) return {};
+    if (value['hermes']?['runtime'] != hermesRuntimeVersion) return {};
     return {...(value['done'] as List? ?? []).cast<String>()};
   }
 
   Future<void> record(Set<String> done) => manifest.writeAsString(
     jsonEncode({
       'schema': 1,
-      'hermes': {'version': hermesVersion, 'commit': hermesCommit},
+      'hermes': {
+        'version': hermesVersion,
+        'commit': hermesCommit,
+        'runtime': hermesRuntimeVersion,
+      },
       'node': nodeVersion,
       'done': [...done],
     }),

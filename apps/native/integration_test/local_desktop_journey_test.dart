@@ -247,8 +247,11 @@ void main() {
       final started = DateTime.now();
       await tester.tap(find.byKey(const ValueKey('start-local')));
       if (phase == 'retry') {
-        const download = bool.fromEnvironment('QA_CANCEL_DOWNLOAD');
-        const stage = download ? 'node' : 'python-deps';
+        const stage = String.fromEnvironment(
+          'QA_CANCEL_STAGE',
+          defaultValue: 'repository',
+        );
+        const download = stage == 'node' || stage == 'repository';
         await until(
           () => local.steps.any(
             (s) =>
@@ -275,6 +278,7 @@ void main() {
         ];
         note('cancelledAt', local.failedStep);
         note('cancelError', local.error);
+        expect(local.error, contains('cancelled'));
         note('keptAfterCancel', kept);
         await tester.pump();
         expect(
@@ -367,12 +371,25 @@ void main() {
       }
 
       await fill('名称', '本机小助手');
-      await fill('角色设定', '在用户自己的 Windows 电脑上帮忙整理文件，回答简洁。');
       await until(
         () => find.widgetWithText(LabeledField, '模型').evaluate().isNotEmpty,
         what: 'model field',
       );
-      await fill('模型', model);
+      final choice = find.byKey(const ValueKey('model-choice'));
+      await until(
+        () =>
+            choice.evaluate().isNotEmpty &&
+            tester.widget<OutlinedButton>(choice).onPressed != null,
+        what: 'model catalog ready',
+      );
+      await tester.ensureVisible(choice);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(choice);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.enterText(find.byKey(const ValueKey('model-search')), model);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.byKey(ValueKey('model-option-$model')));
+      await tester.pump(const Duration(milliseconds: 400));
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump(const Duration(milliseconds: 300));
       final save = find.widgetWithText(FilledButton, '保存');
@@ -402,6 +419,29 @@ void main() {
     final conversationId =
         client.node.conversations.first['conversationId'] as String;
     await client.loadMessages(conversationId);
+    if (!fresh) {
+      final recorded =
+          (jsonDecode(await accountFile.readAsString()) as Map)['messages']
+              as List?;
+      // This account may have more than one page after desktop/tool journeys.
+      // Read older pages instead of reporting paginated-out messages as lost.
+      while (recorded != null &&
+          !recorded.every(
+            (id) => (client.node.messages[conversationId] ?? []).any(
+              (message) => message['messageId'] == id,
+            ),
+          )) {
+        final messages = client.node.messages[conversationId]!;
+        final previousLength = messages.length;
+        await client.loadMessages(
+          conversationId,
+          before: messages.first['seq'] as int,
+        );
+        if (client.node.messages[conversationId]!.length == previousLength) {
+          break;
+        }
+      }
+    }
     final history = [
       for (final m in client.node.messages[conversationId] ?? [])
         m['messageId'],
@@ -412,6 +452,7 @@ void main() {
           (jsonDecode(await accountFile.readAsString()) as Map)['messages']
               as List?;
       note('historyKept', recorded == null || recorded.every(history.contains));
+      expect(recorded == null || recorded.every(history.contains), isTrue);
       note(
         'sameNode',
         local.nodeId ==
@@ -533,6 +574,42 @@ void main() {
       what: 'second message answered',
     );
     note('secondAnswered', true);
+
+    if (const bool.fromEnvironment('QA_CHECK_PLUGIN')) {
+      await until(
+        () => client.node.activities[conversationId]?['state'] == 'idle',
+        what: 'ready for installed plugin',
+      );
+      final previous = {
+        for (final message in client.node.messages[conversationId] ?? [])
+          message['messageId'],
+      };
+      await tester.tap(input);
+      await tester.enterText(
+        input,
+        '请实际调用 runtime_probe 插件工具格式化整数 1234567，报告真实结果。'
+        '可以先用 tool_search 或 tool_describe 查找。不要用其他工具替代。',
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.byTooltip('发送').hitTestable().last);
+      await until(
+        () => (client.node.messages[conversationId] ?? []).any(
+          (m) =>
+              !previous.contains(m['messageId']) &&
+              m['kind'] == 'tool' &&
+              m['content']['tool'] == 'runtime_probe' &&
+              m['status'] == 'done' &&
+              '${m['content']['resultPreview']}'.contains('1,234,567'),
+        ),
+        seconds: 300,
+        what: 'real installed plugin after runtime replacement',
+      );
+      await until(
+        () => client.node.activities[conversationId]?['state'] == 'idle',
+        what: 'plugin turn completed',
+      );
+      note('pluginAfterRuntimeReplacement', true);
+    }
 
     // Stop and start keep the same node, history and no repeated execution.
     final messages = [

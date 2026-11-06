@@ -54,16 +54,14 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
         flexibleSpace: glass ? const Frost() : const WindowDrag(),
         automaticallyImplyLeading: !widget.dialog,
         titleSpacing: widget.dialog ? 20 : 0,
-        title: glass
-            ? Text(kind == 'skills' ? 'Skills' : c.tr('插件', 'Plugins'))
-            : Segment<String>(
-                value: kind,
-                options: {
-                  'skills': const Text('Skills'),
-                  'plugins': Text(c.tr('插件', 'Plugins')),
-                },
-                onChanged: (value) => setState(() => kind = value),
-              ),
+        title: Segment<String>(
+          value: kind,
+          options: {
+            'skills': const Text('Skills'),
+            'plugins': Text(c.tr('插件', 'Plugins')),
+          },
+          onChanged: (value) => setState(() => kind = value),
+        ),
         actions: [
           IconAction(
             tooltip: c.tr('导入', 'Import'),

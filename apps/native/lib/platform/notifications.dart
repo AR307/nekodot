@@ -35,9 +35,9 @@ class NativeNotifications {
             requestBadgePermission: false,
             requestSoundPermission: false,
           ),
-          linux: LinuxInitializationSettings(defaultActionName: 'Open nekoDOT'),
+          linux: LinuxInitializationSettings(defaultActionName: 'Open nekodot'),
           windows: WindowsInitializationSettings(
-            appName: 'nekoDOT',
+            appName: 'nekodot',
             appUserModelId: 'app.nekodot.client',
             guid: 'be9da93d-47b6-4987-a955-cee671680353',
           ),
@@ -96,7 +96,7 @@ class NativeNotifications {
             ?.createNotificationChannel(
               const AndroidNotificationChannel(
                 'nekodot_tasks',
-                'nekoDOT tasks',
+                'nekodot tasks',
                 description: 'Task replies, questions and approvals',
                 importance: Importance.high,
               ),
@@ -231,7 +231,7 @@ class NativeNotifications {
         notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
             'nekodot_tasks',
-            'nekoDOT tasks',
+            'nekodot tasks',
             importance: Importance.high,
             priority: Priority.high,
           ),

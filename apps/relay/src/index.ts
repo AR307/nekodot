@@ -17,7 +17,7 @@ const { app } = await createRelay({
     ? smtpSchema.parse(JSON.parse(await readFile(process.env.SMTP_CONFIG, 'utf8')))
     : undefined,
   trustedProxy: (process.env.TRUSTED_PROXY ?? '').split(',').filter(Boolean),
-  ...(process.env.WEB_DIR ? { webDirectory: resolve(process.env.WEB_DIR) } : {}),
+  ...(process.env.SITE_DIR ? { siteDirectory: resolve(process.env.SITE_DIR) } : {}),
 });
 await app.listen({ host: process.env.HOST ?? '127.0.0.1', port });
 for (const signal of ['SIGINT', 'SIGTERM'] as const)

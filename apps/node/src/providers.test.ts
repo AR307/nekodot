@@ -10,10 +10,10 @@ it('two custom APIs survive app restart; each profile keeps its selected route a
   const home = await mkdtemp(join(tmpdir(), 'nekodot-source-journey-'));
   const key = 'test-only-management';
   const fixture = JSON.parse(
-    await readFile(join(process.cwd(), 'docs/fixtures/providers-native.json'), 'utf8'),
+    await readFile(join(process.cwd(), 'tests/fixtures/providers-native.json'), 'utf8'),
   ) as { info: { model: string } };
   const fake = await startFakeHermes({
-    fixturesDirectory: join(process.cwd(), 'docs/fixtures'),
+    fixturesDirectory: join(process.cwd(), 'tests/fixtures'),
     profiles: ['default'],
     apiKey: key,
     allowProfileCreate: true,
@@ -23,6 +23,7 @@ it('two custom APIs survive app restart; each profile keeps its selected route a
     start: async () => {},
     close: async () => {},
     approvalMode: async () => 'manual',
+    syncRules: async () => {},
     configureBot: async () => {},
   };
   let app = new NodeApplication(home, runtime);

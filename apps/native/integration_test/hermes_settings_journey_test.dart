@@ -148,7 +148,7 @@ void main() {
     await tester.tap(find.widgetWithText(ListTile, 'terminal.vercel_runtime'));
     await until(() => find.byType(AlertDialog).evaluate().isNotEmpty);
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.tap(find.byKey(const ValueKey('setting-select')));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('node24').last);
     await tester.pump(const Duration(milliseconds: 200));
@@ -159,7 +159,7 @@ void main() {
     await tester.tap(find.widgetWithText(ListTile, 'terminal.vercel_runtime'));
     await until(() => find.byType(AlertDialog).evaluate().isNotEmpty);
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.tap(find.byKey(const ValueKey('setting-select')));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('—').last);
     await tester.pump(const Duration(milliseconds: 200));
@@ -179,7 +179,7 @@ void main() {
     await tester.tap(find.widgetWithText(ListTile, 'terminal.vercel_runtime'));
     await until(() => find.byType(AlertDialog).evaluate().isNotEmpty);
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.tap(find.byKey(const ValueKey('setting-select')));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('—').last);
     await tester.pump(const Duration(milliseconds: 200));

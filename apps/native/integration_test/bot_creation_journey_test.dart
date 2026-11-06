@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -97,6 +99,8 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 400));
     await fill('名称', displayName);
+    await tester.tap(find.text('高级').last);
+    await tester.pump(const Duration(milliseconds: 300));
     final handleField = find.descendant(
       of: find.widgetWithText(LabeledField, '@handle'),
       matching: find.byType(TextField),
@@ -104,16 +108,18 @@ void main() {
     await show(handleField);
     expect(tester.widget<TextField>(handleField).controller!.text, displayName);
     debugPrint('QA: Chinese handle follows the name without manual input.');
-    await fill('角色设定', '简洁回答用户的问题；不要执行工具或修改文件。');
     await save();
     await until(
       () => find.textContaining('params.model').evaluate().isNotEmpty,
     );
     expect(find.byType(BotEditor), findsOneWidget);
     debugPrint('QA: missing model named; form and automatic handle retained.');
-    await binding.convertFlutterSurfaceToImage();
-    await tester.pump();
-    await binding.takeScreenshot('bot-create-missing-model');
+    // Windows has no device screenshot; the Android run takes it.
+    if (Platform.isAndroid) {
+      await binding.convertFlutterSurfaceToImage();
+      await tester.pump();
+      await binding.takeScreenshot('bot-create-missing-model');
+    }
     await fill('模型', model, delta: -220);
     await save();
     await until(() => find.byType(BotEditor).evaluate().isEmpty);
