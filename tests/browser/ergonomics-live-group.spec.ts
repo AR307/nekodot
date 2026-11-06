@@ -87,7 +87,11 @@ test('live group chat ergonomics · zh-desktop-light', async ({ browser }) => {
     const composer = page.locator('.composer-wrap textarea').first();
     await composer.click();
     await composer.fill('请用一句话说说怎样安排专注的一天，然后交给另一位成员补充一句。');
-    const before = await page.locator('.user-bubble').count();
+    const before = {
+      users: await page.locator('.user-bubble').count(),
+      handoffs: await page.locator('.handoff-tag').count(),
+      replies: await page.locator('.message .bot-copy').count(),
+    };
     const timing = page.evaluate(
       (before) =>
         new Promise<Record<string, number>>((resolve) => {
@@ -96,11 +100,18 @@ test('live group chat ergonomics · zh-desktop-light', async ({ browser }) => {
           let quietSince = 0;
           const check = () => {
             const now = performance.now() - start;
-            if (!marks.ownMessage && document.querySelectorAll('.user-bubble').length > before)
+            if (
+              !marks.ownMessage &&
+              document.querySelectorAll('.user-bubble').length > before.users
+            )
               marks.ownMessage = now;
             const busy = document.querySelector('.run-banner, .stream-cursor, .thinking-row');
             if (!marks.working && busy) marks.working = now;
-            if (!marks.handoff && document.querySelector('.handoff-tag')) marks.handoff = now;
+            if (
+              !marks.handoff &&
+              document.querySelectorAll('.handoff-tag').length > before.handoffs
+            )
+              marks.handoff = now;
             if (marks.working && !busy) {
               quietSince ||= now;
               // The relay may pause between members; settle after 6s without activity.
@@ -121,11 +132,12 @@ test('live group chat ergonomics · zh-desktop-light', async ({ browser }) => {
     await page.screenshot({ path: `${shots}/3-working.png` });
     await page
       .locator('.handoff-tag')
-      .first()
+      .nth(before.handoffs)
       .waitFor({ timeout: 180_000 })
       .then(() => page.screenshot({ path: `${shots}/4-relay.png` }))
       .catch(() => undefined);
     const marks = await timing;
+    const newReplies = (await page.locator('.message .bot-copy').count()) - before.replies;
     await page.screenshot({ path: `${shots}/5-done.png` });
     const pinned = await page.evaluate(() => {
       const scroller = document.querySelector('.message-scroll')!;
@@ -134,10 +146,14 @@ test('live group chat ergonomics · zh-desktop-light', async ({ browser }) => {
     findings.push(...(await auditSurface(page, 'groups/chat-after-relay')));
     await writeFile(
       `${shots}/report.json`,
-      JSON.stringify({ marks, pinnedDistance: pinned, findings }, null, 2),
+      JSON.stringify({ marks, newReplies, pinnedDistance: pinned, findings }, null, 2),
     );
     expect(marks.ownMessage).toBeLessThan(400);
     expect(marks.working).toBeLessThan(1_500);
+    expect(marks.handoff, 'this round displayed a new handoff').toBeGreaterThanOrEqual(
+      marks.ownMessage!,
+    );
+    expect(newReplies, 'both members replied in this round').toBeGreaterThanOrEqual(2);
     expect(marks.done, 'group round finished').toBeTruthy();
     expect(pinned).toBeLessThan(4);
     expect(findings.filter((item) => item.severity === 'P0' || item.severity === 'P1')).toEqual([]);

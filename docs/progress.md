@@ -1333,3 +1333,12 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 冲突标记导致 TypeScript 基线 3 项语法错误；收尾后 lint、typecheck、全量 41 文件 78 项测试、完整 build、Edge 旧 Node 旅程通过。Playwright 在 Node 24 下需现有 `node --import tsx` 入口；直接 CLI 的 JSON import 属性错误不计产品失败。
 - Flutter analyze 与 43 项测试通过；核对发现 `TextFieldTapRegion` 和四项桌面/手机宽度点击回归已存在，不重复应用原计划补丁。
 - 候选通过本地原 Relay / Node 与官方 Hermes 调用真实 `gpt-6-sol`，中文桌面、英文手机尺寸私聊与群聊接力 3 项通过；不是 Android 设备或旧 1.0.0 bundle 实测。部署与完整浏览器回归另行记录。
+
+## 2026-11-06 本地部署与验收完善
+
+- 群聊旧验收会立即读取历史 `.handoff-tag`，旧报告接力 1.3ms 早于本轮用户消息 39.7ms，属于误计。现在先计历史标签/回复，只等待新增标签并断言新增两条回复；真实 `gpt-6-sol` 复验通过：本轮接力 3993ms、完成 7839ms、两条新回复、距底部 0px。
+- 原生旅程首次已完成真实流式回复，但宽屏界面没有手机返回按钮，最后 `pageBack` 断言失败。沿用 HomePage 的 840px 布局分界：窄屏返回列表、宽屏核对聊天和侧栏并存。修正后的 Windows 真实登录、历史、流式回复与导航全部通过，Flutter analyze 再次通过。
+- 完整 Edge 回归 24 通过、10 条需另行配置的真实/设备旅程跳过；本轮另行运行 2 项真实私聊、2 轮真实群聊及 2 轮 Windows 真实模型提示（首次原生旅程末尾失败如上），未创建新 Bot/群组。
+- 本地 Windows Release 构建、未签名 NSIS 安装完成，40 文件 SHA256 一致，4 个已有入口指向保留的 `Start-Windows.ps1`，已安装 `nekoDOT.exe` 路径与窗口响应正常。
+- 服务完整停止并确认端口释放，备份两端数据库、node.json、私有配置和旧安装程序后重启；健康、登录、快照、官方 Hermes providers RPC 通过。同一节点 ID、Bot/群组/会话 ID、模型来源数量不变。
+- 私有证据与回退文件保存在 `.runtime/update-review-20261106/`；已安装 Release 的 CUA 截图复核被工具产品策略阻止，未改用其他方式绕过。真实原生交互使用本次源码 Debug 构建；Release 只核对安装字节、启动路径与响应。其他平台设备、屏幕接管、旧 1.0.0 bundle 与公网未验；没有 push 或正式发布。

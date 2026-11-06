@@ -20,7 +20,7 @@ void main() {
   const inputTest = bool.fromEnvironment('QA_SCREEN_INPUT');
   const toolFile = String.fromEnvironment('QA_TOOL_FILE');
 
-  testWidgets('native login, real streaming reply, screen and Android back', (
+  testWidgets('native login, real streaming reply, screen and navigation', (
     tester,
   ) async {
     expect(
@@ -218,8 +218,15 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       expect(find.byKey(const ValueKey('chat-input')), findsOneWidget);
     }
-    await tester.pageBack();
-    await tester.pump(const Duration(seconds: 1));
+    // A wide desktop keeps the sidebar beside the chat; only the compact
+    // layout opens a separate route with a back button (HomePage's breakpoint).
+    final compact = MediaQuery.sizeOf(tester.element(input)).width < 840;
+    if (compact) {
+      await tester.pageBack();
+      await tester.pump(const Duration(seconds: 1));
+    } else {
+      expect(input, findsOneWidget);
+    }
     expect(conversation, findsOneWidget);
     binding.reportData = {
       'login': true,
@@ -227,6 +234,7 @@ void main() {
       'screen': withScreen,
       'inputSubmitted': inputTest,
       'localFileTool': toolFile.isNotEmpty,
+      'navigation': compact ? 'back-to-list' : 'sidebar-beside-chat',
     };
     await tester.pumpWidget(const SizedBox.shrink());
   });
