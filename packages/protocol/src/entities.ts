@@ -68,6 +68,7 @@ export const conversationSchema = z.discriminatedUnion('kind', [
   z.strictObject({ ...conversationBase, kind: z.literal('dm'), botId: botSchema.shape.botId }),
   z.strictObject({ ...conversationBase, kind: z.literal('group'), groupId: idSchema }),
 ]);
+export const failureCodes = ['run_start', 'timeout'] as const;
 const messageBase = {
   messageId: idSchema,
   conversationId: idSchema,
@@ -80,6 +81,8 @@ const textContent = z.strictObject({
   text: z.string(),
   files: z.array(z.uuid()).optional(),
   failureReason: z.string().optional(),
+  /** Known run-start failures; clients show their own localized copy for these. */
+  failureCode: z.enum(failureCodes).optional(),
   welcome: z.literal(true).optional(),
   queue: z.enum(['queued', 'running', 'cancelled', 'steered']).optional(),
   routine: z

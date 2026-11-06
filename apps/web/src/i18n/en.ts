@@ -113,6 +113,10 @@ const en = {
   toolDetails: 'View result',
   completed: 'Completed',
   failed: 'Not completed',
+  runFailure: {
+    run_start: 'Could not start this run. Check the provider and try again.',
+    timeout: 'Hermes did not respond in time. Try again.',
+  },
   stopped: 'Stopped',
   provider: 'Model provider',
   providerHelp: 'Use your own model service. The key stays on this computer.',

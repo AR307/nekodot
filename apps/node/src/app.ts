@@ -1287,7 +1287,6 @@ export class NodeApplication {
     try {
       this.secrets.attach(run.botId);
       await this.userMemory.sync();
-      await this.providers.configureBot(this.bots.get(run.botId));
       const conversationId = run.groupId
         ? this.database
             .conversations()
@@ -1374,6 +1373,12 @@ export class NodeApplication {
         error instanceof NodeFault
           ? error.message
           : 'Could not start this run. Check the provider and try again.';
+      const failureCode = !(error instanceof NodeFault)
+        ? 'run_start'
+        : error.code === 'timeout'
+          ? 'timeout'
+          : undefined;
+      if (failureCode) failed.content.failureCode = failureCode;
       const idle = this.idleRun(run);
       this.database.putMessage(failed, { runId: run.runId }, idle);
       if (run.groupId) await this.finishGroupRun(run, 'failed', failed.content.text);

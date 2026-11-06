@@ -36,6 +36,10 @@ export class HermesManagement {
         ...init?.headers,
       },
       signal: init?.signal ?? AbortSignal.timeout(30_000),
+    }).catch((error: unknown) => {
+      if (error instanceof Error && error.name === 'TimeoutError')
+        throw new NodeFault('timeout', 'Hermes did not respond in time. Try again.');
+      throw error;
     });
     if (!response.ok) {
       const detail = (await response.json().catch(() => ({}))) as { detail?: string };
