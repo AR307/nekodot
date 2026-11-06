@@ -145,16 +145,19 @@ class NekodotClient extends ChangeNotifier {
     if (body != null) req.body = jsonEncode(body);
     final response = await http.Response.fromStream(await transport.send(req))
         .timeout(const Duration(seconds: 30));
-    final value = object(jsonDecode(response.body));
     if (response.statusCode >= 400) {
-      final e = object(value['error'] ?? {});
+      // Reverse proxies may return an HTML error page; retain the HTTP status.
+      final e =
+          response.headers['content-type']?.contains('application/json') == true
+          ? object(object(jsonDecode(response.body))['error'] ?? {})
+          : <String, dynamic>{};
       throw RelayError(
         '${e['message'] ?? 'HTTP ${response.statusCode}'}',
         '${e['code'] ?? ''}',
         response.statusCode,
       );
     }
-    return value;
+    return object(jsonDecode(response.body));
   }
 
   Future<void> login(String email, String password) async {

@@ -8,6 +8,7 @@ import '../data/client.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
 import '../ui/auth_layout.dart';
+import 'auth_errors.dart';
 import 'updates.dart';
 
 class AuthPage extends StatefulWidget {
@@ -32,7 +33,12 @@ class _AuthPageState extends State<AuthPage> {
     if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email.text.trim())) {
       return c.tr('请输入有效的邮箱', 'Enter a valid email address');
     }
-    if (needsPassword && password.text.length < 8) {
+    if (needsPassword && password.text.isEmpty) {
+      return c.tr('请输入密码', 'Enter your password');
+    }
+    if (needsPassword &&
+        (mode == 'signup' || mode == 'reset') &&
+        password.text.length < 8) {
       return c.tr('密码至少需要 8 个字符', 'Use at least 8 characters for the password');
     }
     if (needsCode && !RegExp(r'^\d{6}$').hasMatch(code.text.trim())) {
@@ -87,7 +93,7 @@ class _AuthPageState extends State<AuthPage> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) setState(() => error = authError(c, e, sendingCode: true));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -151,12 +157,16 @@ class _AuthPageState extends State<AuthPage> {
               'Verify this account’s email. Your computers and history will be kept.',
             );
           } else {
-            error = e.message;
+            error = authError(
+              c,
+              e,
+              checkingPassword: mode == 'login' || mode == 'verify',
+            );
           }
         });
       }
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) setState(() => error = authError(c, e));
     } finally {
       if (mounted) setState(() => busy = false);
     }
