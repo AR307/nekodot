@@ -110,6 +110,10 @@ const zh = {
   toolDetails: '查看结果',
   completed: '已完成',
   failed: '未完成',
+  runFailure: {
+    run_start: '这一轮没能开始。请检查模型提供方后重试。',
+    timeout: 'Hermes 没有及时响应。请稍后重试。',
+  },
   stopped: '已停止',
   provider: '模型提供方',
   providerHelp: '选择你自己的模型服务。密钥只保存在这台电脑。',

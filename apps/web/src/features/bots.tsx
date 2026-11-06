@@ -9,17 +9,7 @@ import { avatarColors, fill, type Texts } from '../shared';
 import { ModelPicker, useModelOptions } from './models';
 import { Sheet } from './sheet';
 import { springy, tween } from '../motion';
-
-function handleFromName(name: string) {
-  return (
-    name
-      .normalize('NFKD')
-      .toLowerCase()
-      .replace(/[^a-z0-9-]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 24) || 'assistant'
-  );
-}
+import { handleFromName } from './bot-handle';
 
 export function BotDialog({
   t,
@@ -102,9 +92,10 @@ export function BotDialog({
         });
         onSaved(result.bot);
       } else {
+        // An untouched handle is derived and made unique by Node.
         const result = await callNode('bots.create', {
           displayName: name,
-          handle: effectiveHandle,
+          handle,
           role,
           model,
           sourceId,
@@ -332,7 +323,7 @@ export function BotDialog({
                   <i>@</i>
                   <input
                     required
-                    pattern="[a-z0-9-]{1,24}"
+                    pattern="[\p{L}\p{M}\p{N}_\-]{1,24}"
                     value={effectiveHandle}
                     onChange={(event) => setHandle(event.target.value)}
                   />

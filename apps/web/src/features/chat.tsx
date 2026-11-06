@@ -1090,7 +1090,9 @@ function BotMessage({
         )}
         {message.status === 'failed' && (
           <small className="message-state failed-state">
-            {message.content.failureReason ?? t.failed}
+            {message.content.failureCode
+              ? t.runFailure[message.content.failureCode]
+              : (message.content.failureReason ?? t.failed)}
           </small>
         )}
         {message.status === 'cancelled' && <small className="message-state">{t.stopped}</small>}

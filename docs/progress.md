@@ -1342,3 +1342,13 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 本地 Windows Release 构建、未签名 NSIS 安装完成，40 文件 SHA256 一致，4 个已有入口指向保留的 `Start-Windows.ps1`，已安装 `nekoDOT.exe` 路径与窗口响应正常。
 - 服务完整停止并确认端口释放，备份两端数据库、node.json、私有配置和旧安装程序后重启；健康、登录、快照、官方 Hermes providers RPC 通过。同一节点 ID、Bot/群组/会话 ID、模型来源数量不变。
 - 私有证据与回退文件保存在 `.runtime/update-review-20261106/`；已安装 Release 的 CUA 截图复核被工具产品策略阻止，未改用其他方式绕过。真实原生交互使用本次源码 Debug 构建；Release 只核对安装字节、启动路径与响应。其他平台设备、屏幕接管、旧 1.0.0 bundle 与公网未验；没有 push 或正式发布。
+
+## 2026-11-06 群聊接力三项产品问题（F19–F21）
+
+- F19 根因（只读现场：本机部署 `data/node` 的 node.db 与 Hermes profile 日志）：小核欢迎 21:42:43 开始、21:42:46 结束；@1 于 21:43:20 交接，小核回合 21:43:51 失败，正好 30 秒；其 gateway 在此期间没有收到任何入站回合。Hermes 约在 21:44:20–50 才写入小核的 config（30 秒轮询的重扫日志）。`startRun` 每回合调用 `providers.configureBot`，OAuth 来源会请求 `/api/providers/oauth` 与 `/api/model/set`；后者在 Hermes 内联网探测服务商模型目录（当时 chatgpt.com 连接不稳），Node 管理请求 30 秒中止，抛出的 DOMException 不是 NodeFault，于是显示通用英文。已安装 Hermes（f0d94882e8）对规范 `prompt.submit` 一律 FIFO 排队，成员忙碌本身不会失败。
+- F19 修正（方案 A，由发起会话确认）：运行开始不再应用模型来源；新建/编辑 Bot 照旧应用；编辑已有自定义 API 来源、OAuth 轮询返回 approved 时，重新应用到使用该来源的未归档 Bot。来源条目消失的 Bot 继续按其已应用的 profile 运行。
+- F20：文本消息新增可选 `failureCode`（`run_start`/`timeout`），Web 中英文各自显示；`HermesManagement` 把超时中止转为 `NodeFault('timeout')`。其余 NodeFault 照旧显示自身说明。Flutter 客户端仍显示 `failureReason` 原文（未改）。
+- F21：Web 新建 Bot 的代号预览改用与 Node 相同的规则（NFKC、保留中文/字母/数字/下划线/连字符、24 字以内），输入框 pattern 同步放宽；未手动填写时不再发送 `assistant`，由 Node 生成并去重。编辑已有 Bot 不改代号。
+- 测试：`run-start.test.ts`（模型探测永久挂起时接力 researcher→writer 仍完成且不调用 configureBot，去掉修正即失败；成员启动失败记 `run_start` 并继续下一位；超时记 `timeout`；其他故障无代码）、`providers.test.ts`（轮换密钥保存即写入对应 Bot、另一 Bot 不变；OAuth 再授权只重新应用该来源的 Bot）、`hermes/management.test.ts`（不响应的管理请求→`timeout`）、Web `bot-handle.test.ts`、`run-failure-copy.test.ts`。`app.test.ts` 群聊旅程中「来源缺失则首位失败」改为「来源缺失仍按已应用 profile 运行」。
+- 门禁：lint、typecheck、`pnpm test` 44 文件 80 项、Web 构建通过；`groups.spec.ts`（`NEKODOT_BROWSER_RELAY_PORT=4359 NEKODOT_RELAY_URL=http://127.0.0.1:4359 PLAYWRIGHT_WEB_PORT=4421`，经 `tsx` 启动 Playwright，自带 Relay 4340、录制 Hermes）1 项通过。
+- 未验：本次构建未接真实 Hermes 与真实模型（本机部署 4319/4320/8025/18642 不可停止或重启，且不复制其 OAuth 授权）；根因证据来自真实 Hermes 日志，修正只经单元/录制/浏览器测试。Android、Flutter、macOS/Linux 未验。

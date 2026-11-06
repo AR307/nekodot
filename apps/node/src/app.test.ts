@@ -526,28 +526,19 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
           .map((run) => run.profile),
       ).toEqual([lead.bot.botId, writer.bot.botId]);
 
+      // A run starts on the profile's applied source; it does not re-read or re-apply the source.
       const originalLead = app.database.bot(lead.bot.botId)!;
       app.database.putBot({ ...originalLead, sourceId: 'custom:missing-source' });
       before = relay.inspectRuns().length;
-      schedule.push('group-writer');
-      await send('@everyone Continue with the writer when the lead source is unavailable.');
+      schedule.push('group-researcher', 'group-writer');
+      await send('@everyone The lead keeps its applied profile when its source entry is gone.');
       await waitIdle();
       expect(
         relay
           .inspectRuns()
           .slice(before)
           .map((run) => run.profile),
-      ).toEqual([writer.bot.botId]);
-      expect(app.database.messages(conversation.conversationId)).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            author: { type: 'bot', id: lead.bot.botId },
-            kind: 'text',
-            status: 'failed',
-            content: expect.objectContaining({ failureReason: expect.any(String) }),
-          }),
-        ]),
-      );
+      ).toEqual([lead.bot.botId, writer.bot.botId]);
       app.database.putBot(originalLead);
       schedule.push('group-self-outsider');
       before = relay.inspectRuns().length;
