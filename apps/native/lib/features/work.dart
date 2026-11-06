@@ -188,11 +188,9 @@ class _WorkBlockState extends State<WorkBlock> {
             ),
             onTap: () => setState(() => open = !open),
           ),
-          AnimatedSize(
+          SizeMotion(
             alignment: Alignment.topCenter,
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : const Duration(milliseconds: 180),
+            duration: const Duration(milliseconds: 180),
             curve: Curves.easeOutCubic,
             child: !open
                 ? const SizedBox(width: double.infinity)
@@ -290,13 +288,19 @@ class StepLine extends StatelessWidget {
 class StepRow extends StatefulWidget {
   final NekodotClient client;
   final Json message;
-  const StepRow({super.key, required this.client, required this.message});
+  final bool initiallyOpen;
+  const StepRow({
+    super.key,
+    required this.client,
+    required this.message,
+    this.initiallyOpen = false,
+  });
   @override
   State<StepRow> createState() => _StepRowState();
 }
 
 class _StepRowState extends State<StepRow> {
-  bool open = false;
+  late bool open = widget.initiallyOpen;
   @override
   Widget build(BuildContext context) {
     final tone = context.tone;

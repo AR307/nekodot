@@ -22,6 +22,7 @@ import 'secrets.dart';
 import 'sessions.dart';
 import 'voice.dart';
 import 'work.dart';
+import 'flowchart.dart';
 
 class ChatPage extends StatefulWidget {
   final NekodotClient client;
@@ -30,6 +31,8 @@ class ChatPage extends StatefulWidget {
 
   /// Shows a Bot's details beside the chat instead of on a page of its own.
   final ValueChanged<Json>? onDetails;
+  final ValueChanged<FlowMessageFocus>? onFlow;
+  final bool flowOpen;
   const ChatPage({
     super.key,
     required this.client,
@@ -37,6 +40,8 @@ class ChatPage extends StatefulWidget {
     this.embedded = false,
     this.reserveControls = true,
     this.onDetails,
+    this.onFlow,
+    this.flowOpen = false,
   });
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -54,6 +59,8 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   Json? commandOperation;
   String? submittedCommand;
   String? commandNodeId;
+  String? focusedMessage;
+  final focusedKey = GlobalKey();
   bool get sideCommand =>
       submittedCommand != null &&
       RegExp(r'^/(bg|btw)(\s|$)').hasMatch(submittedCommand!);
@@ -120,6 +127,47 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
     scroll.dispose();
     super.dispose();
   }
+
+  Future<void> focusFlowMessage(String messageId) async {
+    await c.loadMessages(id, around: messageId);
+    if (!mounted) return;
+    setState(() => focusedMessage = messageId);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || !scroll.hasClients) return;
+    scroll.jumpTo(0);
+    await WidgetsBinding.instance.endOfFrame;
+    while (mounted &&
+        focusedKey.currentContext == null &&
+        scroll.offset < scroll.position.maxScrollExtent) {
+      await scroll.animateTo(
+        (scroll.offset + scroll.position.viewportDimension * .8).clamp(
+          0.0,
+          scroll.position.maxScrollExtent,
+        ),
+        duration: const Duration(milliseconds: 80),
+        curve: Curves.linear,
+      );
+    }
+    final target = focusedKey.currentContext;
+    if (target != null && target.mounted) {
+      await Scrollable.ensureVisible(target, alignment: .35);
+    }
+  }
+
+  Widget flowButton() => IconButton(
+    key: const ValueKey('chat-flowchart'),
+    tooltip: 'Flow',
+    isSelected: widget.flowOpen,
+    onPressed: () {
+      FocusManager.instance.primaryFocus?.unfocus();
+      if (widget.onFlow != null) {
+        widget.onFlow!(focusFlowMessage);
+      } else {
+        unawaited(openFlowchart(context, c, id, focusFlowMessage));
+      }
+    },
+    icon: const Icon(Icons.account_tree_outlined),
+  );
 
   Future<void> send() async {
     final text = input.text.trim();
@@ -550,6 +598,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
               },
               icon: const Icon(Icons.forum_outlined),
             ),
+          flowButton(),
           IconButton(
             tooltip: c.tr('屏幕', 'Screen'),
             onPressed: bot == null
@@ -561,6 +610,8 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
             icon: const Icon(Icons.desktop_windows_outlined),
           ),
           const SizedBox(width: 8),
+          if (widget.reserveControls)
+            SizedBox(width: WindowChrome.reserved(context)),
         ],
       );
       final header = tone.glass
@@ -673,6 +724,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                     icon: const Icon(Icons.forum_outlined),
                   ),
                 const SizedBox(width: 4),
+                flowButton(),
                 IconAction(
                   tooltip: c.tr('屏幕', 'Screen'),
                   icon: Icons.desktop_windows_outlined,
@@ -1068,32 +1120,37 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                     alignment: Alignment.topCenter,
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 720),
-                      child: MessageTile(
-                        client: c,
-                        message: m,
-                        steps: work(item) ? item : null,
-                        // Still going while only its questions follow it.
-                        live:
-                            working &&
-                            items
-                                .skip(at + 1)
-                                .every(
-                                  (later) => const {
-                                    'approval',
-                                    'question',
-                                  }.contains(later.first['kind']),
-                                ),
-                        bot: author,
-                        showName: group != null,
-                        working: working && index == 0,
-                        continued:
-                            previous != null &&
-                            previous['kind'] != 'system' &&
-                            previous['author']['id'] == m['author']['id'] &&
-                            previous['author']['type'] == m['author']['type'],
-                        onRetry: (text) {
-                          input.text = text;
-                        },
+                      child: KeyedSubtree(
+                        key: item.any((m) => m['messageId'] == focusedMessage)
+                            ? focusedKey
+                            : null,
+                        child: MessageTile(
+                          client: c,
+                          message: m,
+                          steps: work(item) ? item : null,
+                          // Still going while only its questions follow it.
+                          live:
+                              working &&
+                              items
+                                  .skip(at + 1)
+                                  .every(
+                                    (later) => const {
+                                      'approval',
+                                      'question',
+                                    }.contains(later.first['kind']),
+                                  ),
+                          bot: author,
+                          showName: group != null,
+                          working: working && index == 0,
+                          continued:
+                              previous != null &&
+                              previous['kind'] != 'system' &&
+                              previous['author']['id'] == m['author']['id'] &&
+                              previous['author']['type'] == m['author']['type'],
+                          onRetry: (text) {
+                            input.text = text;
+                          },
+                        ),
                       ),
                     ),
                   );

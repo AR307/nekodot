@@ -17,6 +17,7 @@ import 'pairing.dart';
 import 'local_setup.dart';
 import '../local/runtime.dart';
 import 'node_update.dart';
+import 'flowchart.dart';
 
 class HomePage extends StatefulWidget {
   final NekodotClient client;
@@ -29,6 +30,7 @@ class _HomePageState extends State<HomePage> {
   StreamSubscription<Json>? destinations;
   String? conversation;
   Json? details;
+  FlowMessageFocus? flowFocus;
   String search = '';
   String? hovered;
   bool searching = false;
@@ -73,6 +75,7 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         conversation = id;
         details = null;
+        flowFocus = null;
       });
     }
   }
@@ -98,6 +101,7 @@ class _HomePageState extends State<HomePage> {
           setState(() {
             conversation = null;
             details = null;
+            flowFocus = null;
           });
           c.selectNode(id);
         }
@@ -516,8 +520,8 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-      AnimatedSize(
-        duration: still ? Duration.zero : const Duration(milliseconds: 200),
+      SizeMotion(
+        duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
         alignment: Alignment.topCenter,
         child: open
@@ -741,12 +745,32 @@ class _HomePageState extends State<HomePage> {
               240.0,
               widest,
             );
+        final flowShown = hasChat && flowFocus != null;
+        final inlineFlow = flowShown && constraints.maxWidth - sidebar >= 760;
+        Widget flowPanel() => FlowchartPanel(
+          key: ValueKey('flow:${c.selectedNodeId}:$conversation'),
+          client: c,
+          conversationId: conversation!,
+          reserveControls: true,
+          onClose: () => setState(() => flowFocus = null),
+          onMessage: (id) async {
+            final focus = flowFocus!;
+            setState(() => flowFocus = null);
+            await focus(id);
+          },
+        );
         return PopScope(
           canPop: !Platform.isAndroid,
           onPopInvokedWithResult: (didPop, result) {
             if (!didPop && Platform.isAndroid) {
-              const MethodChannel('app.nekodot/lifecycle')
-                  .invokeMethod('background');
+              if (flowShown) {
+                setState(() => flowFocus = null);
+              } else if (panel != null) {
+                setState(() => details = null);
+              } else {
+                const MethodChannel('app.nekodot/lifecycle')
+                    .invokeMethod('background');
+              }
             }
           },
           child: Scaffold(
@@ -770,10 +794,21 @@ class _HomePageState extends State<HomePage> {
                                     client: c,
                                     conversationId: conversation!,
                                     embedded: true,
-                                    reserveControls: panel == null,
+                                    reserveControls:
+                                        panel == null && !flowShown,
                                     onDetails: roomy
-                                        ? (bot) => setState(() => details = bot)
+                                        ? (bot) => setState(() {
+                                            details = bot;
+                                            flowFocus = null;
+                                          })
                                         : null,
+                                    flowOpen: flowShown,
+                                    onFlow: (focus) => setState(() {
+                                      details = null;
+                                      flowFocus = flowFocus == null
+                                          ? focus
+                                          : null;
+                                    }),
                                   )
                                 : Stack(
                                     children: const [
@@ -788,7 +823,9 @@ class _HomePageState extends State<HomePage> {
                                   ),
                           ),
                           SidePanel(
-                            child: panel == null
+                            child: inlineFlow
+                                ? flowPanel()
+                                : panel == null
                                 ? null
                                 : BotDetails(
                                     key: ValueKey(panel['botId']),
@@ -799,6 +836,21 @@ class _HomePageState extends State<HomePage> {
                                   ),
                           ),
                         ],
+                      ),
+                      if (flowShown && !inlineFlow)
+                        Positioned.fill(
+                          child: GestureDetector(
+                            onTap: () => setState(() => flowFocus = null),
+                            child: const ColoredBox(color: Colors.black26),
+                          ),
+                        ),
+                      Positioned(
+                        top: 0,
+                        bottom: 0,
+                        right: 0,
+                        child: SidePanel(
+                          child: flowShown && !inlineFlow ? flowPanel() : null,
+                        ),
                       ),
                       Positioned(
                         left: sidebar - 4,

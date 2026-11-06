@@ -722,6 +722,31 @@ class Segment<T> extends StatelessWidget {
 /// A panel that slides in from the right edge, pushing the content beside it
 /// aside, and slides back out when [child] becomes null. It casts its shadow
 /// over that content, so the opening reads as the panel rising above it.
+/// Bypass the size animator for reduced motion: a zero-duration AnimatedSize
+/// can notify its render object from inside layout when the child changes size.
+class SizeMotion extends StatelessWidget {
+  final Widget child;
+  final Duration duration;
+  final Alignment alignment;
+  final Curve curve;
+  const SizeMotion({
+    super.key,
+    required this.child,
+    required this.duration,
+    this.alignment = Alignment.center,
+    this.curve = Curves.easeOutCubic,
+  });
+  @override
+  Widget build(BuildContext context) => MediaQuery.disableAnimationsOf(context)
+      ? child
+      : AnimatedSize(
+          duration: duration,
+          alignment: alignment,
+          curve: curve,
+          child: child,
+        );
+}
+
 class SidePanel extends StatefulWidget {
   final Widget? child;
   final double width;

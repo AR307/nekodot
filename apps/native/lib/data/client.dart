@@ -8,6 +8,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'flow.dart';
+
 typedef Json = Map<String, dynamic>;
 final _random = Random.secure();
 Json object(dynamic value) => Map<String, dynamic>.from(value as Map);
@@ -32,6 +34,7 @@ class NodeData {
   /// list can preview a conversation whose messages are not loaded.
   Map<String, Json> latest = {};
   final Map<String, Json> activities = {}, screens = {};
+  final Map<String, FlowSnapshot> flows = {};
   int seq = 0;
   bool online = false, syncing = false;
   final List<Json> buffer = [];
@@ -45,6 +48,11 @@ class NodeData {
     };
     seq = data['headSeq'] as int;
     capabilities = object(data['node'] ?? {});
+    flows.clear();
+    for (final value in objects(data['flows'])) {
+      final flow = FlowSnapshot.fromJson(value);
+      flows[flow.conversationId] = flow;
+    }
   }
 }
 
@@ -499,6 +507,7 @@ class NekodotClient extends ChangeNotifier {
     String conversationId, {
     String? target,
     int? before,
+    String? around,
   }) async {
     final id = target ?? selectedNodeId!;
     final n = nodes.putIfAbsent(id, NodeData.new);
@@ -506,6 +515,7 @@ class NekodotClient extends ChangeNotifier {
       'conversationId': conversationId,
       'limit': 50,
       'beforeSeq': ?before,
+      'aroundMessageId': ?around,
     }, id);
     final previous = n.messages[conversationId] ?? [];
     final merged = <String, Json>{
@@ -519,6 +529,28 @@ class NekodotClient extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> loadFlow(String conversationId) async {
+    final target = selectedNodeId!;
+    final n = node;
+    final requestedAt = n.seq;
+    final response = await rpc('flow.get', {
+      'conversationId': conversationId,
+    }, target);
+    final value = response['flow'];
+    final current = n.flows[conversationId];
+    if (value == null) {
+      if (current == null || current.seq <= requestedAt) {
+        n.flows.remove(conversationId);
+      }
+    } else {
+      final flow = FlowSnapshot.fromJson(object(value));
+      if (current == null || current.seq <= flow.seq) {
+        n.flows[conversationId] = flow;
+      }
+    }
+    notifyListeners();
+  }
+
   void _update(NodeData n, Json frame) {
     final p = object(frame['payload']);
     if (frame['type'] == 'event') {
@@ -526,6 +558,12 @@ class NekodotClient extends ChangeNotifier {
       n.seq = p['seq'] as int;
       final data = object(p['data']);
       switch (p['kind']) {
+        case 'flow.changed':
+          final id = data['conversationId'] as String;
+          final previous = n.flows[id];
+          if (previous == null || previous.seq < (data['seq'] as int)) {
+            n.flows[id] = FlowSnapshot.fromJson(data, previous);
+          }
         case 'bot.upserted':
           _upsert(n.bots, data, 'botId');
         case 'group.upserted':

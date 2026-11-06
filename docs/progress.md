@@ -1273,3 +1273,10 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 保留最新私聊或群聊图；不为 cron/webhook 补图，不复用上次任务的计划。群聊同名计划的父子归属、服务重载后的快照恢复有行为覆盖。
 - 空白正文不产生回复节点；无结果的原生 settled 保持未知，用户真实选择才更新为已处理。服务端 39 文件 / 81 项、typecheck 与相关 ESLint 通过。
 - Windows 真正运行 `gpt-6.1-sol` 的 todo_list → read_file → execute_code → write_file → read_file → todo_list，结果文件均值 20。界面折叠/重连已观察，reduced-motion 验收复现既有 AnimatedSize 零时长布局异常，后续 UI 模块修复；尚不将整体验收标记完成。
+
+## 2026-11-06 Flow：界面与 Plan 折叠
+
+- 采用审核稿（标题 Flow），四状态色；按追加要求外框 32px、行高 56px，点击区域 44px。真实计划自动折叠已完成项、手动展开、跟随下一执行项。
+- Flutter 原生面板与 Dot 详情互斥；工具详情/审批定位复用原界面，断线不进度冒进，重新打开不重跑。Android 横屏仍全屏，系统返回仅退出图。
+- 真实 Android `gpt-6.1-sol` 三计划读/算/写/复核成功，均值 20；重连保持同一 execution。Windows 与 Android 只读查看同一最新任务、群聊三 Dot 记录与深色/英文/reduced-motion 的原生候选复测通过。
+- reduced-motion 下 size animator 直接使用静态 child，修复已复现的 RenderAnimatedSize 自布局通知异常；Windows 玻璃标题栏为系统按钮预留宽度，解决 Flow 按钮被遮挡。Flutter analyze 与 36 项辅助测试通过（最后两处 UI 修复的全量复检留到验收模块）。

@@ -45,8 +45,8 @@ class _PromptCardState extends State<PromptCard> {
             ),
           ],
         ),
-        child: AnimatedSize(
-          duration: duration,
+        child: SizeMotion(
+          duration: const Duration(milliseconds: 300),
           curve: Curves.easeOutCubic,
           alignment: Alignment.bottomCenter,
           child: Stack(
