@@ -1135,3 +1135,11 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 
 - 复核共享 ready 路径后补齐普通启动的账号 PM 同步：第一账号完成运行包准备不能代表第二账号的插件依赖已准备。复用官方 PM no-op，不新增账号迁移或共享可变环境。
 - 第二账号先在旧运行目录实际安装 humanize 插件，随后使用第一个账号已准备好的新运行目录；原生候选 2 分 34 秒旅程通过：9 条旧消息、Node 身份、读写/二次对话、真实插件调用、停止和重启保留且无重跑。退出后本次进程为 0，原安装指针已恢复。
+
+## 2026-11-06 Hermes 后端运行包：验收与候选产物
+
+- Windows / Linux 后端下载包分别约 735 / 613 MiB；包内文件内容约 1.95 / 1.77 GiB，保留 Chromium、屏幕驱动与 FFmpeg。用户数据、下载缓存和后装插件另计，不以此宣称 7 GB 安装必然降到某个固定数字。
+- 已记录原生 Windows 新安装、第二账号、真实读写、电脑操作、插件与目录切换；Linux VPS 真实搜索/浏览器/代码/文件、插件/MCP、Cron 和隔离 HTTP Webhook 结果及恢复。Linux 插件和 MCP 在 PM 同步后真实复测通过，50 条被追踪消息和 3 个任务保留。
+- 全量 Node 24 测试 39 文件/82 项、Flutter analyze/36 项辅助测试、相关 lint、distribution 与双端 Release 构建通过；全量 lint 剩余 6 份既有无关格式问题，未混改。候选包在 dist/native，后端包已准备到本地 dist/distribution/hermes；Windows 安装器未签名。
+- 准确口径、失败过程和待验矩阵见 docs/hermes-runtime-acceptance.md。macOS 实机、完整 VPS/systemd 安装、充足内存 Linux 屏幕、公网 HTTPS 和真正跨版本升级未验，不宣称全平台无损验收通过。
+- 本轮 QA Node、隧道和 loopback Relay 已停止；原 VPS 服务状态/PID 不变，Windows 原安装指针恢复。没有回收旧文件、修改正式服务、发布或 push；无关 UI/证据改动保留。

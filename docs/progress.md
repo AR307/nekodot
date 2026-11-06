@@ -1315,3 +1315,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 
 - 同一个安装的 ready 标记是共享的，第二账号可能绕过 setup 直接 start。现在普通启动也执行当前账号的官方 PM 同步，setup 内不重复准备；不新建另一套升级状态机。
 - Windows 第二账号在旧运行目录安装带依赖插件后，用已完成准备的新目录启动，实际 gpt-6.1-sol 读写、第二次回答与插件输出通过；9 条历史和身份保留，重启不新增消息，退出进程为 0。2 分 34 秒全旅程通过，原指针恢复；仍仅为同 r1 包路径切换，不冒称跨版本升级。
+
+## 2026-11-06 Hermes 后端运行包：验收归档
+
+- 运行包及安装改造已完成本地提交，详见 docs/hermes-runtime.md；下载/占用/耗时/RSS 口径、真实旅程和未验边界见 docs/hermes-runtime-acceptance.md，截图与脱敏 JSON 在 docs/evidence/hermes-runtime。
+- Linux 新运行目录恢复消息、3 个已暂停任务与 4 条旧执行记录；官方 PM 同步后，真实模型再次调用插件返回 1,234,567、MCP 返回 30。Cron 三次执行只有两行结果；Webhook 经隔离 HTTP 入口接收后模型完成，不能冒称 App 公网 HTTPS 全旅程通过。
+- VPS 屏幕受原生内存检查阻止，未绕过；完整 VPS 安装器未覆盖现有同名 systemd service。macOS、真正跨版本升级和未完成的矩阵明确留待验。
+- 最终 Flutter analyze/36 项辅助测试、Windows Release 与 Android arm64 原签名 Release 串行通过；Node 24 的 39 文件/82 项、typecheck、相关 lint、bundle 和 shell 语法通过。系统 Node 22 的 worker 崩溃保留记录；全量 lint 的 6 份既有格式问题未混改。
+- 后端包约 735/613 MiB，已在本地分发目录准备。未发布、未 push、未提高版本，Windows 未做 Authenticode 签名。QA 服务已退出，原服务状态和数据保留；旧缓存/失败目录没有删除或回收。

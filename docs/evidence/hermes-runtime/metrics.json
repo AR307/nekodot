@@ -1,0 +1,128 @@
+{
+  "date": "2026-11-06",
+  "upstream": "v0.22.6",
+  "runtime": "v0.22.6-r1",
+  "model": "gpt-6.1-sol",
+  "packages": [
+    {
+      "target": "win32-x64",
+      "bytes": 770308773,
+      "unpackedBytes": 2097369468,
+      "buildSeconds": 502,
+      "tools": [
+        "python",
+        "uv",
+        "node",
+        "npm",
+        "ripgrep",
+        "ffmpeg",
+        "git",
+        "chromium",
+        "cua-driver"
+      ],
+      "extras": ["all"]
+    },
+    {
+      "target": "linux-x64",
+      "bytes": 642321596,
+      "unpackedBytes": 1895229717,
+      "buildSeconds": 102.6,
+      "tools": ["python", "uv", "node", "npm", "ripgrep", "ffmpeg", "chromium", "cua-driver"],
+      "extras": ["all"]
+    }
+  ],
+  "archiveByteMeaning": "Compressed artifact bytes; excludes Node 24 download, later plugin packages and OS screen libraries.",
+  "unpackedByteMeaning": "Sum of archive regular-file payload bytes; not filesystem allocated clusters.",
+  "windowsDownloadMaterials": {
+    "hermesBytes": 770308773,
+    "node24Bytes": 37748064,
+    "sumBytes": 808056837,
+    "nodeBundleExcluded": true
+  },
+  "windowsFreshRuntimeBeforePluginBytes": 3013522003,
+  "windowsInstallSecondsToOnline": 71,
+  "windowsSecondAccountSecondsToOnline": 9,
+  "windowsTimingScope": "Loopback runtime download and public Node download; installation-to-online, not model latency or WAN cold-install benchmark.",
+  "windowsSampledRss": {
+    "bytes": 1113296896,
+    "scope": "Flutter debug candidate, descendants and runtime processes; shared pages may be counted multiple times; sample scan time plus 0.5-second sleep. Not a guaranteed OS peak or release-client baseline."
+  },
+  "linuxExtraction": {
+    "seconds": 28.75,
+    "tarMaxRssKiB": 2816,
+    "allocatedPayloadKiB": 1939304,
+    "scope": "Real VPS tar extraction only, not complete installer peak memory or install duration."
+  },
+  "existingInstallationInventory": {
+    "method": "regular-file lengths, hardlink identities deduplicated; no junction traversal; not allocated clusters",
+    "oldRuntime": {
+      "logicalBytes": 3449414232,
+      "uniqueFileBytes": 3156459555,
+      "files": 91393
+    },
+    "oldData": {
+      "logicalBytes": 775878630,
+      "uniqueFileBytes": 482917988,
+      "files": 24628
+    },
+    "newRuntime": {
+      "logicalBytes": 3479691871,
+      "uniqueFileBytes": 3435704924,
+      "files": 49506
+    },
+    "newDataTwoAccountsWithPlugin": {
+      "logicalBytes": 764450313,
+      "uniqueFileBytes": 764450313,
+      "files": 22193
+    },
+    "oldCandidatesNoCleanup": {
+      ".git": {
+        "logicalBytes": 288895674,
+        "uniqueFileBytes": 288895674,
+        "files": 48
+      },
+      "ui-tui/node_modules": {
+        "logicalBytes": 3742277,
+        "uniqueFileBytes": 3742277,
+        "files": 306
+      },
+      "web/node_modules": {
+        "logicalBytes": 5878330,
+        "uniqueFileBytes": 5878330,
+        "files": 228
+      }
+    }
+  },
+  "oldColdInstallMetrics": {
+    "downloadBytes": null,
+    "totalSeconds": null,
+    "peakRssBytes": null,
+    "reason": "No complete comparable measurement. Existing runtime includes historical installs and cache; no percentage saving claimed."
+  },
+  "clientArtifacts": [
+    {
+      "platform": "windows",
+      "file": "nekodot_0.3.1_x64-setup.exe",
+      "bytes": 16181309,
+      "signature": "unsigned"
+    },
+    {
+      "platform": "android",
+      "file": "nekodot_0.3.1+7_android-arm64.apk",
+      "bytes": 35076606,
+      "signature": "existing-private-android-key"
+    }
+  ],
+  "engineeringChecks": {
+    "node24Tests": {
+      "files": 39,
+      "tests": 82
+    },
+    "flutterTests": 36,
+    "flutterAnalyze": "passed",
+    "windowsRelease": "passed",
+    "androidArm64Release": "passed",
+    "fullLint": "six pre-existing formatting failures; scoped formatting and ESLint passed",
+    "published": false
+  }
+}

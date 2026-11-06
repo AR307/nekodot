@@ -1,0 +1,148 @@
+{
+  "fresh": {
+    "phase": "first",
+    "started": "2026-11-06T14:29:25.417026",
+    "signedIn": "2026-11-06T14:29:32.345474",
+    "installationProgress": {
+      "completed": 2,
+      "total": 7,
+      "value": 0.2857142857142857
+    },
+    "installMinutes": 1.1833333333333333,
+    "pairedPlatform": "win32",
+    "sourceConfigured": true,
+    "historyBefore": 0,
+    "sentDuringWelcome": {
+      "activity": "thinking",
+      "welcome": "streaming"
+    },
+    "approvals": 0,
+    "tools": ["read_file:done", "write_file:done"],
+    "fileWritten": true,
+    "secondSendEnabled": true,
+    "secondAnswered": true,
+    "processesAfterStop": "0",
+    "restartKeepsHistory": true,
+    "restartAddsNothing": true,
+    "finished": "2026-11-06T14:34:35.593056"
+  },
+  "secondAccount": {
+    "phase": "first",
+    "started": "2026-11-06T14:36:28.135518",
+    "signedIn": "2026-11-06T14:36:34.878163",
+    "installationProgress": {
+      "completed": 3,
+      "total": 7,
+      "value": 0.42857142857142855
+    },
+    "installMinutes": 0.15,
+    "pairedPlatform": "win32",
+    "sourceConfigured": true,
+    "historyBefore": 0,
+    "sentDuringWelcome": {
+      "activity": "thinking",
+      "welcome": "streaming"
+    },
+    "approvals": 0,
+    "tools": ["read_file:done", "write_file:done"],
+    "fileWritten": true,
+    "secondSendEnabled": true,
+    "secondAnswered": true,
+    "processesAfterStop": "0",
+    "restartKeepsHistory": true,
+    "restartAddsNothing": true,
+    "finished": "2026-11-06T14:40:29.439750"
+  },
+  "runtimeReplacement": {
+    "phase": "upgrade-sync",
+    "started": "2026-11-06T15:36:00.881837",
+    "signedIn": "2026-11-06T15:36:06.372680",
+    "historyBefore": 72,
+    "historyKept": true,
+    "sameNode": true,
+    "sentDuringWelcome": {
+      "activity": "idle",
+      "welcome": "done"
+    },
+    "approvals": 0,
+    "tools": ["read_file:done", "write_file:done"],
+    "fileWritten": true,
+    "secondSendEnabled": true,
+    "secondAnswered": true,
+    "pluginAfterRuntimeReplacement": true,
+    "processesAfterStop": "0",
+    "restartKeepsHistory": true,
+    "restartAddsNothing": true,
+    "finished": "2026-11-06T15:40:01.305901"
+  },
+  "desktop": {
+    "offTools": [],
+    "offReply": "NO_DESKTOP_TOOL",
+    "switchedOn": true,
+    "approved": true,
+    "onTools": [
+      "skill_view:done",
+      "tool_search:done",
+      "tool_describe:done",
+      "terminal:done",
+      "computer_use:done",
+      "computer_use:done",
+      "terminal:done",
+      "computer_use:done",
+      "computer_use:done",
+      "computer_use:done",
+      "computer_use:done",
+      "computer_use:done",
+      "computer_use:done",
+      "computer_use:done",
+      "computer_use:done",
+      "computer_use:done",
+      "computer_use:done",
+      "computer_use:done",
+      "computer_use:done"
+    ],
+    "typedAndSaved": true,
+    "stopTools": ["computer_use:cancelled"],
+    "terminalTimeoutObserved": true
+  },
+  "pluginIsolation": {
+    "returncode": 0,
+    "otherAccountGenerationsUnchanged": true,
+    "otherAccounts": 1,
+    "generations": 1,
+    "baselineHasHumanize": false
+  },
+  "actualHost": "Windows x64, native Flutter debug candidate, isolated real Relay/Node",
+  "model": "gpt-6.1-sol",
+  "scope": "Same package install-path replacement, not a cross-version upgrade.",
+  "secondAccountRuntimeReplacement": {
+    "phase": "upgrade-second",
+    "started": "2026-11-06T15:58:12.660422",
+    "signedIn": "2026-11-06T15:58:18.223738",
+    "historyBefore": 9,
+    "historyKept": true,
+    "sameNode": true,
+    "sentDuringWelcome": {
+      "activity": "idle",
+      "welcome": "done"
+    },
+    "approvals": 0,
+    "tools": ["read_file:done", "write_file:done"],
+    "fileWritten": true,
+    "secondSendEnabled": true,
+    "secondAnswered": true,
+    "pluginAfterRuntimeReplacement": true,
+    "processesAfterStop": "0",
+    "restartKeepsHistory": true,
+    "restartAddsNothing": true,
+    "finished": "2026-11-06T16:00:40.063868",
+    "sharedRuntimeAlreadyReady": true
+  },
+  "secondAccountPluginIsolation": {
+    "returncode": 0,
+    "otherAccountGenerationsUnchanged": true,
+    "otherAccounts": 1,
+    "generations": 1,
+    "baselineHasHumanize": false
+  }
+}
