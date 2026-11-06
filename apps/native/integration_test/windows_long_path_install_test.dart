@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:integration_test/integration_test.dart';
-import 'package:nekodot_native/local/hermes_patch.dart';
 import 'package:nekodot_native/local/installer.dart';
 import 'package:nekodot_native/local/location.dart';
 import 'package:nekodot_native/local/system.dart';
@@ -18,8 +17,8 @@ const pythonHome = String.fromEnvironment('QA_PYTHON_HOME');
 const copyRoot = String.fromEnvironment('QA_COPY_ROOT');
 const pmHome = String.fromEnvironment('QA_PM_HOME');
 
-/// Real legacy Win32 file I/O, followed by the product installer calling the
-/// official Hermes account PM with the approved copy-only source patch.
+/// Real legacy Win32 file I/O against the backend package's approved copy-only
+/// patch, followed by preparing an account through the packaged launcher.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets('Hermes installation beyond Windows MAX_PATH', (tester) async {
@@ -55,10 +54,6 @@ except shutil.Error as error:
     print(json.dumps({'ok': False, 'count': len(failures), 'winerror3': any('[WinError 3]' in item[2] for item in failures), 'longest': max(len(item[1]) for item in failures)}))
 ''';
     for (final fixed in [false, true]) {
-      if (fixed) {
-        await patchWindowsHermesWorkspace(location);
-        await patchWindowsHermesWorkspace(location);
-      }
       final target = copyRoot + (fixed ? '/fixed/' : '/plain/') + suffix;
       final result = await tester.runAsync(
         () => Process.run(
@@ -96,20 +91,15 @@ except shutil.Error as error:
       LocalPlatform.windows,
       web,
       (step, state, detail) => debugPrint('QA install $step $state $detail'),
+      origin: Uri.parse(const String.fromEnvironment('RELAY_URL')),
     );
     await tester.runAsync(() async {
       await installer.run();
-      await installer.stage('python-deps', location.owner);
-      note('officialDependencyStage', 'passed');
-      await installer.stage('products', location.owner);
-      note('officialProductsStage', 'passed');
       await Directory(pmHome).create(recursive: true);
-      await installer.stage('config', pmHome);
-      note('officialConfigStage', 'passed');
       await installer.prepareAccount(pmHome);
-      note('officialAccountPmInstall', 'passed');
+      note('runtimeAccountPreparation', 'passed');
       await installer.prepareAccount(pmHome);
-      note('officialAccountPmRetry', 'passed');
+      note('runtimeAccountRetry', 'passed');
       await File('$evidenceFolder/windows-long-path-install.json')
           .writeAsString(const JsonEncoder.withIndent('  ').convert(report));
     });

@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { createReadStream, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
@@ -20,6 +20,36 @@ export async function latestNodeRelease(
 }
 
 export function registerDownloads(app: FastifyInstance, directory: string, publicUrl: string) {
+  app.get<{ Params: { version: string; file: string } }>(
+    '/downloads/hermes/:version/:file',
+    async (request, reply) => {
+      const { version, file } = request.params;
+      if (
+        !/^v\d+\.\d+\.\d+-r\d+$/.test(version) ||
+        !/^(win32-x64|darwin-arm64|linux-x64)\.(json|tar\.gz)$/.test(file)
+      )
+        return reply.code(404).send();
+      const path = join(directory, 'hermes', version, file);
+      if (!existsSync(path)) return reply.code(404).send();
+      const { size } = await stat(path);
+      reply.type(file.endsWith('.json') ? 'application/json' : 'application/gzip');
+      reply.header('Accept-Ranges', 'bytes');
+      const range = request.headers.range;
+      if (range) {
+        const match = /^bytes=(\d+)-(\d*)$/.exec(range);
+        const start = match ? Number(match[1]) : -1;
+        const end = match?.[2] ? Number(match[2]) : size - 1;
+        if (start < 0 || start >= size || end < start || end >= size)
+          return reply.code(416).header('Content-Range', `bytes */${size}`).send();
+        return reply
+          .code(206)
+          .header('Content-Range', `bytes ${start}-${end}/${size}`)
+          .header('Content-Length', end - start + 1)
+          .send(createReadStream(path, { start, end }));
+      }
+      return reply.header('Content-Length', size).send(createReadStream(path));
+    },
+  );
   app.get('/downloads/nekodot-node.json', async (_request, reply) => {
     reply.header('Cache-Control', 'no-store');
     const release = await latestNodeRelease(directory, app.log);

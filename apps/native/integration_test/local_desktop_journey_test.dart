@@ -247,8 +247,11 @@ void main() {
       final started = DateTime.now();
       await tester.tap(find.byKey(const ValueKey('start-local')));
       if (phase == 'retry') {
-        const download = bool.fromEnvironment('QA_CANCEL_DOWNLOAD');
-        const stage = download ? 'node' : 'python-deps';
+        const stage = String.fromEnvironment(
+          'QA_CANCEL_STAGE',
+          defaultValue: 'repository',
+        );
+        const download = stage == 'node' || stage == 'repository';
         await until(
           () => local.steps.any(
             (s) =>
@@ -275,6 +278,7 @@ void main() {
         ];
         note('cancelledAt', local.failedStep);
         note('cancelError', local.error);
+        expect(local.error, contains('cancelled'));
         note('keptAfterCancel', kept);
         await tester.pump();
         expect(
@@ -371,7 +375,21 @@ void main() {
         () => find.widgetWithText(LabeledField, '模型').evaluate().isNotEmpty,
         what: 'model field',
       );
-      await fill('模型', model);
+      final choice = find.byKey(const ValueKey('model-choice'));
+      await until(
+        () =>
+            choice.evaluate().isNotEmpty &&
+            tester.widget<OutlinedButton>(choice).onPressed != null,
+        what: 'model catalog ready',
+      );
+      await tester.ensureVisible(choice);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(choice);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.enterText(find.byKey(const ValueKey('model-search')), model);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.byKey(ValueKey('model-option-$model')));
+      await tester.pump(const Duration(milliseconds: 400));
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump(const Duration(milliseconds: 300));
       final save = find.widgetWithText(FilledButton, '保存');

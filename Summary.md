@@ -1116,3 +1116,11 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 构建配方在 deploy/hermes-runtime-recipe.json；scripts/build-hermes-runtime.py 在目标系统构建。此前批准的长路径、webhook listener 与 Cron 审批补丁集中保存并重定位到稳定版；保留上游新的 owner/cancel 行为，不改 Agent 回合逻辑。
 - Windows 包 770308773 字节，Linux 包 642321596 字节。Windows 候选已从隔离 Relay 下载并解压，真实 gpt-6.1-sol 读写文件、第二次消息和重启无重放通过。Linux 已在真实 VPS 独立目录解压/启动，完整能力旅程仍在验收。
 - 尚未完成 macOS 实机与完整双系统能力回归；不标记整体验收完成。不发布、不 push，不回收已有安装/缓存/历史。
+
+## 2026-11-06 Hermes 后端运行包：安装与分发
+
+- Flutter 本机安装和 VPS 安装统一消费版本化后端包；去掉用户端 clone、PM 全量安装与前端构建。Relay 支持大包流式下载及 Range 续传，发布材料检查对应运行包是否备齐。
+- 新账号直接使用官方打包基线，共享下载缓存但不共享可变 Python 环境；已有缓存和账号数据保持不动。Linux VPS 默认准备官方屏幕系统依赖，保留原资源策略。
+- Windows 全新安装与第二账号真实模型读写、重启保留历史通过；取消下载后续传并完成安装通过。验收修复取消时文件流错误覆盖 cancelled 状态，复测已得到正确取消结果。Windows 原生 computer_use 实际写入记事本并保存、停止操作通过。
+- Linux VPS 新包完成真实搜索、浏览器、代码与文件工具；官方 PM 安装带 humanize 依赖的隔离插件，真实模型调用插件与 MCP 成功。VPS 屏幕被原生内存阈值拒绝，未绕过。完整 Cron/Webhook、更新路径和平台回归继续验收。
+- 仅本地修改，未发布、未 push、未清理现有安装；架构和构建流程见 docs/hermes-runtime.md。

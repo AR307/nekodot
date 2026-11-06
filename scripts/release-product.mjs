@@ -36,6 +36,17 @@ const [, appId, androidBuild, androidVersion] =
 if (appId !== 'app.nekodot.client' || androidVersion !== version)
   throw new Error('Android package must match the product application ID and release version');
 const directory = resolve(option('output') ?? join(root, 'dist/distribution'));
+const runtime = JSON.parse(await readFile(join(root, 'deploy/hermes-runtime-recipe.json'), 'utf8'));
+for (const target of ['win32-x64', 'linux-x64', ...(inputs.macos ? ['darwin-arm64'] : [])]) {
+  const path = join(directory, 'hermes', runtime.version, target);
+  const descriptor = JSON.parse(await readFile(path + '.json', 'utf8'));
+  if (
+    descriptor.version !== runtime.version ||
+    descriptor.target !== target ||
+    (await stat(path + '.tar.gz')).size !== descriptor.bytes
+  )
+    throw new Error('Stage the matching Hermes runtime before releasing: ' + target);
+}
 const releasePath = 'releases/' + version + '-' + number;
 // A version/build is immutable. A rebuild needs a higher build number.
 await mkdir(join(directory, 'releases'), { recursive: true });
