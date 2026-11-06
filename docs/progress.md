@@ -1331,3 +1331,8 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 真实验收修复主请求原生重试复用 requestId/started_at 导致漏计的问题；为 in-process admission 与 worker 统一归属。新 profile 安装插件后使用原生 reload-plugins，无须重启再发欢迎回合。
 - 真实 gpt-6.1-sol 已覆盖私聊工具、两 Dot 群聊、Cron/Webhook、子 Agent 与压缩；单次独立调用与 Hermes SessionDB 增量逐项一致（输入 285、输出 8、缓存命中 12544、缓存写入 0）。完整边界在最终验收记录中列出，不把非零缓存写入和 MoA 标为已验。
 - Node 24 的 typecheck、全量 ESLint、41 文件/84 项服务端辅助测试及 Node/Relay bundle 通过；仅本地提交，未发布。
+
+## 2026-11-06 统计：组合任务身份
+
+- 修复给已有 Cron 添加 Webhook 后可能拆成两条占比的问题：始终以原生 jobId 作为该任务的统计身份，定时和事件触发共用同一项，不改执行引擎或历史记录。
+- 同一原生任务添加 Webhook 前后身份一致的行为检查通过，typecheck 通过；真实组合触发尚未单独复跑，不冒称通过。

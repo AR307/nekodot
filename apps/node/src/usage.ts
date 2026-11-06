@@ -129,8 +129,10 @@ export class NodeUsage {
             const routine = routines.find((r) =>
               row.route ? r.route === row.route : r.cronJobId === row.jobId,
             );
-            const id =
-              routine?.routineId ?? (row.jobId ? 'cron:' + row.jobId : 'webhook:' + row.route);
+            // Adding a webhook to an existing cron must keep one lifetime statistics row.
+            const id = row.jobId
+              ? 'cron:' + row.jobId
+              : (routine?.routineId ?? 'webhook:' + row.route);
             entity = {
               ...entity,
               kind: 'routine',

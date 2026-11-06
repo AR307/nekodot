@@ -66,11 +66,14 @@ it('attributes group turns sharing a private session by native execution and ret
       lineage: ['native'],
     },
   ];
+  const schedule = { ...native[0]!, seq: 2, id: 'cron-call', jobId: 'job' };
+  let scheduled = false;
   const runtime = {
     management: {
       rpc: async (_name: string, params: { arg: string }) => ({
-        output: JSON.stringify(JSON.parse(params.arg).after ? [] : native),
+        output: JSON.stringify(scheduled ? [schedule] : JSON.parse(params.arg).after ? [] : native),
       }),
+      request: async () => [{ id: 'job', name: 'Scheduled report' }],
     },
   } as unknown as HermesRuntime;
   const usage = new NodeUsage(db, runtime);
@@ -90,6 +93,26 @@ it('attributes group turns sharing a private session by native execution and ret
   expect(db.setting('usage-cursor:' + bot.botId)).toBe(1);
   await usage.sync();
   expect(batches[1]).toEqual([]);
+  // The same schedule before and after adding a webhook stays in one statistics item.
+  const collectSchedule = async () => {
+    scheduled = true;
+    await usage.sync();
+    return batches.at(-1)![0]!.entity;
+  };
+  const beforeWebhook = await collectSchedule();
+  db.db.prepare('INSERT INTO routines VALUES(?)').run(
+    JSON.stringify({
+      routineId: 'hook-id',
+      botId: bot.botId,
+      name: 'Scheduled report',
+      cronJobId: 'job',
+      route: 'hook-route',
+    }),
+  );
+  const afterWebhook = await collectSchedule();
+  expect(beforeWebhook.id).toBe(bot.botId + ':cron:job');
+  expect(afterWebhook.id).toBe(beforeWebhook.id);
+  expect(afterWebhook.kind).toBe('routine');
   await usage.close();
   db.db.close();
 });
