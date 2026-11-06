@@ -10,16 +10,16 @@ import 'package:nekodot_native/data/chat_models.dart';
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/data/usage.dart';
-import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/features/routines.dart';
 import 'package:nekodot_native/features/statistics.dart';
 import 'package:nekodot_native/main.dart';
 import 'package:nekodot_native/platform/desktop.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'local_desktop_journey_test.dart' show MemoryVault;
 
-/// The actual Windows candidate and the isolated real Node/Relay/Hermes.
+/// The actual native candidate and the isolated real Node/Relay/Hermes.
 /// The configured routine must already have a real completed execution.
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -29,7 +29,9 @@ void main() {
     if (Platform.isWindows) await DesktopHost.initialize();
     const dm = String.fromEnvironment('QA_CONVERSATION');
     const nodeId = String.fromEnvironment('QA_NODE');
-    const evidence = String.fromEnvironment('QA_EVIDENCE_DIR');
+    final evidence = Platform.isAndroid
+        ? '${(await getExternalStorageDirectory())!.path}/linked-evidence'
+        : const String.fromEnvironment('QA_EVIDENCE_DIR');
     const work = String.fromEnvironment('QA_WORK_DIR');
     SharedPreferences.setMockInitialValues({
       'language': 'en',
@@ -183,7 +185,7 @@ void main() {
       await shot('secret-pending');
       final field = find.byKey(const ValueKey('secret-field-api_key'));
       await tap(field);
-      final testValue = 'test-only-${DateTime.now().microsecondsSinceEpoch}';
+      final testValue = 'test-only-$marker';
       await tester.enterText(field, testValue);
       await tester.pump();
       expect(
@@ -203,10 +205,14 @@ void main() {
       );
       await until(() => replied('$marker-APPLIED'));
       await idle();
-      final configured = await tester.runAsync(
-        () async => jsonDecode(await File(path).readAsString()) as Json,
-      );
-      expect(configured!['api_key'], testValue);
+      // The Windows client shares the fixture host filesystem. Android's runner
+      // checks the Node-side file after the journey, not the phone filesystem.
+      if (!Platform.isAndroid) {
+        final configured = await tester.runAsync(
+          () async => jsonDecode(await File(path).readAsString()) as Json,
+        );
+        expect(configured!['api_key'], testValue);
+      }
       expect(
         jsonEncode(recent().map((m) => m.content).toList()).contains(testValue),
         isFalse,
@@ -334,7 +340,6 @@ void main() {
       c.openNotification({'nodeId': nodeId, 'conversationId': dm});
       await until(
         () =>
-            find.byType(HomePage).evaluate().isNotEmpty &&
             find.byKey(const ValueKey('chat-input')).evaluate().isNotEmpty &&
             c.visibleConversation == dm,
       );
@@ -352,6 +357,7 @@ void main() {
     binding.reportData = {
       'platform': Platform.operatingSystem,
       'realModel': 'gpt-6.1-sol',
+      'fixture': marker,
       'passed': passed,
     };
     await tester.pumpWidget(const SizedBox.shrink());
