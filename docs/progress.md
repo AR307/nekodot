@@ -1288,3 +1288,10 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - 初始 Windows Plan 的 reduced-motion 断言及 Android 固定同名 `/new` 测试误判均保留记录；修复/纠正后分别复测，不重放已完成工具。详情见 docs/flowchart-acceptance.md。
 - 最终 typecheck、相关 lint、39 文件/81 项服务端测试、Flutter analyze/36 项测试、Node/Relay bundle 和双端 release 构建通过。Android 构建与测试改为串行，避免生成注册器互相污染。
 - 仅本地候选与提交，未 push/发布/更新正式服务。Android 真机、物理网络切换及未触发的原生异常逐项保留待验，截图和脱敏记录位于 docs/evidence/flow。
+
+## 2026-11-06 Hermes 后端运行包：构建模块
+
+- 固定官方 v0.22.6，使用官方发行快照、PM 和 Agent assembler 构建 Windows x64 / Linux x64 后端包；保留管理 HTTP、canonical WS、Skills/插件/MCP/Cron、Chromium、cua-driver 和 FFmpeg。无 Git、测试环境、官网、Electron/TUI/Web 前端构建输入，不打包 uv 构建缓存。
+- 构建配方在 deploy/hermes-runtime-recipe.json；scripts/build-hermes-runtime.py 在目标系统构建。此前批准的长路径、webhook listener 与 Cron 审批补丁集中保存并重定位到稳定版；保留上游新的 owner/cancel 行为，不改 Agent 回合逻辑。
+- Windows 包 770308773 字节，Linux 包 642321596 字节。Windows 候选已从隔离 Relay 下载并解压，真实 gpt-6.1-sol 读写文件、第二次消息和重启无重放通过。Linux 已在真实 VPS 独立目录解压/启动，完整能力旅程仍在验收。
+- 尚未完成 macOS 实机与完整双系统能力回归；不标记整体验收完成。不发布、不 push，不回收已有安装/缓存/历史。

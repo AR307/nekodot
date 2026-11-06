@@ -1109,3 +1109,10 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - steer/排队不替换图，真实 socket 重连保持同一执行，停止与新会话空图已分段确认。reduced-motion 和标题栏问题修复后复测通过；不将最初失败的整条旅程称为全绿。
 - 服务端 39 文件/81 项、Flutter analyze/36 项辅助测试、Node/Relay bundle、Windows release 与 Android arm64 签名 release 构建通过。候选包位于 dist/native，Windows 未做 Authenticode 签名。
 - 证据与准确边界见 docs/flowchart-acceptance.md、docs/evidence/flow。Android 真机、物理断网及部分真实异常旅程待验。仅本地 commit，不提升版本、不 push、不发布、不动正式服务；无关改动保留。
+
+## 2026-11-06 Hermes 后端运行包：构建模块
+
+- 固定官方 v0.22.6，使用官方发行快照、PM 和 Agent assembler 构建 Windows x64 / Linux x64 后端包；保留管理 HTTP、canonical WS、Skills/插件/MCP/Cron、Chromium、cua-driver 和 FFmpeg。无 Git、测试环境、官网、Electron/TUI/Web 前端构建输入，不打包 uv 构建缓存。
+- 构建配方在 deploy/hermes-runtime-recipe.json；scripts/build-hermes-runtime.py 在目标系统构建。此前批准的长路径、webhook listener 与 Cron 审批补丁集中保存并重定位到稳定版；保留上游新的 owner/cancel 行为，不改 Agent 回合逻辑。
+- Windows 包 770308773 字节，Linux 包 642321596 字节。Windows 候选已从隔离 Relay 下载并解压，真实 gpt-6.1-sol 读写文件、第二次消息和重启无重放通过。Linux 已在真实 VPS 独立目录解压/启动，完整能力旅程仍在验收。
+- 尚未完成 macOS 实机与完整双系统能力回归；不标记整体验收完成。不发布、不 push，不回收已有安装/缓存/历史。

@@ -1,0 +1,289 @@
+--- /dev/null
++++ b/cron/approval_policy.py
+@@ -0,0 +1,34 @@
++"""Per-job approval rules, evaluated in the user's configured timezone at each action."""
++from datetime import datetime, timedelta
++from zoneinfo import ZoneInfo
++
++POLICY_PENDING_REASON = "Approval policy needs confirmation."
++
++
++def effective_mode(policy, *, now=None):
++    local = (now or datetime.now(ZoneInfo(policy["timezone"]))).astimezone(ZoneInfo(policy["timezone"]))
++    minute = local.hour * 60 + local.minute
++    mode = policy["default"]
++    for window in policy.get("windows", []):
++        start, end = [int(value[:2]) * 60 + int(value[3:]) for value in (window["start"], window["end"])]
++        overnight = start > end
++        day = (local - timedelta(days=1)).weekday() if overnight and minute < end else local.weekday()
++        inside = (minute >= start or minute < end) if overnight else start <= minute < end
++        if inside and day in window["days"]:
++            mode = window["mode"]
++    return mode
++
++
++def current_mode(config, *, job_id=None):
++    from cron.execution_identity import current_cron_execution
++    execution = current_cron_execution() if job_id is None else None
++    job_id = job_id or (execution.job_id if execution else None)
++    approvals = config.get("approvals") or {}
++    policy = (approvals.get("cron_policies") or {}).get(job_id) if job_id else None
++    return effective_mode(policy) if policy else (
++        "ask" if approvals.get("cron_require_policy") else approvals.get("cron_mode", "deny"))
++
++
++def creation_requires_confirmation():
++    from hermes_cli.config import load_config_readonly
++    return (load_config_readonly().get("approvals") or {}).get("cron_require_policy", False)
+--- a/cron/jobs.py
++++ b/cron/jobs.py
+@@ -1854,6 +1854,9 @@
+         raise ValueError("paused_reason must be a string.")
+     if paused_reason is not None and not paused:
+         raise ValueError("paused_reason requires paused=True.")
++    from cron.approval_policy import creation_requires_confirmation, POLICY_PENDING_REASON
++    if not paused and creation_requires_confirmation():
++        paused, paused_reason = True, POLICY_PENDING_REASON
+     parsed_schedule = parse_schedule(schedule)
+     # Normalize repeat: treat 0 or negative values as None (infinite). String forms
+     # ('forever'/'once'/numeric) coerce via normalize_repeat_value — the shared chokepoint with update paths
+@@ -2128,6 +2131,12 @@
+         _normalize_job_updates(job, updates)
+         _apply_pin_update(job, updates)
+         updated = _apply_skill_fields({**job, **updates})
++        from cron.approval_policy import POLICY_PENDING_REASON
++        if job.get("paused_reason") == POLICY_PENDING_REASON and updated.get("enabled"):
++            from hermes_cli.config import load_config_readonly
++            policies = (load_config_readonly().get("approvals") or {}).get("cron_policies") or {}
++            if job["id"] not in policies:
++                raise ValueError("Confirm this job's approval policy before enabling it.")
+         _reject_terminal_activation(job, updated, job_id)
+         # Re-check on the MERGED record; scoped to changed fields so legacy records keep loading.
+         if {"monitor_script", "monitor_url", "no_agent", "script"}.intersection(updates):
+--- a/gateway/session_controls.py
++++ b/gateway/session_controls.py
+@@ -227,6 +227,7 @@
+                     'kanban.run': self.kanban_run,
+                     'cron.submit': self.cron_submit, 'cron.status': self.cron_status,
+                     'cron.cancel': self.cron_cancel, 'cron.recover': self.cron_recover,
++                    'cron.approve': self.cron_approve,
+                     'worker.register': self.worker_register, 'worker.adopt': self.worker_adopt,
+                     'worker.persist': self.worker_persist,
+                     'setup.status': self.setup_status, 'setup.runtime_check': self.setup_runtime_check,
+@@ -400,6 +401,10 @@
+         from gateway.session_cron import rpc
+         return await rpc(self, 'cancel', params)
+ 
++    async def cron_approve(self, ref, params):
++        from gateway.session_cron import rpc
++        return await rpc(self, 'approve', params)
++
+     async def bot_roster(self, ref, params):
+         from gateway.session_bot import relay_operation
+         return relay_operation(self, 'roster', params)
+--- a/gateway/session_cron.py
++++ b/gateway/session_cron.py
+@@ -129,6 +129,9 @@
+     job = get_job(jid)
+     if job is None or job.get('no_agent'):
+         raise RuntimeStoreError('not_found')
++    from cron.approval_policy import POLICY_PENDING_REASON
++    if job.get('paused_reason') == POLICY_PENDING_REASON:
++        raise RuntimeStoreError('permission_denied')
+     config = _load_gateway_config()
+     private = {}
+     launch = {'source': 'cli', 'request_id': request_id, 'toolsets': []}
+@@ -212,7 +215,9 @@
+             _authorize_write=authority._admission_gate()), then=partial(authority._admitted, ref, None), ordered=True,
+             after=partial(authority._schedule_admitted, ref))
+         return {'session_id': ref.session_id, 'admission_id': receipt.admission_id}
+-    if set(params) != {'session_id', 'admission_id'} or name not in {'status', 'cancel'}:
++    approval_response = name == 'approve'
++    expected = {'session_id', 'admission_id', 'execution_generation', 'prompt_id', 'choice'} if approval_response else {'session_id', 'admission_id'}
++    if set(params) != expected or name not in {'status', 'cancel', 'approve'}:
+         raise RuntimeStoreError('invalid_params')
+     ref = SessionRef(authority.profile_id, params['session_id'])
+     authority.authorize(actor, ref, 'session:submit')
+@@ -220,6 +225,15 @@
+     from gateway.owner_identity import same_owner
+     if row is None or row['target_session_id'] != ref.session_id or not same_owner(row['principal_id'], actor.subject):
+         raise RuntimeStoreError('permission_denied')
++    if approval_response:
++        authority.authorize(actor, ref, 'session:approve')
++        if row['status'] != 'started' or row['generation'] != params['execution_generation']:
++            raise RuntimeStoreError('stale_generation')
++        live = authority.sessions[ref.session_id]
++        with live.event_stream.lock:
++            authority.check_approval_generation(ref.session_id, params['execution_generation'])
++            return live.controls.respond(ref.session_id, params['execution_generation'],
++                                         params['prompt_id'], {'choice': params['choice']})
+     if name == 'cancel':
+         if row['status'] == 'queued':
+             row = await authority.cancel_or_claimed(actor, ref, row['admission_id']) or {'status': 'terminal'}
+@@ -237,7 +251,11 @@
+         if result is None:
+             result = [False, '', '', row.get('outcome') or 'unknown_execution']
+     from cron.scheduler_liveness import owner_progress
+-    return {'status': row['status'], 'result': result, 'job_flags': flags,
++    prompts = []
++    if row['status'] == 'started':
++        live = authority.sessions[ref.session_id]
++        prompts = list(live.controls.snapshot(ref.session_id, row['generation']))
++    return {'status': row['status'], 'result': result, 'job_flags': flags, 'prompts': prompts,
+             'progress_at': owner_progress.get(row['request_id'].rsplit(':', 1)[-1])}
+ 
+ 
+@@ -299,12 +317,13 @@
+         from cron.cancellation import CancelRequest, _CombinedCancelEvent
+ 
+         db_path = await asyncio.to_thread(Path(authority.db.db_path).resolve)
++        from gateway.session_cron_approvals import approval_scope
+         with _profile_runtime_scope(db_path.parent):
+-            # The forwarded ``cron.cancel`` carries no reason, so the operator's marker is read here
+-            # first: a stopped agent run reports "cancelled on request", not a lost fire claim.
++            # Keep the native stop marker while the scheduled run waits for approval.
+             stop = _CombinedCancelEvent(CancelRequest(execution_id), cancel)
+-            result = await asyncio.to_thread(_run_identified, run_job, job, execution_id,
+-                                             extra_prompt=data['extra_prompt'], cancel_event=stop)
++            with approval_scope(authority, ref.session_id, row['generation'], job['id']):
++                result = await asyncio.to_thread(_run_identified, run_job, job, execution_id,
++                                                 extra_prompt=data['extra_prompt'], cancel_event=stop)
+         # run_job stamps run-side verdicts on ITS job copy (quota hold, unreachable model); the
+         # firing scheduler's bookkeeping reads them off its own dict, so they ride the result.
+         flags = {key: job[key] for key in RUN_JOB_FLAGS if key in job}
+--- /dev/null
++++ b/gateway/session_cron_approvals.py
+@@ -0,0 +1,26 @@
++"""Expose a scheduled fire's native approval queue through its canonical session."""
++from contextlib import contextmanager
++
++
++@contextmanager
++def approval_scope(authority, session_id, generation, job_id):
++    from tools.approval import register_gateway_notify, unregister_gateway_notify
++    from tools.approval_context import set_current_session_key, reset_current_session_key, _get_approval_timeout
++    from cron.approval_policy import current_mode
++    from hermes_cli.config import load_config_readonly
++    if current_mode(load_config_readonly(), job_id=job_id) != "ask":
++        yield
++        return
++    route = "cron-approval:" + session_id
++    token = set_current_session_key(route)
++
++    def notify(data):
++        authority.register_approval(session_id, generation, route,
++            {**data, "allow_session": False, "allow_permanent": False}, timeout_s=_get_approval_timeout())
++
++    register_gateway_notify(route, notify)
++    try:
++        yield
++    finally:
++        unregister_gateway_notify(route)
++        reset_current_session_key(token)
+--- a/tools/approval.py
++++ b/tools/approval.py
+@@ -958,8 +958,10 @@
+     approval_callback = _resolve_cli_approval_callback(approval_callback)
+     is_cli, is_gateway = _is_interactive_cli(), _is_gateway_approval_context()
+     is_ask = env_var_enabled("HERMES_EXEC_ASK")
+-    if _is_single_query_approval_context() or _is_cron_approval_context():
++    if _is_single_query_approval_context() or (_is_cron_approval_context() and not approval_context.cron_approval_bridge()):
+         is_cli = is_gateway = is_ask = False
++    elif _is_cron_approval_context():
++        is_cli, is_gateway, is_ask = False, True, True
+     elif is_ask and _is_unattended_platform_approval_context() \
+             and (_gateway_notify_cb(get_current_session_key()) is None
+                  or _get_session_platform() in approval_context._NOTIFIER_BLIND_APPROVAL_PLATFORMS):
+@@ -1012,7 +1014,7 @@
+             "unattended": unattended_deny_message,
+         }
+         for ctx in _unattended_contexts():
+-            if ctx.mode() == "deny":
++            if ctx.mode() != "approve":
+                 message = deny_messages[ctx.name]
+                 if not message and ctx.name == "unattended":
+                     # Platform contexts keep the generic wording (historical shape).
+@@ -1255,7 +1257,9 @@
+     # No user is present to approve arbitrary code in -q / cron / unattended
+     # sessions: the first active context resolves instantly from its mode.
+     for ctx in _unattended_contexts():
+-        if ctx.mode() == "deny":
++        if ctx.name == "cron" and is_ask:
++            continue
++        if ctx.mode() != "approve":
+             return _denied(
+                 "BLOCKED: execute_code runs arbitrary local Python (including "
+                 "subprocess calls that bypass shell-string approval checks). " + ctx.exec_tail,
+--- a/tools/approval_context.py
++++ b/tools/approval_context.py
+@@ -216,7 +216,7 @@
+ def _no_user_can_answer() -> bool:
+     """True in single-query (-q), cron and unattended-platform sessions. `hermes chat -q` still registers the
+     CLI panel callback, so a prompt that only checks for a callback would wait the full timeout for nobody."""
+-    return (_is_single_query_approval_context() or _is_cron_approval_context()
++    return (_is_single_query_approval_context() or (_is_cron_approval_context() and not cron_approval_bridge())
+             or _is_unattended_platform_approval_context())
+ 
+ 
+@@ -235,7 +235,9 @@
+     human who can resolve it (#37284, 87509). Their dangerous-command handling is governed by
+     ``approvals.unattended_mode`` config (default deny), mirroring cron.
+     """
+-    if _is_cron_approval_context() or _is_unattended_platform_approval_context():
++    if _is_cron_approval_context():
++        return cron_approval_bridge()
++    if _is_unattended_platform_approval_context():
+         return False
+     return env_var_enabled("HERMES_GATEWAY_SESSION") or bool(_get_session_platform())
+ 
+@@ -355,8 +357,16 @@
+ 
+ 
+ def _get_cron_approval_mode() -> str:
+-    """Read the cron approval mode from config. Returns 'deny' or 'approve'."""
+-    return _binary_approval_mode("cron_mode")
++    """Read the current fire's rule without changing other jobs in this profile."""
++    from hermes_cli.config import load_config_readonly
++    from cron.approval_policy import current_mode
++    return current_mode(load_config_readonly())
++
++
++def cron_approval_bridge() -> bool:
++    from tools.approval import _gateway_notify_cb
++    return (_get_cron_approval_mode() == "ask"
++            and _gateway_notify_cb(get_current_session_key()) is not None)
+ 
+ 
+ def _get_single_query_approval_mode() -> str:
+--- a/tui_gateway/contracts/canonical.py
++++ b/tui_gateway/contracts/canonical.py
+@@ -402,6 +402,7 @@
+     result: list[JsonValue] | None
+     job_flags: dict[str, JsonValue] | None = None
+     job: dict[str, JsonValue] | None = None
++    prompts: list[dict[str, JsonValue]] | None = None
+ 
+ 
+ canonical_method("cron.recover", params=CronRunParams, result=CronStatusResult,
+@@ -423,6 +424,21 @@
+ 
+ canonical_method("cron.cancel", params=CronAdmissionParams, result=CronCancelResult,
+                  doc="Cancel a queued cron admission or latch cancellation on a started one.")
++
++
++class CronApprovalParams(CronAdmissionParams):
++    execution_generation: int
++    prompt_id: str
++    choice: str
++
++
++class CronApprovalResult(Result):
++    status: str
++    prompt_id: str
++
++
++canonical_method("cron.approve", params=CronApprovalParams, result=CronApprovalResult,
++                 doc="Resolve one pending approval for the exact cron admission.")
+ 
+ 
+ class KanbanRunParams(Params):
