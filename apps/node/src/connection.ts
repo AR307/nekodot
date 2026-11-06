@@ -5,6 +5,7 @@ import type { Routines } from './routines';
 import { NodeFault } from './fault';
 import { HermesGatewayError } from './hermes/gateway';
 import type { SharedUserMemory } from './user-memory';
+import type { NodeUsage } from './usage';
 import {
   envelopeSchema,
   rpcRequestSchema,
@@ -41,6 +42,7 @@ export interface NodeConnectionOptions {
   onNotifyAck?: (id: string) => void;
   userMemory?: SharedUserMemory;
   routines?: Routines;
+  usage?: NodeUsage;
 }
 export function connectRelay(options: NodeConnectionOptions) {
   let socket: WebSocket;
@@ -62,6 +64,19 @@ export function connectRelay(options: NodeConnectionOptions) {
   function frame(type: Envelope['type'], payload: unknown): Envelope {
     return { v: 1, id: randomUUID(), type, nodeId: options.credentials.nodeId, payload };
   }
+  if (options.usage)
+    options.usage.publish = (records) => {
+      if (!ready) return Promise.reject(new NodeFault('unavailable', 'Relay is disconnected'));
+      const request = frame('usage.batch', { records });
+      return new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          routeRequests.delete(request.id);
+          reject(new NodeFault('timeout', 'Usage sync timed out'));
+        }, 30_000);
+        routeRequests.set(request.id, { resolve, reject, timer });
+        send(request);
+      });
+    };
   if (options.routines)
     options.routines.onRoutes = (routes) => {
       if (!ready) return Promise.reject(new NodeFault('unavailable', 'Relay is disconnected'));
@@ -121,12 +136,21 @@ export function connectRelay(options: NodeConnectionOptions) {
           delay = 1000;
           ready = true;
           options.userMemory?.online(true);
+          options.usage?.online(true);
           options.onStatus?.(true);
           await options.routines?.syncRoutes();
           await options.onReady?.();
           return;
         }
-        if (envelope.type === 'routine.routes.ack') {
+        if (envelope.type === 'usage.refresh' && options.usage) {
+          const ok = await options.usage.sync().then(
+            () => true,
+            () => false,
+          );
+          send({ ...frame('usage.refreshed', { ok }), replyTo: envelope.id });
+          return;
+        }
+        if (envelope.type === 'routine.routes.ack' || envelope.type === 'usage.ack') {
           const waiter = routeRequests.get(envelope.replyTo!);
           if (waiter) {
             clearTimeout(waiter.timer);
@@ -230,6 +254,7 @@ export function connectRelay(options: NodeConnectionOptions) {
       }
       routeRequests.clear();
       options.userMemory?.online(false);
+      options.usage?.online(false);
       for (const waiter of memoryRequests.values())
         waiter.reject(
           new NodeFault('unavailable', 'Relay disconnected. User memory is kept locally.'),

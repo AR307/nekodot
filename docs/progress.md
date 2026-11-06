@@ -1323,3 +1323,11 @@ HTML 九块已静态解析，完整原件保留。查看通道拒绝原稿执行
 - VPS 屏幕受原生内存检查阻止，未绕过；完整 VPS 安装器未覆盖现有同名 systemd service。macOS、真正跨版本升级和未完成的矩阵明确留待验。
 - 最终 Flutter analyze/36 项辅助测试、Windows Release 与 Android arm64 原签名 Release 串行通过；Node 24 的 39 文件/82 项、typecheck、相关 lint、bundle 和 shell 语法通过。系统 Node 22 的 worker 崩溃保留记录；全量 lint 的 6 份既有格式问题未混改。
 - 后端包约 735/613 MiB，已在本地分发目录准备。未发布、未 push、未提高版本，Windows 未做 Authenticode 签名。QA 服务已退出，原服务状态和数据保留；旧缓存/失败目录没有删除或回收。
+
+## 2026-11-06 统计：原生采集与归属
+
+- 新增独立 usage 协议和 profile 级薄插件，通过 Hermes v0.22.6 原生主请求、辅助调用、错误和子 Agent 观察接口，只记录调用身份、UTC 时间和四项 Token；不保存正文、工具参数或凭据，不回填旧累计。
+- Node 经既有管理 RPC 增量读取并由出站 WS 上传，Relay 确认后推进游标；持久保存 admission/会话到 Dot 或群聊的关联。后台任务单独归类，组合触发按同一任务归并。
+- 真实验收修复主请求原生重试复用 requestId/started_at 导致漏计的问题；为 in-process admission 与 worker 统一归属。新 profile 安装插件后使用原生 reload-plugins，无须重启再发欢迎回合。
+- 真实 gpt-6.1-sol 已覆盖私聊工具、两 Dot 群聊、Cron/Webhook、子 Agent 与压缩；单次独立调用与 Hermes SessionDB 增量逐项一致（输入 285、输出 8、缓存命中 12544、缓存写入 0）。完整边界在最终验收记录中列出，不把非零缓存写入和 MoA 标为已验。
+- Node 24 的 typecheck、全量 ESLint、41 文件/84 项服务端辅助测试及 Node/Relay bundle 通过；仅本地提交，未发布。

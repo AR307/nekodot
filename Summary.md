@@ -1143,3 +1143,11 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 全量 Node 24 测试 39 文件/82 项、Flutter analyze/36 项辅助测试、相关 lint、distribution 与双端 Release 构建通过；全量 lint 剩余 6 份既有无关格式问题，未混改。候选包在 dist/native，后端包已准备到本地 dist/distribution/hermes；Windows 安装器未签名。
 - 准确口径、失败过程和待验矩阵见 docs/hermes-runtime-acceptance.md。macOS 实机、完整 VPS/systemd 安装、充足内存 Linux 屏幕、公网 HTTPS 和真正跨版本升级未验，不宣称全平台无损验收通过。
 - 本轮 QA Node、隧道和 loopback Relay 已停止；原 VPS 服务状态/PID 不变，Windows 原安装指针恢复。没有回收旧文件、修改正式服务、发布或 push；无关 UI/证据改动保留。
+
+## 2026-11-06 统计：原生采集与归属
+
+- 新增独立 usage 协议和 profile 级薄插件，通过 Hermes v0.22.6 原生主请求、辅助调用、错误和子 Agent 观察接口，只记录调用身份、UTC 时间和四项 Token；不保存正文、工具参数或凭据，不回填旧累计。
+- Node 经既有管理 RPC 增量读取并由出站 WS 上传，Relay 确认后推进游标；持久保存 admission/会话到 Dot 或群聊的关联。后台任务单独归类，组合触发按同一任务归并。
+- 真实验收修复主请求原生重试复用 requestId/started_at 导致漏计的问题；为 in-process admission 与 worker 统一归属。新 profile 安装插件后使用原生 reload-plugins，无须重启再发欢迎回合。
+- 真实 gpt-6.1-sol 已覆盖私聊工具、两 Dot 群聊、Cron/Webhook、子 Agent 与压缩；单次独立调用与 Hermes SessionDB 增量逐项一致（输入 285、输出 8、缓存命中 12544、缓存写入 0）。完整边界在最终验收记录中列出，不把非零缓存写入和 MoA 标为已验。
+- Node 24 的 typecheck、全量 ESLint、41 文件/84 项服务端辅助测试及 Node/Relay bundle 通过；仅本地提交，未发布。

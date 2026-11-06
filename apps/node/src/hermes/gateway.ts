@@ -70,35 +70,38 @@ async function controlSocket(home: string) {
   return pointer;
 }
 
-async function mintTicket(endpoint: GatewayEndpoint) {
-  const home = endpoint.profile_id;
-  const socketPath = await controlSocket(endpoint.control_home ?? home);
-  return new Promise<string>((resolve, reject) => {
+async function controlRequest<T>(
+  home: string,
+  verb: string,
+  params: Record<string, unknown>,
+): Promise<T> {
+  const socketPath = await controlSocket(home);
+  return new Promise<T>((resolve, reject) => {
     const socket = net.createConnection(socketPath);
     let buffer = '';
     const timeout = setTimeout(
-      () => socket.destroy(new Error('Hermes gateway ticket timed out')),
-      5000,
+      () => socket.destroy(new Error('Hermes gateway control timed out')),
+      30_000,
     );
-    socket.once('error', () => reject(new Error('Hermes gateway ticket request failed')));
+    socket.once('error', () => reject(new Error('Hermes gateway control request failed')));
+    socket.once('close', () => {
+      clearTimeout(timeout);
+      reject(new Error('Hermes gateway control closed'));
+    });
     socket.once('connect', () =>
       socket.write(
         JSON.stringify({
           protocol: 1,
           id: 1,
-          verb: 'session-ticket',
-          params: {
-            profile_id: home,
-            instance_id: endpoint.instance_id,
-            purpose: 'interactive',
-          },
+          verb,
+          params,
         }) + '\n',
       ),
     );
     socket.on('data', (chunk) => {
       buffer += chunk.toString();
       if (buffer.length > 65536)
-        return socket.destroy(new Error('Hermes gateway ticket response is too large'));
+        return socket.destroy(new Error('Hermes gateway control response is too large'));
       const end = buffer.indexOf('\n');
       if (end < 0) return;
       clearTimeout(timeout);
@@ -107,27 +110,38 @@ async function mintTicket(endpoint: GatewayEndpoint) {
           ok?: boolean;
           protocol?: number;
           id?: number;
-          result?: { profile_id?: string; instance_id?: string; ticket?: string };
+          result: T;
         };
-        const grant = response.result;
-        if (
-          !response.ok ||
-          response.protocol !== 1 ||
-          response.id !== 1 ||
-          grant?.profile_id !== home ||
-          grant.instance_id !== endpoint.instance_id ||
-          !grant.ticket
-        )
-          throw new Error('Hermes gateway refused a session ticket');
-        resolve(grant.ticket);
+        if (!response.ok || response.protocol !== 1 || response.id !== 1)
+          throw new Error('Hermes gateway refused ' + verb);
+        resolve(response.result);
       } catch (error) {
         reject(
-          error instanceof Error ? error : new Error('Invalid Hermes gateway ticket response'),
+          error instanceof Error ? error : new Error('Invalid Hermes gateway control response'),
         );
       }
       socket.destroy();
     });
   });
+}
+
+async function mintTicket(endpoint: GatewayEndpoint) {
+  const grant = await controlRequest<{ profile_id: string; instance_id: string; ticket: string }>(
+    endpoint.control_home ?? endpoint.profile_id,
+    'session-ticket',
+    {
+      profile_id: endpoint.profile_id,
+      instance_id: endpoint.instance_id,
+      purpose: 'interactive',
+    },
+  );
+  if (
+    grant.profile_id !== endpoint.profile_id ||
+    grant.instance_id !== endpoint.instance_id ||
+    !grant.ticket
+  )
+    throw new Error('Hermes gateway refused a session ticket');
+  return grant.ticket;
 }
 
 /** One profile-scoped connection to Hermes' canonical session authority. */
@@ -151,6 +165,16 @@ export class HermesGateway {
 
   get generation() {
     return this.openedGeneration;
+  }
+
+  async reloadPlugins() {
+    const endpoint = await this.endpoint();
+    const result = await controlRequest<{ reloaded: boolean }>(
+      endpoint.control_home ?? endpoint.profile_id,
+      'reload-plugins',
+      { home: endpoint.profile_id },
+    );
+    if (!result.reloaded) throw new Error('Hermes plugins did not reload');
   }
 
   /** Native command sockets are unattached viewers (required by Hermes cron writes). */

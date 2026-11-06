@@ -11,6 +11,7 @@ import { HermesGateway, type GatewayEndpoint } from './gateway';
 import { runHermesCli, spawnHermesCli, type HermesLaunch } from './cli';
 import { installRoutinePlugin } from './routines-plugin';
 import { installSecretsPlugin } from './secrets-plugin';
+import { installUsagePlugin } from './usage-plugin';
 
 export interface HermesRuntime {
   start(): Promise<void>;
@@ -201,15 +202,17 @@ export class ManagedHermes implements HermesRuntime {
     }
     await installRoutinePlugin(directory);
     await installSecretsPlugin(directory);
+    const usageChanged = await installUsagePlugin(directory);
     const enabled = document.toJS().plugins?.enabled as string[] | undefined;
     document.setIn(
       ['plugins', 'enabled'],
-      [...new Set([...(enabled ?? []), 'nekodot-routines', 'nekodot-secrets'])],
+      [...new Set([...(enabled ?? []), 'nekodot-routines', 'nekodot-secrets', 'nekodot-usage'])],
     );
     document.setIn(['plugins', 'entries', 'nekodot-routines', 'socket'], this.bridge);
     document.setIn(['plugins', 'entries', 'nekodot-secrets', 'socket'], this.bridge);
     if (document.hasIn(['secrets', 'nekodot'])) document.deleteIn(['secrets', 'nekodot']);
     await writeFile(path, document.toString(), { mode: 0o600 });
+    return usageChanged;
   }
   async configureBot(
     bot: Bot,
@@ -219,7 +222,7 @@ export class ManagedHermes implements HermesRuntime {
   ) {
     if (create) await runHermesCli(this.launch, ['profile', 'create', bot.botId, '--no-alias']);
     await this.writeEnv(bot.botId);
-    await this.config(bot.botId, approvalMode);
+    const usageChanged = await this.config(bot.botId, approvalMode);
     const rules = managedRules(bot);
     const path = join(this.profileHome(bot.botId), 'SOUL.md');
     let soul = create ? bot.role + '\n\n' : await readFile(path, 'utf8');
@@ -235,6 +238,7 @@ export class ManagedHermes implements HermesRuntime {
     }
     await writeFile(path, withManagedRules(soul, rules));
     await this.waitHealthy(bot.botId);
+    if (usageChanged) await this.gateway(bot.botId).reloadPlugins();
   }
   async syncRules(bot: Bot) {
     const path = join(this.profileHome(bot.botId), 'SOUL.md');

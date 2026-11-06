@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseEnv } from 'node:util';
 import { parse } from 'yaml';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ManagedHermes, managedRules, withManagedRules } from './runtime';
 import type { Bot } from '@nekodot/protocol';
 
@@ -33,6 +33,9 @@ async function existingProfile(config: string) {
   if (!address || typeof address === 'string') throw new Error('Missing health-test address');
   const apiPort = address.port;
   const runtime = new ManagedHermes({ home, runtime: join(directory, 'pm'), apiPort });
+  // This is the configuration-only test. Native gateway activation is exercised by
+  // the real statistics journey with a fresh profile, not by this health server.
+  const reloaded = vi.spyOn(runtime.gateway('default'), 'reloadPlugins').mockResolvedValue();
   const bot: Bot = {
     botId: 'default',
     displayName: 'Updated name',
@@ -48,6 +51,7 @@ async function existingProfile(config: string) {
     runtime,
     bot,
     apiPort,
+    reloaded,
     close: () =>
       new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),
@@ -56,7 +60,7 @@ async function existingProfile(config: string) {
 }
 
 it('profile metadata edits retain all saved native credentials, selected route and learned SOUL', async () => {
-  const { home, runtime, bot, apiPort, close } = await existingProfile(
+  const { home, runtime, bot, apiPort, close, reloaded } = await existingProfile(
     'model:\n  provider: source-a\n  default: chosen-model\nproviders:\n  source-a:\n    key_env: SOURCE_A_KEY\n',
   );
   try {
@@ -73,6 +77,9 @@ it('profile metadata edits retain all saved native credentials, selected route a
       approvals: { mode: 'smart' },
     });
     expect(await readFile(join(home, 'SOUL.md'), 'utf8')).toContain('Learned identity');
+    expect(reloaded).toHaveBeenCalledOnce();
+    await runtime.configureBot(bot, false, 'smart');
+    expect(reloaded).toHaveBeenCalledOnce();
   } finally {
     await runtime.close();
     await close();
