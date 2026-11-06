@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { projectGatewayEvent } from './app';
+import { projectGatewayEvent } from './hermes/events';
 import type { RunRecord } from './database';
 
 const run = { runId: 'current-user-admission' } as RunRecord;
