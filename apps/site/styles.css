@@ -367,7 +367,7 @@ h3 {
   border-bottom-color: var(--line);
 }
 .nav-inner {
-  height: calc(var(--nav) - 1px);
+  height: var(--nav);
   display: flex;
   align-items: center;
   gap: 24px;
@@ -416,8 +416,8 @@ h3 {
   gap: 2px;
 }
 
-/* opening: the app pops up, its Bots hop out, then the name card fills the
-   screen in one automatic sequence */
+/* opening: the app pops up, its Bots hop out from behind it, and scrolling
+   grows the name card into the page itself */
 .downloads {
   display: flex;
   flex-wrap: wrap;
@@ -426,16 +426,19 @@ h3 {
 .downloads[data-primary='android'] [data-platform='android'] {
   order: -1;
 }
-/* --p is elapsed animation progress, independent of page scrolling. */
+/* Scroll through this track; the stage stays put while it plays. --p runs 0 → 1. */
 .intro {
   --p: 0;
   --recede: clamp(0, var(--p) / 0.45, 1);
   --rise: clamp(0, (var(--p) - 0.18) / 0.34, 1);
   --fill: clamp(0, (var(--p) - 0.52) / 0.34, 1);
   position: relative;
+  height: 300vh;
+  height: 300svh;
 }
 .intro-stage {
-  position: relative;
+  position: sticky;
+  top: var(--nav);
   height: calc(100vh - var(--nav));
   height: calc(100svh - var(--nav));
   display: grid;
@@ -621,8 +624,8 @@ h3 {
   width: 28px;
   height: 28px;
   color: var(--ink3);
-  opacity: clamp(0, (var(--p) - 0.9) * 10, 1);
-  animation: hint 1.8s ease-in-out infinite;
+  opacity: calc(1 - var(--p) * 12);
+  animation: hint 1.8s ease-in-out 2.4s infinite;
 }
 .intro-hint svg {
   width: 100%;
@@ -637,11 +640,6 @@ h3 {
   50% {
     translate: 0 6px;
   }
-}
-/* All opening animations share the asset-ready start and visibility pause. */
-.intro:not(.is-playing) *,
-.intro.is-paused * {
-  animation-play-state: paused;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .intro-window {
@@ -1573,12 +1571,11 @@ h3 {
   color: var(--ink);
 }
 .start-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 40px clamp(32px, 6vw, 88px);
+  text-align: center;
 }
 .start .downloads {
   margin-top: 28px;
+  justify-content: center;
 }
 .btn-paper {
   background: var(--bg);
@@ -1596,38 +1593,6 @@ h3 {
 }
 .start .fine {
   margin-top: 14px;
-  color: var(--muted);
-  max-width: 30em;
-}
-.start-steps {
-  counter-reset: step;
-  display: grid;
-}
-.start-steps li {
-  counter-increment: step;
-  position: relative;
-  padding: 18px 0 18px 44px;
-  border-top: 1px solid var(--ink2);
-}
-.start-steps li:first-child {
-  border-top: 0;
-  padding-top: 4px;
-}
-.start-steps li::before {
-  content: counter(step);
-  position: absolute;
-  left: 0;
-  font-size: 1.15rem;
-  font-weight: 800;
-  line-height: 1.5;
-}
-.start-steps strong {
-  font-size: 1.15rem;
-  font-weight: 700;
-}
-.start-steps p {
-  margin-top: 2px;
-  font-size: 15.5px;
   color: var(--muted);
 }
 
@@ -1660,8 +1625,7 @@ h3 {
 
 @media (max-width: 1000px) {
   .feature-layout,
-  .open-layout,
-  .start-layout {
+  .open-layout {
     grid-template-columns: minmax(0, 1fr);
   }
   .feature-flip .feature-layout {

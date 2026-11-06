@@ -61,7 +61,9 @@ void main() {
     Future<void> shot(String name) async {
       await run(const Duration(milliseconds: 900));
       final view = tester.binding.renderViews.first;
-      final layer = view.debugLayer! as OffsetLayer;
+      // The root layer itself, so the tour also runs in profile builds.
+      // ignore: invalid_use_of_protected_member
+      final layer = view.layer! as OffsetLayer;
       final size = tester.view.physicalSize;
       await tester.runAsync(() async {
         final ui.Image image = await layer.toImage(Offset.zero & size);

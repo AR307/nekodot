@@ -124,7 +124,6 @@ document.querySelectorAll('[data-avatar]').forEach((node) => {
 const intro = document.getElementById('intro');
 const introStage = intro.querySelector('.intro-stage');
 const introWindow = intro.querySelector('.intro-window');
-const introCard = intro.querySelector('.intro-card');
 const introFace = intro.querySelector('.intro-card-face');
 const introBots = [...intro.querySelectorAll('.intro-bots > span')];
 introBots.forEach((node, index) => {
@@ -187,75 +186,59 @@ window.addEventListener('resize', placeBots, { passive: true });
 // The card's size waits on the web fonts.
 document.fonts?.ready.then(placeBots);
 
-// Keep hidden download links out of the focus order until the card has risen.
-introCard.inert = !reduceMotion;
-
-async function playIntro() {
-  if (reduceMotion) {
-    intro.style.setProperty('--p', '1');
-    return;
-  }
-
-  // Start the window, Bot hops and card on the same clock, after theme/language
-  // and first-screen assets are ready. Slow image/font loads cannot split the intro.
-  await Promise.allSettled([
-    document.fonts.ready,
-    ...[...introWindow.querySelectorAll('img')].map((image) => image.decode()),
-  ]);
-  placeBots();
-  intro.classList.add('is-playing');
-
-  const hopTime = 2400; // Last Bot lands at 2.42s; the card takes over as it lands.
-  const cardTime = 2800;
-  let elapsed = 0;
-  let previous = null;
-  let frame = 0;
-
-  function advance(now) {
-    if (previous !== null) elapsed += now - previous;
-    previous = now;
-    const progress = Math.max(0, Math.min(1, (elapsed - hopTime) / cardTime));
-    intro.style.setProperty('--p', progress === 1 ? '1' : progress.toFixed(4));
-    if (progress >= 0.52) introCard.inert = false;
-    if (progress < 1) frame = requestAnimationFrame(advance);
-    else document.removeEventListener('visibilitychange', pauseIntro);
-  }
-
-  // Both the CSS hops and the card pause while the tab is hidden.
-  function pauseIntro() {
-    intro.classList.toggle('is-paused', document.hidden);
-    cancelAnimationFrame(frame);
-    previous = null;
-    if (!document.hidden) frame = requestAnimationFrame(advance);
-  }
-  document.addEventListener('visibilitychange', pauseIntro);
-  pauseIntro();
+// --p runs from 0 when the stage pins to 1 when it lets go.
+let introFrame = 0;
+function trackIntro() {
+  introFrame = 0;
+  const pinned = document.querySelector('.nav').offsetHeight;
+  const box = intro.getBoundingClientRect();
+  const travel = box.height - introStage.offsetHeight;
+  const progress = travel > 0 ? Math.max(0, Math.min(1, (pinned - box.top) / travel)) : 0;
+  intro.style.setProperty('--p', progress.toFixed(4));
+}
+if (!reduceMotion) {
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (!introFrame) introFrame = requestAnimationFrame(trackIntro);
+    },
+    { passive: true },
+  );
+  trackIntro();
+  window.addEventListener('load', trackIntro);
+  window.addEventListener('resize', trackIntro, { passive: true });
+  // Tabbing into the card brings it fully into view.
+  intro.querySelector('.intro-card').addEventListener('focusin', () => {
+    const travel = intro.offsetHeight - introStage.offsetHeight;
+    const pinned = document.querySelector('.nav').offsetHeight;
+    if (Number(intro.style.getPropertyValue('--p')) < 0.9)
+      window.scrollTo({ top: intro.offsetTop - pinned + travel * 0.92 });
+  });
 }
 
 /* ---------- language ---------- */
 const en = {
-  navTeam: 'Groups',
-  navLocal: 'On your PC',
-  navMore: 'More',
-  navStart: 'Get started',
+  navHome: 'Home',
+  navFeatures: 'Features',
+  navStart: 'Download',
   themeToggle: 'Toggle theme',
-  heroTitle: 'A crew of bots that do the work,<br />on your own computer.',
+  heroTitle: 'The AI helper that gets things done.',
   heroLead:
-    'Research, weekly reports, bookkeeping, web forms: give each job to its own bot. They work with the files and the browser on that computer, and you hand out work, follow along and sign off from your desktop or phone.',
+    'Tell it what you need, and it does the job with the files and the browser on your computer. Hand out work, follow along and sign off from your desktop or phone.',
   downloadWindows: 'Download for Windows',
   downloadAndroid: 'Download for Android',
   altHero: 'nekodot on Windows: two bots handing a weekly report to each other in a group',
   altPhone: 'nekodot on Android: bots and groups',
   composer: 'Message',
-  teamTitle: 'A few bots in one group,<br />passing the job along',
+  teamTitle: 'One dot?<br />More dots.',
   teamBody:
-    'Put two to six bots in a group, each with its own job. Ask Quill for the weekly report; when the draft is done it mentions @scout to check the numbers, and you just read the result. Want something changed halfway? Say so in the group.',
+    'Each bot has its own job. When there is more to do, make more and put two to six of them in a group. Ask Quill for the weekly report; when the draft is done it mentions @scout to check the numbers, and you just read the result. Want something changed halfway? Say so in the group.',
   teamP1: 'Mention a bot to hand it the work; bots mention each other too',
   teamP2: 'Only one bot works in a group at a time, so they never collide',
   teamP3: 'At most 6 hand-offs in a row, then it stops and waits for you',
-  localTitle: 'Installed on your own computer',
+  localTitle: 'Your model, your computer,<br />your privacy.',
   localBody:
-    'When you add a computer on Windows, choose “This computer” and the app sets up everything it needs. No server to rent. Bots read and write the files on that computer directly.',
+    'Bring your own model: sign in with an account or add a custom API, and give each bot a different one. Bots live on your own computer: on Windows, choose “This computer” when you add one, and the app sets up everything it needs and works with the files right there.',
   w1Title: 'Your computer',
   w1Body: 'Chats, bot settings, delivered files and API keys all live here',
   w2Title: 'nekodot service',
@@ -263,20 +246,24 @@ const en = {
   w3Title: 'The app',
   w3Body: 'Remembers only that you are signed in, and preferences like language',
   localFine:
-    'Model requests go to the model provider you choose, so nekodot does not run offline and has no end-to-end encryption. To keep bots online around the clock, install them on a Linux server instead.',
-  controlTitle: 'Before it acts,<br />it asks',
-  controlBody:
-    'Before it runs a command or changes a file, it stops and lets you choose: allow once, allow for this session, always allow, or deny. Every tool it used, and how long it took, is listed in the chat.',
-  controlP1: 'Thought of something halfway? Send it, and it carries on with your note',
-  controlP2: 'Going the wrong way? Press stop; in a group, stop them all at once',
-  controlP3: 'When it is unsure, it stops to ask you',
-  phoneTitle: 'Away from your desk,<br />keep an eye on it from your phone',
+    'Model requests go to the model provider you choose, so nekodot does not run offline and has no end-to-end encryption.',
+  workTitle: 'A dot, a word,<br />a job done.',
+  workBody:
+    'Tell it in one line what you need. It searches the web, reads files and runs commands on its own, then hands you the result and the files. As it works it says what it is doing, and every step stays in the chat.',
+  workP1:
+    'Before it runs a command or changes a file, it asks: allow once, allow for this session, always allow, or deny',
+  workP2: 'Thought of something halfway? Send it. Going the wrong way? Press stop',
+  workP3: 'When it is unsure, it stops to ask you',
+  phoneTitle: 'Wake your dot,<br />anywhere, anytime.',
   phoneBody:
-    'The Android app connects to the same computer, so chats and progress match on both. When a bot replies, has a question or needs your OK, your phone gets a notification; open it to approve or deny.',
+    'Out and about? Open the Android app and hand work to the bots on your computer; chats and progress match on both. When a bot replies, has a question or needs your OK, your phone gets a notification; open it to approve or deny.',
+  phoneP1: 'Scheduled tasks: say what to do and when, and it starts on time',
+  phoneP2:
+    'It answers while your computer is on; to keep it online all day, install it on a Linux server',
   botYan: 'Scout',
   waiting: 'Needs your OK',
   noticeBody: 'wants to run pip install arxiv on your computer',
-  moreTitle: 'It also does these',
+  moreTitle: 'What’s more…',
   smControl: 'You are in control',
   smReturn: 'Hand back',
   smLogin: 'Sign in',
@@ -313,20 +300,10 @@ const en = {
   openTitle: 'Open source,<br />built on <span class="nowrap">Hermes Agent</span>',
   openBody:
     'nekodot is open source under the MIT license. Every bot is a native Hermes Agent: memory, skills and tool calls are all handled by Hermes. nekodot does not modify Hermes; it adds the app, the connection and the teamwork between bots.',
-  openP1:
-    'Bring your own model: sign in with an account or add a custom API, and give each bot a different one',
   openP2: 'Hermes’s own settings can all be changed in the app, no config files to edit',
   openP3: 'Want to run the whole service yourself? The steps are on GitHub',
-  startTitle: 'Three steps to start',
-  downloadNote:
-    'Release 0.3.2. Windows 10 / 11 x64; the installer is not yet publisher-signed. Android 10 and later, arm64; the APK is signed. No macOS or Linux desktop installers yet.',
-  s1Title: 'Download the app and sign up with email',
-  s1Body: 'Enter the code we send you, and you are in.',
-  s2Title: 'Pick a computer for your bots',
-  s2Body:
-    'On Windows, choose “This computer” and the app sets it up. To keep them online all day, run the one-line command the app gives you on a Linux server.',
-  s3Title: 'Add a model and create your first bot',
-  s3Body: 'Give it a name and one line about its job, and it says hello.',
+  startTitle: 'Get started',
+  downloadNote: '0.3.2 · Windows 10 / 11 · Android 10 and later',
   footDeploy: 'Self-hosting',
   footDev: 'Development',
   footFine:
@@ -346,7 +323,7 @@ document.querySelectorAll('[data-i18n-aria]').forEach((node) => {
 });
 const titles = {
   zh: document.title,
-  en: 'nekodot · A crew of bots that do the work, on your own computer',
+  en: 'nekodot · The AI helper that gets things done',
 };
 
 let lang =
@@ -371,7 +348,6 @@ function applyLanguage() {
   document.querySelectorAll('.type').forEach((node) => {
     node.style.setProperty('--n', [...node.textContent.trim()].length);
   });
-  placeBots();
 }
 
 document.getElementById('lang-toggle').addEventListener('click', () => {
@@ -388,7 +364,7 @@ const currentTheme = () => root.dataset.theme ?? (systemDark.matches ? 'dark' : 
 function applyTheme() {
   const theme = currentTheme();
   document.querySelectorAll('img[data-shot]').forEach((image) => {
-    const next = `assets/shots/${image.dataset.shot}-${theme}.webp?v=0.3.2-20261106`;
+    const next = `assets/shots/${image.dataset.shot}-${theme}.webp?v=0.3.2-20261106b`;
     if (!image.src.endsWith(next)) image.src = next;
   });
   document.querySelector('meta[name="theme-color"]').content =
@@ -422,19 +398,24 @@ function onScroll() {
 }
 window.addEventListener('scroll', onScroll, { passive: true });
 
+// Each nav link lights up while any of its sections is in the middle of the screen.
 const sectionLinks = [...document.querySelectorAll('.nav-links a')];
+const linkOfSection = new Map();
 const sectionObserver = new IntersectionObserver(
   (entries) => {
     for (const entry of entries)
-      if (entry.isIntersecting)
-        sectionLinks.forEach((link) =>
-          link.classList.toggle('is-active', link.hash === '#' + entry.target.id),
-        );
+      if (entry.isIntersecting) {
+        const active = linkOfSection.get(entry.target.id);
+        sectionLinks.forEach((link) => link.classList.toggle('is-active', link === active));
+      }
   },
   { rootMargin: '-45% 0px -50% 0px' },
 );
 sectionLinks.forEach((link) => {
-  sectionObserver.observe(document.querySelector(link.hash));
+  for (const id of link.dataset.sections.split(' ')) {
+    linkOfSection.set(id, link);
+    sectionObserver.observe(document.getElementById(id));
+  }
 });
 
 /* ---------- the team watches the pointer ---------- */
@@ -838,4 +819,3 @@ document.querySelectorAll('.play').forEach((node) => playObserver.observe(node))
 applyLanguage();
 applyTheme();
 onScroll();
-void playIntro();
