@@ -137,7 +137,7 @@ App 本身不运行 Hermes。完整的模型密钥只保存在节点上，界面
 
 ### 用 App
 
-1. **下载安装。** [Windows x64](https://nekodot.com/downloads/nekodot-windows-x64.exe)（Windows 10 / 11，未做 Authenticode 签名）或 [Android arm64](https://nekodot.com/downloads/nekodot-android-arm64.apk)（Android 10+，已签名）。
+1. **下载安装。** [Windows x64](https://nekodot.com/downloads/releases/0.3.2-9/nekodot-windows-x64.exe)（Windows 10 / 11，未做 Authenticode 签名）或 [Android arm64](https://nekodot.com/downloads/releases/0.3.2-9/nekodot-android-arm64.apk)（Android 10+，已签名）。
 2. **用邮箱验证码注册。** 登录继续使用密码；旧账号首次重新登录需补验邮箱，原节点和历史保留。注册不会取得其他账号的服务器访问权。
 3. **给 Bot 找一台电脑。** 在 Windows 上添加电脑时选「这台电脑」，App 自动准备独立的 Node 与 Hermes，并配对启动。想全天在线，就复制 App 生成的一行命令，在 **Linux x64** 或启用了 systemd 的 **WSL2 Ubuntu 24.04** 上运行；安装器把独立的 Node 24、Hermes 和节点服务装进 `~/.nekodot`，不改动系统环境。
 4. **添加模型来源。** 在设置里用账号授权登录，或填写自定义 API 的名称、地址和 Key。

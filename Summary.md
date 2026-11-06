@@ -1221,3 +1221,7 @@ Node 以官方 CLI/API 管理 Hermes，并保存业务状态。原生 App 当前
 - 证据截图：docs/evidence/site-copy-hero-390.png、site-copy-work-en-dark.png、site-copy-phone-1440.png、site-copy-start-1440.png。
 
 - 公网已验证运行包首段/续段为 206。另发现固定安装包别名仍被 CDN 缓存旧 build 8；官网四个下载按钮改为最终版本化路径 0.3.2-9，App 已使用版本化路径。不混入并行官网改动，旧文件留存。最终构建为 0.3.2+9、Android 2009。
+
+### 官网发布范围更新
+
+- 用户追加授权上线 Claude 最新官网。采用 abef886066 的新主标题、四段内容、导航、滚动开场及新截图；下载按钮保留 build 9 版本化路径，README 同步，其他文案不自行扩写。此前冻结官网的决定由这条新要求替代。
