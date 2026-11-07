@@ -158,6 +158,11 @@ it('delivers a multiline key once, saves only when selected, and isolates refere
   await expect(
     service.submit('nk-abcdef', changed.requestId, { envelope, save: false }),
   ).rejects.toThrow('could not be opened');
+  // One card at a time: the next one waits until this card is delivered or cancelled.
+  await expect(local('request', { spec: { ...spec, purpose: 'Third' } })).rejects.toThrow(
+    'still waiting',
+  );
+  service.cancel('nk-abcdef', changed.requestId);
   const credential = service.list('nk-abcdef').credentials[0]!;
   const replacement = service.replace('nk-abcdef', credential.credentialId);
   const replacementKey = service.get('nk-abcdef', replacement.requestId).publicKey;
@@ -171,8 +176,9 @@ it('delivers a multiline key once, saves only when selected, and isolates refere
   expect(service.list('nk-abcdef').credentials[0]!.credentialId).toBe(credential.credentialId);
   expect(await readFile(path, 'utf8')).toBe(raw + 'replacement');
   await service.disable('nk-abcdef', credential.credentialId);
-  const deniedReuse = (await local('request', { spec })) as { state: string };
+  const deniedReuse = (await local('request', { spec })) as { requestId: string; state: string };
   expect(deniedReuse.state).toBe('pending');
+  service.cancel('nk-abcdef', deniedReuse.requestId);
   const nativeReply = hermes.gateway('nk-abcdef').onRequest!(
     'secret',
     { session_id: 'session-nk-abcdef', env_var: 'NATIVE_QA', prompt: 'Native setup' },

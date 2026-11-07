@@ -464,7 +464,12 @@ export class Routines {
               socket.end(
                 JSON.stringify({
                   ok: false,
-                  error: error instanceof NodeFault ? error.message : 'Routine operation failed',
+                  error:
+                    error instanceof NodeFault
+                      ? error.message
+                      : error instanceof z.ZodError
+                        ? error.issues.map((issue) => issue.message).join('; ')
+                        : 'Routine operation failed',
                 }) + '\n',
               ),
           );

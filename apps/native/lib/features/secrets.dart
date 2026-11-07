@@ -18,9 +18,9 @@ String secretState(NekodotClient c, String state) => switch (state) {
   _ => state,
 };
 
-/// A Bot asking for a key or a password: its name, one field at a time with
-/// its submit, and whether the Bot may reuse it. The value is encrypted here
-/// for the owning node and never shown in the chat.
+/// A Bot asking for one key or password: its name, the field with its submit,
+/// and whether the Bot may reuse it. The value is encrypted here for the
+/// owning node and never shown in the chat.
 class SecretCard extends StatefulWidget {
   final NekodotClient client;
   final Json content;
@@ -34,7 +34,6 @@ class _SecretCardState extends State<SecretCard>
   Json? data;
   String error = '';
   bool busy = false, save = false;
-  int step = 0;
   final fields = <String, TextEditingController>{};
   NekodotClient get c => widget.client;
   late final updates = c.node.summaries;
@@ -110,7 +109,6 @@ class _SecretCardState extends State<SecretCard>
     for (final field in fields.values) {
       field.clear();
     }
-    if (mounted && step != 0) setState(() => step = 0);
   }
 
   @override
@@ -148,18 +146,13 @@ class _SecretCardState extends State<SecretCard>
     }
   }
 
-  /// One field at a time: earlier fields move on, the last one delivers.
   Future<void> submit({String? savedId}) async {
     if (busy || !c.online) return;
     final request = object(data!['request']);
     final definitions = objects(request['fields']);
-    if (savedId == null) {
-      final current = fields['${definitions[step]['name']}']!;
-      if (current.text.isEmpty) return;
-      if (step < definitions.length - 1) {
-        setState(() => step++);
-        return;
-      }
+    if (savedId == null &&
+        fields['${definitions.first['name']}']!.text.isEmpty) {
+      return;
     }
     setState(() {
       busy = true;
@@ -242,8 +235,7 @@ class _SecretCardState extends State<SecretCard>
     }
     final Json? field = data == null || definitions.isEmpty
         ? null
-        : definitions[step.clamp(0, definitions.length - 1)];
-    final last = step >= definitions.length - 1;
+        : definitions.first;
     final kind = field?['kind'];
     return ChatCard(
       child: Column(
@@ -261,8 +253,6 @@ class _SecretCardState extends State<SecretCard>
                     key: ValueKey('secret-field-${field['name']}'),
                     controller: fields['${field['name']}'],
                     enabled: ready,
-                    // The next field takes over the typing after the first.
-                    autofocus: step > 0,
                     obscureText: kind == 'password' || kind == 'otp',
                     minLines: kind == 'private-key' ? 4 : 1,
                     maxLines: kind == 'private-key' ? 10 : 1,
@@ -278,15 +268,13 @@ class _SecretCardState extends State<SecretCard>
                 ),
                 const SizedBox(width: 8),
                 FilledButton(
-                  key: ValueKey(last ? 'secret-submit' : 'secret-next'),
+                  key: const ValueKey('secret-submit'),
                   style: optionStyle(context),
                   onPressed:
                       ready && fields['${field['name']}']!.text.isNotEmpty
                       ? () => submit()
                       : null,
-                  child: Text(
-                    last ? c.tr('提交', 'Submit') : c.tr('下一步', 'Next'),
-                  ),
+                  child: Text(c.tr('提交', 'Submit')),
                 ),
               ],
             ),
@@ -316,7 +304,7 @@ class _SecretCardState extends State<SecretCard>
                   ),
                 ),
               ),
-            if (saved.isNotEmpty && step == 0)
+            if (saved.isNotEmpty)
               TextButton(
                 key: const ValueKey('secret-saved'),
                 onPressed: ready

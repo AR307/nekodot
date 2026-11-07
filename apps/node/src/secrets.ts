@@ -21,6 +21,8 @@ interface StoredRequest extends SecretRequest {
   continuationId?: string;
   replaceId?: string;
   vaultId?: string;
+  /** A website account card's sealed identifier, kept until its password card is delivered. */
+  account?: string;
   completed?: boolean;
   originatingRunId?: string;
 }
@@ -131,6 +133,7 @@ export class BotSecrets {
       continuationId,
       replaceId,
       vaultId,
+      account,
       completed,
       originatingRunId,
       ...view
@@ -139,9 +142,18 @@ export class BotSecrets {
     void continuationId;
     void replaceId;
     void vaultId;
+    void account;
     void completed;
     void originatingRunId;
     return view;
+  }
+  /** A Bot hands the user one card at a time. */
+  private onlyCard(botId: string) {
+    if (this.requests().some((r) => r.botId === botId && r.state === 'pending'))
+      throw new NodeFault(
+        'conflict',
+        'Another confidential card is still waiting for the user. Finish this turn; request the next card after it is delivered.',
+      );
   }
   private persist(request: StoredRequest) {
     request.updatedAt = timestamp();
@@ -244,6 +256,7 @@ export class BotSecrets {
       const name = String(params.env_var ?? '');
       if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name))
         throw new NodeFault('invalid_params', 'Invalid native environment variable');
+      this.onlyCard(botId);
       const request = this.create(
         botId,
         {
@@ -431,27 +444,50 @@ export class BotSecrets {
     return this.view(request);
   }
   private continuation(r: StoredRequest) {
+    if (r.account)
+      return `The account for ${r.service} is delivered. Now request the password card: the same service, purpose and target, with the single field {"name":"password","label":"Password","kind":"password"}. Then tell the user to open it and finish this turn.`;
     return `Confidential delivery for ${r.service} (${r.purpose}) is ready. Reference: ${r.requestId}. ${r.result} ${r.target.kind === 'vault' || r.target.kind === 'browser-code' ? 'Use nekodot_secret_browser with this reference. It delegates to native browser_vault and fills identifier/password/code without exposing values.' : ''} Continue only the remaining task. Do not read, print, copy into chat, or put credential values in tool arguments or generated scripts. Use hermes secret status/apply with this reference for metadata and the already approved destination.`;
   }
   private async apply(request: StoredRequest, values: Record<string, string>) {
     if (request.target.kind === 'browser-code') {
       request.result =
         'One-time code is ready for the original profile browser. It has not been entered yet.';
+    } else if (request.target.kind === 'vault' && values.identifier) {
+      request.account = this.keys.seal(request.botId, values);
+      request.result = 'Account received. Request the password card for this site next.';
     } else if (request.target.kind === 'vault') {
+      const origin = request.target.origin;
+      const account = this.requests()
+        .filter(
+          (r) =>
+            r.botId === request.botId &&
+            r.account &&
+            r.state === 'applied' &&
+            r.target.kind === 'vault' &&
+            r.target.origin === origin,
+        )
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+        .at(-1);
+      if (!account)
+        throw new NodeFault('invalid_params', 'Deliver the account card for this site first');
+      const { identifier } = this.keys.open(request.botId, account.account!);
       const result = await this.hermes.management.rpc<{ id: string }>('vault.add', {
         profile: request.botId,
         kind: 'login',
         label: request.service,
-        origin: request.target.origin,
+        origin,
         secret: {
-          ...values,
-          identifier_type: values.identifier!.includes('@')
+          identifier,
+          password: values.password,
+          identifier_type: identifier!.includes('@')
             ? 'email'
-            : /^\+?\d+$/.test(values.identifier!)
+            : /^\+?\d+$/.test(identifier!)
               ? 'phone'
               : 'username',
         },
       });
+      delete account.account;
+      this.persist(account);
       request.vaultId = result.id;
       request.result = 'Profile vault login is ready. Browser login itself has not completed.';
     } else {
@@ -560,32 +596,24 @@ export class BotSecrets {
         throw new NodeFault('not_found', 'Create the request from the active native Bot session');
       const spec = p.spec;
       if (!spec) throw new NodeFault('invalid_params', 'Secret request specification is required');
-      if (
-        spec.target.kind === 'browser-code' &&
-        (spec.fields.length !== 1 || spec.fields[0]!.kind !== 'otp')
-      )
-        throw new NodeFault(
-          'invalid_params',
-          'Browser codes require exactly one one-time-code field',
-        );
-      if (spec.target.kind === 'vault' && spec.fields.some((f) => f.kind === 'otp'))
+      const field = spec.fields[0]!;
+      if (spec.target.kind === 'browser-code' && field.kind !== 'otp')
+        throw new NodeFault('invalid_params', 'Browser codes require a one-time-code field');
+      if (spec.target.kind === 'vault' && field.kind === 'otp')
         throw new NodeFault(
           'invalid_params',
           'Request a separate temporary browser-code card for a one-time code',
+        );
+      if (spec.target.kind === 'vault' && !['identifier', 'password'].includes(field.name))
+        throw new NodeFault(
+          'invalid_params',
+          'A website login takes two cards: first the identifier field, then the password field',
         );
       if (spec.target.kind === 'native-env')
         throw new NodeFault('invalid_params', 'Native requests are issued by Hermes');
       if (spec.target.kind === 'file' && !isAbsolute(spec.target.path))
         spec.target.path = resolve(this.hermes.profileHome(p.botId), spec.target.path);
-      if (
-        spec.target.kind === 'vault' &&
-        (!spec.fields.some((f) => f.name === 'identifier') ||
-          !spec.fields.some((f) => f.name === 'password'))
-      )
-        throw new NodeFault(
-          'invalid_params',
-          'Website login fields must include identifier and password',
-        );
+      this.onlyCard(p.botId);
       const match = this.credentials(p.botId).find((c) => c.enabled && this.matches(c, spec));
       const request = this.create(p.botId, spec, run, undefined, !match);
       if (match && !spec.fields.some((f) => f.kind === 'otp')) {
