@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -14,6 +15,20 @@ class RelayError implements Exception {
   @override
   String toString() => message;
 }
+
+bool isTransientConnectionError(Object error) =>
+    error is SocketException ||
+    error is WebSocketException ||
+    error is TimeoutException ||
+    error is http.ClientException ||
+    (error is RelayError &&
+        (const [
+              'disconnected',
+              'unavailable',
+              'node_offline',
+              'timeout',
+            ].contains(error.code) ||
+            error.status >= 500));
 
 class AccountSession extends ChangeNotifier {
   final Uri origin;

@@ -83,6 +83,17 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
     super.initState();
     c.visibleConversation = id;
     scroll.addListener(onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final position = c.workspace['scroll:${c.selectedNodeId}:$id'];
+      if (mounted && scroll.hasClients && position is num) {
+        scroll.jumpTo(
+          position.toDouble().clamp(
+            scroll.position.minScrollExtent,
+            scroll.position.maxScrollExtent,
+          ),
+        );
+      }
+    });
     unawaited(
       c
           .loadMessages(id)
@@ -95,7 +106,9 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
             );
           })
           .catchError((Object e) {
-            if (mounted) composer.currentState?.showError('$e');
+            if (mounted && !c.isConnectionFailure(e)) {
+              composer.currentState?.showError('$e');
+            }
           }),
     );
   }
@@ -107,6 +120,8 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
 
   void onScroll() {
     final position = scroll.position;
+    c.workspace['scroll:${c.selectedNodeId}:$id'] = position.pixels;
+    c.saveContent();
     final far =
         position.pixels - position.minScrollExtent >
         LatestScrollController.near;
@@ -144,7 +159,9 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   }
 
   Future<void> focusFlowMessage(String messageId) async {
-    await c.loadMessages(id, around: messageId);
+    if (!(c.node.messages[id]?.any((m) => m.messageId == messageId) ?? false)) {
+      await c.loadMessages(id, around: messageId);
+    }
     if (!mounted) return;
     setState(() => focusedMessage = messageId);
     await WidgetsBinding.instance.endOfFrame;

@@ -1,4 +1,17 @@
 class FlowStep {
+  Map<String, dynamic> toJson() => {
+    'stepId': stepId,
+    'runId': runId,
+    'sessionId': sessionId,
+    'botId': botId,
+    'kind': kind,
+    'state': state,
+    'after': after,
+    'tool': ?tool,
+    'messageId': ?messageId,
+    'title': ?title,
+    'parentStepId': ?parentStepId,
+  };
   final String stepId, runId, sessionId, botId, kind, state;
   final List<String> after;
   final String? tool, messageId, title, parentStepId;
@@ -17,6 +30,16 @@ class FlowStep {
 }
 
 class FlowSnapshot {
+  Map<String, dynamic> toJson() => {
+    'flowId': flowId,
+    'conversationId': conversationId,
+    'state': state,
+    'sessionId': ?sessionId,
+    'seq': seq,
+    'queuedBotIds': queuedBotIds,
+    'steps': steps.map((s) => s.toJson()).toList(),
+    'reset': true,
+  };
   final String flowId, conversationId, state;
   final String? sessionId;
   final int seq;

@@ -318,15 +318,14 @@ class _HermesSettingsState extends State<HermesSettings> {
   Future<void> _save(Json field, Object? value, VoidCallback reload) async {
     try {
       final result = shared
-          ? await c.rpc('hermes.shared.set', {
-              'key': field['key'],
-              'value': value,
-            })
-          : await c.rpc('hermes.settings.set', {
-              'botId': widget.botId,
-              'key': field['key'],
-              'value': value,
-            });
+          ? await (field['sensitive'] == true ? c.rpc : c.continueAction)(
+              'hermes.shared.set',
+              {'key': field['key'], 'value': value},
+            )
+          : await (field['sensitive'] == true ? c.rpc : c.continueAction)(
+              'hermes.settings.set',
+              {'botId': widget.botId, 'key': field['key'], 'value': value},
+            );
       if (!mounted) return;
       reload();
       showNotice(

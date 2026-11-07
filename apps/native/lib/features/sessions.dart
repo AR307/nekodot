@@ -19,6 +19,7 @@ class BotSessionsPage extends StatefulWidget {
 class _BotSessionsPageState extends State<BotSessionsPage> {
   NekodotClient get c => widget.client;
   late Future<Json> sessions = load();
+  Json? confirmed;
   String query = '', error = '';
   bool busy = false;
   Future<Json> load() => c.rpc('sessions.list', {'botId': widget.botId});
@@ -32,18 +33,16 @@ class _BotSessionsPageState extends State<BotSessionsPage> {
       final dm = c.node.conversations.firstWhere(
         (row) => row['kind'] == 'dm' && row['botId'] == widget.botId,
       );
-      var op = await c.rpc('commands.execute', {
+      final target = c.selectedNodeId!;
+      final op = await c.deliveries.command({
         'botId': widget.botId,
         'conversationId': dm['conversationId'],
+        'sessionId': ?dm['sessionId'],
         'command': command,
         'clientMsgId': uid(),
-      });
-      while (op['status'] == 'running' && mounted) {
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-        op = await c.rpc('operations.get', {'operationId': op['operationId']});
-      }
+      }, target);
       if (op['status'] != 'done') throw RelayError('${op['detail']}');
-      await c.loadMessages('${dm['conversationId']}');
+      await c.loadMessages('${dm['conversationId']}', target: target);
       if (mounted) {
         showNotice(
           context,
@@ -89,7 +88,7 @@ class _BotSessionsPageState extends State<BotSessionsPage> {
         ),
         TextButton.icon(
           key: const ValueKey('new-native-session'),
-          onPressed: busy || !c.online ? null : create,
+          onPressed: busy ? null : create,
           icon: const Icon(Icons.add, size: 18),
           label: Text(c.tr('新建', 'New')),
         ),
@@ -97,7 +96,8 @@ class _BotSessionsPageState extends State<BotSessionsPage> {
       body: FutureBuilder<Json>(
         future: sessions,
         builder: (context, snapshot) {
-          if (snapshot.hasError) {
+          if (snapshot.hasData) confirmed = snapshot.data;
+          if (snapshot.hasError && confirmed == null) {
             return PageList(
               children: [
                 ErrorNotice('${snapshot.error}'),
@@ -110,8 +110,8 @@ class _BotSessionsPageState extends State<BotSessionsPage> {
               ],
             );
           }
-          if (!snapshot.hasData) return const Center(child: ShiningText());
-          final data = snapshot.data!;
+          if (confirmed == null) return const Center(child: ShiningText());
+          final data = confirmed!;
           final rows = objects(data['sessions']);
           final current = rows
               .where(
@@ -194,7 +194,7 @@ class _BotSessionsPageState extends State<BotSessionsPage> {
                           key: ValueKey(
                             'switch-session-${row['session_id'] ?? row['id']}',
                           ),
-                          onPressed: busy || !c.online
+                          onPressed: busy
                               ? null
                               : () => change(
                                   '/resume ${row['session_id'] ?? row['id']}',
@@ -301,20 +301,18 @@ class _SessionHistoryState extends State<SessionHistoryPage> {
       final dm = c.node.conversations.firstWhere(
         (row) => row['kind'] == 'dm' && row['botId'] == widget.botId,
       );
-      var op = await c.rpc('commands.execute', {
+      final target = c.selectedNodeId!;
+      final op = await c.deliveries.command({
         'botId': widget.botId,
         'conversationId': dm['conversationId'],
+        'sessionId': ?dm['sessionId'],
         'command': '/resume $id',
         'clientMsgId': uid(),
-      });
-      while (op['status'] == 'running' && mounted) {
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-        op = await c.rpc('operations.get', {'operationId': op['operationId']});
-      }
+      }, target);
       if (op['status'] != 'done') {
         throw RelayError('${op['detail']}');
       }
-      await c.loadMessages('${dm['conversationId']}');
+      await c.loadMessages('${dm['conversationId']}', target: target);
       if (mounted) {
         showNotice(context, c.tr('已切换原生会话', 'Native session resumed'));
         Navigator.pop(context);

@@ -48,7 +48,6 @@ class _ReasoningSliderState extends State<ReasoningSlider> {
   }
 
   Future<void> load() async {
-    if (!widget.client.online) return;
     final current = ++request;
     try {
       final result = await widget.client.rpc('models.reasoning.get', {
@@ -62,6 +61,7 @@ class _ReasoningSliderState extends State<ReasoningSlider> {
         });
       }
     } catch (e) {
+      if (widget.client.isConnectionFailure(e)) return;
       if (mounted && current == request) {
         setState(() {
           data = null;
@@ -77,11 +77,14 @@ class _ReasoningSliderState extends State<ReasoningSlider> {
     setState(() => saving = true);
     widget.onSaving(true);
     try {
-      final result = await widget.client.rpc('models.reasoning.set', {
-        'botId': widget.botId,
-        'sessionId': before['sessionId'],
-        'effort': value,
-      });
+      final result = await widget.client.continueAction(
+        'models.reasoning.set',
+        {
+          'botId': widget.botId,
+          'sessionId': before['sessionId'],
+          'effort': value,
+        },
+      );
       if (mounted) {
         setState(() {
           data = result;

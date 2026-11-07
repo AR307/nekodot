@@ -13,6 +13,7 @@ import 'local/runtime.dart';
 import 'platform/desktop.dart';
 import 'platform/notifications.dart';
 import 'ui/design.dart';
+import 'ui/connection_notice.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -122,9 +123,15 @@ class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
         value: Theme.of(context).appBarTheme.systemOverlayStyle!,
         child: LoadingTextScope(
           label: widget.client.tr('加载中…', 'Loading…'),
-          child: DesktopHost.supported
-              ? WindowChrome(child: child!)
-              : Ambient(child: child!),
+          child: ContentRefreshScope(
+            notifier: widget.client.contentRefresh,
+            child: ConnectionNotice(
+              client: widget.client,
+              child: DesktopHost.supported
+                  ? WindowChrome(child: child!)
+                  : Ambient(child: child!),
+            ),
+          ),
         ),
       ),
       home: loading
