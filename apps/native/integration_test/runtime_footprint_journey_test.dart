@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -18,6 +19,20 @@ import 'local_desktop_journey_test.dart' show MemoryVault;
 /// preferences/credential storage are isolated from the user's installed App.
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  binding.allTestsPassed.future.then((passed) async {
+    const resultPath = String.fromEnvironment('QA_RESULT_PATH');
+    if (resultPath.isNotEmpty) {
+      await File(resultPath).writeAsString(
+        jsonEncode({
+          'passed': passed,
+          'checks': binding.reportData,
+          'failures': binding.failureMethodsDetails
+              .map((f) => f.toString())
+              .toList(),
+        }),
+      );
+    }
+  });
   testWidgets('footprint: real tools, released history and reconnect', (
     tester,
   ) async {
@@ -217,13 +232,13 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('flow-close')));
     await open(dm);
     await submit(
-      'Read this checklist and reply with CHECKLIST_OK only.\n' +
-          List.generate(
-            80,
-            (i) =>
-                (i + 1).toString() +
-                '. Preserve files, tools and session history.',
-          ).join('\n'),
+      [
+        'Read this checklist and reply with CHECKLIST_OK only.',
+        ...List.generate(
+          80,
+          (i) => '${i + 1}. Preserve files, tools and session history.',
+        ),
+      ].join('\n'),
     );
     await until(
       () => (c.node.messages[dm] ?? []).any(
@@ -234,9 +249,20 @@ void main() {
       ),
     );
     await until(() => c.node.activities[dm]?.state == 'idle');
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.drag(
+      find.byKey(const ValueKey('chat-messages')),
+      const Offset(0, 600),
+    );
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     final timeline = tester.widget<ChatTimeline>(find.byType(ChatTimeline));
-    timeline.scroll.jumpTo(timeline.scroll.position.minScrollExtent + 500);
-    await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      timeline.scroll.offset - timeline.scroll.position.minScrollExtent,
+      greaterThan(LatestScrollController.near),
+    );
     final readingPosition = timeline.scroll.offset;
     await shot('history-reading');
     await open(group);
