@@ -13,6 +13,9 @@ import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/platform/desktop.dart';
 import 'package:nekodot_native/ui/design.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'local_desktop_journey_test.dart' show MemoryVault;
 
 /// Candidate native UI -> real Relay/Node -> Hermes cron -> real model/tools.
 /// Only a dedicated QA Bot is used; each task is paused when the journey ends.
@@ -27,7 +30,10 @@ void main() {
       tester.view.devicePixelRatio = 2;
       addTearDown(tester.view.reset);
     }
-    final client = NekodotClient();
+    SharedPreferences.setMockInitialValues({'language': 'zh'});
+    final client = NekodotClient(vault: MemoryVault());
+    Future<Json> call(String method, Json params) async =>
+        (await tester.runAsync(() => client.rpc(method, params)))!;
     const botId = String.fromEnvironment('QA_BOT');
     const conversationId = String.fromEnvironment('QA_CONVERSATION');
     const evidence = String.fromEnvironment('QA_EVIDENCE_DIR');
@@ -59,19 +65,23 @@ void main() {
       final deadline = DateTime.now().add(Duration(seconds: seconds));
       while (!ready() && DateTime.now().isBefore(deadline)) {
         await tester.pump(const Duration(milliseconds: 200));
-        await Future<void>.delayed(const Duration(milliseconds: 100));
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 100)),
+        );
       }
       expect(ready(), isTrue, reason: stage);
     }
 
     Future<void> settle() async {
       await tester.pump(const Duration(milliseconds: 500));
-      await Future<void>.delayed(const Duration(milliseconds: 250));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 250)),
+      );
       await tester.pump();
     }
 
     Future<void> tap(Finder finder) async {
-      await until(() => finder.evaluate().isNotEmpty, 'Find $finder');
+      await until(() => finder.evaluate().isNotEmpty, 'Find target');
       await Scrollable.ensureVisible(
         tester.element(finder.first),
         alignment: .5,
@@ -79,7 +89,7 @@ void main() {
       await settle();
       await until(
         () => finder.hitTestable().evaluate().isNotEmpty,
-        'Visible $finder',
+        'Visible target',
       );
       await tester.tap(finder.hitTestable().first);
       await settle();
@@ -107,23 +117,26 @@ void main() {
       }
     }
 
-    final login = await client.account.request(
-      '/auth/login',
-      method: 'POST',
-      body: {
-        'email': const String.fromEnvironment('QA_EMAIL'),
-        'password': const String.fromEnvironment('QA_PASSWORD'),
-      },
-    );
+    final login = (await tester.runAsync(
+      () => client.account.request(
+        '/auth/login',
+        method: 'POST',
+        body: {
+          'email': const String.fromEnvironment('QA_EMAIL'),
+          'password': const String.fromEnvironment('QA_PASSWORD'),
+        },
+      ),
+    ))!;
     client.account.token = login['token'] as String;
     client.selectedNodeId = const String.fromEnvironment('QA_NODE');
-    await client.bootstrap();
+    await tester.runAsync(client.bootstrap);
+    note('realRelayConnected', true);
     addTearDown(client.dispose);
     await until(
       () => client.online && client.node.conversations.isNotEmpty,
       'QA Node online',
     );
-    runApp(
+    await tester.pumpWidget(
       MaterialApp(
         theme: appTheme(Brightness.light),
         navigatorObservers: [nativeRoutes],
@@ -155,6 +168,37 @@ void main() {
       () => client.node.activities[conversationId]?.state == 'idle',
       'Conversation idle',
     );
+    final originalSession = (await call('sessions.list', {
+      'botId': botId,
+    }))['currentSessionId'];
+    addTearDown(() async {
+      if (!client.online) return;
+      final deadline = DateTime.now().add(const Duration(seconds: 30));
+      while (objects((await client.rpc('operations.list'))['operations']).any(
+        (op) =>
+            op['status'] == 'running' && (op['botIds'] as List).contains(botId),
+      )) {
+        expect(
+          DateTime.now().isBefore(deadline),
+          isTrue,
+          reason: 'Wait for final task pause before restoring the session',
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
+      var operation = await client.rpc('commands.execute', {
+        'botId': botId,
+        'conversationId': conversationId,
+        'command': '/resume $originalSession',
+        'clientMsgId': uid(),
+      });
+      while (operation['status'] == 'running') {
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+        operation = await client.rpc('operations.get', {
+          'operationId': operation['operationId'],
+        });
+      }
+      expect(operation['status'], 'done');
+    });
     if (!reuseRoutine) await submit('/new $name');
     await idle();
     Json? routine;
@@ -164,7 +208,7 @@ void main() {
         '晚上 22:00 到第二天早上 08:00 自动拒绝。请帮我设置好，不要现在执行任务。';
     if (reuseRoutine) {
       routine = object(
-        (await client.rpc('routines.get', {
+        (await call('routines.get', {
           'botId': botId,
           'routineId': existingRoutine,
         }))['routine'],
@@ -214,7 +258,7 @@ void main() {
     }
     final routineId = '${routine!['routineId']}';
     final target = {'botId': botId, 'routineId': routineId};
-    var detail = await client.rpc('routines.get', target);
+    var detail = await call('routines.get', target);
     final jobId = '${detail['routine']['cronJobId']}';
     note('jobId', jobId);
     if (!continuing && !answeredBeforeCreation) {
@@ -254,7 +298,7 @@ void main() {
       var matched = false;
       final deadline = DateTime.now().add(const Duration(minutes: 4));
       while (DateTime.now().isBefore(deadline)) {
-        detail = await client.rpc('routines.get', target);
+        detail = await call('routines.get', target);
         matched = matches(
           object(detail['routine']['native']['approvalPolicy'] ?? {}),
         );
@@ -433,7 +477,7 @@ void main() {
       );
       await idle();
       await shot('followup');
-      detail = await client.rpc('routines.get', target);
+      detail = await call('routines.get', target);
       expect(objects(detail['executions']).length, 1);
       if (localFile) expect(await File(file).readAsLines(), [token]);
       note('selectedFollowupWithoutRerun', true);
@@ -511,6 +555,15 @@ void main() {
       'Automatic cron command completed',
     );
     await submit('/cron pause $jobId');
+    await until(
+      () => find
+          .byWidgetPredicate(
+            (w) => w is ShiningText && w.text == 'Hermes 指令执行中…',
+          )
+          .evaluate()
+          .isEmpty,
+      'Final pause command completed',
+    );
     await shot('completed');
     expect(tester.takeException(), isNull);
     note('done', true);
