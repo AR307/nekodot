@@ -285,13 +285,14 @@ void main() {
                       find.byKey(const ValueKey('reasoning-current')),
                     )
                     .data ==
-                'omit',
+                'xhigh',
       );
       final fresh = await tester.runAsync(
         () => c.rpc('models.reasoning.get', {'botId': bot}),
       );
       expect(fresh!['sessionId'], isNot(after['sessionId']));
-      expect(fresh['effort'], isNull);
+      expect(fresh['effort'], 'xhigh');
+      expect(fresh['wireEffort'], 'xhigh');
       await tap(find.byKey(const ValueKey('chat-sessions')));
       final restore = find.byKey(
         ValueKey('switch-session-${after['sessionId']}'),

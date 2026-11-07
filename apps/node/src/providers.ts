@@ -11,7 +11,11 @@ import type { NodeDatabase } from './database';
 import type { HermesRuntime } from './hermes/runtime';
 import { NodeFault } from './fault';
 import { ModelCatalog } from './model-catalog';
-import { openNativeSession, type NativeSessionSnapshot } from './hermes/session';
+import {
+  defaultSessionReasoning,
+  openNativeSession,
+  type NativeSessionSnapshot,
+} from './hermes/session';
 import type { Operations } from './operations';
 import type { NativeAdmission } from './execution/types';
 
@@ -294,12 +298,15 @@ export class Providers {
     const dm = this.database.conversations().find((c) => c.kind === 'dm' && c.botId === botId)!;
     const existing = this.database.hermesSession(dm.conversationId);
     // A read-only control must not advance the execution subscriber's replay cursor.
-    if (existing)
-      return this.hermes.gateway(botId).rpc<NativeSessionSnapshot>('session.resume', {
+    if (existing) {
+      const gateway = this.hermes.gateway(botId);
+      const snapshot = await gateway.rpc<NativeSessionSnapshot>('session.resume', {
         session_id: existing.storedSessionId,
         defer_history: true,
         omit_messages: true,
       });
+      return defaultSessionReasoning(gateway, snapshot);
+    }
     return openNativeSession(this.database, this.hermes, botId, dm.conversationId);
   }
   private async reasoningInfo(

@@ -113,10 +113,10 @@ class _ReasoningSliderState extends State<ReasoningSlider> {
     }
     final levels = (data?['levels'] as List?)?.cast<String>() ?? [];
     if (levels.isEmpty) return const SizedBox.shrink();
-    final options = <String?>[null, ...levels];
-    final at = options.indexOf(selected);
+    final options = levels;
+    final at = selected == null ? -1 : options.indexOf(selected!);
     final disabled = saving || !widget.enabled;
-    String label(String? value) => value ?? 'omit';
+    String label(String? value) => value ?? '…';
     if (context.tone.glass) {
       return TextButton(
         key: const ValueKey('reasoning-toggle'),
@@ -185,7 +185,7 @@ class _ReasoningSliderState extends State<ReasoningSlider> {
                 key: const ValueKey('reasoning-slider'),
                 min: 0,
                 max: (options.length - 1).toDouble(),
-                divisions: options.length - 1,
+                divisions: options.length > 1 ? options.length - 1 : null,
                 value: (at < 0 ? 0 : at).toDouble(),
                 semanticFormatterCallback: (v) =>
                     '${widget.client.tr('思考等级', 'Reasoning effort')}: ${label(options[v.round()])}',

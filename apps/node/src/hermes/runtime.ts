@@ -185,6 +185,9 @@ export class ManagedHermes implements HermesRuntime {
     // Hermes reads YAML with PyYAML: string values such as "off" must stay strings.
     const document = parseDocument(raw, { compat: 'yaml-1.1' });
     if (document.errors.length) throw new Error('Hermes config is not valid YAML');
+    const reasoning = document.getIn(['agent', 'reasoning_effort']);
+    if (reasoning === undefined || reasoning === null || reasoning === '')
+      document.setIn(['agent', 'reasoning_effort'], 'xhigh');
     const apiTools = document.toJS().platform_toolsets?.api_server as string[] | undefined;
     document.setIn(
       ['platform_toolsets', 'api_server'],
