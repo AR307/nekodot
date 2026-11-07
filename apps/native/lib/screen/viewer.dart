@@ -336,7 +336,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
               child: SizedBox(
-                height: 44,
+                height: context.tone.glass ? 52 : 44,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: widget.members

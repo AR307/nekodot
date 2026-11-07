@@ -118,10 +118,15 @@ class _SearchPaletteState extends State<SearchPalette> {
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Material(
             color: index == chosen ? tone.hover : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
+            shape: RoundedSuperellipseBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            clipBehavior: Clip.antiAlias,
             child: InkWell(
               key: ValueKey('search-entry-$index'),
-              borderRadius: BorderRadius.circular(10),
+              customBorder: RoundedSuperellipseBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               onTap: () => pick(entry),
               onHover: (inside) {
                 if (inside && chosen != index) setState(() => chosen = index);

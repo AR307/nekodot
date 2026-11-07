@@ -248,6 +248,7 @@ class _RoutinePageState extends State<RoutinePage> {
     );
     final payload = await showDialog<String>(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: Text(c.tr('测试唤醒', 'Test webhook')),
         content: SizedBox(

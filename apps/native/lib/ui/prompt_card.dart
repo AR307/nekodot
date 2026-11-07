@@ -57,35 +57,46 @@ class _PromptCardState extends State<PromptCard> {
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
           alignment: Alignment.bottomCenter,
-          child: Stack(
-            children: [
-              Column(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final toolbar = Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 52),
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        16,
-                        8,
-                        expanded ? 16 : (context.tone.glass ? 160 : 140),
-                        8,
-                      ),
-                      child: widget.field,
-                    ),
-                  ),
-                  if (expanded) SizedBox(height: context.tone.glass ? 48 : 36),
+                  widget.tools,
+                  Flexible(child: widget.action),
                 ],
-              ),
-              Positioned(
-                left: 8,
-                right: 7,
-                bottom: expanded || context.tone.glass ? 2 : 10,
-                child: Row(
-                  children: [const Spacer(), widget.tools, widget.action],
+              );
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 44),
+                  child: Flex(
+                    direction: expanded ? Axis.vertical : Axis.horizontal,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: widget.field,
+                        ),
+                      ),
+                      SizedBox(height: expanded ? 4 : 0),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: constraints.maxWidth * (expanded ? 1 : .6),
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          widthFactor: expanded ? null : 1,
+                          heightFactor: 1,
+                          child: toolbar,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),

@@ -255,7 +255,7 @@ class _AuthPageState extends State<AuthPage> {
                 TextButton(
                   onPressed: busy ? null : () => switchTo('reset'),
                   style: TextButton.styleFrom(
-                    minimumSize: const Size(44, 44),
+                    minimumSize: Size(48, tone.glass ? 48 : 44),
                     padding: EdgeInsets.zero,
                   ),
                   child: Text(
@@ -282,7 +282,9 @@ class _AuthPageState extends State<AuthPage> {
                   : AutofillHints.password,
             ],
             decoration: InputDecoration(
-              hintText: c.tr('至少 8 位密码', 'At least 8 characters'),
+              hintText: mode == 'login'
+                  ? null
+                  : c.tr('至少 8 位密码', 'At least 8 characters'),
               prefixIcon: const Icon(Icons.lock_outline, size: 18),
               suffixIcon: IconButton(
                 key: const ValueKey('auth-reveal-password'),
@@ -290,7 +292,9 @@ class _AuthPageState extends State<AuthPage> {
                     ? c.tr('隐藏密码', 'Hide password')
                     : c.tr('显示密码', 'Show password'),
                 isSelected: showPassword,
-                style: IconButton.styleFrom(minimumSize: const Size.square(44)),
+                style: IconButton.styleFrom(
+                  minimumSize: Size.square(tone.glass ? 48 : 44),
+                ),
                 onPressed: busy
                     ? null
                     : () => setState(() => showPassword = !showPassword),
@@ -328,7 +332,7 @@ class _AuthPageState extends State<AuthPage> {
                   ),
                   const SizedBox(width: 10),
                   SizedBox(
-                    height: 46,
+                    height: 48,
                     child: OutlinedButton(
                       key: const ValueKey('auth-send-code'),
                       onPressed: busy || seconds > 0 ? null : sendCode,

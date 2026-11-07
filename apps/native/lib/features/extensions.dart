@@ -15,29 +15,12 @@ import '../platform/desktop.dart';
 import '../ui/design.dart';
 
 Future<void> showExtensionsDialog(BuildContext context, NekodotClient client) =>
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        clipBehavior: Clip.antiAlias,
-        insetPadding: const EdgeInsets.all(40),
-        child: SizedBox(
-          width: 900,
-          height: 700,
-          child: ExtensionsPage(client: client, kind: 'skills', dialog: true),
-        ),
-      ),
-    );
+    openPage(context, ExtensionsPage(client: client, kind: 'skills'));
 
 class ExtensionsPage extends StatefulWidget {
   final NekodotClient client;
   final String kind;
-  final bool dialog;
-  const ExtensionsPage({
-    super.key,
-    required this.client,
-    required this.kind,
-    this.dialog = false,
-  });
+  const ExtensionsPage({super.key, required this.client, required this.kind});
   @override
   State<ExtensionsPage> createState() => _ExtensionsPageState();
 }
@@ -54,8 +37,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       extendBodyBehindAppBar: glass,
       appBar: AppBar(
         flexibleSpace: glass ? const Frost() : const WindowDrag(),
-        automaticallyImplyLeading: !widget.dialog,
-        titleSpacing: widget.dialog ? 20 : 0,
+        titleSpacing: 0,
         title: Segment<String>(
           value: kind,
           options: {
@@ -73,15 +55,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               setState(() => revision++);
             },
           ),
-          if (widget.dialog) ...[
-            IconAction(
-              tooltip: c.tr('关闭', 'Close'),
-              icon: Icons.close,
-              onPressed: () => Navigator.pop(context),
-            ),
-          ],
           const SizedBox(width: 8),
-          if (!widget.dialog) SizedBox(width: WindowChrome.reserved(context)),
+          SizedBox(width: WindowChrome.reserved(context)),
         ],
       ),
       body: AsyncPane(
