@@ -13,6 +13,7 @@ import 'package:nekodot_native/main.dart';
 import 'package:nekodot_native/ui/design.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'local_desktop_journey_test.dart' show MemoryVault;
 
@@ -22,6 +23,7 @@ void main() {
     'real memory counters and silent tool warning recover without stopping',
     (tester) async {
       const dm = String.fromEnvironment('QA_CONVERSATION');
+      const observeNotifications = bool.fromEnvironment('QA_NOTIFICATIONS');
       final evidence = Platform.isAndroid
           ? '${(await getApplicationSupportDirectory()).path}/stall-memory-evidence'
           : const String.fromEnvironment('QA_EVIDENCE_DIR');
@@ -32,6 +34,15 @@ void main() {
         'notification-requested': true,
       });
       final c = NekodotClient(vault: MemoryVault());
+      final notifications = <String>[];
+      final subscription = c.notifications.stream.listen((signal) {
+        notifications.add(signal['kind'].toString());
+      });
+      addTearDown(subscription.cancel);
+      if (observeNotifications && Platform.isWindows) {
+        await windowManager.ensureInitialized();
+        await windowManager.setTitle('Nekodot - Stall notification QA');
+      }
       final capture = GlobalKey();
       await tester.pumpWidget(
         RepaintBoundary(
@@ -193,15 +204,38 @@ void main() {
         what: 'real tool started',
       );
       report['toolStarted'] = DateTime.now().toUtc().toIso8601String();
+      if (observeNotifications) {
+        const other = String.fromEnvironment('QA_SECOND_CONVERSATION');
+        final otherRow = find.byKey(const ValueKey('conversation-$other'));
+        await tester.ensureVisible(otherRow);
+        await tester.tap(otherRow.hitTestable().first);
+        await until(() => c.visibleConversation == other);
+        expect(c.notificationError, isEmpty);
+      }
       await until(
         () => c.node.activities[dm]?.stalled == true,
         seconds: 380,
         what: 'five real minutes of silence',
       );
       expect(c.node.activities[dm]?.connection, isNot('reconnecting'));
-      await tester.pump();
-      expect(find.text('可能卡住').evaluate(), isNotEmpty);
       report['stalledAt'] = DateTime.now().toUtc().toIso8601String();
+      await tester.pump();
+      if (!observeNotifications) {
+        expect(find.text('可能卡住').evaluate(), isNotEmpty);
+      } else {
+        await until(() => notifications.contains('stalled'));
+        expect(c.notificationError, isEmpty);
+        report['accountNotificationReceived'] = true;
+        await tester.runAsync(
+          () =>
+              File('$evidence/windows-notification-ready.json')
+                  .writeAsString(jsonEncode(report)),
+        );
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(seconds: 15)),
+        );
+        expect(c.notificationError, isEmpty);
+      }
       await shot('stalled');
       await until(
         () =>
@@ -226,9 +260,9 @@ void main() {
       report['toolCount'] = tools.length;
       await shot('recovered');
       await tester.runAsync(
-        () =>
-            File('$evidence/${Platform.operatingSystem}-report.json')
-                .writeAsString(jsonEncode(report)),
+        () => File(
+          '$evidence/${Platform.operatingSystem}${observeNotifications ? '-notification' : ''}-report.json',
+        ).writeAsString(jsonEncode(report)),
       );
       binding.reportData = report;
     },
