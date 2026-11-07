@@ -18,7 +18,7 @@ export class HermesManagement {
   >();
   readonly listeners = new Set<(event: ManagementEvent) => void>();
   constructor(
-    readonly baseUrl: string,
+    private readonly endpoint: () => Promise<string>,
     private readonly token: string,
   ) {}
 
@@ -26,7 +26,7 @@ export class HermesManagement {
     return (await (await this.response(path, profile, init)).json()) as T;
   }
   async response(path: string, profile?: string, init?: RequestInit): Promise<Response> {
-    const url = new URL(this.baseUrl + path);
+    const url = new URL((await this.endpoint()) + path);
     if (profile) url.searchParams.set('profile', profile);
     const response = await fetch(url, {
       ...init,
@@ -56,43 +56,47 @@ export class HermesManagement {
   private async connect(): Promise<WebSocket> {
     if (this.socket?.readyState === WebSocket.OPEN) return this.socket;
     if (this.connecting) return this.connecting;
-    this.connecting = new Promise((resolve, reject) => {
-      const socket = new WebSocket(
-        this.baseUrl.replace(/^http/, 'ws') + '/api/ws?token=' + encodeURIComponent(this.token),
-        {
-          headers: { 'X-Hermes-Session-Token': this.token },
-          handshakeTimeout: 10_000,
-        },
-      );
-      this.socket = socket;
-      socket.once('open', () => resolve(socket));
-      socket.once('error', reject);
-      socket.on('message', (raw) => {
-        const message = JSON.parse(raw.toString()) as {
-          id?: string;
-          result?: unknown;
-          error?: { message: string };
-          method?: string;
-          params?: ManagementEvent;
-        };
-        if (message.id) {
-          const waiter = this.pending.get(message.id);
-          if (waiter) {
-            this.pending.delete(message.id);
-            if (message.error) waiter.reject(new NodeFault('unavailable', message.error.message));
-            else waiter.resolve(message.result);
-          }
-        } else if (message.method === 'event' && message.params) {
-          for (const listener of this.listeners) listener(message.params);
-        }
-      });
-      socket.on('close', () => {
-        for (const waiter of this.pending.values())
-          waiter.reject(new NodeFault('unavailable', 'Hermes management disconnected'));
-        this.pending.clear();
-        for (const listener of this.listeners) listener({ type: 'management.disconnected' });
-      });
-    });
+    this.connecting = this.endpoint().then(
+      (baseUrl) =>
+        new Promise<WebSocket>((resolve, reject) => {
+          const socket = new WebSocket(
+            baseUrl.replace(/^http/, 'ws') + '/api/ws?token=' + encodeURIComponent(this.token),
+            {
+              headers: { 'X-Hermes-Session-Token': this.token },
+              handshakeTimeout: 10_000,
+            },
+          );
+          this.socket = socket;
+          socket.once('open', () => resolve(socket));
+          socket.once('error', reject);
+          socket.on('message', (raw) => {
+            const message = JSON.parse(raw.toString()) as {
+              id?: string;
+              result?: unknown;
+              error?: { message: string };
+              method?: string;
+              params?: ManagementEvent;
+            };
+            if (message.id) {
+              const waiter = this.pending.get(message.id);
+              if (waiter) {
+                this.pending.delete(message.id);
+                if (message.error)
+                  waiter.reject(new NodeFault('unavailable', message.error.message));
+                else waiter.resolve(message.result);
+              }
+            } else if (message.method === 'event' && message.params) {
+              for (const listener of this.listeners) listener(message.params);
+            }
+          });
+          socket.on('close', () => {
+            for (const waiter of this.pending.values())
+              waiter.reject(new NodeFault('unavailable', 'Hermes management disconnected'));
+            this.pending.clear();
+            for (const listener of this.listeners) listener({ type: 'management.disconnected' });
+          });
+        }),
+    );
     try {
       return await this.connecting;
     } finally {
@@ -124,10 +128,11 @@ export class HermesManagement {
 
   close() {
     this.socket?.close();
+    this.socket = undefined;
   }
-  displaySocket(ticket: string) {
+  async displaySocket(ticket: string) {
     return new WebSocket(
-      this.baseUrl.replace(/^http/, 'ws') +
+      (await this.endpoint()).replace(/^http/, 'ws') +
         '/api/display/ws?display_ticket=' +
         encodeURIComponent(ticket),
       { headers: { 'X-Hermes-Session-Token': this.token }, handshakeTimeout: 10_000 },

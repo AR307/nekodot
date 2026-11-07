@@ -89,7 +89,6 @@ try {
         source: reference.source,
         runtime: reference.runtime,
         apiPort: 19712 + i * 2,
-        managementPort: 19713 + i * 2,
         onLog: (text) => {
           void appendFile(join(home, 'hermes-' + i + '.log'), text);
         },

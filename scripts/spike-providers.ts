@@ -29,7 +29,6 @@ const runtime = new ManagedHermes({
   source: reference.source,
   runtime: reference.runtime,
   apiPort: 19702,
-  managementPort: 19703,
   onLog: (text) => {
     void appendFile(join(home, 'hermes.log'), text);
   },

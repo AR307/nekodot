@@ -81,7 +81,7 @@ def _status(raw_args):
     profile = params.get("profile") or _home().name
     known = set(params.get("settled", []))
     events = []
-    # command.dispatch has no live session here: bind the native store explicitly.
+    # Read background executions from their owning profile, not the command session.
     db = SessionDB(db_path=get_profile_dir(profile) / "state.db", read_only=True)
     try:
         offset = 0
@@ -159,7 +159,7 @@ def _approval_policy(raw_args):
     for window in policy["windows"]:
         if window["start"] == window["end"]:
             raise ValueError("Approval window must have a duration")
-    # A sessionless command.dispatch does not bind its profile parameter.
+    # The task policy belongs to the requested profile, not a background execution.
     with _profile_runtime_scope(get_profile_dir(params["profile"])):
         job = get_job(params["jobId"])
         if not job:
