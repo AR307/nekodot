@@ -57,27 +57,26 @@ class _PromptCardState extends State<PromptCard> {
                   ConstrainedBox(
                     constraints: BoxConstraints(minHeight: expanded ? 68 : 46),
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        16,
-                        8,
-                        expanded ? 16 : 96,
-                        8,
-                      ),
+                      padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
                       child: widget.field,
                     ),
                   ),
-                  if (expanded) const SizedBox(height: 44),
+                  const SizedBox(height: 44),
                 ],
               ),
               Positioned(
-                left: expanded ? 8 : null,
+                left: 8,
                 right: 7,
                 bottom: 7,
                 child: Row(
                   children: [
-                    if (expanded) const Spacer(),
                     widget.tools,
-                    widget.action,
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: widget.action,
+                      ),
+                    ),
                   ],
                 ),
               ),

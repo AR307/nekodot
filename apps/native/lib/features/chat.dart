@@ -61,6 +61,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   @override
   void didPopNext() {
     c.visibleConversation = id;
+    composer.currentState?.refreshReasoning();
   }
 
   @override
