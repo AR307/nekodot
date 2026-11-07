@@ -378,9 +378,12 @@ class BotSecretsPage extends StatelessWidget {
                       SelectableText(
                         '${object(entry['target'])['origin'] ?? object(entry['target'])['path']}',
                       ),
-                      Text(
-                        '${entry['enabled'] == true ? client.tr('已保存', 'Saved') : client.tr('已停用', 'Disabled')} · ${client.tr('最近使用', 'Last used')}: ${entry['lastUsedAt']}',
-                      ),
+                      MetaText([
+                        entry['enabled'] == true
+                            ? client.tr('已保存', 'Saved')
+                            : client.tr('已停用', 'Disabled'),
+                        '${client.tr('最近使用', 'Last used')}: ${entry['lastUsedAt']}',
+                      ]),
                       if (entry['enabled'] == true)
                         Wrap(
                           spacing: 12,

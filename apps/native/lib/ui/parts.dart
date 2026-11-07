@@ -460,14 +460,19 @@ void showNotice(BuildContext context, String text) {
   );
   measured.dispose();
   final side = (screen - width) / 2;
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(text, textAlign: TextAlign.center),
-      padding: const EdgeInsets.symmetric(horizontal: padding, vertical: 7),
-      margin: EdgeInsets.fromLTRB(side, 0, side, tone.glass ? 76 : 60),
-      duration: Duration(seconds: text.length > 24 ? 4 : 2),
-    ),
-  );
+  // A pill that rises above the bottom controls and leaves on its own: long
+  // enough to read, short enough not to stay in the way.
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(text, textAlign: TextAlign.center),
+        padding: const EdgeInsets.symmetric(horizontal: padding, vertical: 9),
+        margin: EdgeInsets.fromLTRB(side, 0, side, tone.glass ? 76 : 60),
+        shape: const StadiumBorder(),
+        duration: Duration(milliseconds: text.length > 24 ? 4000 : 2500),
+      ),
+    );
 }
 
 /// A field with its label above it, always visible and never inside the box.
@@ -924,5 +929,52 @@ class RenderMeasureHeight extends RenderProxyBox {
       last = height;
       WidgetsBinding.instance.addPostFrameCallback((_) => onChange(height));
     }
+  }
+}
+
+/// Short facts side by side, parted by a hairline rather than a "·", whose
+/// height and baseline differ from font to font.
+class MetaText extends StatelessWidget {
+  final List<String> parts;
+  final TextStyle? style;
+  final int maxLines;
+  final TextAlign textAlign;
+  const MetaText(
+    this.parts, {
+    super.key,
+    this.style,
+    this.maxLines = 1,
+    this.textAlign = TextAlign.start,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final shown = [
+      for (final part in parts)
+        if (part.trim().isNotEmpty) part,
+    ];
+    final size = (style ?? DefaultTextStyle.of(context).style).fontSize ?? 13;
+    return Text.rich(
+      TextSpan(
+        children: [
+          for (final (index, part) in shown.indexed) ...[
+            if (index > 0)
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: Container(
+                  width: 1 / MediaQuery.devicePixelRatioOf(context),
+                  height: size * .8,
+                  margin: const EdgeInsets.symmetric(horizontal: 7),
+                  color: context.tone.ink3.withValues(alpha: .6),
+                ),
+              ),
+            TextSpan(text: part),
+          ],
+        ],
+      ),
+      style: style,
+      maxLines: maxLines,
+      overflow: TextOverflow.ellipsis,
+      textAlign: textAlign,
+    );
   }
 }

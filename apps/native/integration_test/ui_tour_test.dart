@@ -168,6 +168,15 @@ void main() {
           await shot('$tag-account-menu');
           navigator.currentState!.pop();
           await run(const Duration(milliseconds: 300));
+          await tester.tap(find.byTooltip('搜索 (Ctrl+K)'));
+          await shot('$tag-search');
+          await tester.enterText(
+            find.byKey(const ValueKey('search-palette-input')),
+            '周报',
+          );
+          await shot('$tag-search-typed');
+          navigator.currentState!.pop();
+          await run(const Duration(milliseconds: 300));
           await tester.tap(find.byTooltip('新建').first);
           await run(const Duration(milliseconds: 400));
           await shot('$tag-create-menu');

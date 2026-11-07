@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../data/chat_models.dart';
 import '../data/client.dart';
 import '../data/json.dart';
 import '../platform/desktop.dart';
@@ -45,6 +46,14 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   double composerHeight = 76;
   String? focusedMessage;
   final focusedKey = GlobalKey();
+
+  /// Messages newer than [baseline] arrived while the page was open; each
+  /// enters with a short motion the first time it is shown.
+  int? baseline, seenSeq;
+  final shown = <String>{};
+
+  /// Reading further up than the latest messages, and whether more arrived.
+  bool away = false, missed = false;
   NekodotClient get c => widget.client;
   String get id => widget.conversationId;
   @override
@@ -67,11 +76,50 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   void initState() {
     super.initState();
     c.visibleConversation = id;
+    scroll.addListener(onScroll);
     unawaited(
-      c.loadMessages(id).catchError((Object e) {
-        if (mounted) composer.currentState?.showError('$e');
-      }),
+      c
+          .loadMessages(id)
+          .then((_) {
+            if (!mounted) return;
+            final loaded = c.node.messages[id] ?? const [];
+            baseline = loaded.fold<int>(
+              0,
+              (top, m) => m.seq > top ? m.seq : top,
+            );
+          })
+          .catchError((Object e) {
+            if (mounted) composer.currentState?.showError('$e');
+          }),
     );
+  }
+
+  bool fresh(ChatMessage m) {
+    final since = baseline;
+    return since != null && m.seq > since && shown.add(m.messageId);
+  }
+
+  void onScroll() {
+    final far = scroll.hasClients && scroll.offset > 64;
+    if (far != away) {
+      setState(() {
+        away = far;
+        if (!far) missed = false;
+      });
+    }
+  }
+
+  void toLatest() {
+    if (!scroll.hasClients) return;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      scroll.jumpTo(0);
+    } else {
+      scroll.animateTo(
+        0,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   @override
@@ -146,236 +194,168 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
           memberAvatars = view.memberAvatars,
           messages = view.messages,
           tone = context.tone;
-      final glassHeader = AppBar(
-        flexibleSpace: const Frost(),
-        automaticallyImplyLeading: !widget.embedded,
-        titleSpacing: widget.embedded ? 12 : 0,
-        title: Align(
-          alignment: Alignment.centerLeft,
-          child: Tooltip(
-            message: c.tr('详情', 'Details'),
-            child: InkWell(
-              customBorder: const StadiumBorder(),
-              onTap: () {
-                if (group != null) {
-                  pushPage(
-                    context,
-                    BotEditor(client: c, group: true, existing: group),
-                  );
-                } else if (bot != null) {
-                  popPage(context, BotDetails(client: c, bot: bot));
-                }
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (group != null)
-                      GroupAvatar(
-                        size: 30,
-                        working: working,
-                        avatars: memberAvatars,
-                      )
-                    else if (bot != null)
-                      CatAvatar.of(bot, size: 30, working: working),
-                    const SizedBox(width: 10),
+      void openDetails() {
+        if (group != null) {
+          pushPage(context, BotEditor(client: c, group: true, existing: group));
+        } else if (bot != null) {
+          if (widget.onDetails != null) {
+            widget.onDetails!(bot);
+          } else {
+            popPage(context, BotDetails(client: c, bot: bot));
+          }
+        }
+      }
+
+      final textTheme = Theme.of(context).textTheme;
+      // Floating controls sit on the surface with a soft shadow, over the
+      // messages, which scroll beneath them and fade out under the bar.
+      Widget floating(Widget child) => DecoratedBox(
+        decoration: ShapeDecoration(
+          color: tone.surface,
+          shape: const StadiumBorder(),
+          shadows: tone.rest,
+        ),
+        child: Material(type: MaterialType.transparency, child: child),
+      );
+      final titlePill = Tooltip(
+        message: c.tr('详情', 'Details'),
+        child: floating(
+          InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: openDetails,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                8,
+                tone.glass ? 7 : 5,
+                14,
+                tone.glass ? 7 : 5,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (group != null)
+                    GroupAvatar(
+                      size: 22,
+                      working: working,
+                      avatars: memberAvatars,
+                    )
+                  else if (bot != null)
+                    CatAvatar.of(bot, size: 22, working: working),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.titleMedium?.copyWith(
+                        fontSize: tone.glass ? 15 : 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (chain != null) ...[
+                    const SizedBox(width: 8),
+                    ChainDots(count: chain.count, max: chain.max),
+                  ],
+                  if (status != null) ...[
+                    const SizedBox(width: 8),
                     Flexible(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          if (status != null || chain != null)
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (chain != null) ...[
-                                  ChainDots(count: chain.count, max: chain.max),
-                                  const SizedBox(width: 5),
-                                ],
-                                if (status != null)
-                                  Flexible(
-                                    child: Text(
-                                      status,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelMedium,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                        ],
+                      child: Text(
+                        status,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.labelMedium,
                       ),
                     ),
                   ],
-                ),
+                ],
               ),
             ),
           ),
         ),
-        actions: [
-          if (group == null && bot != null)
-            IconButton(
-              key: const ValueKey('chat-sessions'),
-              tooltip: c.tr('历史会话与切换', 'Sessions and switch'),
-              onPressed: () {
-                FocusManager.instance.primaryFocus?.unfocus();
-                pushPage(
-                  context,
-                  BotSessionsPage(client: c, botId: '${bot['botId']}'),
-                );
-              },
-              icon: const Icon(Icons.forum_outlined),
-            ),
-          flowButton(),
-          IconButton(
-            tooltip: c.tr('屏幕', 'Screen'),
-            onPressed: bot == null
-                ? null
-                : () => pushPage(
-                    context,
-                    ScreenPage(client: c, bot: bot, members: members),
-                  ),
-            icon: const Icon(Icons.desktop_windows_outlined),
+      );
+      final actions = floating(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (group == null && bot != null)
+                IconButton(
+                  key: const ValueKey('chat-sessions'),
+                  tooltip: c.tr('历史会话与切换', 'Sessions and switch'),
+                  onPressed: () {
+                    FocusManager.instance.primaryFocus?.unfocus();
+                    pushPage(
+                      context,
+                      BotSessionsPage(client: c, botId: '${bot['botId']}'),
+                    );
+                  },
+                  icon: const Icon(Icons.forum_outlined),
+                ),
+              flowButton(),
+              IconButton(
+                tooltip: c.tr('屏幕', 'Screen'),
+                onPressed: bot == null
+                    ? null
+                    : () => pushPage(
+                        context,
+                        ScreenPage(client: c, bot: bot, members: members),
+                      ),
+                icon: const Icon(Icons.desktop_windows_outlined),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
+        ),
+      );
+      final header = AppBar(
+        flexibleSpace: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                tone.base,
+                tone.base.withValues(alpha: .8),
+                tone.base.withValues(alpha: 0),
+              ],
+              stops: const [0, .6, 1],
+            ),
+          ),
+          child: tone.glass ? const SizedBox.expand() : const WindowDrag(),
+        ),
+        automaticallyImplyLeading: false,
+        leadingWidth: widget.embedded ? 0 : 60,
+        leading: widget.embedded
+            ? null
+            : Center(
+                child: floating(
+                  IconButton(
+                    tooltip: MaterialLocalizations.of(context)
+                        .backButtonTooltip,
+                    onPressed: () => Navigator.maybePop(context),
+                    icon: const Icon(Icons.arrow_back),
+                  ),
+                ),
+              ),
+        centerTitle: true,
+        titleSpacing: 8,
+        title: titlePill,
+        actions: [
+          actions,
+          const SizedBox(width: 12),
           if (widget.reserveControls)
             SizedBox(width: WindowChrome.reserved(context)),
         ],
       );
-      final header = tone.glass
-          ? glassHeader
-          : AppBar(
-              flexibleSpace: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [tone.base, tone.base.withValues(alpha: 0)],
-                  ),
-                ),
-                child: const WindowDrag(),
-              ),
-              automaticallyImplyLeading: !widget.embedded,
-              centerTitle: true,
-              titleSpacing: 8,
-              title: Tooltip(
-                message: c.tr('详情', 'Details'),
-                child: DecoratedBox(
-                  decoration: ShapeDecoration(
-                    color: tone.surface,
-                    shape: const StadiumBorder(),
-                    shadows: tone.rest,
-                  ),
-                  child: Material(
-                    type: MaterialType.transparency,
-                    child: InkWell(
-                      customBorder: const StadiumBorder(),
-                      onTap: () {
-                        if (group != null) {
-                          pushPage(
-                            context,
-                            BotEditor(client: c, group: true, existing: group),
-                          );
-                        } else if (bot != null) {
-                          if (widget.onDetails != null) {
-                            widget.onDetails!(bot);
-                          } else {
-                            popPage(context, BotDetails(client: c, bot: bot));
-                          }
-                        }
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(8, 5, 14, 5),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (group != null)
-                              GroupAvatar(
-                                size: 22,
-                                working: working,
-                                avatars: memberAvatars,
-                              )
-                            else if (bot != null)
-                              CatAvatar.of(bot, size: 22, working: working),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                              ),
-                            ),
-                            if (chain != null) ...[
-                              const SizedBox(width: 8),
-                              ChainDots(count: chain.count, max: chain.max),
-                            ],
-                            if (status != null) ...[
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  status,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelMedium,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              actions: [
-                if (group == null && bot != null)
-                  IconButton(
-                    key: const ValueKey('chat-sessions'),
-                    tooltip: c.tr('历史会话与切换', 'Sessions and switch'),
-                    onPressed: () {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                      pushPage(
-                        context,
-                        BotSessionsPage(client: c, botId: '${bot['botId']}'),
-                      );
-                    },
-                    icon: const Icon(Icons.forum_outlined),
-                  ),
-                const SizedBox(width: 4),
-                flowButton(),
-                IconAction(
-                  tooltip: c.tr('屏幕', 'Screen'),
-                  icon: Icons.desktop_windows_outlined,
-                  onPressed: bot == null
-                      ? null
-                      : () => pushPage(
-                          context,
-                          ScreenPage(client: c, bot: bot, members: members),
-                        ),
-                ),
-                const SizedBox(width: 12),
-                if (widget.reserveControls)
-                  SizedBox(width: WindowChrome.reserved(context)),
-              ],
-            );
 
+      // Something new arrived while you were reading further up.
+      final newest = messages.lastOrNull?.seq;
+      if (newest != null && newest > (seenSeq ?? newest)) missed = away;
+      seenSeq = newest;
+      final still = MediaQuery.disableAnimationsOf(context);
       return Scaffold(
+        extendBodyBehindAppBar: true,
         appBar: header,
         body: Stack(
           children: [
@@ -398,7 +378,36 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 focusedKey: focusedKey,
                 onRetry: (text) => composer.currentState?.editDraft(text),
                 onError: (value) => composer.currentState?.showError(value),
+                fresh: fresh,
               ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: composerHeight + 6,
+              child: Center(
+                child: IgnorePointer(
+                  ignoring: !away,
+                  child: AnimatedOpacity(
+                    opacity: away ? 1 : 0,
+                    duration: still
+                        ? Duration.zero
+                        : const Duration(milliseconds: 180),
+                    child: AnimatedScale(
+                      scale: away ? 1 : .8,
+                      duration: still
+                          ? Duration.zero
+                          : const Duration(milliseconds: 180),
+                      curve: Curves.easeOutCubic,
+                      child: LatestButton(
+                        tooltip: c.tr('回到最新', 'Jump to latest'),
+                        missed: missed,
+                        onPressed: toLatest,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
             Positioned(
               left: 0,
               right: 0,
@@ -427,4 +436,59 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       );
     },
   );
+}
+
+/// Floats above the composer while you read further up; a dot says that
+/// something new arrived meanwhile.
+class LatestButton extends StatelessWidget {
+  final String tooltip;
+  final bool missed;
+  final VoidCallback onPressed;
+  const LatestButton({
+    super.key,
+    required this.tooltip,
+    required this.missed,
+    required this.onPressed,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: tone.surface,
+            shape: BoxShape.circle,
+            boxShadow: tone.lift,
+          ),
+          child: IconButton(
+            key: const ValueKey('chat-latest'),
+            tooltip: tooltip,
+            onPressed: onPressed,
+            icon: const Icon(Icons.arrow_downward),
+          ),
+        ),
+        Positioned(
+          top: 2,
+          right: 2,
+          child: AnimatedScale(
+            scale: missed ? 1 : 0,
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 160),
+            child: Container(
+              width: 9,
+              height: 9,
+              decoration: BoxDecoration(
+                color: tone.ink,
+                shape: BoxShape.circle,
+                border: Border.all(color: tone.surface, width: 1.5),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }

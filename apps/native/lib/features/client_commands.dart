@@ -87,7 +87,7 @@ Future<void> clientCommand(
     if (context.mounted) {
       showNotice(
         context,
-        '$name: ${enabled ? 'on' : 'off'} · ${c.tr('当前客户端', 'this client')}',
+        '$name: ${enabled ? 'on' : 'off'}, ${c.tr('当前客户端', 'this client')}',
       );
     }
     return;

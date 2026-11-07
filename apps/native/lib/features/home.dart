@@ -19,6 +19,8 @@ import 'local_setup.dart';
 import '../local/runtime.dart';
 import 'node_update.dart';
 import 'flowchart.dart';
+import 'search_palette.dart';
+import 'time_labels.dart';
 
 class HomePage extends StatefulWidget {
   final NekodotClient client;
@@ -44,6 +46,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     destinations = c.destinations.stream.listen(openDestination);
+    HardwareKeyboard.instance.addHandler(searchKey);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (c.pendingDestination != null) openDestination(c.pendingDestination!);
     });
@@ -66,8 +69,79 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(searchKey);
     destinations?.cancel();
     super.dispose();
+  }
+
+  /// Ctrl+K (Cmd+K) opens the search panel wherever focus is on the desktop.
+  bool searchKey(KeyEvent event) {
+    final keys = HardwareKeyboard.instance;
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.keyK ||
+        !(keys.isControlPressed || keys.isMetaPressed) ||
+        !mounted ||
+        context.tone.glass ||
+        ModalRoute.of(context)?.isCurrent != true) {
+      return false;
+    }
+    unawaited(openSearch());
+    return true;
+  }
+
+  Future<void> openSearch() {
+    final narrow = MediaQuery.sizeOf(context).width < 840;
+    final active = c.node.conversations.where(
+      (x) => x['kind'] == 'dm'
+          ? c.node.bots.any(
+              (b) => b['botId'] == x['botId'] && b['archived'] != true,
+            )
+          : c.node.groups.any(
+              (g) => g['groupId'] == x['groupId'] && g['archived'] != true,
+            ),
+    );
+    final ordered = [
+      for (final x in active)
+        if (x['kind'] == 'group') x,
+      for (final x in active)
+        if (x['kind'] == 'dm') x,
+    ];
+    final actions = c.tr('操作', 'Actions');
+    Widget icon(IconData value) =>
+        Icon(value, size: 20, color: context.tone.ink2);
+    return showSearchPalette(context, c, [
+      for (final x in ordered)
+        conversationEntry(
+          c,
+          x,
+          preview: preview(x, x['kind'] == 'group'),
+          open: () => open(x, narrow),
+        ),
+      SearchEntry(
+        section: actions,
+        title: c.tr('新建 Bot', 'New Bot'),
+        leading: icon(Icons.smart_toy_outlined),
+        open: () => create('bot'),
+      ),
+      SearchEntry(
+        section: actions,
+        title: c.tr('新建群组', 'New group'),
+        leading: icon(Icons.groups_outlined),
+        open: () => create('group'),
+      ),
+      SearchEntry(
+        section: actions,
+        title: c.tr('添加插件', 'Add plugins'),
+        leading: icon(Icons.extension_outlined),
+        open: () => create('plugins'),
+      ),
+      SearchEntry(
+        section: actions,
+        title: c.tr('设置', 'Settings'),
+        leading: icon(Icons.settings_outlined),
+        open: () => pushPage(context, SettingsPage(client: c)),
+      ),
+    ]);
   }
 
   Future<void> open(Json value, bool narrow) async {
@@ -138,7 +212,7 @@ class _HomePageState extends State<HomePage> {
                   ? StatusDot(on: c.online)
                   : ShiningText(
                       text: c.tr('连接中…', 'Connecting…'),
-                      style: const TextStyle(fontSize: 11),
+                      style: const TextStyle(fontSize: 12),
                     ),
               const SizedBox(width: 8),
             ],
@@ -178,12 +252,9 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               IconAction(
-                tooltip: c.tr('搜索', 'Search'),
-                icon: searching ? Icons.close : Icons.search,
-                onPressed: () => setState(() {
-                  searching = !searching;
-                  search = '';
-                }),
+                tooltip: c.tr('搜索 (Ctrl+K)', 'Search (Ctrl+K)'),
+                icon: Icons.search,
+                onPressed: openSearch,
               ),
               const SizedBox(width: 4),
               createMenu(),
@@ -300,6 +371,17 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// When anything was last said there.
+  DateTime? lastActivity(String id) {
+    final loaded = c.node.messages[id]?.lastOrNull;
+    final reported = c.node.latest[id];
+    final last =
+        loaded == null || (reported != null && reported.seq > loaded.seq)
+        ? reported
+        : loaded;
+    return last == null ? null : DateTime.parse(last.createdAt).toLocal();
+  }
+
   /// The latest thing said there, as one line; a group names who said it.
   String? preview(Json value, bool isGroup) {
     final id = value['conversationId'];
@@ -347,10 +429,14 @@ class _HomePageState extends State<HomePage> {
     final selected = !narrow && conversation == id;
     // The selected row lifts off the list; hovering a row only raises it.
     final raised = selected || (!glass && hovered == id);
-    final note = isGroup
+    // A phone shows when it last spoke; a desktop, what the Bot is for.
+    final note = glass || isGroup
         ? ''
         : '${entity['role'] ?? ''}'.split('\n').first.trim();
     final last = preview(value, isGroup);
+    final lastAt = glass ? lastActivity(id) : null;
+    // Something in there is waiting for your answer.
+    final waiting = c.node.flows[id]?.state == 'waiting';
     final size = glass ? 44.0 : 40.0;
     final corners = BorderRadius.circular(12);
     return MouseRegion(
@@ -418,6 +504,19 @@ class _HomePageState extends State<HomePage> {
                                   ),
                                 ),
                               ),
+                              if (lastAt != null) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  rowTime(c, lastAt),
+                                  style: text.bodySmall?.copyWith(
+                                    fontSize: 12,
+                                    color: tone.ink3,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
+                                ),
+                              ],
                               if (note.isNotEmpty) ...[
                                 Container(
                                   width: 1,
@@ -441,16 +540,36 @@ class _HomePageState extends State<HomePage> {
                               ],
                             ],
                           ),
-                          if (last != null) ...[
+                          if (last != null || waiting) ...[
                             const SizedBox(height: 3),
-                            Text(
-                              last,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: text.bodySmall?.copyWith(
-                                fontSize: glass ? 14 : 13.5,
-                                color: tone.ink2,
-                              ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    last ?? '',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: text.bodySmall?.copyWith(
+                                      fontSize: glass ? 14 : 13.5,
+                                      color: tone.ink2,
+                                    ),
+                                  ),
+                                ),
+                                if (waiting)
+                                  Semantics(
+                                    label: c.tr('等你确认', 'Needs your OK'),
+                                    child: Container(
+                                      key: ValueKey('waiting-$id'),
+                                      width: 8,
+                                      height: 8,
+                                      margin: const EdgeInsets.only(left: 8),
+                                      decoration: BoxDecoration(
+                                        color: tone.ink,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ],
                         ],

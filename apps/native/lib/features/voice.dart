@@ -295,9 +295,10 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
           const SizedBox(height: 16),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(
-              '${status['phrase'] ?? 'Hermes'} · ${status['provider'] ?? ''}',
-            ),
+            title: MetaText([
+              '${status['phrase'] ?? 'Hermes'}',
+              '${status['provider'] ?? ''}',
+            ]),
             subtitle: Text(
               '${status['hint'] ?? c.tr('正在读取原生状态…', 'Reading native status…')}',
             ),

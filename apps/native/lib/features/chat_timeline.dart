@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/chat_models.dart';
 import '../data/client.dart';
 import '../data/json.dart';
 import '../ui/design.dart';
@@ -7,6 +8,7 @@ import 'work.dart';
 
 import 'chat_presentation.dart';
 import 'chat_message.dart';
+import 'time_labels.dart';
 
 class ChatTimeline extends StatelessWidget {
   final NekodotClient client;
@@ -17,6 +19,10 @@ class ChatTimeline extends StatelessWidget {
   final String? focusedMessage;
   final GlobalKey focusedKey;
   final ValueChanged<String> onRetry, onError;
+
+  /// Whether a message arrived while the page was open and has not been shown
+  /// yet; such a message enters with a short motion.
+  final bool Function(ChatMessage message) fresh;
   const ChatTimeline({
     super.key,
     required this.client,
@@ -28,7 +34,11 @@ class ChatTimeline extends StatelessWidget {
     required this.focusedKey,
     required this.onRetry,
     required this.onError,
+    required this.fresh,
   });
+
+  /// A pause this long between two messages puts the time between them.
+  static const pause = Duration(minutes: 30);
   @override
   Widget build(BuildContext context) {
     final c = client,
@@ -40,7 +50,8 @@ class ChatTimeline extends StatelessWidget {
         group = view.group,
         working = view.working;
     final lead = view.thinking && messages.isNotEmpty ? 1 : 0;
-    return PrimaryScrollController(
+    final top = MediaQuery.paddingOf(context).top;
+    final list = PrimaryScrollController(
       controller: scroll,
       child: Focus(
         key: const ValueKey('chat-history-focus'),
@@ -48,7 +59,14 @@ class ChatTimeline extends StatelessWidget {
           key: const ValueKey('chat-messages'),
           controller: scroll,
           reverse: true,
-          padding: EdgeInsets.fromLTRB(14, 6, 14, composerHeight + 2),
+          // The bar floats over the top, so the oldest lines can scroll clear
+          // of it.
+          padding: EdgeInsets.fromLTRB(
+            14,
+            MediaQuery.paddingOf(context).top + 6,
+            14,
+            composerHeight + 2,
+          ),
           itemCount: items.length + 1 + lead,
           findChildIndexCallback: (key) {
             final index = items.indexWhere(
@@ -62,13 +80,16 @@ class ChatTimeline extends StatelessWidget {
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 720),
-                  child: ThinkingRow(
-                    key: const ValueKey('thinking-row'),
-                    bot: bot,
-                    line: workingLine(
-                      c,
-                      '${bot?['displayName'] ?? 'Bot'}',
-                      view.turn,
+                  child: EntryMotion(
+                    play: true,
+                    child: ThinkingRow(
+                      key: const ValueKey('thinking-row'),
+                      bot: bot,
+                      line: workingLine(
+                        c,
+                        '${bot?['displayName'] ?? 'Bot'}',
+                        view.turn,
+                      ),
                     ),
                   ),
                 ),
@@ -101,47 +122,104 @@ class ChatTimeline extends StatelessWidget {
                 previous = at == 0 ? null : items[at - 1].last,
                 author = members
                     .where((b) => b['botId'] == m.author.id)
-                    .firstOrNull;
+                    .firstOrNull,
+                at0 = DateTime.parse(m.createdAt).toLocal(),
+                apart =
+                    previous == null ||
+                    at0.difference(
+                          DateTime.parse(previous.createdAt).toLocal(),
+                        ) >=
+                        pause;
             return Align(
               key: ValueKey(m.messageId),
               alignment: Alignment.topCenter,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 720),
-                child: KeyedSubtree(
-                  key: item.any((m) => m.messageId == focusedMessage)
-                      ? focusedKey
-                      : null,
-                  child: MessageTile(
-                    client: c,
-                    message: m,
-                    steps: isWorkGroup(item) ? item : null,
-                    // Still going while only its questions follow it.
-                    live:
-                        working &&
-                        items
-                            .skip(at + 1)
-                            .every(
-                              (later) => const {
-                                'approval',
-                                'question',
-                              }.contains(later.first.kind),
-                            ),
-                    bot: author,
-                    showName: group != null,
-                    working: working && index == 0,
-                    continued:
-                        previous != null &&
-                        previous.kind != 'system' &&
-                        previous.author.id == m.author.id &&
-                        previous.author.type == m.author.type,
-                    onRetry: onRetry,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (apart)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 18, bottom: 2),
+                        child: Text(
+                          dividerTime(c, at0),
+                          key: ValueKey('divider-${m.messageId}'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: context.tone.ink3,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ),
+                    EntryMotion(
+                      play: fresh(m),
+                      own: m.author.type == 'user',
+                      child: KeyedSubtree(
+                        key: item.any((m) => m.messageId == focusedMessage)
+                            ? focusedKey
+                            : null,
+                        child: MessageTile(
+                          client: c,
+                          message: m,
+                          steps: isWorkGroup(item) ? item : null,
+                          // Still going while only its questions follow it.
+                          live:
+                              working &&
+                              items
+                                  .skip(at + 1)
+                                  .every(
+                                    (later) => const {
+                                      'approval',
+                                      'question',
+                                    }.contains(later.first.kind),
+                                  ),
+                          bot: author,
+                          showName: group != null,
+                          working: working && index == 0,
+                          continued:
+                              !apart &&
+                              previous.kind != 'system' &&
+                              previous.author.id == m.author.id &&
+                              previous.author.type == m.author.type,
+                          onRetry: onRetry,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             );
           },
         ),
       ),
+    );
+    if (top == 0) return list;
+    // Lines fade out as they pass under the floating bar, so nothing shows
+    // around its pills.
+    return LayoutBuilder(
+      builder: (context, box) {
+        final height = box.maxHeight;
+        if (!height.isFinite || height <= top) return list;
+        return ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (rect) => LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: const [
+              Colors.transparent,
+              Colors.transparent,
+              Colors.black,
+            ],
+            stops: [
+              0,
+              ((top - 24) / height).clamp(0.0, 1.0),
+              ((top + 8) / height).clamp(0.0, 1.0),
+            ],
+          ).createShader(rect),
+          child: list,
+        );
+      },
     );
   }
 }

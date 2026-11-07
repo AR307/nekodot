@@ -10,6 +10,7 @@ import '../data/json.dart';
 import 'parts.dart';
 import 'shining_text.dart';
 
+export 'entry_motion.dart';
 export 'parts.dart';
 export 'shining_text.dart';
 
@@ -335,10 +336,19 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
               fontSize: frosted ? 14 : 13,
               fontWeight: FontWeight.w600,
             ),
+            // Statuses and counts change while you watch: steady-width
+            // digits keep them from shaking, and nothing is under 12.
             labelMedium: TextStyle(
-              fontSize: frosted ? 12 : 11.5,
+              fontSize: 12,
               fontWeight: FontWeight.w500,
               color: tone.ink3,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+            labelSmall: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: tone.ink3,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           )
           .apply(fontFamily: 'Nunito', fontFamilyFallback: _sansFallback);

@@ -91,11 +91,11 @@ class _PairingPageState extends State<PairingPage> {
           Row(
             children: [
               Text(
-                'Linux x64 · WSL2',
+                'Linux x64 / WSL2',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               const Spacer(),
-              const ShiningText(style: TextStyle(fontSize: 11)),
+              const ShiningText(style: TextStyle(fontSize: 12)),
               const SizedBox(width: 8),
               Text(
                 '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}',
