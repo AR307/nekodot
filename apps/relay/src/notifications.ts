@@ -76,9 +76,12 @@ export function registerNotifications(
     const message = {
       notification: { title: signal.displayName, body: '' },
       data: { ...signal, preview: '', nodeId },
+      // Per conversation: a newer notification replaces the shown one, and FCM keeps only
+      // the newest while the phone is offline.
       android: {
         priority: 'high' as const,
-        notification: { channelId: 'nekodot_tasks', tag: signal.notificationId },
+        collapseKey: signal.conversationId,
+        notification: { channelId: 'nekodot_tasks', tag: signal.conversationId },
       },
     };
     const budget = Math.max(0, Math.floor((3800 - Buffer.byteLength(JSON.stringify(message))) / 2));

@@ -41,6 +41,12 @@ export class Notifications {
       displayName: name ?? 'nekodot',
       preview: plain.length > 800 ? plain.slice(0, 800) + '…' : plain,
     };
+    // Only a conversation's newest notification waits for delivery.
+    this.database.db
+      .prepare(
+        "DELETE FROM notification_outbox WHERE json_extract(data,'$.conversationId')=? AND id<>?",
+      )
+      .run(value.conversationId, value.notificationId);
     this.database.db
       .prepare('INSERT OR IGNORE INTO notification_outbox VALUES(?,?)')
       .run(value.notificationId, JSON.stringify(value));
