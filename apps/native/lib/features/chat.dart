@@ -195,6 +195,15 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
         conversation,
         focus: c.prefs.chatDisplay['focus'] == true,
       );
+      final owner = conversation['kind'] == 'group' ? view.group : view.bot;
+      if (owner == null || owner['archived'] == true) {
+        return AppPage(
+          title: c.tr('已归档', 'Archived'),
+          body: const Center(
+            child: Opacity(opacity: .25, child: CatAvatar(size: 72)),
+          ),
+        );
+      }
       final bot = view.bot,
           group = view.group,
           members = view.members,

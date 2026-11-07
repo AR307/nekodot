@@ -943,9 +943,7 @@ class _HomePageState extends State<HomePage> {
         );
         final hasChat =
             conversation != null &&
-            c.node.conversations.any(
-              (x) => x['conversationId'] == conversation,
-            );
+            active.any((x) => x['conversationId'] == conversation);
         final panel = roomy && hasChat ? details : null;
         final widest = (constraints.maxWidth - 420).clamp(240.0, 560.0);
         final sidebar =
