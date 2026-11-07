@@ -80,7 +80,19 @@ it('names private/group notifications and previews only final bot text while per
     notices.send({ notificationId: 'question:one', conversationId, kind: 'question' });
     expect(sent[2]?.preview).toContain('回答');
     notices.flush();
-    expect(sent).toHaveLength(6);
+    expect(sent.slice(3).map((notice) => notice.notificationId)).toEqual([
+      'approval:one',
+      'question:one',
+    ]);
+    notices.acknowledge('run:one');
+    const restored = new Notifications(database);
+    const afterRestart: TaskNotification[] = [];
+    restored.onSend = (notice) => afterRestart.push(notice);
+    restored.flush();
+    expect(afterRestart.map((notice) => notice.notificationId)).toEqual([
+      'approval:one',
+      'question:one',
+    ]);
   } finally {
     database.db.close();
   }

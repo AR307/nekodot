@@ -76,8 +76,7 @@ export function registerNotifications(
     const message = {
       notification: { title: signal.displayName, body: '' },
       data: { ...signal, preview: '', nodeId },
-      // Per conversation: a newer notification replaces the shown one, and FCM keeps only
-      // the newest while the phone is offline.
+      // Match foreground/local and background/system notification identity per conversation.
       android: {
         priority: 'high' as const,
         collapseKey: signal.conversationId,
