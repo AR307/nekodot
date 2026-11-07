@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { tokenUsageSchema, type Bot, type UsageEntity, type UsageRecord } from '@nekodot/protocol';
 import type { NodeDatabase } from './database';
 import type { HermesRuntime } from './hermes/runtime';
+import { runProfileCommand } from './hermes/session';
 
 const nativeRows = z.array(
   z.object({
@@ -106,11 +107,13 @@ export class NodeUsage {
       while (more && this.connected) {
         const key = 'usage-cursor:' + bot.botId;
         const after = this.database.setting<number>(key) ?? 0;
-        const result = await this.hermes.management.rpc<{ output: string }>('command.dispatch', {
-          profile: bot.botId,
-          name: 'nekodot-usage-read',
-          arg: JSON.stringify({ profile: bot.botId, after }),
-        });
+        const result = await runProfileCommand(
+          this.database,
+          this.hermes,
+          bot.botId,
+          'nekodot-usage-read',
+          { after },
+        );
         const rows = nativeRows.parse(JSON.parse(result.output));
         const routines: RoutineLabel[] = this.database.db
           .prepare('SELECT data FROM routines')

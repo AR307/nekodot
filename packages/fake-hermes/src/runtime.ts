@@ -78,7 +78,7 @@ export function recordedManagementRuntime(
   HermesRuntime,
   'management' | 'profileHome' | 'cli' | 'restart' | 'configureScreen' | 'environment' | 'gateway'
 > {
-  const management = new HermesManagement(url, key);
+  const management = new HermesManagement(async () => url, key);
   const sessions = new Map<string, RecordedSession>();
   const sessionsById = new Map<string, RecordedSession>();
   const gateways = new Map<string, HermesGateway>();

@@ -9,6 +9,16 @@ import { Notifications } from './notifications';
 import type { HermesRuntime } from './hermes/runtime';
 import type { RoutineRoute, TaskNotification } from '@nekodot/protocol';
 
+function nativeSession(db: NodeDatabase, botId: string, conversationId: string) {
+  db.saveHermesSession({
+    conversationId,
+    botId,
+    storedSessionId: 'native-dm',
+    replayEpoch: 'epoch',
+    lastSequence: 0,
+  });
+}
+
 it('keeps credentials out of chat, requires a user grant and rotates the same script reference', async () => {
   const home = await mkdtemp(join(tmpdir(), 'nekodot-routines-'));
   const db = new NodeDatabase(home);
@@ -25,6 +35,7 @@ it('keeps credentials out of chat, requires a user grant and rotates the same sc
   });
   const conversationId = randomUUID();
   db.putConversation({ conversationId, botId, kind: 'dm', createdAt: new Date().toISOString() });
+  nativeSession(db, botId, conversationId);
   const groupId = randomUUID();
   db.putGroup(
     {
@@ -42,8 +53,8 @@ it('keeps credentials out of chat, requires a user grant and rotates the same sc
     webhookUrl: 'http://127.0.0.1:1',
     cli: async () => 'Secret: native-internal-credential',
     profileHome: (profile: string) => join(home, 'hermes', 'profiles', profile),
+    gateway: () => ({ rpc: async () => ({ output: '[]' }) }),
     management: {
-      rpc: async () => ({ output: '[]' }),
       request: async (path: string, _profile: string, init?: RequestInit) => {
         if (init) enabled = (JSON.parse(String(init.body)) as { enabled: boolean }).enabled;
         if (path === '/api/cron/jobs') return [];
@@ -122,6 +133,7 @@ it('recovers a native admission failure after restart without rerunning it or du
   });
   const conversationId = randomUUID();
   db.putConversation({ conversationId, botId, kind: 'dm', createdAt: new Date().toISOString() });
+  nativeSession(db, botId, conversationId);
   let native: Record<string, unknown>[] = [];
   const hermes = {
     webhookUrl: 'http://127.0.0.1:1',
@@ -129,8 +141,11 @@ it('recovers a native admission failure after restart without rerunning it or du
     profileHome: (profile: string) => join(home, profile),
     management: {
       request: async (path: string) => (path === '/api/cron/jobs' ? [] : {}),
-      rpc: async (_method: string, params: { profile: string; arg: string }) => {
-        expect(params.profile).toBe(botId);
+    },
+    gateway: () => ({
+      rpc: async (method: string, params: { session_id: string; arg: string }) => {
+        expect(method).toBe('command.dispatch');
+        expect(params.session_id).toBe('native-dm');
         const { profile, settled } = JSON.parse(params.arg) as {
           profile: string;
           settled: string[];
@@ -140,7 +155,7 @@ it('recovers a native admission failure after restart without rerunning it or du
           output: JSON.stringify(native.filter((e) => !settled.includes(String(e.sessionId)))),
         };
       },
-    },
+    }),
   } as unknown as HermesRuntime;
   const signals: TaskNotification[] = [];
   const notifications = new Notifications(db);
@@ -215,6 +230,7 @@ it('shows a one-shot completion without reporting a user stop, while a pause sti
     createdAt: new Date().toISOString(),
   });
   db.putConversation({ conversationId, botId, kind: 'dm', createdAt: new Date().toISOString() });
+  nativeSession(db, botId, conversationId);
   const job = {
     id: 'once',
     name: 'Reminder',
@@ -228,10 +244,12 @@ it('shows a one-shot completion without reporting a user stop, while a pause sti
   const hermes = {
     management: {
       request: async () => jobs,
+    },
+    gateway: () => ({
       rpc: async (_method: string, params: { name: string }) => ({
         output: params.name === 'nekodot-routine-context' ? '[]' : JSON.stringify(events),
       }),
-    },
+    }),
   } as unknown as HermesRuntime;
   const routines = new Routines(db, hermes, new Notifications(db));
   await routines.drain();
@@ -294,28 +312,32 @@ it('shows a cron approval in the Bot chat and answers that exact native admissio
     createdAt: new Date().toISOString(),
   });
   db.putConversation({ conversationId, botId, kind: 'dm', createdAt: new Date().toISOString() });
+  nativeSession(db, botId, conversationId);
   const calls: { method: string; params: Record<string, unknown> }[] = [];
   const hermes = {
     management: {
       request: async () => [{ id: 'job', name: 'Report', prompt: 'Write report', enabled: true }],
-      rpc: async () => ({
-        output: JSON.stringify([
-          {
-            phase: 'started',
-            botId,
-            sessionId: 'cron-session',
-            admissionId: 'admission-1',
-            route: null,
-            jobId: 'job',
-            requestId: null,
-            text: '',
-            time: Date.now() / 1000,
-          },
-        ]),
-      }),
     },
     gateway: () => ({
       rpc: async (method: string, params: Record<string, unknown>) => {
+        if (method === 'command.dispatch') {
+          expect(params.session_id).toBe('native-dm');
+          return {
+            output: JSON.stringify([
+              {
+                phase: 'started',
+                botId,
+                sessionId: 'cron-session',
+                admissionId: 'admission-1',
+                route: null,
+                jobId: 'job',
+                requestId: null,
+                text: '',
+                time: Date.now() / 1000,
+              },
+            ]),
+          };
+        }
         calls.push({ method, params });
         return method === 'cron.status'
           ? {
