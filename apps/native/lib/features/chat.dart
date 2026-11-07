@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../data/chat_models.dart';
 import '../data/client.dart';
 import '../data/json.dart';
+import '../data/node_data.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
 import '../screen/viewer.dart';
@@ -44,6 +45,8 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage>
     with RouteAware, WidgetsBindingObserver {
   final scroll = LatestScrollController();
+  late final NodeData data;
+  late final String nodeId;
   final composer = GlobalKey<ChatComposerState>();
   double composerHeight = 76;
   bool historyFocused = false;
@@ -57,6 +60,7 @@ class _ChatPageState extends State<ChatPage>
 
   /// Reading further up than the latest messages, and whether more arrived.
   bool away = false, missed = false;
+  double readingOffset = 0;
 
   /// Messages from this sequence on arrived after the page opened; a turn
   /// still under way when it opened counts as arriving.
@@ -95,23 +99,44 @@ class _ChatPageState extends State<ChatPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     DesktopHost.focused.addListener(markViewed);
+    data = c.node;
+    nodeId = c.selectedNodeId!;
+    data.retainMessages(id);
     c.visibleConversation = widget.readingVisible ? id : null;
     scroll.addListener(onScroll);
     unawaited(
-      c
-          .loadMessages(id)
-          .then((_) {
-            if (!mounted) return;
-            final loaded = c.node.messages[id] ?? const [];
-            baseline = loaded.fold<int>(
-              0,
-              (top, m) => m.seq > top ? m.seq : top,
-            );
-          })
-          .catchError((Object e) {
-            if (mounted) composer.currentState?.showError('$e');
-          }),
+      restoreMessages().catchError((Object e) {
+        if (mounted) composer.currentState?.showError('$e');
+      }),
     );
+  }
+
+  Future<void> restoreMessages() async {
+    final viewport = data.viewports[id];
+    since = viewport?.since;
+    await c.loadMessages(id, target: nodeId);
+    while (mounted && viewport != null) {
+      final first = data.messages[id]?.firstOrNull;
+      if (first == null || first.seq <= viewport.oldestSeq) break;
+      await c.loadMessages(id, target: nodeId, before: first.seq);
+      if (data.messages[id]?.firstOrNull?.seq == first.seq) break;
+    }
+    if (!mounted) return;
+    baseline = (data.messages[id] ?? const []).fold<int>(
+      0,
+      (top, m) => m.seq > top ? m.seq : top,
+    );
+    if (viewport != null) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (mounted && scroll.hasClients) {
+        scroll.jumpTo(
+          viewport.offset.clamp(
+            scroll.position.minScrollExtent,
+            scroll.position.maxScrollExtent,
+          ),
+        );
+      }
+    }
   }
 
   bool fresh(ChatMessage m) {
@@ -121,6 +146,7 @@ class _ChatPageState extends State<ChatPage>
 
   void onScroll() {
     final position = scroll.position;
+    readingOffset = position.pixels;
     final far =
         position.pixels - position.minScrollExtent >
         LatestScrollController.near;
@@ -177,6 +203,17 @@ class _ChatPageState extends State<ChatPage>
     DesktopHost.focused.removeListener(markViewed);
     nativeRoutes.unsubscribe(this);
     if (c.visibleConversation == id) c.visibleConversation = null;
+    final first = data.messages[id]?.firstOrNull;
+    if (away && first != null && since != null) {
+      data.viewports[id] = (
+        oldestSeq: first.seq,
+        since: since!,
+        offset: readingOffset,
+      );
+    } else {
+      data.viewports.remove(id);
+    }
+    data.releaseMessages(id);
     scroll.dispose();
     super.dispose();
   }

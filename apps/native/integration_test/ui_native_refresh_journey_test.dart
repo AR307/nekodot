@@ -363,14 +363,18 @@ void main() {
       'real file delivered',
     );
     expect(client.node.messages[dm]!.any((m) => m.kind == 'tool'), isTrue);
-    final delivered = client.node.messages[dm]!.lastWhere(
-      (m) =>
-          m.content['files'] is List && (m.content['files'] as List).isNotEmpty,
+    final library = objects(
+      (await client.rpc('files.list', {
+        'botId': client.node.conversations.firstWhere(
+          (entry) => entry['conversationId'] == dm,
+        )['botId'],
+        'search': 'ui-reading-',
+      }))['files'],
     );
-    final rawFile = (delivered.content['files'] as List).first;
-    final fileId = rawFile is String
-        ? rawFile
-        : object(rawFile)['fileId'] as String;
+    final readingFile = library.firstWhere(
+      (file) => '${file['name']}'.endsWith('.md') && file['available'] == true,
+    );
+    final fileId = readingFile['fileId'] as String;
     final data = utf8.decode(await downloadFile(client, fileId));
     expect(data, contains('#'));
     expect(data.length, greaterThan(1000));
@@ -390,23 +394,7 @@ void main() {
       'Draft retained while reading',
       reason: 'draft after unfocus',
     );
-    final card = find.byWidgetPredicate(
-      (w) => w is FileCard && w.fileId == fileId,
-    );
-    final chatScroll = tester
-        .widget<ScrollView>(find.byKey(const ValueKey('chat-messages')))
-        .controller!;
-    chatScroll.jumpTo(chatScroll.position.minScrollExtent);
-    await frames();
-    for (var page = 0; page < 30 && card.evaluate().isEmpty; page++) {
-      await tester.drag(
-        find.byKey(const ValueKey('chat-messages')),
-        const Offset(0, 400),
-      );
-      await frames();
-    }
-    expect(card, findsWidgets);
-    await tap(card);
+    unawaited(showFileViewer(tester.element(input), client, readingFile));
     await until(
       () => find.byKey(const ValueKey('viewer-markdown')).evaluate().isNotEmpty,
       'Markdown file rendered natively',

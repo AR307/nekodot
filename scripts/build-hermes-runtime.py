@@ -40,16 +40,7 @@ def main() -> None:
     from scripts.bundles.payload import INERT_SNAPSHOT_DIRS, snapshot, seal_pm_runtime
     from scripts.build.agent import assemble
     from scripts.build.inputs import AgentInputs, RESOURCE_ENV, dependency_site
-    from pm import stage_manager_runtime
-    from pm.build_operations import prepare_tools, stage_tools
-    from pm.features import write_features
-    from pm.lock import Facts
-    from pm.packages import Venv
-    from pm.registry import get_package
-    from pm.store import current_target
-    from scripts.write_install_stamp import build_stamp
 
-    target = current_target()
     code, store, venv = out / 'hermes-agent', out / 'tools', out / 'venv'
     print(f'Snapshot {recipe["hermesVersion"]}: backend and native resources', flush=True)
     snapshot(source, commit, code, exclude=INERT_SNAPSHOT_DIRS)
@@ -57,16 +48,38 @@ def main() -> None:
     # Never patch the user's running checkout or their account data.
     for patch in recipe['patches']:
         subprocess.run(['git', 'apply', '--unsafe-paths', f'--directory={code.as_posix()}',
-                        str(ROOT / 'deploy/hermes-patches' / patch['file'])], check=True)
+                        str(ROOT / 'deploy/hermes-patches' / patch['file'])], check=True, cwd=out.parent)
+    # Only the packaged PM receives these same-version artifact pins.
+    lock_path = code / 'pm/lock.json'
+    lock_data = json.loads(lock_path.read_text(encoding='utf-8'))
+    for name, artifacts in recipe['toolArtifacts'].items():
+        lock_data['packages'][name]['artifacts'].update(artifacts)
+    lock_path.write_text(json.dumps(lock_data, indent=2) + '\n', encoding='utf-8')
+    sys.path.insert(0, str(code))
+    from pm import stage_manager_runtime
+    from pm.features import write_features
+    from pm.install import _install
+    from pm.lock import Facts, Lockfile
+    from pm.packages import Venv
+    from pm.registry import get_package, walk
+    from pm.store import Store, current_target
+    # Import stamp helpers only after PM: they transitively import PM themselves.
+    from scripts.write_install_stamp import build_stamp
+    target = current_target()
     names = [name for name in recipe['tools'] if get_package(name).missing_reason(target) is None]
     print(f'Tools: {", ".join(names)}', flush=True)
-    if args.tools:
-        prepared = Facts(args.tools.resolve() / 'facts.json')
-        available = [name for name in names if prepared.get(name)]
-        stage_tools(available, source_store=args.tools.resolve(), out=store, target=target)
-    # The input store may contain only the source install's tool set (for example
-    # it used system Git). PM acquires missing tools into this build, never the input.
-    prepare_tools(names, out=store, target=target, cache=cache)
+    lock, destination = Lockfile(lock_path), Store(store)
+    source_store = Store(args.tools.resolve()) if args.tools else None
+    prepared = Facts(source_store.root / 'facts.json') if source_store else None
+    with destination.install_lock():
+        staged = Facts(store / 'facts.json', strict=True)
+        for package in walk(names):
+            identity = (target, tuple(a['sha256'] for a in lock.artifacts(package.name, target)))
+            reuse = prepared is not None and prepared.installed(
+                package.name, lock.version(package.name), source_store.root, identity)
+            print(f'    {"copy" if reuse else "acquire"} {package.name}', flush=True)
+            _install(package, lock, staged, destination, target, _lock_held=True,
+                     copy_from=(prepared, source_store) if reuse else None)
     facts = Facts(store / 'facts.json')
     python_fact = facts.get('python')
     python = get_package('python').binary(store / python_fact['entry'], target)
@@ -81,7 +94,7 @@ def main() -> None:
         'build_environment(source=Path(sys.argv[3]),out=Path(sys.argv[4]),'
         'python=Path(sys.executable),cache=Path(sys.argv[5]),extras=json.loads(sys.argv[6]),'
         'sealed=True,explicit=True,env=dict(os.environ))',
-        str(source), str(manager_site), str(code), str(venv), str(cache), json.dumps(recipe['extras'])], check=True)
+        str(code), str(manager_site), str(code), str(venv), str(cache), json.dumps(recipe['extras'])], check=True)
     # Keep the declared baseline, not every extra whose imports happen to resolve.
     write_features(recipe['extras'], out)
     facts.record_state('venv', Venv(code).expected_stamp(recipe['extras'], plugin_dirs=[]), recipe['extras'])
@@ -109,6 +122,8 @@ def main() -> None:
         for entry in sorted(out.rglob('*')):
             parts = entry.relative_to(out).parts
             if any(part.startswith('fetch-') or part in {'.install.lock', '.build.lock'} for part in parts):
+                continue
+            if entry.suffix.lower() == '.pdb':
                 continue
             info = tar.gettarinfo(str(entry), arcname=str(entry.relative_to(out)))
             logical_bytes += info.size

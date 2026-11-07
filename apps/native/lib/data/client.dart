@@ -252,20 +252,26 @@ class NekodotClient extends ChangeNotifier {
   }) async {
     final id = target ?? selectedNodeId!;
     final n = nodes.putIfAbsent(id, NodeData.new);
+    final opened = n.messages[conversationId];
+    if (opened == null) return;
     final result = await rpc('messages.list', {
       'conversationId': conversationId,
       'limit': 50,
       'beforeSeq': ?before,
       'aroundMessageId': ?around,
     }, id);
-    final previous = n.messages[conversationId] ?? [];
+    // A response for a page that has closed must not recreate its cache.
+    if (!identical(n.messages[conversationId], opened)) return;
+    final previous = opened;
     final merged = <String, ChatMessage>{
       for (final m in previous) m.messageId: m,
     };
     for (final m in objects(result['messages'])) {
       merged[m['messageId'] as String] = ChatMessage.fromJson(m);
     }
-    n.messages[conversationId] = merged.values.toList()
+    opened
+      ..clear()
+      ..addAll(merged.values)
       ..sort((a, b) => (a.seq).compareTo(b.seq));
     _rememberIncoming(id, n.messages[conversationId]!);
     n.changed(conversationId, summary: true);

@@ -86,6 +86,7 @@ export class GroupExecution {
       if (previousReply) {
         previousReply.status = 'done';
         this.database.putMessage(previousReply, { runId: active.runId }, active);
+        this.messages.release(previousReply.messageId);
       }
       userMessage.seq = this.database.head();
       this.database.putMessage(

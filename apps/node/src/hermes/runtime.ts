@@ -43,7 +43,6 @@ export interface RuntimeOptions {
   bridge?: string;
   runtime: string;
   apiPort?: number;
-  managementPort?: number;
   onReady?: () => void;
   onLog?: (line: string) => void;
 }
@@ -73,7 +72,7 @@ const end = '# <<< nekodot managed <<<';
 
 export class ManagedHermes implements HermesRuntime {
   private child?: ChildProcess;
-  private managementChild?: ChildProcess;
+  private managementEndpoint?: Promise<string>;
   readonly management: HermesManagement;
   private closing = false;
   private launch: HermesLaunch;
@@ -89,7 +88,10 @@ export class ManagedHermes implements HermesRuntime {
     const token = randomBytes(32).toString('hex');
     this.secrets.add(token);
     this.management = new HermesManagement(
-      'http://127.0.0.1:' + (options.managementPort ?? this.apiPort + 1),
+      () =>
+        (this.managementEndpoint ??= this.discover('default').then(
+          (endpoint) => endpoint.api_origin,
+        )),
       token,
     );
     this.launch = options.launcher
@@ -126,19 +128,19 @@ export class ManagedHermes implements HermesRuntime {
   gateway(profile: string) {
     let gateway = this.gateways.get(profile);
     if (!gateway) {
-      gateway = new HermesGateway(async () => {
-        const result = JSON.parse(await this.cli(profile, ['gateway', 'ensure', '--json'])) as {
-          state?: string;
-          reason_code?: string;
-          endpoint?: GatewayEndpoint;
-        };
-        if (result.state !== 'ready' || !result.endpoint)
-          throw new Error('Hermes gateway is not ready for profile ' + profile);
-        return result.endpoint;
-      });
+      gateway = new HermesGateway(() => this.discover(profile));
       this.gateways.set(profile, gateway);
     }
     return gateway;
+  }
+  private async discover(profile: string): Promise<GatewayEndpoint> {
+    const result = JSON.parse(await this.cli(profile, ['gateway', 'ensure', '--json'])) as {
+      state?: string;
+      endpoint?: GatewayEndpoint;
+    };
+    if (result.state !== 'ready' || !result.endpoint)
+      throw new Error('Hermes gateway is not ready for profile ' + profile);
+    return result.endpoint;
   }
   private async writeEnv(profile: string) {
     const directory = this.profileHome(profile);
@@ -309,7 +311,6 @@ export class ManagedHermes implements HermesRuntime {
       for (const profile of profiles) if (profile.isDirectory()) await this.config(profile.name);
       this.launchGateway(1000);
       await this.waitHealthy('default');
-      this.launchManagement(1000);
       await this.waitManagement();
     } catch (error) {
       await this.close();
@@ -326,40 +327,17 @@ export class ManagedHermes implements HermesRuntime {
         await this.management.request('/api/profiles');
         return;
       } catch {
+        this.managementEndpoint = undefined;
         await delay(500);
       }
     }
     throw new Error('Hermes management did not become healthy');
   }
-  private launchManagement(backoff: number) {
-    if (this.closing) return;
-    const child = spawnHermesCli(this.launch, [
-      'serve',
-      '--host',
-      '127.0.0.1',
-      '--port',
-      String(this.options.managementPort ?? this.apiPort + 1),
-      '--isolated',
-    ]);
-    this.managementChild = child;
-    const log = (data: Buffer) => {
-      let line = data.toString();
-      for (const secret of this.secrets) line = line.replaceAll(secret, '[redacted]');
-      this.options.onLog?.(line);
-    };
-    child.stdout?.on('data', log);
-    child.stderr?.on('data', log);
-    child.on('error', () => this.options.onLog?.('Hermes management could not start.'));
-    child.once('exit', () => {
-      if (!this.closing && this.managementChild === child)
-        setTimeout(() => this.launchManagement(Math.min(backoff * 2, 30000)), backoff);
-    });
-  }
   /** POSIX gateways drain on SIGTERM; on Windows a signal is TerminateProcess, so ask Hermes to stop. */
-  private async stop(child: ChildProcess | undefined, gateway: boolean, grace: number) {
+  private async stop(child: ChildProcess | undefined, grace: number) {
     if (!child || child.exitCode !== null || child.signalCode !== null) return;
     const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()));
-    if (gateway && process.platform === 'win32')
+    if (process.platform === 'win32')
       void runHermesCli(this.launch, ['gateway', 'stop', '--yes']).catch((error: unknown) =>
         this.options.onLog?.(
           'Hermes gateway stop failed: ' + (error instanceof Error ? error.message : '') + '\n',
@@ -373,19 +351,19 @@ export class ManagedHermes implements HermesRuntime {
     }
   }
   async restart() {
-    const children = [this.child, this.managementChild];
+    const child = this.child;
     this.child = undefined;
-    this.managementChild = undefined;
     this.management.close();
-    await this.stop(children[0], true, 40000);
-    await this.stop(children[1], false, 10000);
+    this.managementEndpoint = undefined;
+    await this.stop(child, 40000);
     this.launchGateway(1000);
     await this.waitHealthy('default');
-    this.launchManagement(1000);
     await this.waitManagement();
   }
   private launchGateway(backoff: number) {
     if (this.closing) return;
+    this.managementEndpoint = undefined;
+    this.management.close();
     const child = spawnHermesCli(this.launch, ['gateway', 'run']);
     this.child = child;
     const log = (data: Buffer) => {
@@ -403,6 +381,7 @@ export class ManagedHermes implements HermesRuntime {
         setTimeout(() => {
           this.launchGateway(Math.min(backoff * 2, 30000));
           void this.waitHealthy('default')
+            .then(() => this.waitManagement())
             .then(() => this.options.onReady?.())
             .catch(() => {});
         }, backoff);
@@ -413,7 +392,6 @@ export class ManagedHermes implements HermesRuntime {
     for (const gateway of this.gateways.values()) gateway.close();
     this.gateways.clear();
     this.management.close();
-    await this.stop(this.child, true, process.platform === 'win32' ? 40000 : 10000);
-    await this.stop(this.managementChild, false, 10000);
+    await this.stop(this.child, process.platform === 'win32' ? 40000 : 10000);
   }
 }

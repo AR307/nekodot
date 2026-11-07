@@ -69,10 +69,18 @@ it('attributes group turns sharing a private session by native execution and ret
   const schedule = { ...native[0]!, seq: 2, id: 'cron-call', jobId: 'job' };
   let scheduled = false;
   const runtime = {
+    gateway: () => ({
+      rpc: async (name: string, params: { session_id: string; arg: string }) => {
+        expect(name).toBe('command.dispatch');
+        expect(params.session_id).toBe('native');
+        return {
+          output: JSON.stringify(
+            scheduled ? [schedule] : JSON.parse(params.arg).after ? [] : native,
+          ),
+        };
+      },
+    }),
     management: {
-      rpc: async (_name: string, params: { arg: string }) => ({
-        output: JSON.stringify(scheduled ? [schedule] : JSON.parse(params.arg).after ? [] : native),
-      }),
       request: async () => [{ id: 'job', name: 'Scheduled report' }],
     },
   } as unknown as HermesRuntime;

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { NodeDatabase } from '../database';
 import type { HermesRuntime } from './runtime';
 import type { HermesGateway } from './gateway';
+import { NodeFault } from '../fault';
 
 export interface NativeSessionSnapshot {
   info?: {
@@ -84,5 +85,25 @@ export async function defaultSessionReasoning(
     session_id: snapshot.stored_session_id,
     defer_history: true,
     omit_messages: true,
+  });
+}
+
+/** Plugin commands run in the Bot's existing native session, without submitting a model turn. */
+export async function runProfileCommand(
+  database: NodeDatabase,
+  hermes: HermesRuntime,
+  botId: string,
+  name: string,
+  args: Record<string, unknown>,
+) {
+  const dm = database.conversations().find((row) => row.kind === 'dm' && row.botId === botId);
+  if (!dm) throw new NodeFault('not_found', 'Bot conversation not found');
+  const sessionId =
+    database.hermesSession(dm.conversationId)?.storedSessionId ??
+    (await openNativeSession(database, hermes, botId, dm.conversationId)).session_id;
+  return hermes.gateway(botId).rpc<{ output: string }>('command.dispatch', {
+    session_id: sessionId,
+    name,
+    arg: JSON.stringify({ ...args, profile: botId }),
   });
 }

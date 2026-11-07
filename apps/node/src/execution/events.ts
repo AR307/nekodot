@@ -85,6 +85,7 @@ export class RunEvents {
       const streamed = this.messages.currentText(run);
       if (streamed && event.already_streamed !== false) {
         this.database.putMessage({ ...streamed, kind: 'commentary', status: 'done' }, { runId });
+        this.messages.release(streamed.messageId);
         run.textMessageId = undefined;
       }
       if (event.already_streamed === false && event.text) {
@@ -104,6 +105,7 @@ export class RunEvents {
           { runId },
           run,
         );
+        this.messages.release(previous.messageId);
         run.textMessageId = undefined;
       }
       const toolCallId = event.tool_call_id!;
