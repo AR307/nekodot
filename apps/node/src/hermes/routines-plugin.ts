@@ -5,6 +5,7 @@ import { pythonBridgeCall } from '../bridge';
 const plugin = String.raw`"""nekodot UI/transport adapter. All tasks execute in native Hermes."""
 import base64
 import json
+import os
 import socket
 
 ${pythonBridgeCall}
@@ -52,11 +53,11 @@ def _setup(parser):
 
 def _command(args):
     action = args.routine_action
-    params = {}
+    params = {"sessionId": os.environ.get("HERMES_SESSION_ID", "")} if action == "create" else {}
     if action in ("create", "update"):
-        params = dict(name=args.name, description=args.description, prompt=args.prompt,
+        params.update(dict(name=args.name, description=args.description, prompt=args.prompt,
                       events=[s.strip() for s in args.events.split(",") if s.strip()],
-                      skills=[s.strip() for s in args.skills.split(",") if s.strip()])
+                      skills=[s.strip() for s in args.skills.split(",") if s.strip()]))
         if args.cron_job:
             params["cronJobId"] = args.cron_job
     if action in ("update", "get", "send"):
