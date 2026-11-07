@@ -36,18 +36,23 @@ class GroupActivity {
 class ConversationActivity {
   final String state;
   final String? botId, connection, detail;
+
+  /// Hermes has sent nothing for this run for a while; it is not stopped.
+  final bool stalled;
   final GroupActivity? chain;
   const ConversationActivity.idle()
     : state = 'idle',
       botId = null,
       connection = null,
       detail = null,
+      stalled = false,
       chain = null;
   ConversationActivity.fromJson(Json value)
     : state = value['state'] as String,
       botId = value['botId'] as String?,
       connection = value['connection'] as String?,
       detail = value['detail'] as String?,
+      stalled = value['stalled'] == true,
       chain = value['chain'] == null
           ? null
           : GroupActivity.fromJson(object(value['chain']));
