@@ -7,15 +7,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
-import 'package:nekodot_native/features/chat.dart';
+import 'package:nekodot_native/features/chat_composer.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/platform/desktop.dart';
 import 'package:nekodot_native/ui/design.dart';
 
+/// Supplementary visual tour of the seeded demo fixture, not real acceptance.
 /// Drives the moving parts against a running Relay and writes frames of them:
 /// a sent message entering, the jump-to-latest button while reading further
 /// up, the search panel, notices and the phone's floating header. Defines:
-/// RELAY_URL, QA_TOKEN, QA_NODE, QA_DM, TOUR_OUT.
+/// RELAY_URL, QA_TOKEN, QA_NODE, QA_DM, QA_GROUP, TOUR_OUT.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets('motion tour', (tester) async {
@@ -142,13 +143,81 @@ void main() {
     );
     await run(const Duration(milliseconds: 500));
     await capture('desk-reading-up');
+    // What you are reading stays put while new lines arrive below it.
+    final read = find.text('再补一句为什么选这三篇').last;
+    final before = tester.getTopLeft(read).dy;
+    final total = (client.node.messages[dm] ?? []).length;
     await tester.runAsync(() => client.send(dm, '还有别的推荐吗'));
-    await until(idle, 'the reply while reading up');
+    await until(
+      () => (client.node.messages[dm] ?? []).length >= total + 2 && idle(),
+      'the reply while reading up',
+    );
     await run(const Duration(milliseconds: 500));
     await capture('desk-reading-up-missed');
+    expect((tester.getTopLeft(read).dy - before).abs(), lessThan(2));
+    expect(find.byKey(const ValueKey('chat-asked')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('chat-latest')));
     await run(const Duration(milliseconds: 600));
     await capture('desk-back-to-latest');
+
+    // Words picked from a reply go into the next message as a quote.
+    tester
+        .state<ChatComposerState>(find.byType(ChatComposer))
+        .quote('检索质量比模型选择更影响答案');
+    await run(const Duration(milliseconds: 400));
+    await capture('desk-quote');
+    await send('那重排具体怎么做？');
+    final quoted = (client.node.messages[dm] ?? [])
+        .lastWhere((m) => m.author.type == 'user')
+        .content['text'];
+    expect('$quoted', startsWith('> 检索质量比模型选择更影响答案'));
+    expect(find.byKey(const ValueKey('composer-quote')), findsNothing);
+    await until(idle, 'the reply to the quote');
+
+    // Settings float over the window, with a list of where each part is.
+    await tester.tap(find.byTooltip('设置').last);
+    await run(const Duration(milliseconds: 700));
+    await capture('desk-settings-sheet');
+    await tester.tap(find.byKey(const ValueKey('settings-nav-app')));
+    await run(const Duration(milliseconds: 600));
+    await capture('desk-settings-app');
+    await tester.tap(find.byKey(const ValueKey('settings-nav-bots')));
+    await run(const Duration(milliseconds: 500));
+    await tester.tap(find.byKey(const ValueKey('settings-sources')));
+    await run(const Duration(milliseconds: 600));
+    await capture('desk-settings-sources');
+    navigator.currentState!.pop();
+    await run(const Duration(milliseconds: 400));
+    navigator.currentState!.pop();
+    await run(const Duration(milliseconds: 500));
+
+    // An @ in a group offers its members in a card that narrows as you type.
+    const groupId = String.fromEnvironment('QA_GROUP');
+    final room =
+        client.node.conversations
+                .where((x) => x['groupId'] == groupId)
+                .first['conversationId']
+            as String;
+    await tester.tap(find.byKey(ValueKey('conversation-$room')));
+    await run(const Duration(milliseconds: 900));
+    await tester.enterText(find.byKey(const ValueKey('chat-input')), '@');
+    await run(const Duration(milliseconds: 400));
+    await capture('desk-mention');
+    await tester.enterText(find.byKey(const ValueKey('chat-input')), '@xiao');
+    await run(const Duration(milliseconds: 400));
+    await capture('desk-mention-typed');
+    await tester.tap(find.byKey(const ValueKey('mention-xiaoyan')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('chat-input')))
+          .controller!
+          .text,
+      '@xiaoyan ',
+    );
+    await tester.enterText(find.byKey(const ValueKey('chat-input')), '');
+    await tester.tap(find.byKey(ValueKey('conversation-$dm')));
+    await run(const Duration(milliseconds: 900));
 
     // Ctrl+K finds a conversation and opens it.
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -186,6 +255,12 @@ void main() {
     await tester.pumpWidget(app(HomePage(client: client)));
     await run(const Duration(milliseconds: 600));
     await capture('phone-home');
+    await tester.enterText(find.byKey(const ValueKey('home-search')), '笔');
+    await run(const Duration(milliseconds: 400));
+    await capture('phone-home-search');
+    await tester.enterText(find.byKey(const ValueKey('home-search')), '');
+    FocusManager.instance.primaryFocus?.unfocus();
+    await run(const Duration(milliseconds: 400));
     await tester.tap(find.byKey(ValueKey('conversation-$dm')));
     await run(const Duration(milliseconds: 900));
     await capture('phone-dm');
@@ -195,7 +270,19 @@ void main() {
     );
     await run(const Duration(milliseconds: 500));
     await capture('phone-dm-reading-up');
-    expect(find.byType(ChatPage), findsOneWidget);
+    navigator.currentState!.pop();
+    await run(const Duration(milliseconds: 500));
+    await tester.tap(find.byTooltip('设置'));
+    await run(const Duration(milliseconds: 800));
+    await capture('phone-settings');
+    navigator.currentState!.pop();
+    await run(const Duration(milliseconds: 400));
+    await tester.tap(find.byTooltip('新建'));
+    await run(const Duration(milliseconds: 500));
+    await capture('phone-create-menu');
+    navigator.currentState!.pop();
+    await run(const Duration(milliseconds: 300));
+    expect(find.byType(HomePage), findsOneWidget);
     tester.view.reset();
     client.dispose();
   }, timeout: const Timeout(Duration(minutes: 10)));
