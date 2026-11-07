@@ -20,7 +20,7 @@ import 'chat_composer.dart';
 class ChatPage extends StatefulWidget {
   final NekodotClient client;
   final String conversationId;
-  final bool embedded, reserveControls;
+  final bool embedded, reserveControls, readingVisible;
 
   /// Shows a Bot's details beside the chat instead of on a page of its own.
   final ValueChanged<Json>? onDetails;
@@ -32,6 +32,7 @@ class ChatPage extends StatefulWidget {
     required this.conversationId,
     this.embedded = false,
     this.reserveControls = true,
+    this.readingVisible = true,
     this.onDetails,
     this.onFlow,
     this.flowOpen = false,
@@ -40,7 +41,8 @@ class ChatPage extends StatefulWidget {
   State<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage> with RouteAware {
+class _ChatPageState extends State<ChatPage>
+    with RouteAware, WidgetsBindingObserver {
   final scroll = LatestScrollController();
   final composer = GlobalKey<ChatComposerState>();
   double composerHeight = 76;
@@ -74,14 +76,26 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
 
   @override
   void didPopNext() {
-    c.visibleConversation = id;
+    c.visibleConversation = widget.readingVisible ? id : null;
     composer.currentState?.refreshReasoning();
+    WidgetsBinding.instance.addPostFrameCallback((_) => markViewed());
+  }
+
+  @override
+  void didUpdateWidget(ChatPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.readingVisible != widget.readingVisible) {
+      c.visibleConversation = widget.readingVisible ? id : null;
+      WidgetsBinding.instance.addPostFrameCallback((_) => markViewed());
+    }
   }
 
   @override
   void initState() {
     super.initState();
-    c.visibleConversation = id;
+    WidgetsBinding.instance.addObserver(this);
+    DesktopHost.focused.addListener(markViewed);
+    c.visibleConversation = widget.readingVisible ? id : null;
     scroll.addListener(onScroll);
     unawaited(
       c
@@ -116,6 +130,28 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
         if (!far) missed = false;
       });
     }
+    if (!far) markViewed();
+  }
+
+  void markViewed() {
+    if (!mounted ||
+        away ||
+        !widget.readingVisible ||
+        !c.connection.active ||
+        (DesktopHost.supported && !DesktopHost.focused.value) ||
+        c.visibleConversation != id ||
+        WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed ||
+        ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+    unawaited(c.reading.viewed(c.selectedNodeId!, id, c.incomingSequence(id)));
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => markViewed());
+    }
   }
 
   Future<void> toLatest() async {
@@ -137,6 +173,8 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    DesktopHost.focused.removeListener(markViewed);
     nativeRoutes.unsubscribe(this);
     if (c.visibleConversation == id) c.visibleConversation = null;
     scroll.dispose();
@@ -256,9 +294,9 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
             child: Padding(
               padding: EdgeInsets.fromLTRB(
                 8,
-                tone.glass ? 7 : 5,
+                tone.glass ? 13 : 5,
                 14,
-                tone.glass ? 7 : 5,
+                tone.glass ? 13 : 5,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -406,8 +444,9 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 .join(' ')
                 .replaceAll(RegExp(r'\s+'), ' ')
                 .trim();
+      WidgetsBinding.instance.addPostFrameCallback((_) => markViewed());
       return Scaffold(
-        extendBodyBehindAppBar: true,
+        extendBodyBehindAppBar: false,
         appBar: header,
         body: Stack(
           children: [

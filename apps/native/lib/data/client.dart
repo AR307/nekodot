@@ -14,10 +14,12 @@ import 'node_data.dart';
 import 'json.dart';
 import 'flow.dart';
 import 'endpoints.dart';
+import 'read_positions.dart';
 
 class NekodotClient extends ChangeNotifier {
   final AccountSession account;
   final prefs = ClientPreferences();
+  final reading = ReadPositions();
   late final RelayTransport connection;
   NekodotClient({
     String server = const String.fromEnvironment(
@@ -60,6 +62,7 @@ class NekodotClient extends ChangeNotifier {
   final drafts = <String, String>{};
   final routineDrafts = <String, Json>{};
   final notifications = StreamController<Json>.broadcast();
+  final foregroundNotice = ValueNotifier<Json?>(null);
   final destinations = StreamController<Json>.broadcast();
   Json? pendingDestination;
   String notificationStatus = '', notificationError = '';
@@ -93,6 +96,9 @@ class NekodotClient extends ChangeNotifier {
   Future<void> bootstrap() async {
     try {
       account.me = await account.request('/me');
+      await reading.load(
+        '${account.origin}:${object(account.me!['user'])['userId']}',
+      );
       final available = objects(account.me!['nodes']);
       for (final n in available) {
         nodes.putIfAbsent(n['nodeId'] as String, NodeData.new).online =
@@ -155,6 +161,7 @@ class NekodotClient extends ChangeNotifier {
     if (n.syncing) return;
     n.syncing = true;
     try {
+      final initialSnapshot = n.seq == 0;
       final result = await rpc(
         n.seq == 0 ? 'sync.snapshot' : 'sync.since',
         n.seq == 0 ? {} : {'seq': n.seq},
@@ -162,6 +169,7 @@ class NekodotClient extends ChangeNotifier {
       );
       if (n.seq == 0) {
         n.snapshot(result);
+        await reading.baseline(id, n.seq);
       } else if (result['resyncRequired'] == true) {
         n.snapshot(await rpc('sync.snapshot', {}, id));
       } else {
@@ -172,6 +180,45 @@ class NekodotClient extends ChangeNotifier {
       for (final c in n.conversations) {
         if (n.messages.containsKey(c['conversationId'])) {
           await loadMessages(c['conversationId'] as String, target: id);
+        }
+      }
+      _rememberIncoming(id, [
+        ...n.latest.values,
+        ...n.messages.values.expand((messages) => messages),
+      ]);
+      // A newer outgoing summary (for example from another device) can hide
+      // an unread reply. Read only the changed history until that reply or
+      // this device's viewed position is reached. No task is replayed.
+      for (final latest
+          in initialSnapshot || result['resyncRequired'] == true
+              ? n.latest.values
+              : const <ChatMessage>[]) {
+        final conversation = latest.conversationId;
+        final viewed = reading.position(id, conversation);
+        if (latest.seq <= viewed || reading.latest(id, conversation) > viewed) {
+          continue;
+        }
+        int? before;
+        while (true) {
+          final page = await rpc('messages.list', {
+            'conversationId': conversation,
+            'limit': 50,
+            'beforeSeq': ?before,
+          }, id);
+          final messages = objects(page['messages'])
+              .map(ChatMessage.fromJson)
+              .toList();
+          if (messages.isEmpty) break;
+          _rememberIncoming(id, messages);
+          final oldest = messages
+              .map((m) => m.seq)
+              .reduce((a, b) => a < b ? a : b);
+          if (oldest <= viewed ||
+              messages.length < 50 ||
+              reading.latest(id, conversation) > viewed) {
+            break;
+          }
+          before = oldest;
         }
       }
       final events = n.buffer.where((x) => x['type'] == 'event').toList()
@@ -187,6 +234,7 @@ class NekodotClient extends ChangeNotifier {
         n.update(event);
       }
       n.buffer.clear();
+      _rememberIncoming(id, n.messages.values.expand((messages) => messages));
       error = '';
     } catch (e) {
       error = '$e';
@@ -219,6 +267,7 @@ class NekodotClient extends ChangeNotifier {
     }
     n.messages[conversationId] = merged.values.toList()
       ..sort((a, b) => (a.seq).compareTo(b.seq));
+    _rememberIncoming(id, n.messages[conversationId]!);
     n.changed(conversationId, summary: true);
   }
 
@@ -242,6 +291,44 @@ class NekodotClient extends ChangeNotifier {
       }
     }
     n.changed(conversationId);
+  }
+
+  int incomingSequence(String conversationId) {
+    var seq = reading.latest(selectedNodeId!, conversationId);
+    final latest = node.latest[conversationId];
+    for (final message in [?latest, ...?node.messages[conversationId]]) {
+      if (message.author.type != 'user' &&
+          message.status != 'streaming' &&
+          const {
+            'text',
+            'approval',
+            'question',
+            'system',
+            'secret',
+          }.contains(message.kind) &&
+          message.seq > seq) {
+        seq = message.seq;
+      }
+    }
+    return seq;
+  }
+
+  void _rememberIncoming(String nodeId, Iterable<ChatMessage> messages) {
+    for (final message in messages) {
+      if (message.author.type != 'user' &&
+          message.status != 'streaming' &&
+          const {
+            'text',
+            'approval',
+            'question',
+            'system',
+            'secret',
+          }.contains(message.kind)) {
+        unawaited(
+          reading.received(nodeId, message.conversationId, message.seq),
+        );
+      }
+    }
   }
 
   Future<void> send(String conversationId, String text) async {
@@ -287,7 +374,20 @@ class NekodotClient extends ChangeNotifier {
         if (n.syncing) {
           n.buffer.add(frame);
         } else {
+          final incoming =
+              frame['type'] == 'event' &&
+              p['kind'] == 'message.upserted' &&
+              (p['seq'] as int) > n.seq;
           n.update(frame);
+          if (incoming) {
+            final conversationId =
+                object(p['data'])['conversationId'] as String;
+            _rememberIncoming(id, [
+              n.messages[conversationId]!.firstWhere(
+                (m) => m.messageId == object(p['data'])['messageId'],
+              ),
+            ]);
+          }
         }
         return;
       case 'notify':
@@ -300,6 +400,7 @@ class NekodotClient extends ChangeNotifier {
   }
 
   Future<void> clearSession() async {
+    foregroundNotice.value = null;
     account.token = null;
     await connection.disconnect();
     await account.clear();
@@ -323,10 +424,12 @@ class NekodotClient extends ChangeNotifier {
     connection.dispose();
     account.dispose();
     prefs.dispose();
+    reading.dispose();
     for (final n in nodes.values) {
       n.dispose();
     }
     notifications.close();
+    foregroundNotice.dispose();
     destinations.close();
     super.dispose();
   }

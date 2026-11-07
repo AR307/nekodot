@@ -217,12 +217,18 @@ void main() {
       await tap(find.byKey(const ValueKey('settings-nav-app')));
       await shot('english-app-settings');
       await tap(find.byKey(const ValueKey('settings-nav-account')));
+    } else {
+      await tap(find.byKey(const ValueKey('settings-category-account')));
     }
     await tap(find.widgetWithText(ListTile, 'Change password'));
     await shot('english-settings-child');
     await binding.handlePopRoute();
     await frames();
     expect(find.byType(SettingsPage), findsOneWidget);
+    if (android) {
+      await binding.handlePopRoute();
+      await frames();
+    }
     await binding.handlePopRoute();
     await frames();
     await tap(find.byKey(ValueKey('conversation-$dm')));
