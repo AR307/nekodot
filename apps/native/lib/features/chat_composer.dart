@@ -47,7 +47,6 @@ class ChatComposerState extends State<ChatComposer> {
   }
 
   String error = '';
-  String? pendingId, pendingText;
   String? commandBotId;
   List<Json> commands = [];
   bool loadingCommands = false;
@@ -69,8 +68,12 @@ class ChatComposerState extends State<ChatComposer> {
   void initState() {
     super.initState();
     input.text = c.drafts[draftKey] ?? '';
+    quoted = c.quotes[draftKey];
+    c.deliveries.addListener(deliveriesChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => deliveriesChanged());
     void changed() {
       c.drafts[draftKey] = input.text;
+      c.saveContent();
       // Moving the caret can enter or leave an @ token without editing text.
       setState(() {});
       if (input.text.startsWith('/') && commandBotId == null) {
@@ -95,6 +98,7 @@ class ChatComposerState extends State<ChatComposer> {
 
   @override
   void dispose() {
+    c.deliveries.removeListener(deliveriesChanged);
     input.dispose();
     field.dispose();
     super.dispose();
@@ -115,6 +119,8 @@ class ChatComposerState extends State<ChatComposer> {
 
   void quote(String words) {
     setState(() => quoted = words.trim());
+    c.quotes[draftKey] = words.trim();
+    c.saveContent();
     field.requestFocus();
   }
 
@@ -139,66 +145,79 @@ class ChatComposerState extends State<ChatComposer> {
     }
     final key = draftKey, nodeId = c.selectedNodeId;
     final messageText = withQuote(text);
-    final files = attached.map((file) => '${file['fileId']}').toList();
+    final files = attached
+        .map((file) => Map<String, dynamic>.from(file))
+        .toList();
     final routineId = routineDraft?['executionId'];
     setState(() {
       sending = true;
       error = '';
     });
-    final fingerprint = '$messageText|${files.join(',')}|$routineId';
-    if (pendingText != fingerprint) {
-      pendingText = fingerprint;
-      pendingId = uid();
-    }
     try {
       final command = text.startsWith('/');
-      final result = await c.rpc(
+      final session = c.node.conversations
+          .where((v) => v['conversationId'] == id)
+          .firstOrNull?['sessionId'];
+      await c.deliveries.enqueue(
         command ? 'commands.execute' : 'messages.send',
         {
           'conversationId': id,
+          'sessionId': ?session,
           if (command) 'botId': commandBotId,
           command ? 'command' : 'text': messageText,
-          'clientMsgId': pendingId,
-          if (!command && files.isNotEmpty) 'files': files,
+          'clientMsgId': uid(),
           if (!command && routineId != null) 'routineExecutionId': routineId,
         },
-        nodeId,
+        nodeId!,
+        command ? [] : files,
       );
       if (!command) {
         if (c.routineDrafts[key]?['executionId'] == routineId) {
           c.routineDrafts.remove(key);
         }
-        c.attachmentDrafts[key]?.removeWhere(
-          (file) => files.contains(file['fileId']),
-        );
+        c.attachmentDrafts.remove(key);
       }
-      if (!command && c.drafts[key]?.trim() == text) c.drafts[key] = '';
+      if (c.drafts[key]?.trim() == text) c.drafts[key] = '';
+      c.quotes.remove(key);
+      c.saveContent();
       if (!mounted) return;
       if (!command && quoted == sentQuote) setState(() => quoted = null);
       // A user can already be drafting the next instruction while RPC returns.
-      if (!command && input.text.trim() == text) input.clear();
-      if (command) {
-        final operation = CommandOperation.fromJson(result);
-        setState(() {
-          commandOperation = operation;
-          submittedCommand = text;
-          commandNodeId = nodeId;
-        });
-        pendingId = null;
-        pendingText = null;
-        if (sideCommand && input.text.trim() == text) input.clear();
-        unawaited(followCommand(operation));
-      } else {
-        pendingId = null;
-        pendingText = null;
-      }
-      await c.loadMessages(id);
+      if (input.text.trim() == text) input.clear();
       widget.onSent();
     } catch (e) {
       if (mounted) setState(() => error = '$e');
     } finally {
       if (mounted) setState(() => sending = false);
     }
+  }
+
+  void deliveriesChanged() {
+    if (!mounted) return;
+    setState(() {});
+    final ready = c.deliveries.items
+        .where(
+          (item) =>
+              item['nodeId'] == c.selectedNodeId &&
+              item['params']['conversationId'] == id &&
+              item['state'] == 'completed',
+        )
+        .firstOrNull;
+    if (ready == null || commandOperation?.status == 'running') return;
+    ready['state'] = 'observing';
+    submittedCommand = ready['params']['command'] as String;
+    commandNodeId = ready['nodeId'] as String;
+    commandOperation = CommandOperation.fromJson(object(ready['result']));
+    unawaited(
+      followCommand(commandOperation!).then((_) async {
+        if (!mounted && commandOperation?.status == 'running') {
+          ready['state'] = 'completed';
+        } else {
+          c.deliveries.items.remove(ready);
+        }
+        await c.deliveries.save();
+      }),
+    );
   }
 
   Future<void> attachFile({
@@ -225,6 +244,7 @@ class ChatComposerState extends State<ChatComposer> {
       );
       if (file != null) {
         c.attachmentDrafts.putIfAbsent(key, () => []).add(file);
+        c.saveContent();
       }
     } catch (e) {
       if (mounted) setState(() => error = '$e');
@@ -263,7 +283,7 @@ class ChatComposerState extends State<ChatComposer> {
         await Future<void>.delayed(const Duration(seconds: 1));
         if (!mounted) return;
         operation = CommandOperation.fromJson(
-          await c.rpc('operations.get', {
+          await c.awaitOperation({
             'operationId': operation.operationId,
           }, commandNodeId),
         );
@@ -306,7 +326,7 @@ class ChatComposerState extends State<ChatComposer> {
           }
         }
       }
-      await c.loadMessages(id);
+      await c.loadMessages(id, target: commandNodeId);
       if (!mounted || commandNodeId != c.selectedNodeId) return;
       refreshReasoning();
       for (final result in operation.results) {
@@ -329,7 +349,10 @@ class ChatComposerState extends State<ChatComposer> {
 
   Future<void> stop() async {
     try {
-      await c.rpc('runs.stop', {'conversationId': id});
+      await c.continueAction('runs.stop', {
+        'conversationId': id,
+        'runId': c.node.activities[id]?.runId,
+      });
       if (mounted) setState(() => error = '');
     } catch (e) {
       if (mounted) setState(() => error = '$e');
@@ -371,7 +394,7 @@ class ChatComposerState extends State<ChatComposer> {
           input.value = value.replaced(at, '\n');
           return KeyEventResult.handled;
         }
-        if ((!waiting || queueCommand) && c.online) send();
+        if (!waiting || queueCommand) send();
         return KeyEventResult.handled;
       },
       child: TextField(
@@ -411,7 +434,7 @@ class ChatComposerState extends State<ChatComposer> {
         IconButton(
           key: const ValueKey('composer-attach'),
           tooltip: c.tr('发送文件或图片', 'Attach file or image'),
-          onPressed: !c.online || uploading || sending ? null : attachFile,
+          onPressed: uploading || sending ? null : attachFile,
           iconSize: 19,
           visualDensity: tone.glass
               ? VisualDensity.standard
@@ -421,7 +444,6 @@ class ChatComposerState extends State<ChatComposer> {
       ],
     );
     final canSend =
-        c.online &&
         (!waiting || queueCommand) &&
         !sending &&
         !savingReasoning &&
@@ -438,7 +460,7 @@ class ChatComposerState extends State<ChatComposer> {
               key: ValueKey('${c.selectedNodeId}:$id:${bot['model']}'),
               client: c,
               botId: '${bot['botId']}',
-              enabled: c.online && !running && !sending,
+              enabled: !running && !sending,
               revision: reasoningRevision,
               onSaving: (value) {
                 if (mounted) setState(() => savingReasoning = value);
@@ -482,7 +504,7 @@ class ChatComposerState extends State<ChatComposer> {
                     foregroundColor: WidgetStatePropertyAll(tone.ink),
                   )
                 : roundAction,
-            onPressed: c.online ? stop : null,
+            onPressed: stop,
             icon: const Icon(Icons.stop),
           ),
         if (hasText || (!running && (group != null || bot == null))) ...[
@@ -524,6 +546,47 @@ class ChatComposerState extends State<ChatComposer> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (error.isNotEmpty) ErrorNotice(error),
+                      for (final item in c.deliveries.items.where(
+                        (i) =>
+                            i['action'] != true &&
+                            i['nodeId'] == c.selectedNodeId &&
+                            i['params']['conversationId'] == id &&
+                            [
+                              'queued',
+                              'sending',
+                              'failed',
+                            ].contains(i['state']),
+                      ))
+                        Row(
+                          children: [
+                            Icon(
+                              item['state'] == 'failed'
+                                  ? Icons.error_outline
+                                  : Icons.schedule,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                '${item['error'] ?? item['params']['text'] ?? item['params']['command']}',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: c.tr('取消', 'Cancel'),
+                              icon: const Icon(Icons.close, size: 16),
+                              onPressed:
+                                  item['state'] == 'sending' ||
+                                      (item['submitted'] == true &&
+                                          item['state'] != 'failed')
+                                  ? null
+                                  : () => c.deliveries.cancel(
+                                      item['id'] as String,
+                                    ),
+                            ),
+                          ],
+                        ),
                       if (routineDraft != null)
                         InputChip(
                           key: const ValueKey('routine-followup-chip'),
@@ -535,9 +598,12 @@ class ChatComposerState extends State<ChatComposer> {
                           ),
                           onDeleted: sending
                               ? null
-                              : () => setState(
-                                  () => c.routineDrafts.remove(draftKey),
-                                ),
+                              : () {
+                                  setState(
+                                    () => c.routineDrafts.remove(draftKey),
+                                  );
+                                  c.saveContent();
+                                },
                         ),
                       if (uploading) ...[
                         const LinearProgressIndicator(minHeight: 2),
@@ -565,10 +631,13 @@ class ChatComposerState extends State<ChatComposer> {
                                 ]),
                                 onDeleted: sending
                                     ? null
-                                    : () => setState(
-                                        () => c.attachmentDrafts[draftKey]
-                                            ?.remove(file),
-                                      ),
+                                    : () {
+                                        setState(
+                                          () => c.attachmentDrafts[draftKey]
+                                              ?.remove(file),
+                                        );
+                                        c.saveContent();
+                                      },
                               ),
                           ],
                         ),
@@ -625,7 +694,11 @@ class ChatComposerState extends State<ChatComposer> {
                         QuoteChip(
                           text: quoted!,
                           tooltip: c.tr('取消', 'Cancel'),
-                          onClear: () => setState(() => quoted = null),
+                          onClear: () {
+                            setState(() => quoted = null);
+                            c.quotes.remove(draftKey);
+                            c.saveContent();
+                          },
                         ),
                       if (group != null && mentioning != null)
                         MentionCard(

@@ -378,6 +378,11 @@ it('shows a cron approval in the Bot chat and answers that exact native admissio
     },
   });
   expect(db.message(approval!.messageId)?.status).toBe('done');
+  await routines.approvalRespond(botId, 'cron:job:cron-session', 'prompt-1', 'once');
+  expect(calls.filter((call) => call.method === 'cron.approve')).toHaveLength(1);
+  await expect(
+    routines.approvalRespond(botId, 'cron:job:cron-session', 'prompt-1', 'deny'),
+  ).rejects.toThrow('no longer pending');
   await routines.close();
   db.db.close();
 });

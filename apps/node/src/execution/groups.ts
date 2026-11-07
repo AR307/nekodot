@@ -68,6 +68,13 @@ export class GroupExecution {
         );
       if (!active.runId || !active.sessionId || active.executionGeneration === undefined)
         throw new NodeFault('conflict', 'The current run is starting. Try again shortly.');
+      const steerKey = `steer:${params.clientMsgId}`;
+      if (this.database.setting(steerKey))
+        throw new NodeFault(
+          'conflict',
+          'The original instruction has an unconfirmed receipt; it was not repeated.',
+        );
+      this.database.setSetting(steerKey, { runId: active.runId });
       const accepted = await this.hermes.gateway(active.botId).rpc<{
         status: 'queued' | 'redirected' | 'rejected';
         execution_generation: number;

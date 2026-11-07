@@ -24,29 +24,34 @@ class RelayTransport extends ChangeNotifier {
     required this.tr,
   });
   bool ready = false, connecting = false, active = true, _closed = false;
-  int _retry = 1;
+  int _retry = 1, _generation = 0;
   WebSocket? _socket;
-  Timer? _reconnect, _heartbeat;
+  Timer? _reconnect, _heartbeat, _hello;
   DateTime _lastFrame = DateTime.now();
   final _pending = <String, Completer<Json>>{};
 
   /// Relay pings every 25 s, so a socket that is still up has heard from it recently.
   bool get live =>
-      ready && DateTime.now().difference(_lastFrame) < const Duration(seconds: 40);
+      ready &&
+      DateTime.now().difference(_lastFrame) < const Duration(seconds: 40);
   Future<void> connect() async {
     if (_closed || token() == null || connecting) return;
     connecting = true;
+    final generation = ++_generation, session = token();
     _reconnect?.cancel();
     final previous = _socket;
     _socket = null;
     // Nothing may go out on the next socket before its handshake finishes.
     ready = false;
     _failPending();
-    await previous?.close();
+    _heartbeat?.cancel();
+    _hello?.cancel();
+    // A dead peer must not hold up opening its replacement.
+    unawaited(previous?.close());
     try {
       final socket = await WebSocket.connect(endpoint.toString())
           .timeout(const Duration(seconds: 10));
-      if (_closed || token() == null) {
+      if (_closed || generation != _generation || token() != session) {
         await socket.close();
         return;
       }
@@ -54,7 +59,7 @@ class RelayTransport extends ChangeNotifier {
       _lastFrame = DateTime.now();
       socket.listen(
         (raw) {
-          if (_closed) return;
+          if (_closed || !identical(_socket, socket)) return;
           try {
             _receive(object(jsonDecode(raw as String)));
           } catch (e) {
@@ -73,24 +78,32 @@ class RelayTransport extends ChangeNotifier {
         },
         onError: (Object e) {
           if (identical(_socket, socket)) {
-            onError('$e');
             _disconnected();
           }
         },
       );
       _send('hello', {'token': token()});
+      _hello = Timer(const Duration(seconds: 5), () {
+        if (identical(_socket, socket) && !ready) {
+          _disconnected();
+          unawaited(socket.close());
+        }
+      });
       _heartbeat?.cancel();
       _heartbeat = Timer.periodic(const Duration(seconds: 15), (_) {
         if (DateTime.now().difference(_lastFrame).inSeconds > 65) {
-          socket.close();
+          if (identical(_socket, socket)) _disconnected();
+          unawaited(socket.close());
         }
       });
     } catch (e) {
-      onError('$e');
+      if (_closed || generation != _generation) return;
       _disconnected();
     } finally {
-      connecting = false;
-      if (!_closed) notifyListeners();
+      if (generation == _generation) {
+        connecting = false;
+        if (!_closed) notifyListeners();
+      }
     }
   }
 
@@ -98,7 +111,10 @@ class RelayTransport extends ChangeNotifier {
     for (final p in _pending.values) {
       if (!p.isCompleted) {
         p.completeError(
-          RelayError(tr('连接断开，草稿已保留', 'Disconnected. Your draft is kept.')),
+          RelayError(
+            tr('连接断开，草稿已保留', 'Disconnected. Your draft is kept.'),
+            'disconnected',
+          ),
         );
       }
     }
@@ -108,8 +124,11 @@ class RelayTransport extends ChangeNotifier {
   void _disconnected() {
     if (_closed) return;
     ready = false;
+    final previous = _socket;
     _socket = null;
+    unawaited(previous?.close());
     _heartbeat?.cancel();
+    _hello?.cancel();
     _failPending();
     notifyListeners();
     if (!_closed && token() != null && active) {
@@ -135,7 +154,7 @@ class RelayTransport extends ChangeNotifier {
     String? target,
   ]) async {
     if (!ready || _socket == null) {
-      throw RelayError(tr('尚未连接服务器', 'Relay is disconnected'));
+      throw RelayError(tr('尚未连接服务器', 'Relay is disconnected'), 'disconnected');
     }
     final id = uid(), wait = Completer<Json>();
     _pending[id] = wait;
@@ -164,6 +183,7 @@ class RelayTransport extends ChangeNotifier {
       case 'ping':
         _send('pong', {});
       case 'hello.ok':
+        _hello?.cancel();
         ready = true;
         _retry = 1;
         onReady();
@@ -186,9 +206,15 @@ class RelayTransport extends ChangeNotifier {
   }
 
   Future<void> disconnect() async {
-    await _socket?.close();
+    _generation++;
+    connecting = false;
+    final socket = _socket;
+    _socket = null;
+    unawaited(socket?.close());
     _reconnect?.cancel();
     _heartbeat?.cancel();
+    _hello?.cancel();
+    _failPending();
     ready = false;
     notifyListeners();
   }
@@ -196,8 +222,11 @@ class RelayTransport extends ChangeNotifier {
   @override
   void dispose() {
     _closed = true;
+    _generation++;
+    _failPending();
     _reconnect?.cancel();
     _heartbeat?.cancel();
+    _hello?.cancel();
     final socket = _socket;
     _socket = null;
     socket?.close();

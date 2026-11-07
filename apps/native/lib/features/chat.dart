@@ -106,7 +106,9 @@ class _ChatPageState extends State<ChatPage>
     scroll.addListener(onScroll);
     unawaited(
       restoreMessages().catchError((Object e) {
-        if (mounted) composer.currentState?.showError('$e');
+        if (mounted && !c.isConnectionFailure(e)) {
+          composer.currentState?.showError('$e');
+        }
       }),
     );
   }
@@ -126,11 +128,12 @@ class _ChatPageState extends State<ChatPage>
       0,
       (top, m) => m.seq > top ? m.seq : top,
     );
-    if (viewport != null) {
+    final offset = viewport?.offset ?? c.workspace['scroll:$nodeId:$id'];
+    if (offset is num) {
       await WidgetsBinding.instance.endOfFrame;
       if (mounted && scroll.hasClients) {
         scroll.jumpTo(
-          viewport.offset.clamp(
+          offset.toDouble().clamp(
             scroll.position.minScrollExtent,
             scroll.position.maxScrollExtent,
           ),
@@ -146,6 +149,8 @@ class _ChatPageState extends State<ChatPage>
 
   void onScroll() {
     final position = scroll.position;
+    c.workspace['scroll:$nodeId:$id'] = position.pixels;
+    c.saveContent();
     readingOffset = position.pixels;
     final far =
         position.pixels - position.minScrollExtent >
@@ -213,13 +218,20 @@ class _ChatPageState extends State<ChatPage>
     } else {
       data.viewports.remove(id);
     }
+    if (identical(c.nodes[nodeId], data)) {
+      c.saveContent(nodeId, id);
+      // flushContent encodes the open page before releasing its in-memory list.
+      unawaited(c.flushContent());
+    }
     data.releaseMessages(id);
     scroll.dispose();
     super.dispose();
   }
 
   Future<void> focusFlowMessage(String messageId) async {
-    await c.loadMessages(id, around: messageId);
+    if (!(c.node.messages[id]?.any((m) => m.messageId == messageId) ?? false)) {
+      await c.loadMessages(id, around: messageId);
+    }
     if (!mounted) return;
     setState(() => focusedMessage = messageId);
     await WidgetsBinding.instance.endOfFrame;

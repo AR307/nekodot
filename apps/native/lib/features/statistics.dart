@@ -48,38 +48,34 @@ class _StatisticsPageState extends State<StatisticsPage> {
     });
     try {
       if (refresh) {
-        final result = await c.account.request(
-          '/usage/refresh',
-          method: 'POST',
-          body: {'nodeId': ?selectedNode},
-        );
-        if (objects(result['nodes']).any((n) => n['synced'] != true) &&
-            mounted &&
-            request == ticket) {
-          setState(
-            () => error = c.tr('部分电脑未同步', 'Some computers have not synced'),
+        try {
+          final result = await c.account.request(
+            '/usage/refresh',
+            method: 'POST',
+            body: {'nodeId': ?selectedNode},
           );
+          if (objects(result['nodes']).any((n) => n['synced'] != true) &&
+              mounted &&
+              request == ticket) {
+            setState(
+              () => error = c.tr('部分电脑未同步', 'Some computers have not synced'),
+            );
+          }
+        } catch (e) {
+          if (!c.isConnectionFailure(e)) rethrow;
         }
       }
       final timezone = await FlutterTimezone.getLocalTimezone();
-      final result = await c.account.request(
-        '/usage/query',
-        method: 'POST',
-        body: {
-          'from': selectedSpan == 0
-              ? null
-              : usageDate(
-                  DateTime(
-                    today.year,
-                    today.month,
-                    today.day - selectedSpan + 1,
-                  ),
-                ),
-          'to': usageDate(today),
-          'timezone': timezone.identifier,
-          'nodeId': ?selectedNode,
-        },
-      );
+      final result = await c.statistics({
+        'from': selectedSpan == 0
+            ? null
+            : usageDate(
+                DateTime(today.year, today.month, today.day - selectedSpan + 1),
+              ),
+        'to': usageDate(today),
+        'timezone': timezone.identifier,
+        'nodeId': ?selectedNode,
+      });
       if (mounted && request == ticket) {
         setState(() {
           data = UsageSummary(result);

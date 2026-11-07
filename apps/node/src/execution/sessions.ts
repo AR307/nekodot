@@ -40,6 +40,7 @@ export class ConversationExecution {
   /** Introductions Hermes has not admitted yet; a send queues behind one only once it is admitted. */
   private readonly welcomes = new Map<RunRecord, Promise<void>>();
   private readonly welcomeSends = new Map<string, Promise<{ messageId: string }>>();
+  private readonly submissions = new Map<string, Promise<{ messageId: string }>>();
   readonly onLive: (event: LiveEvent) => void;
   get idle() {
     return (
@@ -223,6 +224,7 @@ export class ConversationExecution {
             this.database.group(conversation.groupId)?.leadBotId ??
             '',
           state: run?.state ?? 'idle',
+          runId: run?.runId,
           chain: chain ? { count: chain.count, max: MAX_CHAIN } : undefined,
           ...this.stall(run),
         });
@@ -236,6 +238,7 @@ export class ConversationExecution {
         conversationId: conversation.conversationId,
         botId: conversation.botId,
         state: run?.state ?? 'idle',
+        runId: run?.runId,
         ...this.stall(run),
       });
     }
@@ -425,8 +428,31 @@ export class ConversationExecution {
     params: RpcParams<'messages.send'>,
     command?: { botId: string; input: string; modelOverride?: RunRecord['modelOverride'] },
   ): Promise<{ messageId: string }> {
+    const pending = this.submissions.get(params.clientMsgId);
+    if (pending) return pending;
+    const request = this.deliverMessage(params, command).finally(() =>
+      this.submissions.delete(params.clientMsgId),
+    );
+    this.submissions.set(params.clientMsgId, request);
+    return request;
+  }
+
+  private async deliverMessage(
+    params: RpcParams<'messages.send'>,
+    command?: { botId: string; input: string; modelOverride?: RunRecord['modelOverride'] },
+  ): Promise<{ messageId: string }> {
     const duplicate = this.database.byClient(params.clientMsgId);
     if (duplicate) return { messageId: duplicate.messageId };
+    if (this.database.setting(`steer:${params.clientMsgId}`))
+      throw new NodeFault(
+        'conflict',
+        'The original instruction has an unconfirmed receipt; it was not repeated.',
+      );
+    if (
+      params.sessionId &&
+      params.sessionId !== this.database.hermesSession(params.conversationId)?.storedSessionId
+    )
+      throw new NodeFault('conflict', 'The original conversation session has changed.');
     const conversation = this.database.conversation(params.conversationId);
     if (!conversation) throw new NodeFault('not_found', 'Conversation not found');
     const targets =
@@ -518,7 +544,7 @@ export class ConversationExecution {
           this.welcomeSends.get(params.clientMsgId) ??
           welcome
             .finally(() => this.welcomeSends.delete(params.clientMsgId))
-            .then(() => this.sendMessage(params, command));
+            .then(() => this.deliverMessage(params, command));
         this.welcomeSends.set(params.clientMsgId, waiting);
         return waiting;
       }
@@ -537,6 +563,13 @@ export class ConversationExecution {
         throw new NodeFault('conflict', 'The current run is starting. Try again shortly.');
       // An introduction is not a task to correct: the user's message is its own turn after it.
       if (active.welcome) return this.queueInput({ ...params, botId: bot.botId }, params.text);
+      const steerKey = `steer:${params.clientMsgId}`;
+      if (this.database.setting(steerKey))
+        throw new NodeFault(
+          'conflict',
+          'The original instruction has an unconfirmed receipt; it was not repeated.',
+        );
+      this.database.setSetting(steerKey, { runId: active.runId });
       const accepted = await this.hermes.gateway(bot.botId).rpc<{
         status: 'queued' | 'redirected' | 'rejected';
         execution_generation: number;
@@ -980,6 +1013,7 @@ export class ConversationExecution {
     this.onLive({
       kind: 'activity',
       conversationId: run.conversationId,
+      runId: run.runId,
       botId: run.botId,
       state: run.state,
       chain: chain ? { count: chain.count, max: MAX_CHAIN } : undefined,
@@ -995,10 +1029,11 @@ export class ConversationExecution {
     this.database.putMessage(message, { runId: run.runId });
   }
 
-  async stop(conversationId: string) {
+  async stop(conversationId: string, runId?: string) {
     const run =
       this.activeRuns.get(conversationId) ??
       this.database.runs().find((item) => item.conversationId === conversationId);
+    if (runId && run?.runId !== runId) return {};
     if (!run?.runId || !run.sessionId || run.executionGeneration === undefined)
       throw new NodeFault('not_found', 'No active run');
     run.stopRequested = true;

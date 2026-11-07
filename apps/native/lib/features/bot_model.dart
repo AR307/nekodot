@@ -48,7 +48,7 @@ class _BotModelPageState extends State<BotModelPage> {
       if (value.isNotEmpty && (length == null || length <= 0)) {
         throw RelayError(c.tr('请输入正整数', 'Enter a positive integer'));
       }
-      await c.rpc('bots.update', {
+      await c.continueAction('bots.update', {
         'botId': widget.botId,
         'sourceId': source,
         'model': model,

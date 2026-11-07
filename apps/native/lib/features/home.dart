@@ -48,10 +48,23 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    conversation = c.workspace['conversation:${c.selectedNodeId}'] as String?;
+    final savedDetails = c.workspace['details:${c.selectedNodeId}'];
+    if (savedDetails is Map) details = object(savedDetails);
     destinations = c.destinations.stream.listen(openDestination);
     HardwareKeyboard.instance.addHandler(searchKey);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (c.pendingDestination != null) openDestination(c.pendingDestination!);
+      if (c.pendingDestination != null) {
+        openDestination(c.pendingDestination!);
+      } else if (conversation != null &&
+          MediaQuery.sizeOf(context).width < 840 &&
+          c.node.conversations.any(
+            (v) => v['conversationId'] == conversation,
+          )) {
+        unawaited(
+          pushPage(context, ChatPage(client: c, conversationId: conversation!)),
+        );
+      }
     });
   }
 
@@ -150,6 +163,9 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> open(Json value, bool narrow) async {
     final id = value['conversationId'] as String;
+    c.workspace['conversation:${c.selectedNodeId}'] = id;
+    c.workspace.remove('details:${c.selectedNodeId}');
+    c.saveContent();
     if (narrow) {
       await pushPage(context, ChatPage(client: c, conversationId: id));
     } else {
@@ -986,6 +1002,8 @@ class _HomePageState extends State<HomePage> {
             panelShown && constraints.maxWidth - sidebar - panelWidth >= 480;
         void closePanel() => setState(() {
           details = null;
+          c.workspace.remove('details:${c.selectedNodeId}');
+          c.saveContent();
           flowFocus = null;
           previewFile = null;
           expandedFile = false;
@@ -1022,6 +1040,8 @@ class _HomePageState extends State<HomePage> {
                       previewFile = file;
                       expandedFile = false;
                       details = null;
+                      c.workspace.remove('details:${c.selectedNodeId}');
+                      c.saveContent();
                       flowFocus = null;
                     }),
                     child: Stack(
@@ -1058,12 +1078,19 @@ class _HomePageState extends State<HomePage> {
                                         reserveControls: !panelShown,
                                         onDetails: (bot) => setState(() {
                                           details = bot;
+                                          c.workspace['details:${c.selectedNodeId}'] =
+                                              bot;
+                                          c.saveContent();
                                           flowFocus = null;
                                           previewFile = null;
                                         }),
                                         flowOpen: flowShown,
                                         onFlow: (focus) => setState(() {
                                           details = null;
+                                          c.workspace.remove(
+                                            'details:${c.selectedNodeId}',
+                                          );
+                                          c.saveContent();
                                           previewFile = null;
                                           flowFocus = flowFocus == null
                                               ? focus

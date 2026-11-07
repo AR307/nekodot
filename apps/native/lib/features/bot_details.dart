@@ -65,6 +65,7 @@ class BotDetails extends StatelessWidget {
       final pages = TabBarView(
         children: [
           AsyncPane(
+            initialData: const {},
             load: () => c.rpc('routines.list', {'botId': botId}),
             builder: (context, data, reload) {
               final routines = objects(data['routines']);

@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/chat_models.dart';
 import 'package:nekodot_native/data/client.dart';
@@ -36,6 +38,20 @@ void main() {
     );
     var stage = 'login';
     final passed = <String>[];
+    const offline = bool.fromEnvironment('QA_OFFLINE');
+    Future<void> fault(bool disconnected) async {
+      if (!offline) return;
+      await tester.runAsync(() async {
+        await http.get(
+          Uri.parse(
+            '${const String.fromEnvironment('RELAY_URL')}/__fault?mode=${disconnected ? 'offline' : 'online'}',
+          ),
+        );
+        if (!disconnected) await c.connection.connect();
+      });
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
     Future<void> until(bool Function() ready, {int seconds = 180}) async {
       final end = DateTime.now().add(Duration(seconds: seconds));
       while (!ready() && DateTime.now().isBefore(end)) {
@@ -179,7 +195,9 @@ void main() {
         (m) => m.kind == 'question' && m.status == 'streaming',
       );
       await shot('question-waiting');
+      await fault(true);
       await tap(find.byKey(ValueKey('choice-${question.messageId}-0')));
+      await fault(false);
       await until(() => replied('$marker-ANSWER'));
       await idle();
       passed.add('native question answered in original chat');
@@ -204,7 +222,9 @@ void main() {
       await until(() => c.connection.ready);
       await tester.runAsync(() => c.loadMessages(dm));
       expect(messages().map((m) => m.messageId).toSet(), containsAll(ids));
+      await fault(true);
       await tap(find.byKey(ValueKey('choice-${approval.messageId}-0')));
+      await fault(false);
       await until(() => replied('$marker-MAIN') && replied('$marker-QUEUED'));
       await idle();
       expect(
@@ -235,6 +255,8 @@ void main() {
       await send(
         'Do not run any more tools. Change the final reply to exactly $marker-STEERED.',
       );
+      await fault(true);
+      await fault(false);
       await until(() => replied('$marker-STEERED'));
       await idle();
       passed.add('steer during real terminal execution');
@@ -247,13 +269,16 @@ void main() {
         () =>
             messages().any((m) => m.kind == 'tool' && m.status == 'streaming'),
       );
+      await fault(true);
       await tap(find.byTooltip('Stop'));
+      await fault(false);
       await idle();
       expect(replied('$marker-NOT-EXPECTED'), isFalse);
       await shot('stopped');
       passed.add('stop active tool without replay or fabricated final answer');
       debugPrint('QA real controls passed: ${passed.join('; ')}');
     } finally {
+      await fault(false);
       if (c.node.activities[dm]?.state != 'idle') {
         await tester.runAsync(() => c.rpc('runs.stop', {'conversationId': dm}));
         await idle();
@@ -268,7 +293,17 @@ void main() {
       'realModel': 'gpt-6.1-sol',
       'platform': Platform.operatingSystem,
       'passed': passed,
+      'interruptedClientTransport': offline,
     };
+    if (offline) {
+      await tester.runAsync(() async {
+        final directory = Platform.isAndroid
+            ? '${(await getExternalStorageDirectory())!.path}/controls-evidence'
+            : const String.fromEnvironment('QA_EVIDENCE_DIR');
+        await File('$directory/${Platform.operatingSystem}-controls.json')
+            .writeAsString(jsonEncode(binding.reportData));
+      });
+    }
     await tester.pumpWidget(const SizedBox.shrink());
   }, timeout: const Timeout(Duration(minutes: 15)));
 }

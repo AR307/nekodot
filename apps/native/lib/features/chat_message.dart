@@ -471,7 +471,7 @@ class _ControlCardState extends State<ControlCard> {
     final question = widget.message.kind == 'question';
     final routine = widget.message.messageId.startsWith('routine-approval:');
     try {
-      await widget.client.rpc(
+      await widget.client.continueAction(
         routine
             ? 'routines.approvalRespond'
             : question
@@ -507,7 +507,7 @@ class _ControlCardState extends State<ControlCard> {
         question = m.kind == 'question',
         pending = m.status == 'streaming' && sent == null,
         multi = data['multiSelect'] == true,
-        open = c.online && sending == null,
+        open = sending == null,
             // An interrupted question or approval ends without an answer.
             answered =
             data['answer'] ?? data['choice'] ?? sent;

@@ -19,14 +19,21 @@ import '../ui/message_markdown.dart';
 import 'bot_editor.dart';
 
 Future<Uint8List> downloadFile(NekodotClient c, String id) async {
+  final nodeId = c.selectedNodeId, token = c.account.token;
+  final cached = c.store?.file('files/$nodeId/$id');
+  if (cached != null && await cached.exists()) return cached.readAsBytes();
   final response = await http
       .get(
-        c.account.url('/api/nodes/${c.selectedNodeId}/files/$id'),
-        headers: {'Authorization': 'Bearer ${c.account.token}'},
+        c.account.url('/api/nodes/$nodeId/files/$id'),
+        headers: {'Authorization': 'Bearer $token'},
       )
       .timeout(const Duration(minutes: 2));
   if (response.statusCode != 200) {
     throw RelayError('File HTTP ${response.statusCode}');
+  }
+  if (cached != null) {
+    await cached.parent.create(recursive: true);
+    await cached.writeAsBytes(response.bodyBytes, flush: true);
   }
   return response.bodyBytes;
 }
@@ -104,64 +111,26 @@ Future<Json?> pickChatFile(
       (localPath == null
           ? 'clipboard-${DateTime.now().millisecondsSinceEpoch}.png'
           : File(localPath).uri.pathSegments.last);
-  final created = await client.rpc('imports.create', {}, nodeId);
-  final importId = '${created['importId']}';
+  final storage = client.store;
+  if (storage == null) throw StateError('Local account storage is not ready');
+  final target = storage.file('pending-files/${uid()}/${safeFileName(name)}');
+  await target.parent.create(recursive: true);
   final bytes =
       file?.readAsByteStream() ??
       (localPath == null
           ? Stream.value(imageBytes!)
           : File(localPath).openRead());
-  var offset = 0;
-  await for (final chunk in bytes) {
-    for (var start = 0; start < chunk.length; start += 196608) {
-      final end = (start + 196608).clamp(0, chunk.length);
-      final response = await client.account.transport
-          .put(
-            client.account
-                .url('/api/nodes/$nodeId/imports/$importId')
-                .replace(queryParameters: {'path': name, 'offset': '$offset'}),
-            headers: {
-              'Authorization': 'Bearer ${client.account.token}',
-              'Content-Type': 'application/octet-stream',
-            },
-            body: chunk.sublist(start, end),
-          )
-          .timeout(const Duration(seconds: 30));
-      if (response.statusCode != 200) {
-        throw RelayError('Upload HTTP ${response.statusCode}');
-      }
-      offset += end - start;
-      onProgress('$name  ${fileSize(offset)}');
-    }
-  }
-  if (offset == 0) {
-    final response = await client.account.transport.put(
-      client.account
-          .url('/api/nodes/$nodeId/imports/$importId')
-          .replace(queryParameters: {'path': name, 'offset': '0'}),
-      headers: {
-        'Authorization': 'Bearer ${client.account.token}',
-        'Content-Type': 'application/octet-stream',
-      },
-      body: <int>[],
-    );
-    if (response.statusCode != 200) {
-      throw RelayError('Upload HTTP ${response.statusCode}');
-    }
-  }
-  if (client.selectedNodeId != nodeId) {
-    throw RelayError(
-      client.tr(
-        '电脑已切换，请在原会话重试',
-        'Computer changed. Retry in the original conversation.',
-      ),
-    );
-  }
-  return client.rpc('files.receive', {
+  await bytes.pipe(target.openWrite());
+  return {
+    'localPath': target.path,
+    'name': name,
+    'size': await target.length(),
+    'nodeId': nodeId,
     'conversationId': conversationId,
-    'importId': importId,
-    'path': name,
-  }, nodeId);
+    'mime': imageOnly || imageBytes != null
+        ? 'image/png'
+        : 'application/octet-stream',
+  };
 }
 
 /// A file on its own line in the chat: a picture shows itself, anything else

@@ -63,12 +63,17 @@ export const groupSchema = z
     createdAt: timestampSchema,
   })
   .refine((g) => g.botIds.includes(g.leadBotId), 'Lead must be a member');
-const conversationBase = { conversationId: idSchema, createdAt: timestampSchema };
+const conversationBase = {
+  conversationId: idSchema,
+  createdAt: timestampSchema,
+  sessionId: z.string().optional(),
+};
 export const conversationSchema = z.discriminatedUnion('kind', [
   z.strictObject({ ...conversationBase, kind: z.literal('dm'), botId: botSchema.shape.botId }),
   z.strictObject({ ...conversationBase, kind: z.literal('group'), groupId: idSchema }),
 ]);
 const messageBase = {
+  clientMsgId: z.string().optional(),
   messageId: idSchema,
   conversationId: idSchema,
   seq: seqSchema,

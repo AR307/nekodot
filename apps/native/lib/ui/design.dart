@@ -7,9 +7,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../data/json.dart';
+import '../data/account.dart';
 import 'parts.dart';
 import 'sheet.dart';
 import 'shining_text.dart';
+import 'connection_notice.dart';
 
 export 'entry_motion.dart';
 export 'parts.dart';
@@ -1058,14 +1060,30 @@ Future<T?> pushPage<T>(BuildContext context, Widget page) =>
     );
 
 class AsyncPane extends StatefulWidget {
+  final Json? initialData;
   final Future<Json> Function() load;
   final Widget Function(BuildContext, Json, VoidCallback) builder;
-  const AsyncPane({super.key, required this.load, required this.builder});
+  const AsyncPane({
+    super.key,
+    required this.load,
+    required this.builder,
+    this.initialData,
+  });
   @override
   State<AsyncPane> createState() => _AsyncPaneState();
 }
 
 class _AsyncPaneState extends State<AsyncPane> {
+  late Json? confirmed = widget.initialData;
+  int? revision;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final current = ContentRefreshScope.of(context);
+    if (revision != null && revision != current) value = widget.load();
+    revision = current;
+  }
+
   late Future<Json> value = widget.load();
   void reload() => setState(() {
     value = widget.load();
@@ -1074,6 +1092,11 @@ class _AsyncPaneState extends State<AsyncPane> {
   Widget build(BuildContext context) => FutureBuilder<Json>(
     future: value,
     builder: (context, snapshot) {
+      if (snapshot.hasData) confirmed = snapshot.data;
+      if (confirmed != null &&
+          (!snapshot.hasError || isTransientConnectionError(snapshot.error!))) {
+        return widget.builder(context, confirmed!, reload);
+      }
       if (snapshot.hasError) {
         return Center(
           child: Padding(

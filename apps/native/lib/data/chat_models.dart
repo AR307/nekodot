@@ -11,12 +11,14 @@ class MessageAuthor {
 /// One stored representation of a product message. Native tool/card payloads
 /// remain structured data; the envelope is parsed once at the receive boundary.
 class ChatMessage {
+  final String? clientMsgId;
   final String messageId, conversationId, kind, status, createdAt;
   final int seq;
   final MessageAuthor author;
   Json content;
   ChatMessage.fromJson(Json value)
-    : messageId = value['messageId'] as String,
+    : clientMsgId = value['clientMsgId'] as String?,
+      messageId = value['messageId'] as String,
       conversationId = value['conversationId'] as String,
       kind = value['kind'] as String,
       status = value['status'] as String,
@@ -24,6 +26,17 @@ class ChatMessage {
       seq = value['seq'] as int,
       author = MessageAuthor.fromJson(object(value['author'])),
       content = object(value['content']);
+  Json toJson() => {
+    'messageId': messageId,
+    'conversationId': conversationId,
+    'clientMsgId': ?clientMsgId,
+    'kind': kind,
+    'status': status,
+    'createdAt': createdAt,
+    'seq': seq,
+    'author': {'type': author.type, 'id': ?author.id},
+    'content': content,
+  };
 }
 
 class GroupActivity {
@@ -34,6 +47,7 @@ class GroupActivity {
 }
 
 class ConversationActivity {
+  final String? runId;
   final String state;
   final String? botId, connection, detail;
 
@@ -41,14 +55,16 @@ class ConversationActivity {
   final bool stalled;
   final GroupActivity? chain;
   const ConversationActivity.idle()
-    : state = 'idle',
+    : runId = null,
+      state = 'idle',
       botId = null,
       connection = null,
       detail = null,
       stalled = false,
       chain = null;
   ConversationActivity.fromJson(Json value)
-    : state = value['state'] as String,
+    : runId = value['runId'] as String?,
+      state = value['state'] as String,
       botId = value['botId'] as String?,
       connection = value['connection'] as String?,
       detail = value['detail'] as String?,
@@ -56,6 +72,15 @@ class ConversationActivity {
       chain = value['chain'] == null
           ? null
           : GroupActivity.fromJson(object(value['chain']));
+  Json toJson() => {
+    'state': state,
+    'runId': ?runId,
+    'botId': ?botId,
+    'connection': ?connection,
+    'detail': ?detail,
+    'stalled': stalled,
+    if (chain != null) 'chain': {'count': chain!.count, 'max': chain!.max},
+  };
 }
 
 class CommandAction {

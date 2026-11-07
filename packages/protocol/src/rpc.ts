@@ -151,6 +151,7 @@ export const rpcContracts = {
   },
   'commands.execute': {
     params: z.strictObject({
+      sessionId: z.string().optional(),
       ...botTarget,
       conversationId: idSchema,
       command: z.string().regex(/^\/[^\s]+(?:\s[\s\S]*)?$/),
@@ -418,6 +419,7 @@ export const rpcContracts = {
   },
   'messages.send': {
     params: z.strictObject({
+      sessionId: z.string().optional(),
       conversationId: idSchema,
       text: z.string(),
       files: z.array(z.uuid()).optional(),
@@ -426,7 +428,10 @@ export const rpcContracts = {
     }),
     result: z.strictObject({ messageId: idSchema }),
   },
-  'runs.stop': { params: z.strictObject({ conversationId: idSchema }), result: empty },
+  'runs.stop': {
+    params: z.strictObject({ conversationId: idSchema, runId: z.string().optional() }),
+    result: empty,
+  },
   'approvals.respond': {
     params: z.strictObject({ messageId: idSchema, choice: approvalChoiceSchema }),
     result: empty,

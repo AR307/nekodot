@@ -94,7 +94,7 @@ class _BotEditorState extends State<BotEditor> {
       final existing = widget.existing;
       Json? created;
       if (widget.group) {
-        created = await c.rpc(
+        created = await (existing == null ? c.rpc : c.continueAction)(
           existing == null ? 'groups.create' : 'groups.update',
           {
             if (existing != null) 'groupId': existing['groupId'],
@@ -115,6 +115,14 @@ class _BotEditorState extends State<BotEditor> {
             ),
           );
         }
+        if (widget.importProfile && archive!['fileId'] == null) {
+          final file = archive!;
+          await c.deliveries.upload(
+            file,
+            file['nodeId'] as String,
+            file['conversationId'] as String,
+          );
+        }
         if (existing == null) {
           widget.onCreating?.call({
             'nodeId': c.selectedNodeId,
@@ -122,7 +130,7 @@ class _BotEditorState extends State<BotEditor> {
             'avatar': {'shape': shape, 'color': color},
           });
         }
-        created = await c.rpc(
+        created = await (existing == null ? c.rpc : c.continueAction)(
           existing == null ? 'bots.create' : 'bots.update',
           {
             if (existing != null) 'botId': existing['botId'],
@@ -147,7 +155,7 @@ class _BotEditorState extends State<BotEditor> {
         setState(() => busy = false);
         Navigator.pop(
           context,
-          existing == null ? created['conversation'] : null,
+          existing == null ? created!['conversation'] : null,
         );
       }
     } catch (e) {
@@ -551,7 +559,7 @@ class _BotEditorState extends State<BotEditor> {
                   onPressed:
                       busy ||
                           !permissionsReady ||
-                          !c.online ||
+                          (widget.existing == null && !c.online) ||
                           (!widget.group &&
                               widget.existing == null &&
                               source == null) ||

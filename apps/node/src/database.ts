@@ -148,7 +148,10 @@ export class NodeDatabase {
       .get(handle, id ?? '');
   }
   conversations() {
-    return this.all<Conversation>('SELECT data FROM conversations');
+    return this.all<Conversation>('SELECT data FROM conversations').map((c) => ({
+      ...c,
+      sessionId: this.hermesSession(c.conversationId)?.storedSessionId,
+    }));
   }
   groups() {
     return this.all<Group>('SELECT data FROM groups').filter((group) => !group.archived);
@@ -309,7 +312,7 @@ export class NodeDatabase {
     this.write('conversation.upserted', conversation, () =>
       this.db
         .prepare(
-          'INSERT INTO conversations(conversation_id,kind,bot_id,group_id,data) VALUES(?,?,?,?,?)',
+          'INSERT INTO conversations(conversation_id,kind,bot_id,group_id,data) VALUES(?,?,?,?,?) ON CONFLICT(conversation_id) DO UPDATE SET data=excluded.data',
         )
         .run(
           conversation.conversationId,
@@ -358,6 +361,7 @@ export class NodeDatabase {
     run?: RunRecord,
     chain?: GroupChainRecord,
   ) {
+    if (metadata.clientMsgId) message.clientMsgId = metadata.clientMsgId;
     const event = this.write(
       'message.upserted',
       message,
@@ -465,6 +469,10 @@ export class NodeDatabase {
         session.replayEpoch,
         session.lastSequence,
       );
+    const conversation = this.conversation(session.conversationId);
+    if (conversation && conversation.sessionId !== session.storedSessionId) {
+      this.putConversation({ ...conversation, sessionId: session.storedSessionId });
+    }
   }
   runs() {
     return [

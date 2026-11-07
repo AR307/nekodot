@@ -879,6 +879,12 @@ export class Routines {
   ) {
     const execution = this.execution(botId, executionId);
     const message = this.database.message('routine-approval:' + executionId + ':' + promptId);
+    if (
+      message?.kind === 'approval' &&
+      message.status === 'done' &&
+      message.content.choice === choice
+    )
+      return {};
     if (message?.kind !== 'approval' || message.status !== 'streaming')
       throw new NodeFault('not_found', 'Routine approval is no longer pending');
     if (!execution.admissionId)
