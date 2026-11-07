@@ -9,6 +9,7 @@ import '../data/client.dart';
 import '../data/json.dart';
 import '../ui/design.dart';
 import '../ui/message_markdown.dart';
+import '../ui/message_selection.dart';
 import '../ui/chat_notice.dart';
 import 'files.dart';
 import 'routines.dart';
@@ -51,8 +52,6 @@ class MessageTile extends StatefulWidget {
 class _MessageTileState extends State<MessageTile> {
   bool hovered = false, focused = false;
 
-  /// What is selected in the message right now.
-  String selected = '';
   NekodotClient get client => widget.client;
   ChatMessage get message => widget.message;
   Json? get bot => widget.bot;
@@ -175,25 +174,9 @@ class _MessageTileState extends State<MessageTile> {
         stopped ||
         body['queue'] != null ||
         body['routine'] != null) {
-      content = SelectionArea(
-        onSelectionChanged: (value) => selected = value?.plainText ?? '',
-        // Selected words can be quoted in the reply, first in the menu.
-        contextMenuBuilder: (context, state) =>
-            AdaptiveTextSelectionToolbar.buttonItems(
-              anchors: state.contextMenuAnchors,
-              buttonItems: [
-                if (widget.onQuote != null && selected.trim().isNotEmpty)
-                  ContextMenuButtonItem(
-                    label: c.tr('引用回复', 'Quote in reply'),
-                    onPressed: () {
-                      final words = selected;
-                      ContextMenuController.removeAny();
-                      widget.onQuote!(words);
-                    },
-                  ),
-                ...state.contextMenuButtonItems,
-              ],
-            ),
+      content = MessageSelection(
+        quoteLabel: c.tr('引用回复', 'Quote in reply'),
+        onQuote: widget.onQuote,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
