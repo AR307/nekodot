@@ -18,6 +18,7 @@ import {
 } from '@nekodot/protocol';
 import type { NodeDatabase } from './database';
 import type { HermesRuntime } from './hermes/runtime';
+import { runProfileCommand } from './hermes/session';
 import type { Notifications } from './notifications';
 import { NodeFault } from './fault';
 import { isNamedPipe } from './bridge';
@@ -611,11 +612,13 @@ export class Routines {
         .map((r) => JSON.parse(String(r.data)) as RoutineExecution)
         .filter((r) => ids.has(r.routineId))
         .map((r) => r.sessionId);
-      const result = await this.hermes.management.rpc<{ output: string }>('command.dispatch', {
-        profile: botId,
-        name: 'nekodot-routine-status',
-        arg: JSON.stringify({ profile: botId, settled }),
-      });
+      const result = await runProfileCommand(
+        this.database,
+        this.hermes,
+        botId,
+        'nekodot-routine-status',
+        { settled },
+      );
       const events = z.array(nativeEvent).parse(JSON.parse(result.output));
       for (const event of events) {
         if (event.botId !== botId) throw new Error('Routine event has the wrong profile');
@@ -822,15 +825,16 @@ export class Routines {
     if (selectedId && !results.some((r) => r.executionId === selectedId))
       results.push(this.execution(botId, selectedId));
     if (!results.length) return { text: '', until, key };
-    const native = await this.hermes.management.rpc<{ output: string }>('command.dispatch', {
-      profile: botId,
-      name: 'nekodot-routine-context',
-      arg: JSON.stringify({
-        profile: botId,
+    const native = await runProfileCommand(
+      this.database,
+      this.hermes,
+      botId,
+      'nekodot-routine-context',
+      {
         sessionId,
         results: results.map((r) => ({ id: r.executionId, text: r.text || r.reason || '' })),
-      }),
-    });
+      },
+    );
     const present = z.array(z.string()).parse(JSON.parse(native.output));
     return {
       until,
@@ -857,11 +861,13 @@ export class Routines {
     const routine = await this.get(botId, routineId);
     const jobId = routine.routine.cronJobId;
     if (!jobId) throw new NodeFault('invalid_params', 'This task has no schedule');
-    const result = await this.hermes.management.rpc<{ output: string }>('command.dispatch', {
-      profile: botId,
-      name: 'nekodot-cron-approval-policy',
-      arg: JSON.stringify({ profile: botId, jobId, policy }),
-    });
+    const result = await runProfileCommand(
+      this.database,
+      this.hermes,
+      botId,
+      'nekodot-cron-approval-policy',
+      { jobId, policy },
+    );
     return JSON.parse(result.output) as CronApprovalPolicy;
   }
 

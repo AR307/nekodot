@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../data/chat_models.dart';
 import '../data/client.dart';
 import '../data/json.dart';
+import '../data/node_data.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
 import '../screen/viewer.dart';
@@ -42,6 +43,8 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> with RouteAware {
   final scroll = LatestScrollController();
+  late final NodeData data;
+  late final String nodeId;
   final composer = GlobalKey<ChatComposerState>();
   double composerHeight = 76;
   bool historyFocused = false;
@@ -55,6 +58,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
 
   /// Reading further up than the latest messages, and whether more arrived.
   bool away = false, missed = false;
+  double readingOffset = 0;
 
   /// Messages from this sequence on arrived after the page opened; a turn
   /// still under way when it opened counts as arriving.
@@ -81,36 +85,47 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   @override
   void initState() {
     super.initState();
+    data = c.node;
+    nodeId = c.selectedNodeId!;
+    data.retainMessages(id);
     c.visibleConversation = id;
     scroll.addListener(onScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final position = c.workspace['scroll:${c.selectedNodeId}:$id'];
-      if (mounted && scroll.hasClients && position is num) {
+    unawaited(
+      restoreMessages().catchError((Object e) {
+        if (mounted && !c.isConnectionFailure(e)) {
+          composer.currentState?.showError('$e');
+        }
+      }),
+    );
+  }
+
+  Future<void> restoreMessages() async {
+    final viewport = data.viewports[id];
+    since = viewport?.since;
+    await c.loadMessages(id, target: nodeId);
+    while (mounted && viewport != null) {
+      final first = data.messages[id]?.firstOrNull;
+      if (first == null || first.seq <= viewport.oldestSeq) break;
+      await c.loadMessages(id, target: nodeId, before: first.seq);
+      if (data.messages[id]?.firstOrNull?.seq == first.seq) break;
+    }
+    if (!mounted) return;
+    baseline = (data.messages[id] ?? const []).fold<int>(
+      0,
+      (top, m) => m.seq > top ? m.seq : top,
+    );
+    final offset = viewport?.offset ?? c.workspace['scroll:$nodeId:$id'];
+    if (offset is num) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (mounted && scroll.hasClients) {
         scroll.jumpTo(
-          position.toDouble().clamp(
+          offset.toDouble().clamp(
             scroll.position.minScrollExtent,
             scroll.position.maxScrollExtent,
           ),
         );
       }
-    });
-    unawaited(
-      c
-          .loadMessages(id)
-          .then((_) {
-            if (!mounted) return;
-            final loaded = c.node.messages[id] ?? const [];
-            baseline = loaded.fold<int>(
-              0,
-              (top, m) => m.seq > top ? m.seq : top,
-            );
-          })
-          .catchError((Object e) {
-            if (mounted && !c.isConnectionFailure(e)) {
-              composer.currentState?.showError('$e');
-            }
-          }),
-    );
+    }
   }
 
   bool fresh(ChatMessage m) {
@@ -120,8 +135,9 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
 
   void onScroll() {
     final position = scroll.position;
-    c.workspace['scroll:${c.selectedNodeId}:$id'] = position.pixels;
+    c.workspace['scroll:$nodeId:$id'] = position.pixels;
     c.saveContent();
+    readingOffset = position.pixels;
     final far =
         position.pixels - position.minScrollExtent >
         LatestScrollController.near;
@@ -154,6 +170,22 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   void dispose() {
     nativeRoutes.unsubscribe(this);
     if (c.visibleConversation == id) c.visibleConversation = null;
+    final first = data.messages[id]?.firstOrNull;
+    if (away && first != null && since != null) {
+      data.viewports[id] = (
+        oldestSeq: first.seq,
+        since: since!,
+        offset: readingOffset,
+      );
+    } else {
+      data.viewports.remove(id);
+    }
+    if (identical(c.nodes[nodeId], data)) {
+      c.saveContent(nodeId, id);
+      // flushContent encodes the open page before releasing its in-memory list.
+      unawaited(c.flushContent());
+    }
+    data.releaseMessages(id);
     scroll.dispose();
     super.dispose();
   }

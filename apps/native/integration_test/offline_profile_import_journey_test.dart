@@ -7,6 +7,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
+import 'package:nekodot_native/features/chat.dart';
 import 'package:nekodot_native/features/files.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/main.dart';
@@ -57,6 +58,8 @@ void main() {
     await until(() => c.connection.ready);
     await tester.runAsync(() => c.selectNode(node));
     await until(() => c.online && find.byType(HomePage).evaluate().isNotEmpty);
+    await tester.tap(find.byKey(ValueKey('conversation-$dm')));
+    await until(() => c.node.messages[dm]?.isNotEmpty == true);
     final botId =
         c.node.conversations.firstWhere(
               (v) => v['conversationId'] == dm,
@@ -101,7 +104,7 @@ void main() {
     }))!;
     expect(archive['fileId'], isNull);
     stage = 'import staged archive in GUI';
-    Navigator.of(tester.element(find.byType(HomePage))).push(
+    Navigator.of(tester.element(find.byType(ChatPage).last)).push(
       MaterialPageRoute<void>(
         builder: (_) =>
             BotEditor(client: c, importProfile: true, initialArchive: archive),
@@ -150,6 +153,12 @@ void main() {
             )['conversationId']
             as String;
     stage = 'real welcome after imported profile';
+    Navigator.of(tester.element(find.byType(ChatPage).last)).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChatPage(client: c, conversationId: importedDm),
+      ),
+    );
+    await until(() => c.node.messages[importedDm] != null);
     await until(
       () => c.node.activities[importedDm]?.state == 'idle',
       seconds: 360,

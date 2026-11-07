@@ -190,7 +190,7 @@ export class BotScreens {
       // Hermes publishes this identity in its native lease; this is not a file integrity check.
       session.viewerHash = createHash('sha256').update(value.viewer_id).digest('hex').slice(0, 12);
       this.publish(request.botId, value);
-      const native = this.hermes.management.displaySocket(value.ticket);
+      const native = await this.hermes.management.displaySocket(value.ticket);
       session.sockets = [relay, native];
       native.on('open', () => relay.resume());
       native.on('error', () => relay.close(1011, 'Hermes screen connection failed'));

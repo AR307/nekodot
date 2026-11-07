@@ -21,6 +21,7 @@ class LocalContent {
 
   File file(String name) => File('${directory.path}/$name');
   Future<Json?> read(String name) async {
+    await _writes;
     final f = file('$name.json');
     if (!await f.exists()) return null;
     return object(jsonDecode(await f.readAsString()));

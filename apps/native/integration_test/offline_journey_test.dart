@@ -163,10 +163,10 @@ void main() {
       await c.rpc('sessions.list', {'botId': bot});
       await c.rpc('routines.list', {'botId': bot});
       await c.rpc('hermes.settings.get', {'botId': bot});
-      await c.loadMessages(dm);
       await c.flushContent();
     });
     await openChat();
+    await until(() => c.node.messages[dm]?.isNotEmpty == true);
     await until(
       () =>
           c.node.activities[dm]?.state == 'idle' ||
@@ -272,8 +272,8 @@ void main() {
           child: NekodotApp(client: c),
         ),
       );
-      await until(() => c.node.messages[dm]?.isNotEmpty == true);
       await openChat();
+      await until(() => c.node.messages[dm]?.isNotEmpty == true);
       expect(tester.widget<TextField>(input).controller!.text, '重启草稿_$marker');
       expect(
         savedIds.every(

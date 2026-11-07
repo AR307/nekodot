@@ -9,7 +9,7 @@ it('replays captured native display state per profile and broadcasts native leas
     apiKey: 'display-replay-key',
     profiles: ['default'],
   });
-  const management = new HermesManagement(fake.url, 'display-replay-key');
+  const management = new HermesManagement(async () => fake.url, 'display-replay-key');
   try {
     const maple = await management.rpc<Record<string, unknown>>('display.status', {
       profile: 'nk-abcdef',

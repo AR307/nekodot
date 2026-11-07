@@ -65,14 +65,6 @@ extension ClientContent on NekodotClient {
               MapEntry(id, ConversationActivity.fromJson(object(activity))),
         ),
       );
-      for (final conversation in snapshot['loaded'] as List? ?? []) {
-        final page = await storage.read('nodes/$id/messages/$conversation');
-        if (page != null) {
-          n.messages[conversation as String] = objects(page['messages'])
-              .map(ChatMessage.fromJson)
-              .toList();
-        }
-      }
     }
     final cached = await storage.read('views');
     if (_closed || session == null || session != account.token) {
@@ -157,7 +149,6 @@ extension ClientContent on NekodotClient {
           'activities': n.activities.map(
             (id, activity) => MapEntry(id, activity.toJson()),
           ),
-          'loaded': n.messages.keys.toList(),
         }),
       );
     }

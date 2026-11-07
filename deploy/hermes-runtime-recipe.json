@@ -1,10 +1,32 @@
 {
   "schema": 1,
-  "version": "v0.22.6-r1",
+  "version": "v0.22.6-r2",
   "hermesVersion": "v0.22.6",
   "commit": "f0d94882e89ab8d4098b5bb2f166adfb9ee0a0ab",
   "extras": ["all"],
   "tools": ["python", "uv", "node", "npm", "ripgrep", "ffmpeg", "git", "chromium", "cua-driver"],
+  "toolArtifacts": {
+    "python": {
+      "win32-x64": {
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.14.9%2B20261021-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+        "sha256": "57cc230da61d897e8e593511c9dac781491675a036cb727b7de5cb7a62ceebea"
+      },
+      "linux-x64": {
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.14.9%2B20261021-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+        "sha256": "561e91c1cadf30e84aec94d1917384ae3267e5f3e6e135e51fd1578bb19f4064"
+      }
+    },
+    "ffmpeg": {
+      "win32-x64": {
+        "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-31-13-27/ffmpeg-n9.0.1-11-ge47273f4d9-win64-gpl-shared-9.0.zip",
+        "sha256": "00d78694632f17a1de325c639d0acf04a6b3ab8f20ce0a2e5bedd2d5e21e3adb"
+      },
+      "linux-x64": {
+        "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-31-13-27/ffmpeg-n9.0.1-11-ge47273f4d9-linux64-gpl-shared-9.0.tar.xz",
+        "sha256": "30801e00d25f823c6da339378ea63c38e5265f237741909e1d6164b6b5bd3d33"
+      }
+    }
+  },
   "patches": [
     {
       "file": "webhook-listener.patch",

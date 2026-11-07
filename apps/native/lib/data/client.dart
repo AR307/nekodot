@@ -303,10 +303,29 @@ class NekodotClient extends ChangeNotifier {
   }) async {
     final id = target ?? selectedNodeId!;
     final n = nodes.putIfAbsent(id, NodeData.new);
-    if ((!connection.ready || !n.online) &&
-        n.messages.containsKey(conversationId)) {
-      return;
+    final opened = n.messages[conversationId];
+    if (opened == null) return;
+    if (opened.isEmpty) {
+      final cached = await store?.read('nodes/$id/messages/$conversationId');
+      if (_closed ||
+          !identical(nodes[id], n) ||
+          !identical(n.messages[conversationId], opened)) {
+        return;
+      }
+      if (cached != null) {
+        final merged = <String, ChatMessage>{
+          for (final m in objects(cached['messages']).map(ChatMessage.fromJson))
+            m.messageId: m,
+          for (final m in opened) m.messageId: m,
+        };
+        opened
+          ..clear()
+          ..addAll(merged.values)
+          ..sort((a, b) => a.seq.compareTo(b.seq));
+        n.changed(conversationId);
+      }
     }
+    if ((!connection.ready || !n.online) && opened.isNotEmpty) return;
     final result = await rpc('messages.list', {
       'conversationId': conversationId,
       'limit': 50,
@@ -314,14 +333,18 @@ class NekodotClient extends ChangeNotifier {
       'aroundMessageId': ?around,
     }, id);
     if (_closed || !identical(nodes[id], n)) return;
-    final previous = n.messages[conversationId] ?? [];
+    // A response for a page that has closed must not recreate its cache.
+    if (!identical(n.messages[conversationId], opened)) return;
+    final previous = opened;
     final merged = <String, ChatMessage>{
       for (final m in previous) m.messageId: m,
     };
     for (final m in objects(result['messages'])) {
       merged[m['messageId'] as String] = ChatMessage.fromJson(m);
     }
-    n.messages[conversationId] = merged.values.toList()
+    opened
+      ..clear()
+      ..addAll(merged.values)
       ..sort((a, b) => (a.seq).compareTo(b.seq));
     n.changed(conversationId, summary: true);
     saveContent(id, conversationId);

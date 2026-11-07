@@ -33,6 +33,8 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
   StreamSubscription<ScreenFrame>? subscription;
   Timer? poll, retry;
   ui.Image? image;
+  (ScreenFrame, String)? pendingFrame;
+  bool decoding = false;
   String error = '';
   bool connected = false, active = true, busy = false, typing = false;
   int attempts = 0, buttons = 0;
@@ -111,26 +113,8 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
                 );
                 return;
               }
-              ui.decodeImageFromPixels(
-                frame.pixels,
-                frame.width,
-                frame.height,
-                ui.PixelFormat.bgra8888,
-                (value) {
-                  if (!mounted || identity != viewer) {
-                    value.dispose();
-                    return;
-                  }
-                  final previous = image;
-                  setState(() {
-                    image = value;
-                    connected = true;
-                    error = '';
-                    attempts = 0;
-                  });
-                  previous?.dispose();
-                },
-              );
+              pendingFrame = (frame, identity);
+              decodeLatest();
             },
             onError: (Object e) {
               if (viewer == identity) disconnected('$e');
@@ -151,11 +135,41 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
     }
   }
 
+  void decodeLatest() {
+    if (decoding || pendingFrame == null) return;
+    final (frame, identity) = pendingFrame!;
+    pendingFrame = null;
+    decoding = true;
+    ui.decodeImageFromPixels(
+      frame.pixels,
+      frame.width,
+      frame.height,
+      ui.PixelFormat.bgra8888,
+      (value) {
+        decoding = false;
+        if (!mounted || identity != viewer) {
+          value.dispose();
+        } else {
+          final previous = image;
+          setState(() {
+            image = value;
+            connected = true;
+            error = '';
+            attempts = 0;
+          });
+          previous?.dispose();
+        }
+        decodeLatest();
+      },
+    );
+  }
+
   void disconnected(String reason, {bool retryConnection = true}) {
     if (!mounted) return;
     subscription?.cancel();
     subscription = null;
     viewer = null;
+    pendingFrame = null;
     setState(() {
       connected = false;
       error = reason;
@@ -211,6 +225,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
       );
     }
     viewer = null;
+    pendingFrame = null;
     connected = false;
     subscription?.cancel();
     subscription = null;

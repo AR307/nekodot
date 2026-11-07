@@ -149,9 +149,7 @@ void main() {
       await until(() => c.connection.ready);
       await tester.runAsync(() => c.selectNode(node));
       await until(() => c.online);
-      await tester.runAsync(() => c.loadMessages(dm));
     }
-    await until(() => c.node.messages[dm]?.isNotEmpty == true);
     await until(() => find.byType(HomePage).evaluate().isNotEmpty);
     final input = find.byKey(const ValueKey('chat-input'));
     if (input.evaluate().isEmpty) {
@@ -162,6 +160,7 @@ void main() {
       );
     }
     await until(() => input.evaluate().isNotEmpty);
+    await until(() => c.node.messages[dm]?.isNotEmpty == true);
     Future<void> send(String words) async {
       await tester.tap(input);
       await tester.pump(const Duration(milliseconds: 200));

@@ -114,7 +114,11 @@ void main() {
       const String.fromEnvironment('QA_PASSWORD'),
     );
     await tester.runAsync(() => c.selectNode(node));
-    await tester.runAsync(() => c.loadMessages(dm));
+    await until(
+      () => find.byKey(ValueKey('conversation-$dm')).evaluate().isNotEmpty,
+    );
+    await tester.tap(find.byKey(ValueKey('conversation-$dm')));
+    await until(() => c.node.messages[dm]?.isNotEmpty == true);
     expect(c.deliveries.items, isEmpty);
     expect(
       (c.node.messages[dm] ?? []).where(
