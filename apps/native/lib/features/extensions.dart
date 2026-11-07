@@ -27,8 +27,15 @@ class ExtensionsPage extends StatefulWidget {
 
 class _ExtensionsPageState extends State<ExtensionsPage> {
   late String kind = widget.kind;
+  final search = TextEditingController();
   String query = '';
   int revision = 0;
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = widget.client;
@@ -94,30 +101,16 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               reload();
             },
           );
-          if (glass) {
-            return PageList(
-              children: [
-                TextField(
-                  onChanged: (value) =>
-                      setState(() => query = value.toLowerCase()),
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search),
-                    hintText: c.tr('搜索', 'Search'),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                PanelGroup(children: entries.map(tile).toList()),
-              ],
-            );
-          }
           return LayoutBuilder(
             builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 720 ? 2 : 1;
+              final columns = !glass && constraints.maxWidth >= 720 ? 2 : 1;
               final rows = (entries.length / columns).ceil();
               return ListView.builder(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.fromLTRB(
                   14,
-                  8,
+                  glass ? MediaQuery.paddingOf(context).top + 12 : 8,
                   14,
                   MediaQuery.paddingOf(context).bottom + 24,
                 ),
@@ -127,6 +120,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
                       child: TextField(
+                        controller: search,
                         onChanged: (value) =>
                             setState(() => query = value.toLowerCase()),
                         decoration: InputDecoration(

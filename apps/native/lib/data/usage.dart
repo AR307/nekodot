@@ -28,7 +28,7 @@ class UsageEntry {
       percent = (json['percent'] as num?)?.toDouble() ?? 0,
       amount = UsageAmount(json);
   String get title => entity['kind'] == 'routine'
-      ? '${entity['ownerName']} / ${entity['name']}'
+      ? '${entity['ownerName']} · ${entity['name']}'
       : '${entity['name']}';
 }
 

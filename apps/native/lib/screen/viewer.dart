@@ -436,7 +436,9 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 200),
                 decoration: ShapeDecoration(
                   shape: RoundedSuperellipseBorder(
                     borderRadius: BorderRadius.circular(10),
