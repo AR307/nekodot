@@ -28,6 +28,9 @@ class MessageTile extends StatefulWidget {
   final Json? bot;
   final bool continued, showName, working;
   final ValueChanged<String> onRetry;
+
+  /// Takes words selected in the message into the composer as a quote.
+  final ValueChanged<String>? onQuote;
   const MessageTile({
     super.key,
     required this.client,
@@ -39,6 +42,7 @@ class MessageTile extends StatefulWidget {
     this.showName = false,
     this.working = false,
     required this.onRetry,
+    this.onQuote,
   });
   @override
   State<MessageTile> createState() => _MessageTileState();
@@ -46,6 +50,9 @@ class MessageTile extends StatefulWidget {
 
 class _MessageTileState extends State<MessageTile> {
   bool hovered = false, focused = false;
+
+  /// What is selected in the message right now.
+  String selected = '';
   NekodotClient get client => widget.client;
   ChatMessage get message => widget.message;
   Json? get bot => widget.bot;
@@ -169,6 +176,24 @@ class _MessageTileState extends State<MessageTile> {
         body['queue'] != null ||
         body['routine'] != null) {
       content = SelectionArea(
+        onSelectionChanged: (value) => selected = value?.plainText ?? '',
+        // Selected words can be quoted in the reply, first in the menu.
+        contextMenuBuilder: (context, state) =>
+            AdaptiveTextSelectionToolbar.buttonItems(
+              anchors: state.contextMenuAnchors,
+              buttonItems: [
+                if (widget.onQuote != null && selected.trim().isNotEmpty)
+                  ContextMenuButtonItem(
+                    label: c.tr('引用回复', 'Quote in reply'),
+                    onPressed: () {
+                      final words = selected;
+                      ContextMenuController.removeAny();
+                      widget.onQuote!(words);
+                    },
+                  ),
+                ...state.contextMenuButtonItems,
+              ],
+            ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

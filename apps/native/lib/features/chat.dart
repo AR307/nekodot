@@ -41,7 +41,7 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> with RouteAware {
-  final scroll = ScrollController();
+  final scroll = LatestScrollController();
   final composer = GlobalKey<ChatComposerState>();
   double composerHeight = 76;
   String? focusedMessage;
@@ -54,6 +54,10 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
 
   /// Reading further up than the latest messages, and whether more arrived.
   bool away = false, missed = false;
+
+  /// Messages from this sequence on arrived after the page opened; a turn
+  /// still under way when it opened counts as arriving.
+  int? since;
   NekodotClient get c => widget.client;
   String get id => widget.conversationId;
   @override
@@ -95,12 +99,15 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   }
 
   bool fresh(ChatMessage m) {
-    final since = baseline;
-    return since != null && m.seq > since && shown.add(m.messageId);
+    final start = baseline;
+    return start != null && m.seq > start && shown.add(m.messageId);
   }
 
   void onScroll() {
-    final far = scroll.hasClients && scroll.offset > 64;
+    final position = scroll.position;
+    final far =
+        position.pixels - position.minScrollExtent >
+        LatestScrollController.near;
     if (far != away) {
       setState(() {
         away = far;
@@ -109,16 +116,20 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
     }
   }
 
-  void toLatest() {
+  Future<void> toLatest() async {
     if (!scroll.hasClients) return;
-    if (MediaQuery.disableAnimationsOf(context)) {
-      scroll.jumpTo(0);
-    } else {
-      scroll.animateTo(
-        0,
+    if (!MediaQuery.disableAnimationsOf(context)) {
+      await scroll.animateTo(
+        scroll.position.minScrollExtent,
         duration: const Duration(milliseconds: 320),
         curve: Curves.easeOutCubic,
       );
+    }
+    // What arrived during the motion lies below where it ended.
+    if (mounted &&
+        scroll.hasClients &&
+        !scroll.position.isScrollingNotifier.value) {
+      scroll.jumpTo(scroll.position.minScrollExtent);
     }
   }
 
@@ -136,14 +147,14 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
     setState(() => focusedMessage = messageId);
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted || !scroll.hasClients) return;
-    scroll.jumpTo(0);
+    scroll.jumpTo(scroll.position.minScrollExtent);
     await WidgetsBinding.instance.endOfFrame;
     while (mounted &&
         focusedKey.currentContext == null &&
         scroll.offset < scroll.position.maxScrollExtent) {
       await scroll.animateTo(
         (scroll.offset + scroll.position.viewportDimension * .8).clamp(
-          0.0,
+          scroll.position.minScrollExtent,
           scroll.position.maxScrollExtent,
         ),
         duration: const Duration(milliseconds: 80),
@@ -196,7 +207,11 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
           tone = context.tone;
       void openDetails() {
         if (group != null) {
-          pushPage(context, BotEditor(client: c, group: true, existing: group));
+          openPage(
+            context,
+            BotEditor(client: c, group: true, existing: group),
+            form: true,
+          );
         } else if (bot != null) {
           if (widget.onDetails != null) {
             widget.onDetails!(bot);
@@ -353,7 +368,29 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       final newest = messages.lastOrNull?.seq;
       if (newest != null && newest > (seenSeq ?? newest)) missed = away;
       seenSeq = newest;
+      if (since == null && messages.isNotEmpty) {
+        final asked = messages.lastIndexWhere((m) => m.author.type == 'user');
+        since = working && asked + 1 < messages.length
+            ? messages[asked + 1].seq
+            : messages.last.seq + 1;
+      }
       final still = MediaQuery.disableAnimationsOf(context);
+      final asked = messages
+          .where(
+            (m) =>
+                m.author.type == 'user' &&
+                '${m.content['text'] ?? ''}'.trim().isNotEmpty,
+          )
+          .lastOrNull;
+      // Without the quoted lines it answers, if it quoted any.
+      final lastAsked = asked == null
+          ? null
+          : '${asked.content['text']}'
+                .split('\n')
+                .where((line) => !line.startsWith('>'))
+                .join(' ')
+                .replaceAll(RegExp(r'\s+'), ' ')
+                .trim();
       return Scaffold(
         extendBodyBehindAppBar: true,
         appBar: header,
@@ -378,7 +415,38 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 focusedKey: focusedKey,
                 onRetry: (text) => composer.currentState?.editDraft(text),
                 onError: (value) => composer.currentState?.showError(value),
+                onQuote: (words) => composer.currentState?.quote(words),
                 fresh: fresh,
+                since: since,
+              ),
+            // While you read further up, what you last asked stays in sight
+            // under the bar; tapping it returns to the latest.
+            if (lastAsked != null)
+              Builder(
+                builder: (context) => Positioned(
+                  top: MediaQuery.paddingOf(context).top + 4,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: IgnorePointer(
+                      ignoring: !away,
+                      child: AnimatedOpacity(
+                        opacity: away ? 1 : 0,
+                        duration: still
+                            ? Duration.zero
+                            : const Duration(milliseconds: 180),
+                        child: AnimatedSlide(
+                          offset: away ? Offset.zero : const Offset(0, -.3),
+                          duration: still
+                              ? Duration.zero
+                              : const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          child: AskedPill(text: lastAsked, onTap: toLatest),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             Positioned(
               left: 0,
@@ -425,7 +493,9 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                   view: view,
                   onSent: () {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (scroll.hasClients) scroll.jumpTo(0);
+                      if (scroll.hasClients) {
+                        scroll.jumpTo(scroll.position.minScrollExtent);
+                      }
                     });
                   },
                 ),
@@ -489,6 +559,54 @@ class LatestButton extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// What you last asked, as a quiet pill under the bar.
+class AskedPill extends StatelessWidget {
+  final String text;
+  final VoidCallback onTap;
+  const AskedPill({super.key, required this.text, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 340),
+      child: DecoratedBox(
+        decoration: ShapeDecoration(
+          color: tone.surface,
+          shape: const StadiumBorder(),
+          shadows: tone.rest,
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            key: const ValueKey('chat-asked'),
+            customBorder: const StadiumBorder(),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 6, 14, 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.south_rounded, size: 14, color: tone.ink3),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: tone.ink2),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

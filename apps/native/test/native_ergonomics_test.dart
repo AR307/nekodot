@@ -119,16 +119,20 @@ void main() {
     Focus.of(tester.element(find.byKey(const ValueKey('chat-messages'))))
         .requestFocus();
     await tester.pump();
-    final list = tester.widget<ListView>(
+    final list = tester.widget<ScrollView>(
       find.byKey(const ValueKey('chat-messages')),
     );
     final position = list.controller!.position;
     await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
     await tester.pumpAndSettle();
-    expect(position.pixels, greaterThan(0));
+    expect(position.pixels, greaterThan(position.minScrollExtent));
+    final reading = position.pixels;
     await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
     await tester.pumpAndSettle();
-    expect(position.pixels, closeTo(0, 1));
+    expect(position.pixels, lessThan(reading));
+    await tester.tap(find.byKey(const ValueKey('chat-latest')));
+    await tester.pumpAndSettle();
+    expect(position.pixels, closeTo(position.minScrollExtent, 1));
     expect(tester.widget<TextField>(input).controller!.text, 'Unsent draft');
     await tester.pumpWidget(const SizedBox.shrink());
     client.dispose();
