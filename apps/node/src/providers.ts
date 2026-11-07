@@ -125,7 +125,14 @@ export class Providers {
         },
       },
     });
+    if (previous) await this.reapply(previous.sourceId);
     return this.source('custom:' + id);
+  }
+
+  /** Profiles hold a copy of their source; a changed source reaches its Bots here, not per run. */
+  private async reapply(sourceId: string) {
+    for (const bot of this.database.bots())
+      if (!bot.archived && bot.sourceId === sourceId) await this.configureBot(bot);
   }
 
   async authorize(
@@ -151,7 +158,10 @@ export class Providers {
       base + provider + '/poll/' + session,
       'default',
     );
-    if (input.action === 'poll') return status;
+    if (input.action === 'poll') {
+      if (status.status === 'approved') await this.reapply('oauth:' + input.provider);
+      return status;
+    }
     return this.hermes.management.request(base + 'sessions/' + session, 'default', {
       method: 'DELETE',
     });

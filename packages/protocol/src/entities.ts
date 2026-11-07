@@ -80,6 +80,8 @@ const textContent = z.strictObject({
   text: z.string(),
   files: z.array(z.uuid()).optional(),
   failureReason: z.string().optional(),
+  /** Clients show their own localized copy for these run-start failures. */
+  failureCode: z.enum(['run_start', 'timeout']).optional(),
   welcome: z.literal(true).optional(),
   queue: z.enum(['queued', 'running', 'cancelled', 'steered']).optional(),
   routine: z

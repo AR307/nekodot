@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -474,6 +474,15 @@ class _FileViewerState extends State<FileViewer> {
       } else {
         await openAttachment(path, chooseApp: action == 'openWith');
       }
+    } on PlatformException catch (e) {
+      copy = null;
+      final message = e.code == 'blocked_type'
+          ? client.tr(
+              '程序和脚本不能直接打开',
+              "Programs and scripts can't be opened directly",
+            )
+          : e.message ?? e.code;
+      if (mounted) setState(() => error = message);
     } catch (e) {
       copy = null;
       if (mounted) setState(() => error = '$e');
