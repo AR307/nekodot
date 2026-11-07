@@ -121,7 +121,7 @@ class _SharedUserMemoryPageState extends State<SharedUserMemoryPage> {
               children: [
                 for (final item in imports)
                   ExpansionTile(
-                    title: Text('${item['name']} · ${item['botId']}'),
+                    title: MetaText(['${item['name']}', '${item['botId']}']),
                     childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     children: [SelectableText('${item['content']}')],
                   ),
@@ -139,10 +139,10 @@ class _SharedUserMemoryPageState extends State<SharedUserMemoryPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '${item['name']} · ${item['botId']}',
-                          style: small,
-                        ),
+                        MetaText([
+                          '${item['name']}',
+                          '${item['botId']}',
+                        ], style: small),
                         const SizedBox(height: 10),
                         Text(c.tr('修改前', 'Before'), style: label),
                         SelectableText('${item['base']}'),
@@ -233,7 +233,7 @@ class _SharedUserMemoryPageState extends State<SharedUserMemoryPage> {
                   state?['imports'],
                 ).where((v) => v['reviewed'] == true))
                   ListTile(
-                    title: Text('${item['name']} · USER.md'),
+                    title: MetaText(['${item['name']}', 'USER.md']),
                     subtitle: SelectableText('${item['content']}'),
                   ),
                 for (final item in objects(

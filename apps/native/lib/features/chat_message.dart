@@ -9,11 +9,15 @@ import '../data/client.dart';
 import '../data/json.dart';
 import '../ui/design.dart';
 import '../ui/message_markdown.dart';
+import '../ui/message_selection.dart';
 import '../ui/chat_notice.dart';
 import 'files.dart';
 import 'routines.dart';
 import 'secrets.dart';
 import 'work.dart';
+
+/// One line of a bubble is a pill; longer bubbles keep the same round corners.
+const _bubbleRadius = 18.0;
 
 class MessageTile extends StatefulWidget {
   final NekodotClient client;
@@ -25,6 +29,9 @@ class MessageTile extends StatefulWidget {
   final Json? bot;
   final bool continued, showName, working;
   final ValueChanged<String> onRetry;
+
+  /// Takes words selected in the message into the composer as a quote.
+  final ValueChanged<String>? onQuote;
   const MessageTile({
     super.key,
     required this.client,
@@ -36,6 +43,7 @@ class MessageTile extends StatefulWidget {
     this.showName = false,
     this.working = false,
     required this.onRetry,
+    this.onQuote,
   });
   @override
   State<MessageTile> createState() => _MessageTileState();
@@ -43,6 +51,7 @@ class MessageTile extends StatefulWidget {
 
 class _MessageTileState extends State<MessageTile> {
   bool hovered = false, focused = false;
+
   NekodotClient get client => widget.client;
   ChatMessage get message => widget.message;
   Json? get bot => widget.bot;
@@ -165,7 +174,9 @@ class _MessageTileState extends State<MessageTile> {
         stopped ||
         body['queue'] != null ||
         body['routine'] != null) {
-      content = SelectionArea(
+      content = MessageSelection(
+        quoteLabel: c.tr('引用回复', 'Quote in reply'),
+        onQuote: widget.onQuote,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -173,8 +184,8 @@ class _MessageTileState extends State<MessageTile> {
               Text(
                 switch (body['queue']) {
                   'queued' => c.tr(
-                    '已排队 · 当前任务完成后执行',
-                    'Queued · runs after the current turn',
+                    '已排队，当前任务完成后执行',
+                    'Queued, runs after the current turn',
                   ),
                   'running' => c.tr('队列任务', 'Queued task'),
                   'steered' => c.tr('已交给当前任务', 'Sent to the current turn'),
@@ -202,7 +213,7 @@ class _MessageTileState extends State<MessageTile> {
                 style: user
                     ? TextButton.styleFrom(foregroundColor: tone.base)
                     : null,
-                label: Text(c.tr('例行任务 · 查看执行', 'Routine · view execution')),
+                label: Text(c.tr('查看例行任务执行', 'View routine run')),
               ),
             MessageMarkdown(
               data: '$text${streaming ? ' •' : ''}',
@@ -283,13 +294,13 @@ class _MessageTileState extends State<MessageTile> {
               if (content != null)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 11,
-                    vertical: 7,
+                    horizontal: 14,
+                    vertical: 8,
                   ),
                   decoration: ShapeDecoration(
                     color: tone.ink,
                     shape: RoundedSuperellipseBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(_bubbleRadius),
                     ),
                   ),
                   child: content,
@@ -300,7 +311,9 @@ class _MessageTileState extends State<MessageTile> {
         ),
       );
     }
-    final copy = !card && !streaming && text.trim().isNotEmpty
+    // Beside the bubble on hover, so it never adds a line under each reply. A
+    // phone has no hover; its text is selected and copied in place instead.
+    final copy = !tone.glass && !card && !streaming && text.trim().isNotEmpty
         ? Opacity(
             opacity: hovered || focused ? 1 : 0,
             child: IgnorePointer(
@@ -330,32 +343,14 @@ class _MessageTileState extends State<MessageTile> {
           ? const CatAvatar(color: '#8C8376', size: 24)
           : CatAvatar.of(bot!, size: 24, working: working),
     );
-    if (tone.glass) {
-      return Padding(
-        padding: EdgeInsets.only(top: continued || compact ? 4 : 14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            avatar,
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [?name, ?content, ...attachments, ?copy],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
     final bubble = content == null || card
         ? content
         : Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: ShapeDecoration(
               color: tone.bubble,
               shape: RoundedSuperellipseBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(_bubbleRadius),
               ),
             ),
             child: content,
@@ -365,16 +360,27 @@ class _MessageTileState extends State<MessageTile> {
       children: [
         ?name,
         if (bubble != null)
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 620),
-            child: bubble,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Flexible(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 620),
+                  child: bubble,
+                ),
+              ),
+              if (copy != null) ...[const SizedBox(width: 4), copy],
+            ],
           ),
         ...attachments,
-        ?copy,
       ],
     );
     return Padding(
-      padding: EdgeInsets.only(top: continued || compact ? 3 : 12, right: 40),
+      padding: EdgeInsets.only(
+        top: continued || compact ? 3 : 12,
+        right: tone.glass ? 28 : 8,
+      ),
       child: !showName
           ? Align(alignment: Alignment.centerLeft, child: column)
           : Row(
@@ -549,9 +555,14 @@ class _ControlCardState extends State<ControlCard> {
                       size: 14,
                       color: tone.ink3,
                     ),
-              label: pending
-                  ? c.tr('等你确认 · $command', 'Needs your OK · $command')
-                  : '${answered == null ? c.tr('未回答', 'Not answered') : label(answered)} · $command',
+              label: [
+                pending
+                    ? c.tr('等你确认', 'Needs your OK')
+                    : answered == null
+                    ? c.tr('未回答', 'Not answered')
+                    : label(answered),
+                command,
+              ],
               style: TextStyle(
                 fontFamily: monoFont,
                 fontSize: 12,

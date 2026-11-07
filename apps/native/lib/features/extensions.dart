@@ -279,10 +279,10 @@ class _ExtensionPageState extends State<ExtensionPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('${entry['description']}', style: text.bodyMedium),
-                      Text(
-                        '${entry['source']} · ${entry['category']}',
-                        style: text.labelMedium,
-                      ),
+                      MetaText([
+                        '${entry['source']}',
+                        '${entry['category']}',
+                      ], style: text.labelMedium),
                     ],
                   ),
                 ),
@@ -487,7 +487,7 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
           if (mounted) {
             setState(
               () => uploadProgress =
-                  '${files.indexOf(file) + 1}/${files.length} · ${file.name}',
+                  '${files.indexOf(file) + 1}/${files.length}  ${file.name}',
             );
           }
         }

@@ -24,12 +24,14 @@ class ChatComposer extends StatefulWidget {
   final String conversationId;
   final ChatPresentation view;
   final VoidCallback onSent;
+  final bool historyFocused;
   const ChatComposer({
     super.key,
     required this.client,
     required this.conversationId,
     required this.view,
     required this.onSent,
+    this.historyFocused = false,
   });
   @override
   State<ChatComposer> createState() => ChatComposerState();
@@ -69,6 +71,8 @@ class ChatComposerState extends State<ChatComposer> {
     input.text = c.drafts[draftKey] ?? '';
     void changed() {
       c.drafts[draftKey] = input.text;
+      // Moving the caret can enter or leave an @ token without editing text.
+      setState(() {});
       if (input.text.startsWith('/') && commandBotId == null) {
         final conversation = c.node.conversations
             .where((x) => x['conversationId'] == id)
@@ -92,6 +96,7 @@ class ChatComposerState extends State<ChatComposer> {
   @override
   void dispose() {
     input.dispose();
+    field.dispose();
     super.dispose();
   }
 
@@ -104,8 +109,23 @@ class ChatComposerState extends State<ChatComposer> {
     setState(() => error = value);
   }
 
+  /// Words from a reply that the next message answers.
+  String? quoted;
+  final field = FocusNode();
+
+  void quote(String words) {
+    setState(() => quoted = words.trim());
+    field.requestFocus();
+  }
+
+  /// The message as sent: the quote first, as Markdown, then your words.
+  String withQuote(String text) => quoted == null || text.startsWith('/')
+      ? text
+      : '${quoted!.split('\n').map((line) => '> $line').join('\n')}\n\n$text';
+
   Future<void> send() async {
     final text = input.text.trim();
+    final sentQuote = quoted;
     if ((text.isEmpty && attached.isEmpty) ||
         sending ||
         savingReasoning ||
@@ -118,13 +138,14 @@ class ChatComposerState extends State<ChatComposer> {
       return;
     }
     final key = draftKey, nodeId = c.selectedNodeId;
+    final messageText = withQuote(text);
     final files = attached.map((file) => '${file['fileId']}').toList();
     final routineId = routineDraft?['executionId'];
     setState(() {
       sending = true;
       error = '';
     });
-    final fingerprint = '$text|${files.join(',')}|$routineId';
+    final fingerprint = '$messageText|${files.join(',')}|$routineId';
     if (pendingText != fingerprint) {
       pendingText = fingerprint;
       pendingId = uid();
@@ -136,7 +157,7 @@ class ChatComposerState extends State<ChatComposer> {
         {
           'conversationId': id,
           if (command) 'botId': commandBotId,
-          command ? 'command' : 'text': text,
+          command ? 'command' : 'text': messageText,
           'clientMsgId': pendingId,
           if (!command && files.isNotEmpty) 'files': files,
           if (!command && routineId != null) 'routineExecutionId': routineId,
@@ -153,6 +174,7 @@ class ChatComposerState extends State<ChatComposer> {
       }
       if (!command && c.drafts[key]?.trim() == text) c.drafts[key] = '';
       if (!mounted) return;
+      if (!command && quoted == sentQuote) setState(() => quoted = null);
       // A user can already be drafting the next instruction while RPC returns.
       if (!command && input.text.trim() == text) input.clear();
       if (command) {
@@ -355,10 +377,10 @@ class ChatComposerState extends State<ChatComposer> {
       child: TextField(
         key: const ValueKey('chat-input'),
         controller: input,
+        focusNode: field,
         minLines: 1,
         maxLines: 7,
         textCapitalization: TextCapitalization.sentences,
-        onChanged: (_) => setState(() {}),
         decoration: InputDecoration(
           filled: false,
           isDense: true,
@@ -472,6 +494,15 @@ class ChatComposerState extends State<ChatComposer> {
         ],
       ],
     );
+    // The name being typed after an @, while it is still being typed.
+    final caret = input.selection.isValid
+        ? input.selection.extentOffset
+        : input.text.length;
+    final mentioning = input.selection.isCollapsed
+        ? RegExp(r'(?:^|\s)@(\S*)$')
+              .firstMatch(input.text.substring(0, caret))
+              ?.group(1)
+        : null;
     final composer = SafeArea(
       top: false,
       child: Padding(
@@ -482,133 +513,138 @@ class ChatComposerState extends State<ChatComposer> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (error.isNotEmpty) ErrorNotice(error),
-                if (routineDraft != null)
-                  InputChip(
-                    key: const ValueKey('routine-followup-chip'),
-                    avatar: const Icon(Icons.schedule, size: 16),
-                    label: Text(
-                      '${routineDraft!['name']}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    onDeleted: sending
-                        ? null
-                        : () =>
-                              setState(() => c.routineDrafts.remove(draftKey)),
-                  ),
-                if (uploading) ...[
-                  const LinearProgressIndicator(minHeight: 2),
-                  Text(
-                    uploadProgress,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-                if (attached.isNotEmpty)
-                  Wrap(
-                    spacing: 6,
+                // What appears above the box grows into place instead of
+                // pushing the box up in one jump.
+                SizeMotion(
+                  duration: const Duration(milliseconds: 180),
+                  alignment: Alignment.bottomCenter,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      for (final file in attached)
+                      if (error.isNotEmpty) ErrorNotice(error),
+                      if (routineDraft != null)
                         InputChip(
-                          avatar: Icon(
-                            '${file['mime']}'.startsWith('image/')
-                                ? Icons.image_outlined
-                                : Icons.description_outlined,
-                            size: 16,
-                          ),
+                          key: const ValueKey('routine-followup-chip'),
+                          avatar: const Icon(Icons.schedule, size: 16),
                           label: Text(
-                            '${file['name']} · ${fileSize(file['size'] as num)}',
+                            '${routineDraft!['name']}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           onDeleted: sending
                               ? null
                               : () => setState(
-                                  () => c.attachmentDrafts[draftKey]?.remove(
-                                    file,
+                                  () => c.routineDrafts.remove(draftKey),
+                                ),
+                        ),
+                      if (uploading) ...[
+                        const LinearProgressIndicator(minHeight: 2),
+                        Text(
+                          uploadProgress,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      if (attached.isNotEmpty)
+                        Wrap(
+                          spacing: 6,
+                          children: [
+                            for (final file in attached)
+                              InputChip(
+                                avatar: Icon(
+                                  '${file['mime']}'.startsWith('image/')
+                                      ? Icons.image_outlined
+                                      : Icons.description_outlined,
+                                  size: 16,
+                                ),
+                                label: MetaText([
+                                  '${file['name']}',
+                                  fileSize(file['size'] as num),
+                                ]),
+                                onDeleted: sending
+                                    ? null
+                                    : () => setState(
+                                        () => c.attachmentDrafts[draftKey]
+                                            ?.remove(file),
+                                      ),
+                              ),
+                          ],
+                        ),
+                      if (commandOperation?.status == 'running')
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: ShiningText(
+                                  text: c.tr(
+                                    'Hermes 指令执行中…',
+                                    'Running Hermes command…',
                                   ),
                                 ),
+                              ),
+                              if (error.isNotEmpty)
+                                TextButton(
+                                  onPressed: () =>
+                                      followCommand(commandOperation!),
+                                  child: Text(c.tr('查看结果', 'Check result')),
+                                ),
+                            ],
+                          ),
+                        ),
+                      if (input.text.startsWith('/') &&
+                          commandBotId != null &&
+                          !input.text.contains(RegExp(r'\s')))
+                        CommandPalette(
+                          client: c,
+                          entries: commands,
+                          members: members,
+                          query: input.text,
+                          botId: commandBotId!,
+                          loading: loadingCommands,
+                          onBot: loadCommands,
+                          onRefresh: () => loadCommands(commandBotId!),
+                          onSelect: (name) {
+                            input.text = '$name ';
+                            input.selection = TextSelection.collapsed(
+                              offset: input.text.length,
+                            );
+                            setState(() {});
+                          },
+                        ),
+                      if (state == 'unknown')
+                        ErrorNotice(
+                          c.tr(
+                            '执行已中断。请先点击停止确认，再发送新任务；已完成的操作会保留。',
+                            'Click Stop to acknowledge the interrupted execution before sending a new task. Completed effects are kept.',
+                          ),
+                        ),
+                      if (quoted != null)
+                        QuoteChip(
+                          text: quoted!,
+                          tooltip: c.tr('取消', 'Cancel'),
+                          onClear: () => setState(() => quoted = null),
+                        ),
+                      if (group != null && mentioning != null)
+                        MentionCard(
+                          query: mentioning,
+                          members: members,
+                          everyone: c.tr('所有成员', 'Everyone'),
+                          onPick: (handle) {
+                            final start = caret - mentioning.length - 1;
+                            field.requestFocus();
+                            input.value = TextEditingValue(
+                              text:
+                                  '${input.text.substring(0, start)}@$handle ${input.text.substring(caret)}',
+                              selection: TextSelection.collapsed(
+                                offset: start + handle.length + 2,
+                              ),
+                            );
+                          },
                         ),
                     ],
                   ),
-                if (commandOperation?.status == 'running')
-                  Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ShiningText(
-                            text: c.tr(
-                              'Hermes 指令执行中…',
-                              'Running Hermes command…',
-                            ),
-                          ),
-                        ),
-                        if (error.isNotEmpty)
-                          TextButton(
-                            onPressed: () => followCommand(commandOperation!),
-                            child: Text(c.tr('查看结果', 'Check result')),
-                          ),
-                      ],
-                    ),
-                  ),
-                if (input.text.startsWith('/') &&
-                    commandBotId != null &&
-                    !input.text.contains(RegExp(r'\s')))
-                  CommandPalette(
-                    client: c,
-                    entries: commands,
-                    members: members,
-                    query: input.text,
-                    botId: commandBotId!,
-                    loading: loadingCommands,
-                    onBot: loadCommands,
-                    onRefresh: () => loadCommands(commandBotId!),
-                    onSelect: (name) {
-                      input.text = '$name ';
-                      input.selection = TextSelection.collapsed(
-                        offset: input.text.length,
-                      );
-                      setState(() {});
-                    },
-                  ),
-                if (state == 'unknown')
-                  ErrorNotice(
-                    c.tr(
-                      '执行已中断。请先点击停止确认，再发送新任务；已完成的操作会保留。',
-                      'Click Stop to acknowledge the interrupted execution before sending a new task. Completed effects are kept.',
-                    ),
-                  ),
-                if (group != null && input.text.contains('@'))
-                  SizedBox(
-                    height: tone.control + 4,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        TextButton.icon(
-                          onPressed: () {
-                            final start = input.text.lastIndexOf('@');
-                            input.text =
-                                '${input.text.substring(0, start)}@everyone ';
-                            setState(() {});
-                          },
-                          icon: const Icon(Icons.groups_outlined, size: 18),
-                          label: Text(c.tr('所有成员', 'Everyone')),
-                        ),
-                        ...members.map(
-                          (b) => TextButton.icon(
-                            onPressed: () {
-                              final start = input.text.lastIndexOf('@');
-                              input.text =
-                                  '${input.text.substring(0, start)}@${b['handle']} ';
-                              setState(() {});
-                            },
-                            icon: CatAvatar.of(b, size: 18),
-                            label: Text('${b['displayName']}'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                ),
                 PromptCard(
                   key: const ValueKey('composer-card'),
                   field: composerField,
@@ -616,6 +652,7 @@ class ChatComposerState extends State<ChatComposer> {
                   action: composerAction,
                   hasContent: hasText || uploading,
                   running: running,
+                  holdSize: widget.historyFocused,
                 ),
                 if (c.prefs.chatDisplay['statusbar'] == true ||
                     c.prefs.chatDisplay['battery'] == true)
@@ -626,12 +663,10 @@ class ChatComposerState extends State<ChatComposer> {
                       children: [
                         if (c.prefs.chatDisplay['statusbar'] == true)
                           Expanded(
-                            child: Text(
-                              '${status ?? c.tr('已连接', 'Connected')} · ${c.tr('Bot 配置', 'Bot config')}: ${bot?['model'] ?? ''}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.labelSmall,
-                            ),
+                            child: MetaText([
+                              status ?? c.tr('已连接', 'Connected'),
+                              '${c.tr('Bot 配置', 'Bot config')}: ${bot?['model'] ?? ''}',
+                            ], style: Theme.of(context).textTheme.labelSmall),
                           )
                         else
                           const Spacer(),
@@ -648,5 +683,161 @@ class ChatComposerState extends State<ChatComposer> {
     );
 
     return composer;
+  }
+}
+
+/// Who an @ can call in a group, as a short card above the composer that
+/// narrows while you type the name.
+class MentionCard extends StatelessWidget {
+  final String query, everyone;
+  final List<Json> members;
+  final ValueChanged<String> onPick;
+  const MentionCard({
+    super.key,
+    required this.query,
+    required this.members,
+    required this.everyone,
+    required this.onPick,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    final text = Theme.of(context).textTheme;
+    final words = query.toLowerCase();
+    final rows = <(String, String, Widget)>[
+      if ('everyone'.startsWith(words) || everyone.contains(words))
+        (
+          'everyone',
+          everyone,
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: tone.raised,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.groups_outlined, size: 17, color: tone.ink2),
+          ),
+        ),
+      for (final bot in members)
+        if ('${bot['handle']}'.toLowerCase().contains(words) ||
+            '${bot['displayName']}'.toLowerCase().contains(words))
+          (
+            '${bot['handle']}',
+            '${bot['displayName']}',
+            CatAvatar.of(bot, size: 28),
+          ),
+    ];
+    if (rows.isEmpty) return const SizedBox(width: double.infinity);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 320,
+            maxHeight: (tone.glass ? 48.0 : 42.0) * 5 + 12,
+          ),
+          child: Panel(
+            lifted: true,
+            child: ListView(
+              key: const ValueKey('mention-card'),
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              children: [
+                for (final (handle, name, avatar) in rows)
+                  InkWell(
+                    key: ValueKey('mention-$handle'),
+                    onTap: () => onPick(handle),
+                    child: SizedBox(
+                      height: tone.glass ? 48 : 42,
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 12),
+                          avatar,
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: text.titleMedium?.copyWith(fontSize: 14),
+                            ),
+                          ),
+                          if (handle != 'everyone')
+                            Text(
+                              '@$handle',
+                              style: text.bodySmall?.copyWith(
+                                fontSize: 12,
+                                color: tone.ink3,
+                              ),
+                            ),
+                          const SizedBox(width: 14),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The words being answered, above the composer, until sent or removed.
+class QuoteChip extends StatelessWidget {
+  final String text, tooltip;
+  final VoidCallback onClear;
+  const QuoteChip({
+    super.key,
+    required this.text,
+    required this.tooltip,
+    required this.onClear,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    return Padding(
+      key: const ValueKey('composer-quote'),
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: tone.bubble,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(width: 12),
+                Icon(Icons.format_quote_rounded, size: 18, color: tone.ink3),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    text.replaceAll(RegExp(r'\s+'), ' '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: tone.ink2),
+                  ),
+                ),
+                IconButton(
+                  tooltip: tooltip,
+                  iconSize: 16,
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onClear,
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

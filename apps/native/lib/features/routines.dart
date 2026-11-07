@@ -24,7 +24,7 @@ String routineStatus(NekodotClient c, Json routine) {
   final status = enabled ? c.tr('已启用', 'Enabled') : c.tr('已暂停', 'Paused');
   if (routine['trigger'] != 'both') return status;
   final schedule = object(object(routine['native'] ?? {})['schedule'] ?? {});
-  return 'Webhook $status · ${schedule['enabled'] == true ? c.tr('定时已启用', 'Schedule enabled') : c.tr('定时已暂停', 'Schedule paused')}';
+  return 'Webhook $status, ${schedule['enabled'] == true ? c.tr('定时已启用', 'Schedule enabled') : c.tr('定时已暂停', 'Schedule paused')}';
 }
 
 class RoutineList extends StatelessWidget {
@@ -68,9 +68,10 @@ class RoutineList extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                subtitle: Text(
-                  '${triggerLabel(client, routine)} · ${routineStatus(client, routine)}',
-                ),
+                subtitle: MetaText([
+                  triggerLabel(client, routine),
+                  routineStatus(client, routine),
+                ]),
                 trailing: const Icon(Icons.chevron_right, size: 18),
                 onTap: () async {
                   await pushPage(
@@ -325,10 +326,10 @@ class _RoutinePageState extends State<RoutinePage> {
                     ),
                   ErrorNotice(error),
                   if (routine != null) ...[
-                    Text(
-                      '${c.node.bots.where((b) => b['botId'] == widget.botId).firstOrNull?['displayName'] ?? widget.botId} · ${routineStatus(c, routine)}',
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
+                    MetaText([
+                      '${c.node.bots.where((b) => b['botId'] == widget.botId).firstOrNull?['displayName'] ?? widget.botId}',
+                      routineStatus(c, routine),
+                    ], style: Theme.of(context).textTheme.titleSmall),
                     const SizedBox(height: 8),
                     Text(
                       triggerLabel(c, routine),
@@ -402,8 +403,8 @@ class _RoutinePageState extends State<RoutinePage> {
                       const SizedBox(height: 8),
                       Text(
                         c.tr(
-                          '密钥：•••••••• · 加密保存在电脑上',
-                          'Secret: •••••••• · encrypted on the node',
+                          '密钥：••••••••，加密保存在电脑上',
+                          'Secret: ••••••••, encrypted on the node',
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -595,9 +596,10 @@ class _RoutinePageState extends State<RoutinePage> {
                       for (final item in objects(data!['receipts']))
                         Panel(
                           child: ExpansionTile(
-                            title: Text(
-                              'HTTP ${item['status']} · ${item['receivedAt']}',
-                            ),
+                            title: MetaText([
+                              'HTTP ${item['status']}',
+                              '${item['receivedAt']}',
+                            ]),
                             subtitle: Text(
                               '${item['requestId']}',
                               maxLines: 1,
@@ -620,9 +622,10 @@ class _RoutinePageState extends State<RoutinePage> {
                           key: ValueKey(execution['executionId']),
                           initiallyExpanded:
                               widget.executionId == execution['executionId'],
-                          title: Text(
-                            '${execution['state']} · ${execution['updatedAt']}',
-                          ),
+                          title: MetaText([
+                            '${execution['state']}',
+                            '${execution['updatedAt']}',
+                          ]),
                           subtitle: Text(
                             '${execution['requestId'] ?? execution['sessionId']}',
                             maxLines: 1,
@@ -750,8 +753,8 @@ class _RoutineEditorState extends State<RoutineEditor> {
             maxLines: 12,
             decoration: InputDecoration(
               labelText: c.tr(
-                '固定提示模板 · {__raw__} 引用事件',
-                'Fixed prompt template · {__raw__} for event data',
+                '固定提示模板，{__raw__} 引用事件',
+                'Fixed prompt template, {__raw__} for event data',
               ),
             ),
           ),

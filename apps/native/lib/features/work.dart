@@ -165,7 +165,7 @@ class _WorkBlockState extends State<WorkBlock> {
       c.tr('${tools.length} 个步骤', '${tools.length} steps'),
       if (!widget.live) '${seconds.toStringAsFixed(1)}s',
       if (failed > 0) c.tr('$failed 个失败', '$failed failed'),
-    ].join(' · ');
+    ];
     return StepFrame(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -245,7 +245,9 @@ class StepFrame extends StatelessWidget {
 /// One line in a step frame: a mark, the words, and what sits at the end.
 class StepLine extends StatelessWidget {
   final Widget leading;
-  final String label;
+
+  /// Facts about the step, shown side by side.
+  final List<String> label;
   final TextStyle style;
   final Widget? trailing;
   final VoidCallback? onTap;
@@ -271,12 +273,7 @@ class StepLine extends StatelessWidget {
             SizedBox(width: 16, child: Center(child: leading)),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                label,
-                maxLines: maxLines,
-                overflow: TextOverflow.ellipsis,
-                style: style,
-              ),
+              child: MetaText(label, maxLines: maxLines, style: style),
             ),
             if (trailing != null) ...[const SizedBox(width: 8), trailing!],
           ],
@@ -328,7 +325,7 @@ class _StepRowState extends State<StepRow> {
           leading: running
               ? const Breathing(size: 6)
               : StatusDot(size: 6, color: failed ? tone.danger : tone.ink3),
-          label: stepLabel(widget.client, body),
+          label: [stepLabel(widget.client, body)],
           style: text.copyWith(color: tone.ink2),
           trailing: running
               ? null
@@ -366,7 +363,7 @@ class ApprovalStep extends StatelessWidget {
     final command = firstLine('${object(message.content)['command'] ?? ''}');
     return StepLine(
       leading: Icon(Icons.check, size: 14, color: tone.ink3),
-      label: client.tr('运行命令 $command', 'Running $command'),
+      label: [client.tr('运行命令 $command', 'Running $command')],
       style: TextStyle(fontFamily: monoFont, fontSize: 12, color: tone.ink2),
     );
   }

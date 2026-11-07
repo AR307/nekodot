@@ -485,7 +485,7 @@ class _FlowchartPanelState extends State<FlowchartPanel>
                                       padding: const EdgeInsets.all(6),
                                       child: Tooltip(
                                         message:
-                                            '${c.node.bots.firstWhere((b) => b['botId'] == id)['displayName']} · ${_text('pending', c.zh)}',
+                                            '${c.node.bots.firstWhere((b) => b['botId'] == id)['displayName']}, ${_text('pending', c.zh)}',
                                         child: Opacity(
                                           opacity: .4,
                                           child: CatAvatar.of(
@@ -651,7 +651,7 @@ class _FlowRow extends StatelessWidget {
     };
     final ink = color;
     return Semantics(
-      label: '$label · ${_text(step.state, zh)}',
+      label: '$label, ${_text(step.state, zh)}',
       expanded: step.kind == 'plan' ? expanded : null,
       button: onTap != null,
       child: InkWell(

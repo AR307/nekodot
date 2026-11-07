@@ -149,7 +149,7 @@ void main() {
     });
     final textFileId = attachments.first['fileId'];
     await tester.pump();
-    expect(find.textContaining('中文资料.txt ·'), findsOneWidget);
+    expect(find.textContaining('中文资料.txt'), findsOneWidget);
     final previous = client.node.messages[id]!
         .where((m) => m.author.type == 'bot')
         .length;

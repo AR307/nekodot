@@ -19,6 +19,8 @@ import 'local_setup.dart';
 import '../local/runtime.dart';
 import 'node_update.dart';
 import 'flowchart.dart';
+import 'search_palette.dart';
+import 'time_labels.dart';
 
 class HomePage extends StatefulWidget {
   final NekodotClient client;
@@ -34,7 +36,8 @@ class _HomePageState extends State<HomePage> {
   FlowMessageFocus? flowFocus;
   String search = '';
   String? hovered;
-  bool searching = false;
+  Json? creatingBot;
+  final searchField = TextEditingController();
   final folded = <String>{};
 
   /// The sidebar's width while it is being dragged; saved when let go.
@@ -44,6 +47,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     destinations = c.destinations.stream.listen(openDestination);
+    HardwareKeyboard.instance.addHandler(searchKey);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (c.pendingDestination != null) openDestination(c.pendingDestination!);
     });
@@ -66,8 +70,80 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(searchKey);
+    searchField.dispose();
     destinations?.cancel();
     super.dispose();
+  }
+
+  /// Ctrl+K (Cmd+K) opens the search panel wherever focus is on the desktop.
+  bool searchKey(KeyEvent event) {
+    final keys = HardwareKeyboard.instance;
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.keyK ||
+        !(keys.isControlPressed || keys.isMetaPressed) ||
+        !mounted ||
+        context.tone.glass ||
+        ModalRoute.of(context)?.isCurrent != true) {
+      return false;
+    }
+    unawaited(openSearch());
+    return true;
+  }
+
+  Future<void> openSearch() {
+    final narrow = MediaQuery.sizeOf(context).width < 840;
+    final active = c.node.conversations.where(
+      (x) => x['kind'] == 'dm'
+          ? c.node.bots.any(
+              (b) => b['botId'] == x['botId'] && b['archived'] != true,
+            )
+          : c.node.groups.any(
+              (g) => g['groupId'] == x['groupId'] && g['archived'] != true,
+            ),
+    );
+    final ordered = [
+      for (final x in active)
+        if (x['kind'] == 'group') x,
+      for (final x in active)
+        if (x['kind'] == 'dm') x,
+    ];
+    final actions = c.tr('操作', 'Actions');
+    Widget icon(IconData value) =>
+        Icon(value, size: 20, color: context.tone.ink2);
+    return showSearchPalette(context, c, [
+      for (final x in ordered)
+        conversationEntry(
+          c,
+          x,
+          preview: preview(x, x['kind'] == 'group'),
+          open: () => open(x, narrow),
+        ),
+      SearchEntry(
+        section: actions,
+        title: c.tr('新建 Bot', 'New Bot'),
+        leading: icon(Icons.smart_toy_outlined),
+        open: () => create('bot'),
+      ),
+      SearchEntry(
+        section: actions,
+        title: c.tr('新建群组', 'New group'),
+        leading: icon(Icons.groups_outlined),
+        open: () => create('group'),
+      ),
+      SearchEntry(
+        section: actions,
+        title: c.tr('添加插件', 'Add plugins'),
+        leading: icon(Icons.extension_outlined),
+        open: () => create('plugins'),
+      ),
+      SearchEntry(
+        section: actions,
+        title: c.tr('设置', 'Settings'),
+        leading: icon(Icons.settings_outlined),
+        open: () => openPage(context, SettingsPage(client: c)),
+      ),
+    ]);
   }
 
   Future<void> open(Json value, bool narrow) async {
@@ -99,7 +175,7 @@ class _HomePageState extends State<HomePage> {
       constraints: menuConstraints,
       onSelected: (id) {
         if (id == '') {
-          pushPage(context, _addComputer());
+          openPage(context, _addComputer());
         } else {
           setState(() {
             conversation = null;
@@ -138,7 +214,7 @@ class _HomePageState extends State<HomePage> {
                   ? StatusDot(on: c.online)
                   : ShiningText(
                       text: c.tr('连接中…', 'Connecting…'),
-                      style: const TextStyle(fontSize: 11),
+                      style: const TextStyle(fontSize: 12),
                     ),
               const SizedBox(width: 8),
             ],
@@ -178,12 +254,9 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               IconAction(
-                tooltip: c.tr('搜索', 'Search'),
-                icon: searching ? Icons.close : Icons.search,
-                onPressed: () => setState(() {
-                  searching = !searching;
-                  search = '';
-                }),
+                tooltip: c.tr('搜索 (Ctrl+K)', 'Search (Ctrl+K)'),
+                icon: Icons.search,
+                onPressed: openSearch,
               ),
               const SizedBox(width: 4),
               createMenu(),
@@ -226,9 +299,23 @@ class _HomePageState extends State<HomePage> {
     ),
   ];
 
-  void create(String value) {
+  Future<void> create(String value) async {
     if (value != 'plugins') {
-      pushPage(context, BotEditor(client: c, group: value == 'group'));
+      final nodeId = c.selectedNodeId;
+      final created = await openPage<Json>(
+        context,
+        BotEditor(
+          client: c,
+          group: value == 'group',
+          onCreating: (bot) {
+            if (mounted) setState(() => creatingBot = bot);
+          },
+        ),
+        form: true,
+      );
+      if (created != null && mounted && c.selectedNodeId == nodeId) {
+        await open(created, MediaQuery.sizeOf(context).width < 840);
+      }
     } else if (MediaQuery.sizeOf(context).width < 840) {
       pushPage(context, ExtensionsPage(client: c, kind: 'skills'));
     } else {
@@ -236,68 +323,151 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  /// Phone header: the mark, the computer, search.
+  /// Your initial in a round mark: you, and the way to your settings.
+  Widget accountMark(double size) {
+    final tone = context.tone;
+    final name = '${c.account.me?['user']['email'] ?? ''}'.split('@').first;
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: tone.ink),
+      child: Text(
+        name.isEmpty ? '' : name.characters.first.toUpperCase(),
+        style: TextStyle(
+          color: tone.base,
+          fontSize: size * .4,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  /// A round control floating on the ground with a soft shadow.
+  Widget floatingRound({required Widget child}) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: context.tone.surface,
+      shape: BoxShape.circle,
+      boxShadow: context.tone.rest,
+    ),
+    child: Material(type: MaterialType.transparency, child: child),
+  );
+
+  /// Phone header: you on the left, the computer in the middle, new on the
+  /// right. Search lives at the bottom, under the thumb.
   Widget glassTop() => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+    padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
     child: Row(
       children: [
-        const CatAvatar(size: 28),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Align(alignment: Alignment.centerLeft, child: nodePicker()),
-        ),
         IconButton(
-          tooltip: c.tr('搜索', 'Search'),
-          isSelected: searching,
-          onPressed: () => setState(() {
-            searching = !searching;
-            search = '';
-          }),
-          icon: const Icon(Icons.search),
+          tooltip: c.tr('设置', 'Settings'),
+          padding: const EdgeInsets.all(4),
+          onPressed: () => pushPage(context, SettingsPage(client: c)),
+          icon: accountMark(34),
+        ),
+        Expanded(child: Center(child: nodePicker())),
+        floatingRound(
+          child: PopupMenuButton<String>(
+            tooltip: c.tr('新建', 'Create'),
+            position: PopupMenuPosition.under,
+            constraints: menuConstraints,
+            icon: const Icon(Icons.add),
+            onSelected: create,
+            itemBuilder: createItems,
+          ),
         ),
       ],
     ),
   );
 
-  /// Phone dock floating over the list: extensions, settings, create.
+  /// Phone bottom: plugins, and a search field the thumb reaches.
   Widget dock() {
     final tone = context.tone;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-      child: Row(
-        children: [
-          Panel(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  tooltip: c.tr('设置', 'Settings'),
-                  onPressed: () => pushPage(context, SettingsPage(client: c)),
-                  icon: const Icon(Icons.tune),
+    final text = Theme.of(context).textTheme;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
+        child: Row(
+          children: [
+            floatingRound(
+              child: IconButton(
+                tooltip: c.tr('Skills 与插件', 'Skills & plugins'),
+                onPressed: () => pushPage(
+                  context,
+                  ExtensionsPage(client: c, kind: 'skills'),
                 ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          PopupMenuButton<String>(
-            tooltip: c.tr('新建', 'Create'),
-            position: PopupMenuPosition.over,
-            constraints: menuConstraints,
-            icon: const Icon(Icons.add),
-            iconColor: tone.base,
-            style: IconButton.styleFrom(
-              backgroundColor: tone.ink,
-              fixedSize: const Size.square(44),
-              shape: RoundedSuperellipseBorder(
-                borderRadius: BorderRadius.circular(12),
+                icon: const Icon(Icons.grid_view_rounded),
               ),
             ),
-            onSelected: create,
-            itemBuilder: createItems,
-          ),
-        ],
+            const SizedBox(width: 10),
+            Expanded(
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: tone.surface,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: tone.lift,
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 16),
+                    Icon(Icons.search, size: 20, color: tone.ink2),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        key: const ValueKey('home-search'),
+                        controller: searchField,
+                        style: text.bodyLarge,
+                        textInputAction: TextInputAction.search,
+                        decoration: InputDecoration(
+                          hintText: c.tr('搜索', 'Search'),
+                          isDense: true,
+                          filled: false,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        onChanged: (value) =>
+                            setState(() => search = value.toLowerCase()),
+                      ),
+                    ),
+                    AnimatedSwitcher(
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 160),
+                      child: search.isEmpty
+                          ? const SizedBox(width: 12)
+                          : IconButton(
+                              tooltip: c.tr('清除', 'Clear'),
+                              onPressed: () {
+                                searchField.clear();
+                                FocusManager.instance.primaryFocus?.unfocus();
+                                setState(() => search = '');
+                              },
+                              icon: const Icon(Icons.close, size: 20),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  /// When anything was last said there.
+  DateTime? lastActivity(String id) {
+    final loaded = c.node.messages[id]?.lastOrNull;
+    final reported = c.node.latest[id];
+    final last =
+        loaded == null || (reported != null && reported.seq > loaded.seq)
+        ? reported
+        : loaded;
+    return last == null ? null : DateTime.parse(last.createdAt).toLocal();
   }
 
   /// The latest thing said there, as one line; a group names who said it.
@@ -347,10 +517,14 @@ class _HomePageState extends State<HomePage> {
     final selected = !narrow && conversation == id;
     // The selected row lifts off the list; hovering a row only raises it.
     final raised = selected || (!glass && hovered == id);
-    final note = isGroup
+    // A phone shows when it last spoke; a desktop, what the Bot is for.
+    final note = glass || isGroup
         ? ''
         : '${entity['role'] ?? ''}'.split('\n').first.trim();
     final last = preview(value, isGroup);
+    final lastAt = glass ? lastActivity(id) : null;
+    // Something in there is waiting for your answer.
+    final waiting = c.node.flows[id]?.state == 'waiting';
     final size = glass ? 44.0 : 40.0;
     final corners = BorderRadius.circular(12);
     return MouseRegion(
@@ -418,6 +592,19 @@ class _HomePageState extends State<HomePage> {
                                   ),
                                 ),
                               ),
+                              if (lastAt != null) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  rowTime(c, lastAt),
+                                  style: text.bodySmall?.copyWith(
+                                    fontSize: 12,
+                                    color: tone.ink3,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
+                                ),
+                              ],
                               if (note.isNotEmpty) ...[
                                 Container(
                                   width: 1,
@@ -441,16 +628,36 @@ class _HomePageState extends State<HomePage> {
                               ],
                             ],
                           ),
-                          if (last != null) ...[
+                          if (last != null || waiting) ...[
                             const SizedBox(height: 3),
-                            Text(
-                              last,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: text.bodySmall?.copyWith(
-                                fontSize: glass ? 14 : 13.5,
-                                color: tone.ink2,
-                              ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    last ?? '',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: text.bodySmall?.copyWith(
+                                      fontSize: glass ? 14 : 13.5,
+                                      color: tone.ink2,
+                                    ),
+                                  ),
+                                ),
+                                if (waiting)
+                                  Semantics(
+                                    label: c.tr('等你确认', 'Needs your OK'),
+                                    child: Container(
+                                      key: ValueKey('waiting-$id'),
+                                      width: 8,
+                                      height: 8,
+                                      margin: const EdgeInsets.only(left: 8),
+                                      decoration: BoxDecoration(
+                                        color: tone.ink,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ],
                         ],
@@ -560,7 +767,7 @@ class _HomePageState extends State<HomePage> {
                 constraints: menuConstraints,
                 onSelected: (value) {
                   if (value == 'settings') {
-                    pushPage(context, SettingsPage(client: c));
+                    openPage(context, SettingsPage(client: c));
                   } else {
                     signOut();
                   }
@@ -618,7 +825,7 @@ class _HomePageState extends State<HomePage> {
             IconAction(
               tooltip: c.tr('设置', 'Settings'),
               icon: Icons.settings_outlined,
-              onPressed: () => pushPage(context, SettingsPage(client: c)),
+              onPressed: () => openPage(context, SettingsPage(client: c)),
             ),
             const SizedBox(width: 8),
           ],
@@ -661,24 +868,33 @@ class _HomePageState extends State<HomePage> {
         }).toList();
         final conversations = ListenableBuilder(
           listenable: c.node.summaries,
-          builder: (context, _) => active.isEmpty
+          builder: (context, _) => active.isEmpty && creatingBot == null
               ? Center(
                   child: IconButton(
                     tooltip: c.selectedNodeId == null
                         ? c.tr('添加电脑', 'Add computer')
                         : c.tr('新建 Bot', 'New Bot'),
-                    onPressed: () => pushPage(
-                      context,
-                      c.selectedNodeId == null
-                          ? _addComputer()
-                          : BotEditor(client: c),
-                    ),
+                    onPressed: () => c.selectedNodeId == null
+                        ? openPage(context, _addComputer(), form: true)
+                        : create('bot'),
                     icon: const CatAvatar(size: 56),
                   ),
                 )
               : ListView(
                   padding: EdgeInsets.fromLTRB(8, 0, 8, tone.glass ? 92 : 8),
                   children: [
+                    if (creatingBot?['nodeId'] == c.selectedNodeId &&
+                        creatingBot != null)
+                      ListTile(
+                        key: const ValueKey('bot-creating'),
+                        leading: CatAvatar.of(creatingBot!),
+                        title: Text(
+                          '${creatingBot!['displayName']}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: ShiningText(text: c.tr('创建中…', 'Creating…')),
+                      ),
                     ...section('groups', c.tr('群聊', 'Groups'), [
                       for (final x in shown)
                         if (x['kind'] == 'group') x,
@@ -699,16 +915,6 @@ class _HomePageState extends State<HomePage> {
                 key: ValueKey('${c.selectedNodeId}:$updateCommand'),
                 client: c,
                 command: updateCommand,
-              ),
-            if (searching)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                child: TextField(
-                  autofocus: true,
-                  decoration: InputDecoration(hintText: c.tr('搜索', 'Search')),
-                  onChanged: (value) =>
-                      setState(() => search = value.toLowerCase()),
-                ),
               ),
             if (c.error.isNotEmpty)
               Padding(
@@ -739,9 +945,7 @@ class _HomePageState extends State<HomePage> {
         );
         final hasChat =
             conversation != null &&
-            c.node.conversations.any(
-              (x) => x['conversationId'] == conversation,
-            );
+            active.any((x) => x['conversationId'] == conversation);
         final panel = roomy && hasChat ? details : null;
         final widest = (constraints.maxWidth - 420).clamp(240.0, 560.0);
         final sidebar =

@@ -131,7 +131,7 @@ Future<Json?> pickChatFile(
         throw RelayError('Upload HTTP ${response.statusCode}');
       }
       offset += end - start;
-      onProgress('$name · ${fileSize(offset)}');
+      onProgress('$name  ${fileSize(offset)}');
     }
   }
   if (offset == 0) {

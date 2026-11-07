@@ -374,7 +374,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
             child: Row(
               children: [
                 connected && !own && status?['holder'] != 'human'
-                    ? const ShiningText(style: TextStyle(fontSize: 11))
+                    ? const ShiningText(style: TextStyle(fontSize: 12))
                     : StatusDot(on: connected),
                 const SizedBox(width: 10),
                 Expanded(
@@ -389,7 +389,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                if (busy) const ShiningText(style: TextStyle(fontSize: 11)),
+                if (busy) const ShiningText(style: TextStyle(fontSize: 12)),
                 if (status?['holder'] == 'human' && !own)
                   TextButton(
                     onPressed: busy ? null : () => control('force-release'),

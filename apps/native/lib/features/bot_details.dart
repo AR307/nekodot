@@ -268,8 +268,11 @@ class BotDetails extends StatelessWidget {
         IconAction(
           tooltip: c.tr('编辑', 'Edit'),
           icon: Icons.edit_outlined,
-          onPressed: () =>
-              pushPage(context, BotEditor(client: c, existing: bot)),
+          onPressed: () => openPage(
+            context,
+            BotEditor(client: c, existing: bot),
+            form: true,
+          ),
         ),
       ];
       if (context.tone.glass && !panel) {

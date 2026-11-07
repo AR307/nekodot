@@ -8,10 +8,13 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../data/json.dart';
 import 'parts.dart';
+import 'sheet.dart';
 import 'shining_text.dart';
 
+export 'entry_motion.dart';
 export 'parts.dart';
 export 'shining_text.dart';
+export 'sheet.dart';
 
 final nativeRoutes = RouteObserver<ModalRoute<void>>();
 
@@ -62,6 +65,10 @@ class Tone extends ThemeExtension<Tone> {
   final Color base, sidebar, surface, ink, ink2, ink3, line;
   final Color bubble, raised, hover, menu, danger;
 
+  /// Behind grouped cards (settings and other list pages): a step darker than
+  /// the cards on a light ground, so they read without borders.
+  final Color ground;
+
   /// The chosen pill in a track: lighter than the track on either ground.
   final Color thumb;
   final bool glass;
@@ -91,6 +98,7 @@ class Tone extends ThemeExtension<Tone> {
     required this.menu,
     required this.danger,
     this.thumb = const Color(0xffffffff),
+    this.ground = const Color(0xfff4f4f5),
     this.glass = false,
     this.control = 32,
     this.corner = 8,
@@ -137,6 +145,7 @@ class Tone extends ThemeExtension<Tone> {
     menu: Color(0xff1c1c1c),
     danger: Color(0xffff8a80),
     thumb: Color(0xff3a3a3a),
+    ground: Color(0xff000000),
     rest: [
       BoxShadow(color: Color(0x66000000), blurRadius: 14, offset: Offset(0, 4)),
     ],
@@ -198,6 +207,7 @@ class Tone extends ThemeExtension<Tone> {
     menu: Color(0xff1c1c1c),
     danger: Color(0xffff8a80),
     thumb: Color(0xff3a3a3a),
+    ground: Color(0xff000000),
     bar: Color(0xeb000000),
     fieldFocus: Color(0xff1c1c1c),
     rest: [
@@ -335,10 +345,19 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
               fontSize: frosted ? 14 : 13,
               fontWeight: FontWeight.w600,
             ),
+            // Statuses and counts change while you watch: steady-width
+            // digits keep them from shaking, and nothing is under 12.
             labelMedium: TextStyle(
-              fontSize: frosted ? 12 : 11.5,
+              fontSize: 12,
               fontWeight: FontWeight.w500,
               color: tone.ink3,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+            labelSmall: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: tone.ink3,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           )
           .apply(fontFamily: 'Nunito', fontFamilyFallback: _sansFallback);
@@ -1013,8 +1032,14 @@ class ErrorNotice extends StatelessWidget {
   }
 }
 
+/// The next step: a new page, or, inside a floating sheet, the sheet's next
+/// step in the same frame.
 Future<T?> pushPage<T>(BuildContext context, Widget page) =>
-    Navigator.of(context).push<T>(MaterialPageRoute(builder: (_) => page));
+    Navigator.of(context).push<T>(
+      InSheet.of(context)
+          ? SheetRoute<T>(page, first: false)
+          : MaterialPageRoute(builder: (_) => page),
+    );
 
 class AsyncPane extends StatefulWidget {
   final Future<Json> Function() load;
