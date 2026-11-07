@@ -12,7 +12,6 @@ import type { HermesRuntime } from '../hermes/runtime';
 import { HermesGatewayError } from '../hermes/gateway';
 import { NodeFault } from '../fault';
 import { BotService } from '../bots';
-import { Providers } from '../providers';
 import { MAX_CHAIN } from '../group-routing';
 import { Operations } from '../operations';
 import { FileLibrary } from '../files';
@@ -56,7 +55,6 @@ export class ConversationExecution {
     private readonly hermes: HermesRuntime,
     private readonly bots: BotService,
     private readonly operations: Operations,
-    private readonly providers: Providers,
     private readonly files: FileLibrary,
     private readonly routines: Routines,
     private readonly secrets: BotSecrets,
@@ -592,7 +590,8 @@ export class ConversationExecution {
     try {
       this.secrets.attach(run.botId);
       await this.userMemory.sync();
-      await this.providers.configureBot(this.bots.get(run.botId));
+      // Sources are applied when a Bot or its source changes: /api/model/set probes the provider
+      // catalog, which can outlast the 30 s management deadline.
       await this.hermes.syncRules(this.bots.get(run.botId));
       const conversationId = run.groupId
         ? this.database
@@ -686,6 +685,12 @@ export class ConversationExecution {
         error instanceof NodeFault
           ? error.message
           : 'Could not start this run. Check the provider and try again.';
+      const failureCode = !(error instanceof NodeFault)
+        ? 'run_start'
+        : error.code === 'timeout'
+          ? 'timeout'
+          : undefined;
+      if (failureCode) failed.content.failureCode = failureCode;
       const idle = this.idleRun(run);
       this.database.putMessage(failed, { runId: run.runId }, idle);
       if (run.groupId) await this.groupExecution.finishGroupRun(run, 'failed', failed.content.text);

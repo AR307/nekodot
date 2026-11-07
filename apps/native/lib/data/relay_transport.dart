@@ -29,6 +29,10 @@ class RelayTransport extends ChangeNotifier {
   Timer? _reconnect, _heartbeat;
   DateTime _lastFrame = DateTime.now();
   final _pending = <String, Completer<Json>>{};
+
+  /// Relay pings every 25 s, so a socket that is still up has heard from it recently.
+  bool get live =>
+      ready && DateTime.now().difference(_lastFrame) < const Duration(seconds: 40);
   Future<void> connect() async {
     if (_closed || token() == null || connecting) return;
     connecting = true;

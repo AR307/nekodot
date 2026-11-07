@@ -61,6 +61,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   @override
   void didPopNext() {
     c.visibleConversation = id;
+    composer.currentState?.refreshReasoning();
   }
 
   @override
@@ -155,7 +156,9 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
           child: Tooltip(
             message: c.tr('详情', 'Details'),
             child: InkWell(
-              customBorder: const StadiumBorder(),
+              customBorder: const RoundedSuperellipseBorder(
+                borderRadius: BorderRadius.all(Radius.circular(999)),
+              ),
               onTap: () {
                 if (group != null) {
                   pushPage(
@@ -272,13 +275,17 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 child: DecoratedBox(
                   decoration: ShapeDecoration(
                     color: tone.surface,
-                    shape: const StadiumBorder(),
+                    shape: const RoundedSuperellipseBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(999)),
+                    ),
                     shadows: tone.rest,
                   ),
                   child: Material(
                     type: MaterialType.transparency,
                     child: InkWell(
-                      customBorder: const StadiumBorder(),
+                      customBorder: const RoundedSuperellipseBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(999)),
+                      ),
                       onTap: () {
                         if (group != null) {
                           pushPage(

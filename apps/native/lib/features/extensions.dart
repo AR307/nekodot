@@ -96,7 +96,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               )
               .toList();
           Widget tile(Json entry) => ListTile(
-            shape: RoundedRectangleBorder(
+            shape: RoundedSuperellipseBorder(
               borderRadius: BorderRadius.circular(context.tone.corner),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 8),

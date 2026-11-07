@@ -308,6 +308,14 @@ export class NodeRpc {
         return this.features.providers.authorize(request.params);
       case 'providers.set':
         return this.features.providers.set(request.params);
+      case 'providers.test':
+        return this.features.providers.test(request.params, this.features.operations);
+      case 'models.describe':
+        return this.features.providers.describe(request.params);
+      case 'models.reasoning.get':
+        return this.features.providers.reasoning(request.params.botId);
+      case 'models.reasoning.set':
+        return this.features.providers.setReasoning(request.params);
       case 'models.options':
         return this.features.providers.models(request.params);
       case 'models.info':
