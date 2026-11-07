@@ -139,9 +139,18 @@ class WindowDrag extends StatelessWidget {
   const WindowDrag({super.key});
   @override
   Widget build(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<_ChromeScope>() == null
+      context.dependOnInheritedWidgetOfExactType<_ChromeScope>() == null ||
+          context.dependOnInheritedWidgetOfExactType<WindowSheetScope>() != null
       ? const SizedBox.expand()
       : const DragToMoveArea(child: SizedBox.expand());
+}
+
+/// Inside a sheet floating over the window: its header is not the window's,
+/// so it neither drags the window nor leaves room for the window controls.
+class WindowSheetScope extends InheritedWidget {
+  const WindowSheetScope({super.key, required super.child});
+  @override
+  bool updateShouldNotify(WindowSheetScope oldWidget) => false;
 }
 
 class _ChromeScope extends InheritedWidget {
@@ -158,7 +167,8 @@ class WindowChrome extends StatelessWidget {
 
   /// Room a header leaves at its right edge for the controls.
   static double reserved(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<_ChromeScope>() == null
+      context.dependOnInheritedWidgetOfExactType<_ChromeScope>() == null ||
+          context.dependOnInheritedWidgetOfExactType<WindowSheetScope>() != null
       ? 0
       : _width;
   @override

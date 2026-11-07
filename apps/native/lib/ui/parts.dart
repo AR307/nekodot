@@ -426,6 +426,7 @@ class AppPage extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) => Scaffold(
+    backgroundColor: context.tone.ground,
     extendBodyBehindAppBar: extendBodyBehindAppBar ?? false,
     appBar: AppBar(
       flexibleSpace: context.tone.glass ? const Frost() : const WindowDrag(),
@@ -526,7 +527,14 @@ class PanelGroup extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final (index, child) in children.indexed) ...[
-          if (index > 0) const Divider(height: 1),
+          // Hairlines inset from the leading edge, as the rows they part.
+          if (index > 0)
+            Divider(
+              height: 1,
+              thickness: 1 / MediaQuery.devicePixelRatioOf(context),
+              indent: 16,
+              color: context.tone.line,
+            ),
           child,
         ],
       ],
