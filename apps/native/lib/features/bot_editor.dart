@@ -115,6 +115,14 @@ class _BotEditorState extends State<BotEditor> {
             ),
           );
         }
+        if (widget.importProfile && archive!['fileId'] == null) {
+          final file = archive!;
+          await c.deliveries.upload(
+            file,
+            file['nodeId'] as String,
+            file['conversationId'] as String,
+          );
+        }
         if (existing == null) {
           widget.onCreating?.call({
             'nodeId': c.selectedNodeId,
