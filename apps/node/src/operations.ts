@@ -26,6 +26,14 @@ export class Operations {
     if (!operation) throw new NodeFault('not_found', 'Operation not found');
     return operation;
   }
+  byKind(kind: string): Operation | undefined {
+    const row = this.database.db
+      .prepare(
+        "SELECT value FROM settings WHERE key LIKE 'operation:%' AND json_extract(value,'$.kind')=? LIMIT 1",
+      )
+      .get(kind);
+    return row ? (JSON.parse(String(row.value)) as Operation) : undefined;
+  }
   save(operation: Operation) {
     operation.updatedAt = new Date().toISOString();
     this.database.setSetting('operation:' + operation.operationId, operation);

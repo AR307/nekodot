@@ -297,7 +297,7 @@ export class NodeRpc {
       case 'messages.send':
         return this.execution.sendMessage(request.params);
       case 'runs.stop':
-        return this.execution.stop(request.params.conversationId);
+        return this.execution.stop(request.params.conversationId, request.params.runId);
       case 'approvals.respond':
         return this.execution.controls.respondToApproval(request.params);
       case 'questions.respond':

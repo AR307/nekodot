@@ -115,17 +115,37 @@ export function connectRelay(options: NodeConnectionOptions) {
     });
   });
   function connect() {
-    socket = new WebSocket(
+    const current = (socket = new WebSocket(
       options.credentials.relayUrl.replace(/^http/, 'ws').replace(/\/$/, '') + '/ws/node',
       { handshakeTimeout: protocolTimings.rpcTimeoutMs },
-    );
+    ));
+    let lastFrame = Date.now();
+    const heartbeat = setInterval(() => {
+      if (Date.now() - lastFrame > 65_000) current.terminate();
+    }, 15_000);
+    function send(envelope: Envelope) {
+      if (current === socket && current.readyState === WebSocket.OPEN)
+        current.send(JSON.stringify(envelope));
+    }
     socket.on('open', () =>
       send(frame('hello', { nodeToken: options.credentials.nodeToken, version: options.version })),
     );
     socket.on('message', (raw) => {
-      void receive().catch(() => socket.close(1008, 'Invalid relay message'));
+      if (current !== socket) return;
+      lastFrame = Date.now();
+      let envelope: Envelope;
+      try {
+        envelope = envelopeSchema.parse(JSON.parse(raw.toString()));
+      } catch {
+        current.close(1008, 'Invalid relay message');
+        return;
+      }
+      void receive().catch((error: unknown) => {
+        if (current !== socket) return;
+        options.onError?.(error instanceof Error ? error.message : 'Relay synchronization failed');
+        current.close(1011, 'Synchronization interrupted');
+      });
       async function receive() {
-        const envelope = envelopeSchema.parse(JSON.parse(raw.toString()));
         if (envelope.type === 'ping') {
           send(frame('pong', {}));
           return;
@@ -243,10 +263,13 @@ export function connectRelay(options: NodeConnectionOptions) {
       }
     });
     socket.on('error', (error) => {
+      if (current !== socket) return;
       options.onError?.(error.message);
-      socket.close();
+      current.terminate();
     });
     socket.on('close', (code, reason) => {
+      clearInterval(heartbeat);
+      if (current !== socket) return;
       ready = false;
       for (const waiter of routeRequests.values()) {
         clearTimeout(waiter.timer);

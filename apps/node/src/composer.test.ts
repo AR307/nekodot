@@ -102,8 +102,13 @@ it('uploads a user file, sends images natively, and executes a selected group me
       rpc('messages.send', { ...send, files: [text.fileId, randomUUID()] }),
     ).rejects.toThrow();
     expect(app.files.get(text.fileId).messageId).toBe(text.fileId);
-    const sent = await rpc('messages.send', send);
+    const [sent, concurrent] = await Promise.all([
+      rpc('messages.send', send),
+      rpc('messages.send', send),
+    ]);
+    expect(concurrent).toEqual(sent);
     expect(await rpc('messages.send', send)).toEqual(sent);
+    expect(app.database.byClient(send.clientMsgId)?.clientMsgId).toBe(send.clientMsgId);
     await until(() => !app.database.runs().length);
     expect(fake.inspectRuns()).toHaveLength(1);
     const input = fake.inspectRuns()[0]!.nativeInput;

@@ -20,6 +20,12 @@ export class RunControls {
   async respondToApproval(params: RpcParams<'approvals.respond'>) {
     const runId = this.database.messageRun(params.messageId);
     const message = this.database.message(params.messageId);
+    if (
+      message?.kind === 'approval' &&
+      message.status === 'done' &&
+      message.content.choice === params.choice
+    )
+      return {};
     if (!runId || message?.kind !== 'approval' || message.status !== 'streaming')
       throw new NodeFault('not_found', 'Approval is no longer pending');
     const run =
@@ -137,6 +143,12 @@ export class RunControls {
 
   async respondToQuestion(params: RpcParams<'questions.respond'>) {
     const message = this.database.message(params.messageId);
+    if (
+      message?.kind === 'question' &&
+      message.status === 'done' &&
+      message.content.answer === params.answer
+    )
+      return {};
     if (message?.kind !== 'question' || message.status !== 'streaming')
       throw new NodeFault('conflict', 'This question is no longer pending');
     const run =

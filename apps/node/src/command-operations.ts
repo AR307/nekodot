@@ -37,8 +37,13 @@ export class CommandOperations {
       throw new NodeFault('forbidden', 'Choose a bot in this conversation.');
     const side = /^\/(bg|btw)(?:\s|$)/.test(params.command);
     const operationKind = `command${side ? '-side' : ''}:${params.clientMsgId}`;
-    const existing = this.operations.list().find((op) => op.kind === operationKind);
+    const existing = this.operations.byKind(operationKind);
     if (existing) return existing;
+    if (
+      params.sessionId &&
+      params.sessionId !== this.database.hermesSession(params.conversationId)?.storedSessionId
+    )
+      throw new NodeFault('conflict', 'The original conversation session has changed.');
     if (
       this.operations
         .list()
