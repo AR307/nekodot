@@ -12,7 +12,6 @@ import type { HermesRuntime } from '../hermes/runtime';
 import { HermesGatewayError } from '../hermes/gateway';
 import { NodeFault } from '../fault';
 import { BotService } from '../bots';
-import { Providers } from '../providers';
 import { MAX_CHAIN } from '../group-routing';
 import { Operations } from '../operations';
 import { FileLibrary } from '../files';
@@ -25,6 +24,8 @@ import { ExecutionFlows } from '../flow';
 
 type TextMessage = Extract<Message, { kind: 'text' }>;
 const now = () => new Date().toISOString();
+/** A visibility hint only; never cancels or restarts the native execution. */
+const STALL_MS = 5 * 60_000;
 export class ConversationExecution {
   readonly messages: RunMessages;
   readonly controls: RunControls;
@@ -34,6 +35,8 @@ export class ConversationExecution {
   private readonly consumers = new Map<string, AbortController>();
   private readonly activeRuns = new Map<string, RunRecord>();
   private readonly appliedSeq = new Map<string, number>();
+  private readonly lastFrameAt = new Map<string, number>();
+  private readonly stalled = new Set<string>();
   /** Introductions Hermes has not admitted yet; a send queues behind one only once it is admitted. */
   private readonly welcomes = new Map<RunRecord, Promise<void>>();
   private readonly welcomeSends = new Map<string, Promise<{ messageId: string }>>();
@@ -52,7 +55,6 @@ export class ConversationExecution {
     private readonly hermes: HermesRuntime,
     private readonly bots: BotService,
     private readonly operations: Operations,
-    private readonly providers: Providers,
     private readonly files: FileLibrary,
     private readonly routines: Routines,
     private readonly secrets: BotSecrets,
@@ -178,6 +180,9 @@ export class ConversationExecution {
           this.activeRuns.delete(run.conversationId);
           if (run.runId) {
             this.appliedSeq.delete(run.runId);
+            this.lastFrameAt.delete(run.runId);
+            this.stalled.delete(run.runId);
+            this.notifications.acknowledge('stalled:' + run.runId);
             this.consumers.get(run.runId)?.abort();
             this.consumers.delete(run.runId);
           }
@@ -218,6 +223,7 @@ export class ConversationExecution {
             '',
           state: run?.state ?? 'idle',
           chain: chain ? { count: chain.count, max: MAX_CHAIN } : undefined,
+          ...this.stall(run),
         });
         continue;
       }
@@ -229,6 +235,7 @@ export class ConversationExecution {
         conversationId: conversation.conversationId,
         botId: conversation.botId,
         state: run?.state ?? 'idle',
+        ...this.stall(run),
       });
     }
   }
@@ -583,7 +590,8 @@ export class ConversationExecution {
     try {
       this.secrets.attach(run.botId);
       await this.userMemory.sync();
-      await this.providers.configureBot(this.bots.get(run.botId));
+      // Sources are applied when a Bot or its source changes: /api/model/set probes the provider
+      // catalog, which can outlast the 30 s management deadline.
       await this.hermes.syncRules(this.bots.get(run.botId));
       const conversationId = run.groupId
         ? this.database
@@ -677,6 +685,12 @@ export class ConversationExecution {
         error instanceof NodeFault
           ? error.message
           : 'Could not start this run. Check the provider and try again.';
+      const failureCode = !(error instanceof NodeFault)
+        ? 'run_start'
+        : error.code === 'timeout'
+          ? 'timeout'
+          : undefined;
+      if (failureCode) failed.content.failureCode = failureCode;
       const idle = this.idleRun(run);
       this.database.putMessage(failed, { runId: run.runId }, idle);
       if (run.groupId) await this.groupExecution.finishGroupRun(run, 'failed', failed.content.text);
@@ -708,6 +722,7 @@ export class ConversationExecution {
     let reconnectDelay = 500;
     let disconnected = false;
     let attachedGeneration = -1;
+    this.lastFrameAt.set(run.runId!, Date.now());
     while (!signal.aborted && run.runId) {
       try {
         if (attachedGeneration !== gateway.generation) {
@@ -750,6 +765,7 @@ export class ConversationExecution {
         });
         if (disconnected) {
           disconnected = false;
+          this.watchProgress(run, true);
           this.publishActivity(run);
         }
         if (replay.snapshot_required || replay.truncated) {
@@ -780,11 +796,16 @@ export class ConversationExecution {
               lastSequence: snapshot.last_sequence,
             });
           this.database.saveRun(run);
+          this.watchProgress(run, true);
         } else {
+          let progressed = false;
           for (const frame of replay.events) {
             if (signal.aborted) return;
             const sequence = frame.seq ?? -1;
             if (sequence <= Math.max(run.lastSeq, this.appliedSeq.get(run.runId) ?? -1)) continue;
+            // A session can also carry background completions for another admission.
+            progressed ||=
+              frame.admission_id === run.runId || frame.payload?.admission_id === run.runId;
             const event = projectGatewayEvent(run, frame);
             if (event && !(run.queue === 'queued' && event.event.startsWith('run.'))) {
               if (run.queue === 'queued' && event.event !== 'run.cancelled') {
@@ -871,6 +892,7 @@ export class ConversationExecution {
             );
             return;
           }
+          this.watchProgress(run, progressed);
         }
         reconnectDelay = 500;
       } catch (error) {
@@ -906,9 +928,44 @@ export class ConversationExecution {
     this.database.saveRun(run);
     if (this.activeRuns.get(run.conversationId)?.runId === run.runId)
       this.activeRuns.delete(run.conversationId);
-    if (run.runId) this.appliedSeq.delete(run.runId);
+    if (run.runId) {
+      this.appliedSeq.delete(run.runId);
+      this.lastFrameAt.delete(run.runId);
+      this.stalled.delete(run.runId);
+      this.notifications.acknowledge('stalled:' + run.runId);
+    }
     this.publishActivity(run);
     void this.userMemory.sync();
+  }
+
+  private stall(run?: RunRecord) {
+    return run?.runId && this.stalled.has(run.runId) ? { stalled: true as const } : {};
+  }
+
+  /** Hermes frames are the only progress Node sees; silence is shown, never acted on. */
+  private watchProgress(run: RunRecord, progressed: boolean) {
+    const runId = run.runId!;
+    if (
+      progressed ||
+      run.queue === 'queued' ||
+      run.state === 'waiting_approval' ||
+      run.state === 'waiting_question'
+    ) {
+      this.lastFrameAt.set(runId, Date.now());
+      if (this.stalled.delete(runId)) {
+        this.notifications.acknowledge('stalled:' + runId);
+        this.publishActivity(run);
+      }
+      return;
+    }
+    if (this.stalled.has(runId) || Date.now() - this.lastFrameAt.get(runId)! < STALL_MS) return;
+    this.stalled.add(runId);
+    this.publishActivity(run);
+    this.notifications.send({
+      notificationId: 'stalled:' + runId,
+      conversationId: run.conversationId,
+      kind: 'stalled',
+    });
   }
 
   private publishActivity(run: RunRecord) {
@@ -923,6 +980,7 @@ export class ConversationExecution {
       botId: run.botId,
       state: run.state,
       chain: chain ? { count: chain.count, max: MAX_CHAIN } : undefined,
+      ...this.stall(run),
     });
   }
 
@@ -991,6 +1049,11 @@ export class ConversationExecution {
   }
 
   private pauseUnknown(run: RunRecord) {
+    if (run.runId) {
+      this.lastFrameAt.delete(run.runId);
+      this.stalled.delete(run.runId);
+      this.notifications.acknowledge('stalled:' + run.runId);
+    }
     this.flow.finish(run, 'unknown');
     this.controls.settleControls(run, 'failed');
     const reply = this.messages.currentText(run) ?? this.messages.newText(run, '', 'failed');

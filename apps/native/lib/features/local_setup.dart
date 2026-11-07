@@ -279,12 +279,14 @@ class _LocalSetupPageState extends State<LocalSetupPage> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      LinearProgressIndicator(
-                        key: const ValueKey('local-install-progress'),
-                        value: completed / local.steps.length,
-                        minHeight: 6,
+                      ClipRSuperellipse(
                         borderRadius: BorderRadius.circular(4),
-                        semanticsLabel: progressLabel,
+                        child: LinearProgressIndicator(
+                          key: const ValueKey('local-install-progress'),
+                          value: completed / local.steps.length,
+                          minHeight: 6,
+                          semanticsLabel: progressLabel,
+                        ),
                       ),
                     ],
                   ),

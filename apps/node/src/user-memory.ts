@@ -10,6 +10,7 @@ import type {
 import type { HermesRuntime } from './hermes/runtime';
 import type { NodeDatabase } from './database';
 import { NodeFault } from './fault';
+import { memoryLimits } from './memory-limits';
 
 interface LocalMemory {
   shared: UserMemoryState | null;
@@ -48,6 +49,16 @@ export class SharedUserMemory {
   }
   view(): UserMemoryView {
     return { shared: this.local.shared, connected: this.connected, error: this.error };
+  }
+  /** Every Bot keeps the shared USER.md, so the smallest native cap is the one that binds. */
+  async limit() {
+    const bots = this.database.bots().map((bot) => bot.botId);
+    const limits = await Promise.all(
+      (bots.length ? bots : ['default']).map(
+        async (profile) => (await memoryLimits(this.hermes, profile)).user,
+      ),
+    );
+    return Math.min(...limits);
   }
   private path(botId: string) {
     return join(this.hermes.profileHome(botId), 'memories', 'USER.md');

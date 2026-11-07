@@ -2,6 +2,13 @@ import type { NodeDatabase } from '../database';
 import type { HermesRuntime } from './runtime';
 
 export interface NativeSessionSnapshot {
+  info?: {
+    model?: string;
+    provider?: string;
+    api_mode?: string;
+    reasoning_effort?: string | null;
+    reasoning_effort_wire?: string | null;
+  };
   session_id: string;
   stored_session_id: string;
   replay_epoch: string;

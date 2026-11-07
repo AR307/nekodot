@@ -233,7 +233,7 @@ class StepFrame extends StatelessWidget {
     return Material(
       color: tone.surface,
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
+      shape: RoundedSuperellipseBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: tone.line),
       ),
@@ -339,9 +339,11 @@ class _StepRowState extends State<StepRow> {
           Container(
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
+            decoration: ShapeDecoration(
               color: tone.bubble,
-              borderRadius: BorderRadius.circular(8),
+              shape: RoundedSuperellipseBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             child: SelectableText(detail, style: mono),
           ),

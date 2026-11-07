@@ -437,14 +437,16 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: own ? context.tone.ink : context.tone.line,
-                    width: own ? 2 : 1,
+                decoration: ShapeDecoration(
+                  shape: RoundedSuperellipseBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(
+                      color: own ? context.tone.ink : context.tone.line,
+                      width: own ? 2 : 1,
+                    ),
                   ),
                 ),
-                child: ClipRRect(
+                child: ClipRSuperellipse(
                   borderRadius: BorderRadius.circular(9),
                   child: ColoredBox(
                     color: Colors.black,

@@ -15,6 +15,7 @@ import '../ui/design.dart';
 import 'updates.dart';
 import 'user_memory.dart';
 import 'statistics.dart';
+import 'source_models.dart';
 
 class SettingsPage extends StatefulWidget {
   final NekodotClient client;
@@ -520,6 +521,8 @@ class CustomSourcePage extends StatefulWidget {
 
 class _CustomSourcePageState extends State<CustomSourcePage> {
   late String? savedId = widget.source?['sourceId'] as String?;
+  late String apiMode = widget.source?['apiMode'] as String? ?? '';
+  int modelRevision = 0;
   late final name = TextEditingController(
     text: widget.source?['name'] as String? ?? '',
   );
@@ -572,6 +575,19 @@ class _CustomSourcePageState extends State<CustomSourcePage> {
           ),
         ),
         ErrorNotice(error),
+        LabeledField(
+          label: widget.client.tr('接口', 'API'),
+          child: MenuSelect<String>(
+            value: apiMode,
+            options: [
+              ('', widget.client.tr('自动', 'Automatic')),
+              ('chat_completions', 'Chat Completions'),
+              ('codex_responses', 'Responses'),
+              ('anthropic_messages', 'Messages'),
+            ],
+            onChanged: busy ? null : (v) => setState(() => apiMode = v),
+          ),
+        ),
         const SizedBox(height: 16),
         Align(
           alignment: Alignment.centerRight,
@@ -586,26 +602,16 @@ class _CustomSourcePageState extends State<CustomSourcePage> {
                         if (savedId != null) 'sourceId': savedId,
                         'name': name.text,
                         'baseUrl': url.text.trim(),
+                        'apiMode': apiMode,
                         if (key.text.isNotEmpty) 'apiKey': key.text,
                       });
                       if (mounted) {
-                        setState(() => savedId = saved['sourceId'] as String);
+                        setState(() {
+                          savedId = saved['sourceId'] as String;
+                          modelRevision++;
+                        });
                       }
                       key.clear();
-                      final catalog = await widget.client.rpc(
-                        'models.options',
-                        {'sourceId': saved['sourceId'], 'refresh': true},
-                      );
-                      if (context.mounted) {
-                        showNotice(
-                          context,
-                          widget.client.tr(
-                            '${(catalog['models'] as List).length} 个模型',
-                            '${(catalog['models'] as List).length} models',
-                          ),
-                        );
-                      }
-                      if (context.mounted) Navigator.pop(context);
                     } catch (e) {
                       if (mounted) setState(() => error = '$e');
                     } finally {
@@ -615,6 +621,12 @@ class _CustomSourcePageState extends State<CustomSourcePage> {
             child: Text(widget.client.tr('保存', 'Save')),
           ),
         ),
+        if (savedId != null)
+          SourceModels(
+            key: ValueKey('$savedId:$modelRevision'),
+            client: widget.client,
+            sourceId: savedId!,
+          ),
       ],
     ),
   );
@@ -798,6 +810,12 @@ class _AuthorizationPageState extends State<AuthorizationPage> {
               ),
             ),
           ],
+          if (authorized)
+            SourceModels(
+              key: ValueKey('oauth:${widget.provider['id']}'),
+              client: widget.client,
+              sourceId: 'oauth:${widget.provider['id']}',
+            ),
           ErrorNotice(error),
         ],
       ),

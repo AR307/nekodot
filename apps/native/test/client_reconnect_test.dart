@@ -56,6 +56,28 @@ void main() {
     relay.accept(relay.hello[0]);
     await until(() => client.connection.ready);
 
+    // Returning focus during an ordinary RPC must not close the healthy socket.
+    final focusedRpc = client.rpc('messages.list', {}, 'node');
+    await until(() => relay.requests.length == 1);
+    client.pause();
+    client.resume();
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect(relay.sockets, hasLength(1));
+    relay.sockets.first.add(
+      jsonEncode({
+        'v': 1,
+        'id': 'focus-reply',
+        'type': 'rpc.res',
+        'replyTo': relay.requests.first['id'],
+        'payload': {
+          'ok': true,
+          'result': {'messages': []},
+        },
+      }),
+    );
+    expect(await focusedRpc, {'messages': []});
+    relay.requests.clear();
+
     // An answer still owed by the old socket fails instead of waiting 30 seconds.
     final owed = client.rpc('messages.list', {}, 'node');
     await until(() => relay.requests.length == 1);

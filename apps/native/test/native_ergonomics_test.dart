@@ -130,6 +130,14 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
     await tester.pumpAndSettle();
     expect(position.pixels, lessThan(reading));
+    // PageDown may already reach the near-latest range. Move back into
+    // history before exercising the separately displayed return control.
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('chat-latest')).hitTestable(),
+      findsOneWidget,
+    );
     await tester.tap(find.byKey(const ValueKey('chat-latest')));
     await tester.pumpAndSettle();
     expect(position.pixels, closeTo(position.minScrollExtent, 1));

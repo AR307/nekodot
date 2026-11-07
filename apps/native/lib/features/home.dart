@@ -533,16 +533,16 @@ class _HomePageState extends State<HomePage> {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 1),
         child: Container(
-          decoration: BoxDecoration(
+          decoration: ShapeDecoration(
             color: raised ? tone.surface : tone.surface.withValues(alpha: 0),
-            borderRadius: corners,
-            boxShadow: raised ? (selected ? tone.lift : tone.rest) : const [],
+            shadows: raised ? (selected ? tone.lift : tone.rest) : const [],
+            shape: RoundedSuperellipseBorder(borderRadius: corners),
           ),
           child: Material(
             type: MaterialType.transparency,
             child: InkWell(
               key: ValueKey('conversation-$id'),
-              borderRadius: corners,
+              customBorder: RoundedSuperellipseBorder(borderRadius: corners),
               hoverColor: Colors.transparent,
               highlightColor: tone.hover,
               onTap: () => open(value, narrow),
@@ -688,7 +688,9 @@ class _HomePageState extends State<HomePage> {
     return [
       InkWell(
         key: ValueKey('section-$key'),
-        borderRadius: BorderRadius.circular(10),
+        customBorder: RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
         onTap: () => setState(() {
           if (!folded.remove(key)) folded.add(key);
         }),

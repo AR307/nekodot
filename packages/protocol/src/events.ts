@@ -46,6 +46,7 @@ export const liveSchema = z.discriminatedUnion('kind', [
     botId: botSchema.shape.botId,
     state: z.enum(['thinking', 'tool', 'waiting_approval', 'waiting_question', 'unknown', 'idle']),
     connection: z.enum(['connected', 'reconnecting']).optional(),
+    stalled: z.literal(true).optional(),
     detail: z.string().optional(),
     chain: z
       .strictObject({ count: z.number().int().nonnegative(), max: z.number().int().positive() })

@@ -17,6 +17,7 @@ import 'client_commands.dart';
 import 'voice.dart';
 
 import 'chat_presentation.dart';
+import 'reasoning_slider.dart';
 
 class ChatComposer extends StatefulWidget {
   final NekodotClient client;
@@ -39,6 +40,12 @@ class ChatComposer extends StatefulWidget {
 class ChatComposerState extends State<ChatComposer> {
   final input = TextEditingController();
   bool sending = false;
+  bool savingReasoning = false;
+  int reasoningRevision = 0;
+  void refreshReasoning() {
+    if (mounted) setState(() => reasoningRevision++);
+  }
+
   String error = '';
   String? pendingId, pendingText;
   String? commandBotId;
@@ -121,6 +128,7 @@ class ChatComposerState extends State<ChatComposer> {
     final sentQuote = quoted;
     if ((text.isEmpty && attached.isEmpty) ||
         sending ||
+        savingReasoning ||
         uploading ||
         (commandOperation?.status == 'running' &&
             !(sideCommand && !text.startsWith('/')))) {
@@ -300,6 +308,7 @@ class ChatComposerState extends State<ChatComposer> {
       }
       await c.loadMessages(id);
       if (!mounted || commandNodeId != c.selectedNodeId) return;
+      refreshReasoning();
       for (final result in operation.results) {
         final page = result.page;
         if (page is String) {
@@ -413,6 +422,7 @@ class ChatComposerState extends State<ChatComposer> {
         c.online &&
         (!waiting || queueCommand) &&
         !sending &&
+        !savingReasoning &&
         !uploading &&
         !(commandOperation?.status == 'running' &&
             !(sideCommand && !input.text.startsWith('/'))) &&
@@ -420,6 +430,21 @@ class ChatComposerState extends State<ChatComposer> {
     final composerAction = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (group == null && bot != null) ...[
+          Flexible(
+            child: ReasoningSlider(
+              key: ValueKey('${c.selectedNodeId}:$id:${bot['model']}'),
+              client: c,
+              botId: '${bot['botId']}',
+              enabled: c.online && !running && !sending,
+              revision: reasoningRevision,
+              onSaving: (value) {
+                if (mounted) setState(() => savingReasoning = value);
+              },
+            ),
+          ),
+          const SizedBox(width: 6),
+        ],
         if (group == null && bot != null && !hasText && !running)
           IconButton.filled(
             key: const ValueKey('composer-voice'),

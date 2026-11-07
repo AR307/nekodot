@@ -63,11 +63,14 @@ class Panel extends StatelessWidget {
     final shadows = lifted ? tone.lift : tone.rest;
     final corners = BorderRadius.circular(radius);
     return DecoratedBox(
-      decoration: BoxDecoration(borderRadius: corners, boxShadow: shadows),
+      decoration: ShapeDecoration(
+        shadows: shadows,
+        shape: RoundedSuperellipseBorder(borderRadius: corners),
+      ),
       child: Material(
         color: color ?? tone.surface,
         clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(borderRadius: corners),
+        shape: RoundedSuperellipseBorder(borderRadius: corners),
         child: child,
       ),
     );
@@ -89,10 +92,12 @@ class ChatCard extends StatelessWidget {
     final tone = context.tone;
     return Container(
       padding: padding,
-      decoration: BoxDecoration(
+      decoration: ShapeDecoration(
         color: tone.surface,
-        border: Border.all(color: tone.line),
-        borderRadius: BorderRadius.circular(16),
+        shape: RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: tone.line),
+        ),
       ),
       child: child,
     );
@@ -241,7 +246,9 @@ class MenuSelect<T> extends StatelessWidget {
     final enabled = onChanged != null && options.isNotEmpty;
     return Builder(
       builder: (field) => InkWell(
-        borderRadius: BorderRadius.circular(context.tone.corner),
+        customBorder: RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.circular(context.tone.corner),
+        ),
         onTap: enabled ? () => open(field) : null,
         child: InputDecorator(
           isEmpty: chosen == null,
@@ -338,7 +345,9 @@ class ChoiceRow extends StatelessWidget {
     final tone = context.tone;
     final text = Theme.of(context).textTheme;
     return InkWell(
-      borderRadius: BorderRadius.circular(10),
+      customBorder: RoundedSuperellipseBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
       onTap: onTap,
       child: Padding(
         padding: EdgeInsets.symmetric(
@@ -352,10 +361,12 @@ class ChoiceRow extends StatelessWidget {
               width: 24,
               height: 24,
               alignment: Alignment.center,
-              decoration: BoxDecoration(
+              decoration: ShapeDecoration(
                 color: selected ? tone.ink : tone.bubble,
-                border: Border.all(color: selected ? tone.ink : tone.line),
-                borderRadius: BorderRadius.circular(7),
+                shape: RoundedSuperellipseBorder(
+                  borderRadius: BorderRadius.circular(7),
+                  side: BorderSide(color: selected ? tone.ink : tone.line),
+                ),
               ),
               child: Text(
                 String.fromCharCode(65 + index % 26),
@@ -659,7 +670,9 @@ class Segment<T> extends StatelessWidget {
     final keys = options.keys.toList();
     final selected = keys.indexOf(value);
     final still = MediaQuery.disableAnimationsOf(context);
-    const corners = StadiumBorder();
+    const corners = RoundedSuperellipseBorder(
+      borderRadius: BorderRadius.all(Radius.circular(999)),
+    );
     return Container(
       height: tone.glass ? 36 : 28,
       padding: const EdgeInsets.all(2),

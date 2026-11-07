@@ -4,7 +4,7 @@ import { idSchema } from './entities';
 export const notificationSchema = z.strictObject({
   notificationId: z.string().min(1).max(240),
   conversationId: idSchema,
-  kind: z.enum(['approval', 'question', 'completed', 'failed']),
+  kind: z.enum(['approval', 'question', 'completed', 'failed', 'stalled']),
   displayName: z.string().max(160),
   preview: z.string().max(801),
 });

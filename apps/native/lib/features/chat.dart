@@ -75,6 +75,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   @override
   void didPopNext() {
     c.visibleConversation = id;
+    composer.currentState?.refreshReasoning();
   }
 
   @override
@@ -237,7 +238,9 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
       Widget floating(Widget child) => DecoratedBox(
         decoration: ShapeDecoration(
           color: tone.surface,
-          shape: const StadiumBorder(),
+          shape: const RoundedSuperellipseBorder(
+            borderRadius: BorderRadius.all(Radius.circular(999)),
+          ),
           shadows: tone.rest,
         ),
         child: Material(type: MaterialType.transparency, child: child),
@@ -246,7 +249,9 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
         message: c.tr('详情', 'Details'),
         child: floating(
           InkWell(
-            customBorder: const StadiumBorder(),
+            customBorder: const RoundedSuperellipseBorder(
+              borderRadius: BorderRadius.all(Radius.circular(999)),
+            ),
             onTap: openDetails,
             child: Padding(
               padding: EdgeInsets.fromLTRB(
@@ -589,14 +594,18 @@ class AskedPill extends StatelessWidget {
       child: DecoratedBox(
         decoration: ShapeDecoration(
           color: tone.surface,
-          shape: const StadiumBorder(),
+          shape: const RoundedSuperellipseBorder(
+            borderRadius: BorderRadius.all(Radius.circular(999)),
+          ),
           shadows: tone.rest,
         ),
         child: Material(
           type: MaterialType.transparency,
           child: InkWell(
             key: const ValueKey('chat-asked'),
-            customBorder: const StadiumBorder(),
+            customBorder: const RoundedSuperellipseBorder(
+              borderRadius: BorderRadius.all(Radius.circular(999)),
+            ),
             onTap: onTap,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(10, 6, 14, 6),
