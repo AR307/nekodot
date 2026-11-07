@@ -13,7 +13,7 @@ import '../data/client.dart';
 import '../data/json.dart';
 import 'desktop.dart';
 
-/// Android delivery is exclusively FCM; Windows uses its live account channel.
+/// Android background delivery uses FCM; foreground feedback uses the live channel.
 /// Hermes/Node decide when a task is done. This class only displays and opens it.
 class NativeNotifications {
   final NekodotClient client;
@@ -27,6 +27,12 @@ class NativeNotifications {
   bool initialized = false, registering = false, disposed = false;
 
   Future<void> initialize(BuildContext context) async {
+    subscriptions.add(
+      client.notifications.stream.listen((signal) {
+        if (Platform.isAndroid && !client.connection.active) return;
+        unawaited(show(signal));
+      }),
+    );
     try {
       await local.initialize(
         settings: const InitializationSettings(
@@ -130,12 +136,6 @@ class NativeNotifications {
           seen.add('${message.data['notificationId']}');
           client.openNotification(message.data);
         }
-      } else if (DesktopHost.supported) {
-        subscriptions.add(
-          client.notifications.stream.listen((signal) {
-            unawaited(show(signal));
-          }),
-        );
       }
       initialized = true;
       client.addListener(onClientChange);
@@ -223,10 +223,14 @@ class NativeNotifications {
       final focused = !DesktopHost.supported || await windowManager.isFocused();
       if (focused &&
           client.connection.active &&
-          client.selectedNodeId == signal['nodeId'] &&
-          client.visibleConversation == signal['conversationId']) {
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+        if (client.selectedNodeId != signal['nodeId'] ||
+            client.visibleConversation != signal['conversationId']) {
+          client.foregroundNotice.value = signal;
+        }
         return;
       }
+      if (!initialized) return;
       await local.show(
         // Android: FCM shows (conversation tag, id 0); the same pair replaces it.
         id: Platform.isAndroid

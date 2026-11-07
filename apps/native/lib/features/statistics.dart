@@ -145,23 +145,14 @@ class _StatisticsPageState extends State<StatisticsPage> {
                       child: Text(range.value),
                     ),
                   const SizedBox(width: 8),
-                  DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
+                  SizedBox(
+                    width: 190,
+                    child: MenuSelect<String>(
                       value: nodeId ?? '',
-                      borderRadius: BorderRadius.circular(12),
-                      items: [
-                        DropdownMenuItem(
-                          value: '',
-                          child: Text(c.tr('全部电脑', 'All computers')),
-                        ),
+                      options: [
+                        ('', c.tr('全部电脑', 'All computers')),
                         for (final n in objects(c.account.me?['nodes'] ?? []))
-                          DropdownMenuItem(
-                            value: '${n['nodeId']}',
-                            child: Text(
-                              '${n['name']}',
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
+                          ('${n['nodeId']}', '${n['name']}'),
                       ],
                       onChanged: (value) {
                         setState(() => nodeId = value == '' ? null : value);
@@ -387,7 +378,7 @@ class _UsageCard extends StatelessWidget {
       color: context.tone.surface,
       shape: RoundedSuperellipseBorder(
         borderRadius: BorderRadius.circular(18),
-        side: BorderSide(color: context.tone.line),
+        side: BorderSide(color: context.tone.line, width: .5),
       ),
     ),
     child: child,
@@ -516,6 +507,7 @@ class UsageCalendar extends StatelessWidget {
     );
     final end = DateTime.utc(last.year, last.month, last.day);
     final weeks = (end.difference(start).inDays + 1) / 7;
+    final cell = context.tone.glass ? 48.0 : 23.0;
     final max = data.days.values.fold(
       0,
       (value, day) => math.max(value, day.total),
@@ -530,7 +522,7 @@ class UsageCalendar extends StatelessWidget {
               children: [
                 SizedBox(
                   height: 23,
-                  width: 23,
+                  width: cell,
                   child: Text(
                     start.add(Duration(days: week * 7)).day <= 7
                         ? '${start.add(Duration(days: week * 7)).month}'
@@ -555,14 +547,15 @@ class UsageCalendar extends StatelessWidget {
                             '$key\n${usageNumber(value)} Token${unknown > 0 ? '\n$unavailableLabel' : ''}',
                         child: GestureDetector(
                           key: ValueKey('usage-day-$key'),
+                          behavior: HitTestBehavior.opaque,
                           onTap: available
                               ? () =>
                                     tooltip.currentState?.ensureTooltipVisible()
                               : null,
                           child: Container(
-                            width: 19,
-                            height: 19,
-                            margin: const EdgeInsets.all(2),
+                            width: cell - (context.tone.glass ? 8 : 4),
+                            height: cell - (context.tone.glass ? 8 : 4),
+                            margin: EdgeInsets.all(context.tone.glass ? 4 : 2),
                             decoration: ShapeDecoration(
                               color: !available
                                   ? Colors.transparent

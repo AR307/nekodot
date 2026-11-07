@@ -319,7 +319,7 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
               color: tone.ink,
             ),
             titleMedium: TextStyle(
-              fontSize: frosted ? 15 : 13.5,
+              fontSize: frosted ? 16 : 15,
               fontWeight: FontWeight.w600,
               color: tone.ink,
             ),
@@ -329,12 +329,12 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
               color: tone.ink2,
             ),
             bodyLarge: TextStyle(
-              fontSize: frosted ? 15 : 14,
+              fontSize: frosted ? 16 : 15,
               height: 1.45,
               color: tone.ink,
             ),
             bodyMedium: TextStyle(
-              fontSize: frosted ? 15 : 14,
+              fontSize: frosted ? 16 : 15,
               height: 1.45,
               color: tone.ink,
             ),
@@ -367,7 +367,7 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
     shape: RoundedSuperellipseBorder(
       borderRadius: BorderRadius.circular(tone.corner),
     ),
-    borderSide: frosted ? BorderSide.none : BorderSide(color: color),
+    borderSide: frosted ? BorderSide.none : BorderSide(color: color, width: .5),
   );
   // Text buttons are pills and icon buttons circles; fields keep their corners.
   const control = RoundedSuperellipseBorder(
@@ -484,7 +484,7 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       style: OutlinedButton.styleFrom(
         foregroundColor: tone.ink,
         disabledForegroundColor: tone.ink3,
-        side: BorderSide(color: tone.line),
+        side: BorderSide(color: tone.line, width: .5),
         visualDensity: VisualDensity.standard,
         minimumSize: buttonSize,
         padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -529,7 +529,7 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
     chipTheme: ChipThemeData(
       shape: control,
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      side: BorderSide(color: tone.line),
+      side: BorderSide(color: tone.line, width: .5),
       backgroundColor: Colors.transparent,
       selectedColor: tone.ink,
       showCheckmark: false,
@@ -571,10 +571,26 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       shadowColor: Colors.black.withValues(alpha: dark ? .5 : .12),
       shape: RoundedSuperellipseBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: tone.line),
+        side: BorderSide(color: tone.line, width: .5),
       ),
       menuPadding: const EdgeInsets.symmetric(vertical: 6),
       textStyle: text.bodyMedium,
+    ),
+    menuTheme: MenuThemeData(
+      style: MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(tone.menu),
+        shape: WidgetStatePropertyAll(
+          RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+      ),
+    ),
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: tone.menu,
+      surfaceTintColor: Colors.transparent,
+      shape: const RoundedSuperellipseBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      clipBehavior: Clip.antiAlias,
     ),
     tooltipTheme: TooltipThemeData(
       decoration: ShapeDecoration(

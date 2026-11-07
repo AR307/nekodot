@@ -207,28 +207,16 @@ class _SecretCardState extends State<SecretCard>
     // Delivered or ended: the name, and how it ended, as an answered question.
     if (!pending) {
       final done = const ['delivered', 'applied'].contains(request['state']);
-      return ChatCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 4,
           children: [
-            title,
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(
-                  done ? Icons.check : Icons.remove,
-                  size: 16,
-                  color: tone.ink3,
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    secretState(c, '${request['state']}'),
-                    style: text.bodySmall,
-                  ),
-                ),
-              ],
-            ),
+            Text('${request['service']}', style: text.bodyMedium),
+            Icon(done ? Icons.check : Icons.remove, size: 16, color: tone.ink3),
+            Text(secretState(c, '${request['state']}'), style: text.bodySmall),
           ],
         ),
       );
@@ -292,14 +280,18 @@ class _SecretCardState extends State<SecretCard>
                       Checkbox(
                         key: const ValueKey('secret-save'),
                         value: save,
-                        visualDensity: VisualDensity.compact,
+                        visualDensity: tone.glass
+                            ? VisualDensity.standard
+                            : VisualDensity.compact,
                         onChanged: ready
                             ? (value) => setState(() => save = value ?? false)
                             : null,
                       ),
-                      Text(
-                        c.tr('允许 Bot 复用', 'Let the Bot reuse it'),
-                        style: text.bodySmall,
+                      Flexible(
+                        child: Text(
+                          c.tr('允许 Bot 复用', 'Let the Bot reuse it'),
+                          style: text.bodySmall,
+                        ),
                       ),
                       const SizedBox(width: 8),
                     ],

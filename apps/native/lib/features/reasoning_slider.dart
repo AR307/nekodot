@@ -116,9 +116,55 @@ class _ReasoningSliderState extends State<ReasoningSlider> {
     }
     final levels = (data?['levels'] as List?)?.cast<String>() ?? [];
     if (levels.isEmpty) return const SizedBox.shrink();
-    final options = <String?>[null, ...levels];
-    final at = options.indexOf(selected);
+    final options = levels;
+    final at = selected == null ? -1 : options.indexOf(selected!);
     final disabled = saving || !widget.enabled;
+    String label(String? value) => value ?? '…';
+    if (context.tone.glass) {
+      return TextButton(
+        key: const ValueKey('reasoning-toggle'),
+        onPressed: disabled
+            ? null
+            : () => showModalBottomSheet<void>(
+                context: context,
+                useSafeArea: true,
+                showDragHandle: true,
+                isScrollControlled: true,
+                builder: (sheet) => SafeArea(
+                  top: false,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.sizeOf(sheet).height * .6,
+                    ),
+                    child: ListView(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+                      children: [
+                        for (final value in options)
+                          ListTile(
+                            title: Text(label(value)),
+                            trailing: value == selected
+                                ? const Icon(Icons.check)
+                                : null,
+                            onTap: () {
+                              Navigator.pop(sheet);
+                              save(value);
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+        child: Text(
+          label(selected),
+          key: const ValueKey('reasoning-current'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
+    }
     final slider = SizedBox(
       width: 280,
       child: Column(
@@ -142,10 +188,10 @@ class _ReasoningSliderState extends State<ReasoningSlider> {
                 key: const ValueKey('reasoning-slider'),
                 min: 0,
                 max: (options.length - 1).toDouble(),
-                divisions: options.length - 1,
+                divisions: options.length > 1 ? options.length - 1 : null,
                 value: (at < 0 ? 0 : at).toDouble(),
                 semanticFormatterCallback: (v) =>
-                    '${widget.client.tr('思考等级', 'Reasoning effort')}: ${options[v.round()] ?? 'omit'}',
+                    '${widget.client.tr('思考等级', 'Reasoning effort')}: ${label(options[v.round()])}',
                 onChanged: disabled
                     ? null
                     : (v) => setState(() => selected = options[v.round()]),
@@ -153,15 +199,26 @@ class _ReasoningSliderState extends State<ReasoningSlider> {
               ),
             ),
           ),
-          Row(
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 4,
+            runSpacing: 4,
             children: [
               for (final value in options)
-                Expanded(
+                TextButton(
+                  onPressed: disabled ? null : () => save(value),
+                  style: TextButton.styleFrom(
+                    minimumSize: Size(48, context.tone.glass ? 48 : 32),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    backgroundColor: value == selected
+                        ? context.tone.hover
+                        : null,
+                  ),
                   child: Text(
-                    value ?? 'omit',
+                    label(value),
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 9,
+                      fontSize: 12,
                       color: value == selected
                           ? context.tone.ink
                           : context.tone.ink3,
@@ -192,12 +249,14 @@ class _ReasoningSliderState extends State<ReasoningSlider> {
             ? null
             : () => controller.isOpen ? controller.close() : controller.open(),
         style: TextButton.styleFrom(
-          minimumSize: const Size(48, 32),
+          minimumSize: Size(48, context.tone.glass ? 48 : 32),
           padding: const EdgeInsets.symmetric(horizontal: 8),
         ),
         child: Text(
-          selected ?? 'omit',
+          label(selected),
           key: const ValueKey('reasoning-current'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 12),
         ),
       ),

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +15,7 @@ import '../data/json.dart';
 import '../data/account.dart';
 import '../platform/file_actions.dart';
 import '../ui/design.dart';
+import '../ui/message_markdown.dart';
 import 'bot_editor.dart';
 
 Future<Uint8List> downloadFile(NekodotClient c, String id) async {
@@ -252,7 +252,7 @@ class _FileCardState extends State<FileCard> {
         color: tone.surface,
         shape: RoundedSuperellipseBorder(
           borderRadius: corners,
-          side: BorderSide(color: tone.line),
+          side: BorderSide(color: tone.line, width: .5),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -388,35 +388,103 @@ class _LibraryPageState extends State<LibraryPage> {
   );
 }
 
-/// Opens a file over the page it was tapped on: a floating reader, closed
-/// back to where you were.
+/// Routes workspace files to the shared right-hand reader.
+class FilePreviewScope extends InheritedWidget {
+  final ValueChanged<Json> open;
+  const FilePreviewScope({super.key, required this.open, required super.child});
+  @override
+  bool updateShouldNotify(FilePreviewScope oldWidget) => false;
+}
+
 Future<void> showFileViewer(
   BuildContext context,
   NekodotClient client,
   Json file,
-) => showDialog<void>(
-  context: context,
-  builder: (context) {
-    final size = MediaQuery.sizeOf(context);
-    final phone = context.tone.glass;
-    return Dialog(
-      clipBehavior: Clip.antiAlias,
-      insetPadding: phone
-          ? const EdgeInsets.fromLTRB(10, 48, 10, 24)
-          : const EdgeInsets.all(40),
-      child: SizedBox(
-        width: phone ? size.width : math.min(960.0, size.width - 80),
-        height: phone ? size.height * .82 : math.min(780.0, size.height - 80),
-        child: FileViewer(client: client, file: file),
+) async {
+  final scope = context.getInheritedWidgetOfExactType<FilePreviewScope>();
+  if (!context.tone.glass && scope != null) {
+    scope.open(file);
+    return;
+  }
+  if (context.tone.glass) {
+    await pushPage<void>(
+      context,
+      Scaffold(
+        body: SafeArea(
+          child: FileViewer(client: client, file: file),
+        ),
       ),
     );
-  },
-);
+    return;
+  }
+  // A file opened from a nested settings/library route still uses an in-app
+  // right-hand reader, not a new window or a desktop full-page navigation.
+  var expanded = false;
+  await Navigator.of(context).push<void>(
+    PageRouteBuilder<void>(
+      opaque: false,
+      barrierDismissible: true,
+      barrierLabel: client.tr('关闭', 'Close'),
+      barrierColor: Colors.black26,
+      transitionDuration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 240),
+      reverseTransitionDuration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 180),
+      pageBuilder: (context, _, secondary) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final width = MediaQuery.sizeOf(context).width;
+            return Align(
+              alignment: Alignment.centerRight,
+              child: SizedBox(
+                width: expanded ? width : width.clamp(0.0, 560.0),
+                child: Material(
+                  color: context.tone.base,
+                  child: SafeArea(
+                    child: FileViewer(
+                      client: client,
+                      file: file,
+                      expanded: expanded,
+                      onExpand: () => setState(() => expanded = !expanded),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+      transitionsBuilder: (context, animation, secondary, child) =>
+          SlideTransition(
+            position: Tween(begin: const Offset(1, 0), end: Offset.zero)
+                .animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                    reverseCurve: Curves.easeInCubic,
+                  ),
+                ),
+            child: child,
+          ),
+    ),
+  );
+}
 
 class FileViewer extends StatefulWidget {
   final NekodotClient client;
   final Json file;
-  const FileViewer({super.key, required this.client, required this.file});
+  final VoidCallback? onClose, onExpand;
+  final bool expanded;
+  const FileViewer({
+    super.key,
+    required this.client,
+    required this.file,
+    this.onClose,
+    this.onExpand,
+    this.expanded = false,
+  });
   @override
   State<FileViewer> createState() => _FileViewerState();
 }
@@ -425,6 +493,13 @@ class _FileViewerState extends State<FileViewer> {
   NekodotClient get client => widget.client;
   Json get file => widget.file;
   late final content = downloadFile(client, file['fileId'] as String);
+  final readingScroll = ScrollController();
+  @override
+  void dispose() {
+    readingScroll.dispose();
+    super.dispose();
+  }
+
   bool busy = false, source = false;
   String error = '', notice = '';
   Future<String>? copy;
@@ -563,72 +638,93 @@ class _FileViewerState extends State<FileViewer> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(18, 8, 8, 8),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: Text(
-                  '${file['name']}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
+              Text(
+                '${file['name']}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleSmall,
               ),
-              if (RegExp(r'\.(tar\.gz|tgz)$').hasMatch('${file['name']}') &&
-                  available)
-                IconButton(
-                  tooltip: client.tr('作为新 Bot 导入', 'Import as a new Bot'),
-                  icon: const Icon(Icons.person_add_alt_1_outlined),
-                  onPressed: () {
-                    final navigator = Navigator.of(context);
-                    navigator.pop();
-                    pushPage(
-                      navigator.context,
-                      BotEditor(
-                        client: client,
-                        importProfile: true,
-                        initialArchive: file,
+              Wrap(
+                alignment: WrapAlignment.end,
+                children: [
+                  if (RegExp(r'\.(tar\.gz|tgz)$').hasMatch('${file['name']}') &&
+                      available)
+                    IconButton(
+                      tooltip: client.tr('作为新 Bot 导入', 'Import as a new Bot'),
+                      icon: const Icon(Icons.person_add_alt_1_outlined),
+                      onPressed: () {
+                        final navigator = Navigator.of(context);
+                        if (widget.onClose != null) {
+                          widget.onClose!();
+                        } else {
+                          navigator.pop();
+                        }
+                        pushPage(
+                          navigator.context,
+                          BotEditor(
+                            client: client,
+                            importProfile: true,
+                            initialArchive: file,
+                          ),
+                        );
+                      },
+                    ),
+                  if (svg && available)
+                    IconButton(
+                      key: const ValueKey('viewer-svg-source'),
+                      tooltip: source
+                          ? client.tr('查看图片', 'Show picture')
+                          : client.tr('查看源码', 'Show source'),
+                      onPressed: () => setState(() => source = !source),
+                      icon: Icon(source ? Icons.image_outlined : Icons.code),
+                    ),
+                  if (desktop)
+                    Builder(
+                      builder: (anchor) => IconButton(
+                        key: const ValueKey('viewer-open'),
+                        tooltip: client.tr('打开', 'Open'),
+                        onPressed: available && !busy
+                            ? () => openMenu(anchor)
+                            : null,
+                        icon: const Icon(Icons.open_in_new),
                       ),
-                    );
-                  },
-                ),
-              if (svg && available)
-                IconButton(
-                  key: const ValueKey('viewer-svg-source'),
-                  tooltip: source
-                      ? client.tr('查看图片', 'Show picture')
-                      : client.tr('查看源码', 'Show source'),
-                  onPressed: () => setState(() => source = !source),
-                  icon: Icon(source ? Icons.image_outlined : Icons.code),
-                ),
-              if (desktop)
-                Builder(
-                  builder: (anchor) => IconButton(
-                    key: const ValueKey('viewer-open'),
-                    tooltip: client.tr('打开', 'Open'),
+                    ),
+                  IconButton(
+                    tooltip: client.tr('分享文件', 'Share file'),
                     onPressed: available && !busy
-                        ? () => openMenu(anchor)
+                        ? () => deliver(share: true)
                         : null,
-                    icon: const Icon(Icons.open_in_new),
+                    icon: const Icon(Icons.ios_share_outlined),
                   ),
-                ),
-              IconButton(
-                tooltip: client.tr('分享文件', 'Share file'),
-                onPressed: available && !busy
-                    ? () => deliver(share: true)
-                    : null,
-                icon: const Icon(Icons.ios_share_outlined),
-              ),
-              IconButton(
-                tooltip: client.tr('保存文件', 'Save file'),
-                onPressed: available && !busy
-                    ? () => deliver(share: false)
-                    : null,
-                icon: const Icon(Icons.download_outlined),
-              ),
-              IconButton(
-                tooltip: client.tr('关闭', 'Close'),
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close),
+                  IconButton(
+                    tooltip: client.tr('保存文件', 'Save file'),
+                    onPressed: available && !busy
+                        ? () => deliver(share: false)
+                        : null,
+                    icon: const Icon(Icons.download_outlined),
+                  ),
+                  IconButton(
+                    tooltip: client.tr('关闭', 'Close'),
+                    onPressed: widget.onClose ?? () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                  if (widget.onExpand != null)
+                    IconButton(
+                      key: const ValueKey('viewer-expand'),
+                      tooltip: widget.expanded
+                          ? client.tr('收起', 'Collapse')
+                          : client.tr('展开', 'Expand'),
+                      onPressed: widget.onExpand,
+                      icon: Icon(
+                        widget.expanded
+                            ? Icons.fullscreen_exit
+                            : Icons.fullscreen,
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
@@ -711,10 +807,34 @@ class _FileViewerState extends State<FileViewer> {
                         return ColoredBox(
                           color: tone.surface,
                           child: SingleChildScrollView(
+                            key: const ValueKey('viewer-reading-scroll'),
+                            controller: readingScroll,
                             padding: const EdgeInsets.all(24),
-                            child: SelectableText(
-                              utf8.decode(bytes, allowMalformed: true),
-                              key: const ValueKey('viewer-text'),
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 720,
+                                ),
+                                child:
+                                    mime == 'text/markdown' ||
+                                        '${file['name']}'
+                                            .toLowerCase()
+                                            .endsWith('.md')
+                                    ? MessageMarkdown(
+                                        key: const ValueKey('viewer-markdown'),
+                                        data: utf8.decode(
+                                          bytes,
+                                          allowMalformed: true,
+                                        ),
+                                      )
+                                    : SelectableText(
+                                        utf8.decode(
+                                          bytes,
+                                          allowMalformed: true,
+                                        ),
+                                        key: const ValueKey('viewer-text'),
+                                      ),
+                              ),
                             ),
                           ),
                         );

@@ -282,7 +282,7 @@ class BotDetails extends StatelessWidget {
           child: AppPage(
             title: '${bot['displayName']}',
             bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(48),
+              preferredSize: const Size.fromHeight(62),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Align(
@@ -349,7 +349,7 @@ class DetailTabs extends StatelessWidget {
     final tone = context.tone;
     final controller = DefaultTabController.of(context);
     final text = Theme.of(context).textTheme.labelLarge;
-    final height = tone.glass ? 34.0 : 28.0;
+    final height = tone.glass ? 48.0 : 32.0;
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: ShapeDecoration(
@@ -397,8 +397,12 @@ class DetailTabs extends StatelessWidget {
                         child: Semantics(
                           button: true,
                           selected: controller.index == index,
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
+                          child: InkWell(
+                            customBorder: const RoundedSuperellipseBorder(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(999),
+                              ),
+                            ),
                             onTap: () => controller.animateTo(index),
                             child: Tab(
                               height: height,

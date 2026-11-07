@@ -14,6 +14,7 @@ import 'platform/desktop.dart';
 import 'platform/notifications.dart';
 import 'ui/design.dart';
 import 'ui/connection_notice.dart';
+import 'ui/foreground_notice.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -128,8 +129,18 @@ class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
             child: ConnectionNotice(
               client: widget.client,
               child: DesktopHost.supported
-                  ? WindowChrome(child: child!)
-                  : Ambient(child: child!),
+                  ? WindowChrome(
+                      child: ForegroundNotice(
+                        client: widget.client,
+                        child: child!,
+                      ),
+                    )
+                  : Ambient(
+                      child: ForegroundNotice(
+                        client: widget.client,
+                        child: child!,
+                      ),
+                    ),
             ),
           ),
         ),

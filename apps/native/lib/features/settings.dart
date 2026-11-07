@@ -19,7 +19,8 @@ import 'source_models.dart';
 
 class SettingsPage extends StatefulWidget {
   final NekodotClient client;
-  const SettingsPage({super.key, required this.client});
+  final String? sectionId;
+  const SettingsPage({super.key, required this.client, this.sectionId});
   @override
   State<SettingsPage> createState() => _SettingsPageState();
 }
@@ -277,11 +278,18 @@ class _SettingsPageState extends State<SettingsPage> {
           ],
         ),
       ];
+      if (widget.sectionId != null) {
+        final section = sections.firstWhere((s) => s.id == widget.sectionId);
+        return AppPage(
+          title: section.title,
+          body: PageList(children: section.children),
+        );
+      }
       // Every section stays in one list; a wide page adds a side list that
       // jumps to them and shows where you are.
       return LayoutBuilder(
         builder: (context, box) {
-          final wide = box.maxWidth >= 640;
+          final wide = !tone.glass && box.maxWidth >= 640;
           // Keep the few section anchors mounted, including those below the
           // viewport: a category must work before it has been scrolled into view.
           final list = SingleChildScrollView(
@@ -314,7 +322,27 @@ class _SettingsPageState extends State<SettingsPage> {
           );
           return AppPage(
             title: c.tr('设置', 'Settings'),
-            body: !wide
+            body: tone.glass
+                ? PageList(
+                    children: [
+                      PanelGroup(
+                        children: [
+                          for (final section in sections)
+                            ListTile(
+                              key: ValueKey('settings-category-${section.id}'),
+                              leading: Icon(section.icon),
+                              title: Text(section.title),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () => pushPage(
+                                context,
+                                SettingsPage(client: c, sectionId: section.id),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  )
+                : !wide
                 ? list
                 : Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -373,18 +401,19 @@ class SettingsNav extends StatelessWidget {
                   ? Duration.zero
                   : const Duration(milliseconds: 180),
               curve: Curves.easeOutCubic,
-              decoration: BoxDecoration(
-                color: id == current
-                    ? tone.surface
-                    : tone.surface.withValues(alpha: 0),
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: id == current ? tone.rest : const [],
+              decoration: ShapeDecoration(
+                color: id == current ? tone.raised : Colors.transparent,
+                shape: RoundedSuperellipseBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               child: Material(
                 type: MaterialType.transparency,
                 child: InkWell(
                   key: ValueKey('settings-nav-$id'),
-                  borderRadius: BorderRadius.circular(10),
+                  customBorder: RoundedSuperellipseBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   onTap: () => onPick(id),
                   child: SizedBox(
                     height: 38,

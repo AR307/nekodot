@@ -418,7 +418,10 @@ class _CopyButtonState extends State<CopyButton> {
     return IconButton(
       tooltip: widget.client.tr('复制', 'Copy'),
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints.tightFor(width: 28, height: 26),
+      constraints: BoxConstraints.tightFor(
+        width: context.tone.glass ? 48 : 28,
+        height: context.tone.glass ? 48 : 26,
+      ),
       iconSize: 15,
       color: context.tone.ink3,
       onPressed: () async {
@@ -602,27 +605,14 @@ class _ControlCardState extends State<ControlCard> {
                   runSpacing: 6,
                   children: [
                     for (final (index, choice) in choices.indexed)
-                      index == 0
-                          ? FilledButton(
-                              key: ValueKey('choice-${m.messageId}-$index'),
-                              style: optionStyle(context),
-                              onPressed: !open
-                                  ? null
-                                  : () => respond('$choice'),
-                              child: sending == '$choice'
-                                  ? ShiningText(text: label(choice))
-                                  : Text(label(choice)),
-                            )
-                          : OutlinedButton(
-                              key: ValueKey('choice-${m.messageId}-$index'),
-                              style: optionStyle(context),
-                              onPressed: !open
-                                  ? null
-                                  : () => respond('$choice'),
-                              child: sending == '$choice'
-                                  ? ShiningText(text: label(choice))
-                                  : Text(label(choice)),
-                            ),
+                      OutlinedButton(
+                        key: ValueKey('choice-${m.messageId}-$index'),
+                        style: optionStyle(context),
+                        onPressed: !open ? null : () => respond('$choice'),
+                        child: sending == '$choice'
+                            ? ShiningText(text: label(choice))
+                            : Text(label(choice)),
+                      ),
                   ],
                 ),
               ),

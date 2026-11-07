@@ -163,7 +163,7 @@ class RoutinePage extends StatefulWidget {
 
 class _RoutinePageState extends State<RoutinePage> {
   Json? data;
-  String error = '', receipt = '';
+  String error = '', loadError = '', receipt = '';
   bool busy = false, loading = false;
   Timer? timer;
   NekodotClient get c => widget.client;
@@ -191,11 +191,11 @@ class _RoutinePageState extends State<RoutinePage> {
       if (mounted) {
         setState(() {
           data = value;
-          error = '';
+          loadError = '';
         });
       }
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) setState(() => loadError = '$e');
     } finally {
       loading = false;
     }
@@ -249,6 +249,7 @@ class _RoutinePageState extends State<RoutinePage> {
     );
     final payload = await showDialog<String>(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: Text(c.tr('测试唤醒', 'Test webhook')),
         content: SizedBox(
@@ -314,7 +315,7 @@ class _RoutinePageState extends State<RoutinePage> {
             onPressed: busy ? null : load,
           ),
         ],
-        body: data == null && error.isEmpty
+        body: data == null && loadError.isEmpty
             ? const Center(child: ShiningText())
             : PageList(
                 children: [
@@ -325,7 +326,7 @@ class _RoutinePageState extends State<RoutinePage> {
                         'Node is offline. Routine controls are unavailable.',
                       ),
                     ),
-                  ErrorNotice(error),
+                  ErrorNotice(error.isNotEmpty ? error : loadError),
                   if (routine != null) ...[
                     MetaText([
                       '${c.node.bots.where((b) => b['botId'] == widget.botId).firstOrNull?['displayName'] ?? widget.botId}',

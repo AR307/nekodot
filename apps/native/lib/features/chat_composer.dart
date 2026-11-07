@@ -417,8 +417,8 @@ class ChatComposerState extends State<ChatComposer> {
       ),
     );
     final roundAction = IconButton.styleFrom(
-      fixedSize: const Size.square(32),
-      minimumSize: const Size.square(32),
+      fixedSize: Size.square(tone.glass ? 48 : 32),
+      minimumSize: Size.square(tone.glass ? 48 : 32),
       padding: EdgeInsets.zero,
       iconSize: 17,
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -436,7 +436,9 @@ class ChatComposerState extends State<ChatComposer> {
           tooltip: c.tr('发送文件或图片', 'Attach file or image'),
           onPressed: uploading || sending ? null : attachFile,
           iconSize: 19,
-          visualDensity: VisualDensity.compact,
+          visualDensity: tone.glass
+              ? VisualDensity.standard
+              : VisualDensity.compact,
           icon: const Icon(Icons.add),
         ),
       ],
@@ -723,7 +725,11 @@ class ChatComposerState extends State<ChatComposer> {
                   field: composerField,
                   tools: composerTools,
                   action: composerAction,
-                  hasContent: hasText || uploading,
+                  hasContent:
+                      hasText ||
+                      uploading ||
+                      attached.isNotEmpty ||
+                      quoted != null,
                   running: running,
                   holdSize: widget.historyFocused,
                 ),

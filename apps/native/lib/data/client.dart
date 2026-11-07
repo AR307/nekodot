@@ -17,6 +17,7 @@ import 'flow.dart';
 import 'endpoints.dart';
 import 'local_content.dart';
 import 'delivery_queue.dart';
+import 'read_positions.dart';
 part 'content_state.dart';
 
 class NekodotClient extends ChangeNotifier {
@@ -31,6 +32,7 @@ class NekodotClient extends ChangeNotifier {
   Timer? _saveTimer, _viewTimer;
   late final deliveries = DeliveryQueue(this);
   final contentRefresh = ValueNotifier<int>(0);
+  final reading = ReadPositions();
   late final RelayTransport connection;
   NekodotClient({
     String server = const String.fromEnvironment(
@@ -75,6 +77,7 @@ class NekodotClient extends ChangeNotifier {
   final drafts = <String, String>{};
   final routineDrafts = <String, Json>{};
   final notifications = StreamController<Json>.broadcast();
+  final foregroundNotice = ValueNotifier<Json?>(null);
   final destinations = StreamController<Json>.broadcast();
   Json? pendingDestination;
   String notificationStatus = '', notificationError = '';
@@ -240,6 +243,7 @@ class NekodotClient extends ChangeNotifier {
     if (n.syncing) return;
     n.syncing = true;
     try {
+      final initialSnapshot = n.seq == 0;
       final result = await rpc(
         n.seq == 0 ? 'sync.snapshot' : 'sync.since',
         n.seq == 0 ? {} : {'seq': n.seq},
@@ -248,6 +252,7 @@ class NekodotClient extends ChangeNotifier {
       if (_closed || !identical(nodes[id], n)) return;
       if (n.seq == 0) {
         n.snapshot(result);
+        await reading.baseline(id, n.seq);
       } else if (result['resyncRequired'] == true) {
         final snapshot = await rpc('sync.snapshot', {}, id);
         if (_closed || !identical(nodes[id], n)) return;
@@ -255,6 +260,50 @@ class NekodotClient extends ChangeNotifier {
       } else {
         for (final event in objects(result['events'])) {
           n.update({'type': 'event', 'payload': event});
+          if (event['kind'] == 'message.upserted') {
+            _rememberIncoming(id, [
+              ChatMessage.fromJson(object(event['data'])),
+            ]);
+          }
+        }
+      }
+      _rememberIncoming(id, [
+        ...n.latest.values,
+        ...n.messages.values.expand((messages) => messages),
+      ]);
+      // A newer outgoing summary (for example from another device) can hide
+      // an unread reply. Read only the changed history until that reply or
+      // this device's viewed position is reached. No task is replayed.
+      for (final latest
+          in initialSnapshot || result['resyncRequired'] == true
+              ? n.latest.values
+              : const <ChatMessage>[]) {
+        final conversation = latest.conversationId;
+        final viewed = reading.position(id, conversation);
+        if (latest.seq <= viewed || reading.latest(id, conversation) > viewed) {
+          continue;
+        }
+        int? before;
+        while (true) {
+          final page = await rpc('messages.list', {
+            'conversationId': conversation,
+            'limit': 50,
+            'beforeSeq': ?before,
+          }, id);
+          final messages = objects(page['messages'])
+              .map(ChatMessage.fromJson)
+              .toList();
+          if (messages.isEmpty) break;
+          _rememberIncoming(id, messages);
+          final oldest = messages
+              .map((m) => m.seq)
+              .reduce((a, b) => a < b ? a : b);
+          if (oldest <= viewed ||
+              messages.length < 50 ||
+              reading.latest(id, conversation) > viewed) {
+            break;
+          }
+          before = oldest;
         }
       }
       final events = n.buffer.where((x) => x['type'] == 'event').toList()
@@ -268,8 +317,15 @@ class NekodotClient extends ChangeNotifier {
         ...n.buffer.where((x) => x['type'] == 'live'),
       ]) {
         n.update(event);
+        if (event['type'] == 'event' &&
+            event['payload']['kind'] == 'message.upserted') {
+          _rememberIncoming(id, [
+            ChatMessage.fromJson(object(event['payload']['data'])),
+          ]);
+        }
       }
       n.buffer.clear();
+      _rememberIncoming(id, n.messages.values.expand((messages) => messages));
       error = '';
       if (id == selectedNodeId && visibleConversation != null) {
         await loadMessages(visibleConversation!, target: id);
@@ -285,6 +341,12 @@ class NekodotClient extends ChangeNotifier {
       if (!_closed && identical(nodes[id], n)) {
         for (final event in buffered) {
           n.update(event);
+          if (event['type'] == 'event' &&
+              event['payload']['kind'] == 'message.upserted') {
+            _rememberIncoming(id, [
+              ChatMessage.fromJson(object(event['payload']['data'])),
+            ]);
+          }
         }
         n.notifySnapshot();
         saveContent(id);
@@ -346,6 +408,7 @@ class NekodotClient extends ChangeNotifier {
       ..clear()
       ..addAll(merged.values)
       ..sort((a, b) => (a.seq).compareTo(b.seq));
+    _rememberIncoming(id, n.messages[conversationId]!);
     n.changed(conversationId, summary: true);
     saveContent(id, conversationId);
   }
@@ -376,6 +439,44 @@ class NekodotClient extends ChangeNotifier {
     }
     n.changed(conversationId);
     saveContent(target);
+  }
+
+  int incomingSequence(String conversationId) {
+    var seq = reading.latest(selectedNodeId!, conversationId);
+    final latest = node.latest[conversationId];
+    for (final message in [?latest, ...?node.messages[conversationId]]) {
+      if (message.author.type != 'user' &&
+          message.status != 'streaming' &&
+          const {
+            'text',
+            'approval',
+            'question',
+            'system',
+            'secret',
+          }.contains(message.kind) &&
+          message.seq > seq) {
+        seq = message.seq;
+      }
+    }
+    return seq;
+  }
+
+  void _rememberIncoming(String nodeId, Iterable<ChatMessage> messages) {
+    for (final message in messages) {
+      if (message.author.type != 'user' &&
+          message.status != 'streaming' &&
+          const {
+            'text',
+            'approval',
+            'question',
+            'system',
+            'secret',
+          }.contains(message.kind)) {
+        unawaited(
+          reading.received(nodeId, message.conversationId, message.seq),
+        );
+      }
+    }
   }
 
   Future<void> send(String conversationId, String text) async {
@@ -426,7 +527,14 @@ class NekodotClient extends ChangeNotifier {
         if (n.syncing || n.buffer.isNotEmpty) {
           n.buffer.add(frame);
         } else {
+          final incoming =
+              frame['type'] == 'event' &&
+              p['kind'] == 'message.upserted' &&
+              (p['seq'] as int) > n.seq;
           n.update(frame);
+          if (incoming) {
+            _rememberIncoming(id, [ChatMessage.fromJson(object(p['data']))]);
+          }
         }
         final conversation =
             (p['data']?['conversationId'] ?? p['conversationId']) as String?;
@@ -448,6 +556,7 @@ class NekodotClient extends ChangeNotifier {
 
   Future<void> clearSession() async {
     final pendingSave = flushContent();
+    foregroundNotice.value = null;
     account.token = null;
     await connection.disconnect();
     deliveries.suspend();
@@ -486,10 +595,12 @@ class NekodotClient extends ChangeNotifier {
     connection.dispose();
     account.dispose();
     prefs.dispose();
+    reading.dispose();
     for (final n in nodes.values) {
       n.dispose();
     }
     notifications.close();
+    foregroundNotice.dispose();
     destinations.close();
     super.dispose();
   }

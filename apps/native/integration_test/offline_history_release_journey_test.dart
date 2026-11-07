@@ -152,7 +152,8 @@ void main() {
         img.dispose();
       });
       await fault(false);
-      await tester.enterText(input, '只回复 MERGE_HISTORY_OK，不调用工具。');
+      final reply = 'MERGE_HISTORY_${DateTime.now().millisecondsSinceEpoch}';
+      await tester.enterText(input, '只回复 $reply，不调用工具。');
       await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.byTooltip('发送'));
       await until(
@@ -160,9 +161,27 @@ void main() {
           (m) =>
               m.author.type == 'bot' &&
               m.status == 'done' &&
-              m.content['text'] == 'MERGE_HISTORY_OK',
+              m.content['text'] == reply,
         ),
         seconds: 240,
+      );
+      nav.pop();
+      await until(
+        () => find.byType(ChatPage, skipOffstage: false).evaluate().isEmpty,
+      );
+      expect(c.node.messages.containsKey(dm), isFalse);
+      final backgroundReply = '${reply}_CLOSED';
+      await tester.runAsync(() => c.send(dm, '只回复 $backgroundReply，不调用工具。'));
+      await until(
+        () =>
+            c.node.latest[dm]?.content['text'] == backgroundReply &&
+            c.node.latest[dm]?.status == 'done',
+        seconds: 240,
+      );
+      expect(c.node.messages.containsKey(dm), isFalse);
+      expect(
+        c.reading.latest(c.selectedNodeId!, dm),
+        greaterThanOrEqualTo(c.node.latest[dm]!.seq),
       );
       final report = {
         'closedHistoryReleased': true,
@@ -170,6 +189,7 @@ void main() {
         'draftPreserved': true,
         'scrollPreserved': true,
         'realModelReply': true,
+        'closedChatReceivesUnreadWithoutRetainingHistory': true,
       };
       await tester.runAsync(
         () => File(

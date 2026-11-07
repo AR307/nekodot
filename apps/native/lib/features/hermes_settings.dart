@@ -455,6 +455,7 @@ class _HermesSettingsState extends State<HermesSettings> {
     String? error;
     final result = await showDialog<({Object? value})>(
       context: context,
+      barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, updateDialog) => AlertDialog(
           title: Text(settingText(c, field).$1),

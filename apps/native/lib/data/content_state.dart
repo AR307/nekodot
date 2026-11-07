@@ -67,6 +67,12 @@ extension ClientContent on NekodotClient {
       );
     }
     final cached = await storage.read('views');
+    await reading.load('${account.origin}:$user');
+    for (final entry in restored.entries) {
+      if (entry.value.seq > 0) {
+        await reading.baseline(entry.key, entry.value.seq);
+      }
+    }
     if (_closed || session == null || session != account.token) {
       for (final n in restored.values) {
         n.dispose();

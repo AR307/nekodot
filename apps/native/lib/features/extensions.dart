@@ -15,37 +15,27 @@ import '../platform/desktop.dart';
 import '../ui/design.dart';
 
 Future<void> showExtensionsDialog(BuildContext context, NekodotClient client) =>
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        clipBehavior: Clip.antiAlias,
-        insetPadding: const EdgeInsets.all(40),
-        child: SizedBox(
-          width: 900,
-          height: 700,
-          child: ExtensionsPage(client: client, kind: 'skills', dialog: true),
-        ),
-      ),
-    );
+    openPage(context, ExtensionsPage(client: client, kind: 'skills'));
 
 class ExtensionsPage extends StatefulWidget {
   final NekodotClient client;
   final String kind;
-  final bool dialog;
-  const ExtensionsPage({
-    super.key,
-    required this.client,
-    required this.kind,
-    this.dialog = false,
-  });
+  const ExtensionsPage({super.key, required this.client, required this.kind});
   @override
   State<ExtensionsPage> createState() => _ExtensionsPageState();
 }
 
 class _ExtensionsPageState extends State<ExtensionsPage> {
   late String kind = widget.kind;
+  final search = TextEditingController();
   String query = '';
   int revision = 0;
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = widget.client;
@@ -54,8 +44,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       extendBodyBehindAppBar: glass,
       appBar: AppBar(
         flexibleSpace: glass ? const Frost() : const WindowDrag(),
-        automaticallyImplyLeading: !widget.dialog,
-        titleSpacing: widget.dialog ? 20 : 0,
+        titleSpacing: 0,
         title: Segment<String>(
           value: kind,
           options: {
@@ -73,15 +62,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               setState(() => revision++);
             },
           ),
-          if (widget.dialog) ...[
-            IconAction(
-              tooltip: c.tr('关闭', 'Close'),
-              icon: Icons.close,
-              onPressed: () => Navigator.pop(context),
-            ),
-          ],
           const SizedBox(width: 8),
-          if (!widget.dialog) SizedBox(width: WindowChrome.reserved(context)),
+          SizedBox(width: WindowChrome.reserved(context)),
         ],
       ),
       body: AsyncPane(
@@ -119,30 +101,16 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               reload();
             },
           );
-          if (glass) {
-            return PageList(
-              children: [
-                TextField(
-                  onChanged: (value) =>
-                      setState(() => query = value.toLowerCase()),
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search),
-                    hintText: c.tr('搜索', 'Search'),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                PanelGroup(children: entries.map(tile).toList()),
-              ],
-            );
-          }
           return LayoutBuilder(
             builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 720 ? 2 : 1;
+              final columns = !glass && constraints.maxWidth >= 720 ? 2 : 1;
               final rows = (entries.length / columns).ceil();
               return ListView.builder(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.fromLTRB(
                   14,
-                  8,
+                  glass ? MediaQuery.paddingOf(context).top + 12 : 8,
                   14,
                   MediaQuery.paddingOf(context).bottom + 24,
                 ),
@@ -152,6 +120,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
                       child: TextField(
+                        controller: search,
                         onChanged: (value) =>
                             setState(() => query = value.toLowerCase()),
                         decoration: InputDecoration(

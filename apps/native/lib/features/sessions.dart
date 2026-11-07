@@ -62,6 +62,7 @@ class _BotSessionsPageState extends State<BotSessionsPage> {
   Future<void> create() async {
     final title = await showDialog<String>(
       context: context,
+      barrierDismissible: false,
       builder: (context) => _NewSessionDialog(client: c),
     );
     if (title != null && mounted) {

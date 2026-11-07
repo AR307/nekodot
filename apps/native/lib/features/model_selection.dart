@@ -107,56 +107,71 @@ class _ModelSelectionState extends State<ModelSelection> {
 
   Future<void> chooseModel() async {
     var query = '';
-    final selected = await showDialog<String>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, update) => AlertDialog(
-          title: Text(c.tr('选择模型', 'Choose model')),
-          content: SizedBox(
-            width: 440,
-            height: 360,
-            child: Column(
-              children: [
-                TextField(
-                  key: const ValueKey('model-search'),
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search),
-                    hintText: c.tr('搜索模型', 'Search models'),
-                  ),
-                  onChanged: (value) =>
-                      update(() => query = value.toLowerCase()),
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: ListView(
-                    children: [
-                      for (final value in models.where(
-                        (m) => m.toLowerCase().contains(query),
-                      ))
-                        ListTile(
-                          key: ValueKey('model-option-$value'),
-                          title: Text(value),
-                          trailing: value == model
-                              ? const Icon(Icons.check)
-                              : null,
-                          onTap: () => Navigator.pop(context, value),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
+    final phone = context.tone.glass;
+    Widget picker(BuildContext context) => StatefulBuilder(
+      builder: (context, update) {
+        final content = Column(
+          children: [
+            TextField(
+              key: const ValueKey('model-search'),
+              autofocus: !phone,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
+                hintText: c.tr('搜索模型', 'Search models'),
+              ),
+              onChanged: (value) => update(() => query = value.toLowerCase()),
             ),
-          ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: ListView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                children: [
+                  for (final value in models.where(
+                    (m) => m.toLowerCase().contains(query),
+                  ))
+                    ListTile(
+                      key: ValueKey('model-option-$value'),
+                      title: Text(value),
+                      trailing: value == model ? const Icon(Icons.check) : null,
+                      onTap: () => Navigator.pop(context, value),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        );
+        if (phone) {
+          return AppPage(
+            title: c.tr('选择模型', 'Choose model'),
+            extendBodyBehindAppBar: false,
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(c.tr('取消', 'Cancel')),
+              ),
+            ],
+            body: SafeArea(
+              top: false,
+              child: Padding(padding: const EdgeInsets.all(16), child: content),
+            ),
+          );
+        }
+        return AlertDialog(
+          title: Text(c.tr('选择模型', 'Choose model')),
+          content: SizedBox(width: 440, height: 360, child: content),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(c.tr('取消', 'Cancel')),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
+    final selected = phone
+        ? await pushPage<String>(context, Builder(builder: picker))
+        : await showDialog<String>(context: context, builder: picker);
     if (selected == null || !mounted) return;
     setState(() => model = selected);
     widget.onChanged(source!, selected);

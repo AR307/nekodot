@@ -60,7 +60,7 @@ class Panel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = context.tone;
-    final shadows = lifted ? tone.lift : tone.rest;
+    final shadows = lifted ? tone.lift : const <BoxShadow>[];
     final corners = BorderRadius.circular(radius);
     return DecoratedBox(
       decoration: ShapeDecoration(
@@ -96,7 +96,7 @@ class ChatCard extends StatelessWidget {
         color: tone.surface,
         shape: RoundedSuperellipseBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: tone.line),
+          side: BorderSide(color: tone.line, width: .5),
         ),
       ),
       child: child,
@@ -176,7 +176,7 @@ PopupMenuItem<T> menuItem<T>(
   key: key,
   value: value,
   enabled: enabled,
-  height: context.tone.glass ? 44 : 36,
+  height: context.tone.glass ? 48 : 36,
   padding: const EdgeInsets.symmetric(horizontal: 16),
   child: MenuRow(
     icon: icon,
@@ -189,7 +189,7 @@ PopupMenuItem<T> menuItem<T>(
 /// The hairline between groups of a menu, inset from both edges.
 const menuDivider = PopupMenuDivider(
   height: 9,
-  thickness: 1,
+  thickness: .5,
   indent: 16,
   endIndent: 16,
 );
@@ -211,6 +211,40 @@ class MenuSelect<T> extends StatelessWidget {
 
   /// Opens the choices under the field, exactly as wide as it.
   Future<void> open(BuildContext context) async {
+    if (context.tone.glass) {
+      final picked = await showModalBottomSheet<T>(
+        context: context,
+        useSafeArea: true,
+        showDragHandle: true,
+        isScrollControlled: true,
+        shape: const RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (sheet) => SafeArea(
+          top: false,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(sheet).height * .6,
+            ),
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+              children: [
+                for (final (option, words) in options)
+                  ListTile(
+                    key: ValueKey('select-$option'),
+                    title: Text(words),
+                    trailing: option == value ? const Icon(Icons.check) : null,
+                    onTap: () => Navigator.pop(sheet, option),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+      if (picked != null) onChanged?.call(picked);
+      return;
+    }
     final field = context.findRenderObject()! as RenderBox;
     final overlay =
         Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
@@ -291,7 +325,7 @@ Widget menuOptions<T extends Object>(
                 InkWell(
                   onTap: () => onSelected(option),
                   child: Container(
-                    height: tone.glass ? 44 : 36,
+                    height: tone.glass ? 48 : 36,
                     alignment: Alignment.centerLeft,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: MenuRow(label: words(option)),
@@ -352,7 +386,7 @@ class ChoiceRow extends StatelessWidget {
       child: Padding(
         padding: EdgeInsets.symmetric(
           horizontal: 2,
-          vertical: tone.glass ? 9 : 7,
+          vertical: tone.glass ? 12 : 7,
         ),
         child: Row(
           children: [
@@ -389,7 +423,7 @@ class ChoiceRow extends StatelessWidget {
 ButtonStyle optionStyle(BuildContext context) {
   final glass = context.tone.glass;
   return ButtonStyle(
-    minimumSize: WidgetStatePropertyAll(Size(0, glass ? 34 : 28)),
+    minimumSize: WidgetStatePropertyAll(Size(0, glass ? 48 : 32)),
     padding: WidgetStatePropertyAll(
       EdgeInsets.symmetric(horizontal: glass ? 14 : 12),
     ),
@@ -481,7 +515,9 @@ void showNotice(BuildContext context, String text) {
         content: Text(text, textAlign: TextAlign.center),
         padding: const EdgeInsets.symmetric(horizontal: padding, vertical: 9),
         margin: EdgeInsets.fromLTRB(side, 0, side, tone.glass ? 76 : 60),
-        shape: const StadiumBorder(),
+        shape: const RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.all(Radius.circular(16)),
+        ),
         duration: Duration(milliseconds: text.length > 24 ? 4000 : 2500),
       ),
     );
@@ -516,6 +552,7 @@ class PageList extends StatelessWidget {
       final inset = MediaQuery.paddingOf(context);
       final side = math.max(16.0, (constraints.maxWidth - maxWidth) / 2);
       return ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: EdgeInsets.fromLTRB(
           side,
           inset.top + 12,
@@ -542,7 +579,7 @@ class PanelGroup extends StatelessWidget {
           if (index > 0)
             Divider(
               height: 1,
-              thickness: 1 / MediaQuery.devicePixelRatioOf(context),
+              thickness: .5,
               indent: 16,
               color: context.tone.line,
             ),
@@ -590,6 +627,7 @@ class _BreathingState extends State<Breathing>
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (MediaQuery.disableAnimationsOf(context)) {
+      controller.stop();
       controller.value = 1;
     } else if (!controller.isAnimating) {
       controller.repeat(reverse: true);
@@ -674,7 +712,7 @@ class Segment<T> extends StatelessWidget {
       borderRadius: BorderRadius.all(Radius.circular(999)),
     );
     return Container(
-      height: tone.glass ? 36 : 28,
+      height: tone.glass ? 52 : 32,
       padding: const EdgeInsets.all(2),
       decoration: ShapeDecoration(color: tone.raised, shape: corners),
       child: IntrinsicWidth(
@@ -710,8 +748,8 @@ class Segment<T> extends StatelessWidget {
                     child: Semantics(
                       button: true,
                       selected: key == value,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
+                      child: InkWell(
+                        customBorder: corners,
                         onTap: () => onChanged(key),
                         child: Center(
                           child: Padding(
@@ -795,12 +833,14 @@ class _SidePanelState extends State<SidePanel>
     reverseCurve: Curves.easeInCubic,
   );
   late Widget? shown = widget.child;
+  late double shownWidth = widget.width;
 
   @override
   void didUpdateWidget(SidePanel old) {
     super.didUpdateWidget(old);
     final still = MediaQuery.disableAnimationsOf(context);
     if (widget.child != null) {
+      shownWidth = widget.width;
       final opening = shown == null;
       shown = widget.child;
       if (still) {
@@ -841,11 +881,11 @@ class _SidePanelState extends State<SidePanel>
         final t = curve.value;
         if (shown == null) return const SizedBox.shrink();
         return SizedBox(
-          width: widget.width * t,
+          width: shownWidth * t,
           child: OverflowBox(
             alignment: Alignment.centerLeft,
-            minWidth: widget.width,
-            maxWidth: widget.width,
+            minWidth: shownWidth,
+            maxWidth: shownWidth,
             child: Transform.translate(
               offset: Offset((1 - t) * 28, 0),
               child: Opacity(opacity: t, child: child),
@@ -861,7 +901,10 @@ class _SidePanelState extends State<SidePanel>
               shadow.copyWith(offset: Offset(-shadow.offset.dy, 0)),
           ],
         ),
-        child: shown,
+        child: TickerMode(
+          enabled: widget.child != null,
+          child: shown ?? const SizedBox.shrink(),
+        ),
       ),
     );
   }
