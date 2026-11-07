@@ -259,7 +259,7 @@ export class Routines {
       body: JSON.stringify({ enabled: row.enabled }),
     });
   }
-  async create(input: RoutineInput) {
+  async create(input: RoutineInput, conversationId?: string) {
     this.bot(input.botId);
     if (!this.hermes.webhookUrl)
       throw new NodeFault('unavailable', 'Native webhook transport is not available');
@@ -288,7 +288,7 @@ export class Routines {
     };
     await this.subscribe(row);
     this.save(row);
-    this.card(row);
+    this.card(row, 'created', undefined, conversationId);
     await this.syncRoutes();
     return this.view(row);
   }
@@ -314,6 +314,7 @@ export class Routines {
       | 'failed'
       | 'credentials' = 'created',
     executionId?: string,
+    conversationId?: string,
   ) {
     const card = action === 'credentials' ? 'credentials' : 'task';
     const conversation = this.database
@@ -323,7 +324,7 @@ export class Routines {
       messageId: executionId
         ? 'routine-status:' + executionId
         : 'routine:' + row.routineId + ':' + randomUUID(),
-      conversationId: conversation.conversationId,
+      conversationId: conversationId ?? conversation.conversationId,
       seq: this.database.head(),
       author: { type: 'bot', id: row.botId },
       kind: 'routine',
@@ -464,7 +465,12 @@ export class Routines {
               socket.end(
                 JSON.stringify({
                   ok: false,
-                  error: error instanceof NodeFault ? error.message : 'Routine operation failed',
+                  error:
+                    error instanceof NodeFault
+                      ? error.message
+                      : error instanceof z.ZodError
+                        ? error.issues.map((issue) => issue.message).join('; ')
+                        : 'Routine operation failed',
                 }) + '\n',
               ),
           );
@@ -495,11 +501,13 @@ export class Routines {
       .object({
         action: z.enum(['create', 'update', 'get', 'list', 'send', 'approvalPolicy']),
         botId: z.string(),
+        sessionId: z.string().optional(),
       })
       .parse(value);
     this.bot(base.botId);
     const params = { ...(value as Record<string, unknown>) };
     delete params.action;
+    delete params.sessionId;
     switch (base.action) {
       case 'approvalPolicy': {
         const p = z
@@ -511,8 +519,22 @@ export class Routines {
           .parse(params);
         return this.approvalPolicy(p.botId, p.routineId, p.policy);
       }
-      case 'create':
-        return this.create(routineInputSchema.parse(params));
+      case 'create': {
+        const run = this.database
+          .runs()
+          .find(
+            (r) =>
+              r.botId === base.botId &&
+              base.sessionId &&
+              (r.sessionId === base.sessionId || r.storedSessionId === base.sessionId),
+          );
+        const routine = await this.create(routineInputSchema.parse(params), run?.conversationId);
+        return {
+          ...routine,
+          nextAction:
+            'Ask the user to open the Webhook button in the created routine card and confirm the connection. It is disabled until they approve. Never request the secret in ordinary chat.',
+        };
+      }
       case 'update':
         return this.update(rpcContracts['routines.update'].params.parse(params));
       case 'list':

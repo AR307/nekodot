@@ -214,8 +214,19 @@ class _MessageTileState extends State<MessageTile> {
                 child: Text(
                   m.status == 'cancelled'
                       ? c.tr('已停止', 'Stopped')
-                      : body['failureReason'] as String? ??
-                            c.tr('已中断', 'Interrupted'),
+                      : switch (body['failureCode']) {
+                          'run_start' => c.tr(
+                            '无法开始，请检查模型来源后重试',
+                            "Couldn't start. Check the model source and try again",
+                          ),
+                          'timeout' => c.tr(
+                            '启动超时，请重试',
+                            'Timed out while starting. Try again',
+                          ),
+                          _ =>
+                            body['failureReason'] as String? ??
+                                c.tr('已中断', 'Interrupted'),
+                        },
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: m.status == 'cancelled' ? tone.ink3 : tone.danger,
                   ),
@@ -275,9 +286,11 @@ class _MessageTileState extends State<MessageTile> {
                     horizontal: 11,
                     vertical: 7,
                   ),
-                  decoration: BoxDecoration(
+                  decoration: ShapeDecoration(
                     color: tone.ink,
-                    borderRadius: BorderRadius.circular(12),
+                    shape: RoundedSuperellipseBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: content,
                 ),
@@ -339,9 +352,11 @@ class _MessageTileState extends State<MessageTile> {
         ? content
         : Container(
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-            decoration: BoxDecoration(
+            decoration: ShapeDecoration(
               color: tone.bubble,
-              borderRadius: BorderRadius.circular(12),
+              shape: RoundedSuperellipseBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: content,
           );
@@ -553,9 +568,11 @@ class _ControlCardState extends State<ControlCard> {
               Container(
                 margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
+                decoration: ShapeDecoration(
                   color: tone.bubble,
-                  borderRadius: BorderRadius.circular(8),
+                  shape: RoundedSuperellipseBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 child: SelectableText(
                   full.trim(),

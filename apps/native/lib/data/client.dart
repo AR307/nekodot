@@ -253,9 +253,14 @@ class NekodotClient extends ChangeNotifier {
     drafts.remove(conversationId);
   }
 
+  /// Desktop reports this on every window focus, so a live connection is kept.
   void resume() {
     connection.active = true;
-    unawaited(bootstrap());
+    if (connection.live) {
+      unawaited(refreshMe());
+    } else {
+      unawaited(bootstrap());
+    }
   }
 
   void pause() {

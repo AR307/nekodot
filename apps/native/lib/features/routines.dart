@@ -121,12 +121,26 @@ class RoutineCard extends StatelessWidget {
         ),
       ),
     );
-    return ChatNotice(
+    final notice = ChatNotice(
       text: '$action ${content['name']}',
       icon: content['card'] == 'credentials'
           ? Icons.lock_outline
           : Icons.schedule,
       onTap: openRoutine,
+    );
+    if (content['action'] != 'created' || content['trigger'] == 'schedule') {
+      return notice;
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        notice,
+        TextButton.icon(
+          onPressed: openRoutine,
+          icon: const Icon(Icons.settings_outlined, size: 16),
+          label: const Text('Webhook'),
+        ),
+      ],
     );
   }
 }

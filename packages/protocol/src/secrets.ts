@@ -18,11 +18,7 @@ export const secretTargetSchema = z.discriminatedUnion('kind', [
 export const secretSpecSchema = z.strictObject({
   service: z.string().trim().min(1),
   purpose: z.string().trim().min(1),
-  fields: z
-    .array(secretFieldSchema)
-    .min(1)
-    .max(12)
-    .refine((fields) => new Set(fields.map((f) => f.name)).size === fields.length),
+  fields: z.array(secretFieldSchema).length(1, 'Each card asks for exactly one field'),
   target: secretTargetSchema,
 });
 export const secretRequestSchema = secretSpecSchema.extend({

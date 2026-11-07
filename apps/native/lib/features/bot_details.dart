@@ -320,7 +320,9 @@ class DetailTabs extends StatelessWidget {
       padding: const EdgeInsets.all(3),
       decoration: ShapeDecoration(
         color: tone.glass ? tone.surface : tone.raised.withValues(alpha: .7),
-        shape: const StadiumBorder(),
+        shape: const RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.all(Radius.circular(999)),
+        ),
       ),
       child: AnimatedBuilder(
         animation: controller.animation!,
@@ -343,7 +345,11 @@ class DetailTabs extends StatelessWidget {
                       child: DecoratedBox(
                         decoration: ShapeDecoration(
                           color: tone.glass ? tone.ink : tone.thumb,
-                          shape: const StadiumBorder(),
+                          shape: const RoundedSuperellipseBorder(
+                            borderRadius: BorderRadius.all(
+                              Radius.circular(999),
+                            ),
+                          ),
                           shadows: tone.glass ? null : tone.rest,
                         ),
                       ),

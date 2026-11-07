@@ -228,15 +228,19 @@ class NativeNotifications {
         return;
       }
       await local.show(
-        id: DateTime.now().millisecondsSinceEpoch.remainder(0x7fffffff),
+        // Android: FCM shows (conversation tag, id 0); the same pair replaces it.
+        id: Platform.isAndroid
+            ? 0
+            : DateTime.now().millisecondsSinceEpoch.remainder(0x7fffffff),
         title: '${signal['displayName']}',
         body: '${signal['preview']}',
-        notificationDetails: const NotificationDetails(
+        notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
             'nekodot_tasks',
             'nekodot tasks',
             importance: Importance.high,
             priority: Priority.high,
+            tag: '${signal['conversationId']}',
           ),
         ),
         payload: jsonEncode(signal),
