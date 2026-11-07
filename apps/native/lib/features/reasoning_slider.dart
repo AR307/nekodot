@@ -150,15 +150,26 @@ class _ReasoningSliderState extends State<ReasoningSlider> {
               ),
             ),
           ),
-          Row(
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 4,
+            runSpacing: 4,
             children: [
               for (final value in options)
-                Expanded(
+                TextButton(
+                  onPressed: disabled ? null : () => save(value),
+                  style: TextButton.styleFrom(
+                    minimumSize: Size(48, context.tone.glass ? 48 : 32),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    backgroundColor: value == selected
+                        ? context.tone.hover
+                        : null,
+                  ),
                   child: Text(
                     value ?? 'omit',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 9,
+                      fontSize: 12,
                       color: value == selected
                           ? context.tone.ink
                           : context.tone.ink3,
@@ -189,7 +200,7 @@ class _ReasoningSliderState extends State<ReasoningSlider> {
             ? null
             : () => controller.isOpen ? controller.close() : controller.open(),
         style: TextButton.styleFrom(
-          minimumSize: const Size(48, 32),
+          minimumSize: Size(48, context.tone.glass ? 48 : 32),
           padding: const EdgeInsets.symmetric(horizontal: 8),
         ),
         child: Text(

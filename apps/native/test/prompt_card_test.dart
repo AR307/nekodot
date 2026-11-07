@@ -142,7 +142,14 @@ void main() {
         await tester.tapAt(const Offset(5, 5), kind: PointerDeviceKind.mouse);
         await tester.pumpAndSettle();
         expect(focus.hasFocus, isFalse);
-        expect(tester.getSize(find.byType(PromptCard)).width, 320);
+        expect(
+          tester.getSize(find.byType(PromptCard)).width,
+          width > 768 ? 720 : width - 48,
+        );
+        expect(
+          tester.getSize(find.byType(PromptCard)).height,
+          lessThanOrEqualTo(72),
+        );
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
       });
@@ -180,10 +187,10 @@ void main() {
         ),
       ),
     );
-    expect(tester.getSize(find.byType(PromptCard)).width, 320);
+    expect(tester.getSize(find.byType(PromptCard)).width, 720);
     await tester.tap(find.byType(TextField));
     await tester.pumpAndSettle();
-    expect(tester.getSize(find.byType(PromptCard)).width, 480);
+    expect(tester.getSize(find.byType(PromptCard)).width, 720);
     await tester.enterText(find.byType(TextField), '下一条草稿');
     expect(input.text, '下一条草稿');
     tester.view.physicalSize = const Size(390, 844);

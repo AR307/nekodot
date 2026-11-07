@@ -317,7 +317,7 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
               color: tone.ink,
             ),
             titleMedium: TextStyle(
-              fontSize: frosted ? 15 : 13.5,
+              fontSize: frosted ? 16 : 15,
               fontWeight: FontWeight.w600,
               color: tone.ink,
             ),
@@ -327,12 +327,12 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
               color: tone.ink2,
             ),
             bodyLarge: TextStyle(
-              fontSize: frosted ? 15 : 14,
+              fontSize: frosted ? 16 : 15,
               height: 1.45,
               color: tone.ink,
             ),
             bodyMedium: TextStyle(
-              fontSize: frosted ? 15 : 14,
+              fontSize: frosted ? 16 : 15,
               height: 1.45,
               color: tone.ink,
             ),

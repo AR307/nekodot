@@ -26,19 +26,16 @@ class _PromptCardState extends State<PromptCard> {
     // Moving focus from the input to selected chat text must not move the
     // words under the pointer by collapsing the composer mid-selection.
     expanded =
-        focused ||
-        widget.hasContent ||
-        widget.running ||
-        (widget.holdSize && expanded);
+        widget.hasContent || widget.running || (widget.holdSize && expanded);
     final duration = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
-        : const Duration(milliseconds: 300);
+        : const Duration(milliseconds: 180);
     final card = Focus(
       onFocusChange: (value) => setState(() => focused = value),
       child: AnimatedContainer(
         duration: duration,
         curve: Curves.easeOutCubic,
-        constraints: BoxConstraints(maxWidth: expanded ? 480 : 320),
+        constraints: const BoxConstraints(maxWidth: 720),
         decoration: ShapeDecoration(
           color: context.tone.surface,
           shadows: [
@@ -52,11 +49,12 @@ class _PromptCardState extends State<PromptCard> {
             borderRadius: BorderRadius.circular(24),
             side: BorderSide(
               color: focused ? context.tone.ink3 : context.tone.line,
+              width: .5,
             ),
           ),
         ),
         child: SizeMotion(
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
           alignment: Alignment.bottomCenter,
           child: Stack(
@@ -65,29 +63,26 @@ class _PromptCardState extends State<PromptCard> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: expanded ? 68 : 46),
+                    constraints: const BoxConstraints(minHeight: 52),
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        8,
+                        expanded ? 16 : (context.tone.glass ? 160 : 140),
+                        8,
+                      ),
                       child: widget.field,
                     ),
                   ),
-                  const SizedBox(height: 44),
+                  if (expanded) SizedBox(height: context.tone.glass ? 48 : 36),
                 ],
               ),
               Positioned(
                 left: 8,
                 right: 7,
-                bottom: 7,
+                bottom: expanded || context.tone.glass ? 2 : 10,
                 child: Row(
-                  children: [
-                    widget.tools,
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: widget.action,
-                      ),
-                    ),
-                  ],
+                  children: [const Spacer(), widget.tools, widget.action],
                 ),
               ),
             ],
