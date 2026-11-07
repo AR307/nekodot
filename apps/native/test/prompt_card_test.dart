@@ -4,8 +4,77 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/ui/design.dart';
 import 'package:nekodot_native/ui/prompt_card.dart';
+import 'package:nekodot_native/ui/message_selection.dart';
 
 void main() {
+  testWidgets('selecting a reply keeps the focused composer from moving it', (
+    tester,
+  ) async {
+    var historyFocused = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: appTheme(Brightness.light),
+        home: StatefulBuilder(
+          builder: (context, update) => Scaffold(
+            body: Column(
+              children: [
+                Expanded(
+                  child: Focus(
+                    onFocusChange: (value) =>
+                        update(() => historyFocused = value),
+                    child: ListView(
+                      reverse: true,
+                      children: [
+                        MessageSelection(
+                          quoteLabel: 'Quote in reply',
+                          onQuote: (_) {},
+                          child: const Text(
+                            'Keep the words still while selecting them.',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                PromptCard(
+                  holdSize: historyFocused,
+                  hasContent: false,
+                  running: false,
+                  field: const TextField(),
+                  tools: const Icon(Icons.add),
+                  action: const Icon(Icons.mic),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byType(TextField));
+    await tester.pumpAndSettle();
+    final words = find.text('Keep the words still while selecting them.');
+    final y = tester.getTopLeft(words).dy;
+    final size = tester.getSize(find.byType(PromptCard));
+    final point = tester.getTopLeft(words) + const Offset(3, 8);
+    final mouse = await tester.startGesture(
+      point,
+      kind: PointerDeviceKind.mouse,
+    );
+    await mouse.moveTo(point + const Offset(30, 0));
+    await tester.pump(const Duration(milliseconds: 100));
+    await mouse.moveTo(point + const Offset(140, 0));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(words).dy, y);
+    expect(tester.getSize(find.byType(PromptCard)), size);
+    await mouse.up();
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('selection-quote-bubble')),
+      findsOneWidget,
+    );
+    await tester.pumpWidget(const SizedBox());
+  });
+
   for (final width in [1000.0, 390.0]) {
     for (final tool in ['Attach file']) {
       testWidgets('$tool opens from an empty focused capsule at $width px', (

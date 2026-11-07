@@ -19,6 +19,7 @@ class ChatTimeline extends StatelessWidget {
   final String? focusedMessage;
   final GlobalKey focusedKey;
   final ValueChanged<String> onRetry, onError, onQuote;
+  final ValueChanged<bool>? onFocusChanged;
 
   /// Whether a message arrived while the page was open and has not been shown
   /// yet; such a message enters with a short motion.
@@ -29,6 +30,7 @@ class ChatTimeline extends StatelessWidget {
   /// older messages loaded later go above it. Null until messages are shown.
   final int? since;
   const ChatTimeline({
+    this.onFocusChanged,
     super.key,
     required this.client,
     required this.conversationId,
@@ -184,6 +186,7 @@ class ChatTimeline extends StatelessWidget {
           controller: scroll,
           child: Focus(
             key: const ValueKey('chat-history-focus'),
+            onFocusChange: onFocusChanged,
             child: CustomScrollView(
               key: const ValueKey('chat-messages'),
               controller: scroll,

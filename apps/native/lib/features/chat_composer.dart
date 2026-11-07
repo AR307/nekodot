@@ -23,12 +23,14 @@ class ChatComposer extends StatefulWidget {
   final String conversationId;
   final ChatPresentation view;
   final VoidCallback onSent;
+  final bool historyFocused;
   const ChatComposer({
     super.key,
     required this.client,
     required this.conversationId,
     required this.view,
     required this.onSent,
+    this.historyFocused = false,
   });
   @override
   State<ChatComposer> createState() => ChatComposerState();
@@ -625,6 +627,7 @@ class ChatComposerState extends State<ChatComposer> {
                   action: composerAction,
                   hasContent: hasText || uploading,
                   running: running,
+                  holdSize: widget.historyFocused,
                 ),
                 if (c.prefs.chatDisplay['statusbar'] == true ||
                     c.prefs.chatDisplay['battery'] == true)

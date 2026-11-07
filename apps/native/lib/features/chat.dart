@@ -44,6 +44,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
   final scroll = LatestScrollController();
   final composer = GlobalKey<ChatComposerState>();
   double composerHeight = 76;
+  bool historyFocused = false;
   String? focusedMessage;
   final focusedKey = GlobalKey();
 
@@ -420,6 +421,8 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 view: view,
                 scroll: scroll,
                 composerHeight: composerHeight,
+                onFocusChanged: (value) =>
+                    setState(() => historyFocused = value),
                 focusedMessage: focusedMessage,
                 focusedKey: focusedKey,
                 onRetry: (text) => composer.currentState?.editDraft(text),
@@ -497,6 +500,7 @@ class _ChatPageState extends State<ChatPage> with RouteAware {
                 },
                 child: ChatComposer(
                   key: composer,
+                  historyFocused: historyFocused,
                   client: c,
                   conversationId: id,
                   view: view,

@@ -5,6 +5,7 @@ import 'design.dart';
 class PromptCard extends StatefulWidget {
   final Widget field, tools, action;
   final bool hasContent, running;
+  final bool holdSize;
   const PromptCard({
     super.key,
     required this.field,
@@ -12,16 +13,23 @@ class PromptCard extends StatefulWidget {
     required this.action,
     required this.hasContent,
     required this.running,
+    this.holdSize = false,
   });
   @override
   State<PromptCard> createState() => _PromptCardState();
 }
 
 class _PromptCardState extends State<PromptCard> {
-  bool focused = false;
+  bool focused = false, expanded = false;
   @override
   Widget build(BuildContext context) {
-    final expanded = focused || widget.hasContent || widget.running;
+    // Moving focus from the input to selected chat text must not move the
+    // words under the pointer by collapsing the composer mid-selection.
+    expanded =
+        focused ||
+        widget.hasContent ||
+        widget.running ||
+        (widget.holdSize && expanded);
     final duration = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : const Duration(milliseconds: 300);
