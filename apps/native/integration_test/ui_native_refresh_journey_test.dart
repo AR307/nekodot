@@ -4,11 +4,13 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:pdfrx/pdfrx.dart';
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/bot_details.dart';
@@ -150,6 +152,142 @@ void main() {
     final input = find.byKey(const ValueKey('chat-input'));
     await tap(find.byKey(ValueKey('conversation-$dm')));
     await until(() => input.evaluate().isNotEmpty, 'chat ready');
+    if (const bool.fromEnvironment('QA_FILE_FORMATS')) {
+      final botId = client.node.conversations.firstWhere(
+        (entry) => entry['conversationId'] == dm,
+      )['botId'];
+      Future<List<Json>> files() async =>
+          objects((await client.rpc('files.list', {'botId': botId}))['files']);
+      const names = [
+        'ui-native-preview.pdf',
+        'ui-native-preview.png',
+        'ui-native-preview.svg',
+      ];
+      var delivered = await files();
+      if (!names.every(
+        (name) => delivered.any((file) => file['name'] == name),
+      )) {
+        expect(client.node.activities[dm]?.state, 'idle');
+        await tester.enterText(
+          input,
+          'Use your real file/code tools to create three small harmless preview '
+          'files in your workspace: ui-native-preview.pdf (three pages numbered '
+          '1, 2 and 3, each with a large readable UI READING title), '
+          'ui-native-preview.png (800x600, blue background and white UI READING '
+          'text), and ui-native-preview.svg (640x360, teal background and white '
+          'UI READING text). Use installed libraries only; do not install '
+          'anything. If a named file already exists, reuse it unchanged. '
+          'Return each absolute path on its own MEDIA: line. No network calls.',
+        );
+        await frames();
+        await tap(find.byTooltip('Send'));
+        await until(
+          () => tester.widget<TextField>(input).controller!.text.isEmpty,
+          'file request submitted once',
+        );
+        final end = DateTime.now().add(const Duration(minutes: 3));
+        while (DateTime.now().isBefore(end)) {
+          delivered = await files();
+          if (names.every(
+            (name) => delivered.any((file) => file['name'] == name),
+          )) {
+            break;
+          }
+          await frames(500);
+        }
+        await until(
+          () => client.node.activities[dm]?.state == 'idle',
+          'file generation completed',
+        );
+      }
+      expect(
+        names.every((name) => delivered.any((file) => file['name'] == name)),
+        isTrue,
+      );
+      await tap(input);
+      await tester.enterText(input, 'Draft retained across file formats');
+      FocusManager.instance.primaryFocus?.unfocus();
+      await frames();
+      for (final name in names) {
+        final file = delivered.firstWhere((entry) => entry['name'] == name);
+        expect(file['available'], isTrue);
+        final bytes = await downloadFile(client, '${file['fileId']}');
+        expect(bytes.length, greaterThan(100));
+        final extension = name.split('.').last;
+        if (extension == 'pdf') {
+          expect(ascii.decode(bytes.take(4).toList()), '%PDF');
+        }
+        unawaited(showFileViewer(tester.element(input), client, file));
+        final preview = extension == 'pdf'
+            ? find.byType(PdfViewer)
+            : find.byKey(
+                ValueKey(extension == 'svg' ? 'viewer-svg' : 'viewer-image'),
+              );
+        await until(
+          () => preview.evaluate().isNotEmpty,
+          '$extension native reader',
+        );
+        await frames(1500);
+        if (extension == 'pdf') {
+          if (phone) {
+            await tester.drag(preview, const Offset(0, -560));
+          } else {
+            await tester.sendEventToBinding(
+              PointerScrollEvent(
+                position: tester.getCenter(preview),
+                scrollDelta: const Offset(0, 800),
+                kind: PointerDeviceKind.mouse,
+              ),
+            );
+          }
+          await frames(800);
+        }
+        await shot('format-$extension');
+        if (!phone) {
+          final state = tester.state(preview);
+          await tap(find.byKey(const ValueKey('viewer-expand')));
+          expect(identical(tester.state(preview), state), isTrue);
+          await frames(800);
+          await shot('format-$extension-expanded');
+          await tap(find.byKey(const ValueKey('viewer-expand')));
+          expect(identical(tester.state(preview), state), isTrue);
+        }
+        if (extension == 'svg') {
+          await tap(find.byKey(const ValueKey('viewer-svg-source')));
+          expect(find.byKey(const ValueKey('viewer-text')), findsOneWidget);
+          expect(
+            tester
+                .widget<SelectableText>(
+                  find.byKey(const ValueKey('viewer-text')),
+                )
+                .data,
+            contains('<svg'),
+          );
+          await tap(find.byKey(const ValueKey('viewer-svg-source')));
+        }
+        if (phone) {
+          await binding.handlePopRoute();
+          await frames();
+        } else {
+          await tap(find.byTooltip('Close').last);
+        }
+        expect(find.byType(FileViewer), findsNothing);
+        expect(
+          tester.widget<TextField>(input).controller!.text,
+          'Draft retained across file formats',
+        );
+      }
+      await tap(input);
+      await tester.enterText(input, '');
+      binding.reportData = {
+        ...?binding.reportData,
+        'platform': platform,
+        'realFileFormats': names,
+        'draftRetained': true,
+      };
+      await tester.pumpWidget(const SizedBox());
+      return;
+    }
     final tag = DateTime.now().millisecondsSinceEpoch;
     final existingFile = client.node.messages[dm]
         ?.where(
