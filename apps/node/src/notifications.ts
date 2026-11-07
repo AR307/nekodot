@@ -35,6 +35,7 @@ export class Notifications {
             question: '需要你的回答 / Your answer is needed',
             failed: '任务失败，请打开查看 / Task failed. Open to review.',
             completed: '任务已完成 / Task completed',
+            stalled: '任务暂时没有新进展 / No recent task progress',
           }[signal.kind];
     const value: TaskNotification = {
       ...signal,

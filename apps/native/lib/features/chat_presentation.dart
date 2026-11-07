@@ -115,6 +115,8 @@ class ChatPresentation {
       ? c.tr('离线', 'Offline')
       : activity.connection == 'reconnecting'
       ? c.tr('重连中', 'Reconnecting')
+      : activity.stalled
+      ? c.tr('可能卡住', 'No recent progress')
       : switch (state) {
           'thinking' => c.tr('回复中', 'Replying'),
           'tool' => c.tr('工具运行中', 'Using tools'),

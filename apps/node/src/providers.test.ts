@@ -80,6 +80,9 @@ it('two custom APIs survive app restart; each profile keeps its selected route a
       effectiveThresholdTokens: 54400,
     });
     expect((await app.providers.info(bots[1]!.botId)).compression.count).toBeNull();
+    expect(await runtime.management.request('/api/config', first.botId)).toMatchObject({
+      tools: { tool_search: { enabled: 'off' } },
+    });
     await app.providers.set({
       kind: 'custom',
       sourceId: source.sourceId,
