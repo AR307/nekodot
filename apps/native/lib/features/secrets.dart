@@ -282,7 +282,9 @@ class _SecretCardState extends State<SecretCard>
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(8),
+                  customBorder: RoundedSuperellipseBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   onTap: ready ? () => setState(() => save = !save) : null,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,

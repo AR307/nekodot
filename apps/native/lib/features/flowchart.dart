@@ -656,7 +656,9 @@ class _FlowRow extends StatelessWidget {
       button: onTap != null,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        customBorder: RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Row(
           children: [
             SizedBox(width: x - 22),
@@ -671,16 +673,9 @@ class _FlowRow extends StatelessWidget {
                       child: Container(
                         width: _nodeExtent,
                         height: _nodeExtent,
-                        decoration: BoxDecoration(
+                        decoration: ShapeDecoration(
                           color: tone.base,
-                          borderRadius: BorderRadius.circular(9),
-                          border: Border.all(
-                            color: active
-                                ? color.withValues(alpha: .65 + .35 * pulse)
-                                : color.withValues(alpha: .5),
-                            width: active ? 1.8 : 1,
-                          ),
-                          boxShadow: running
+                          shadows: running
                               ? [
                                   BoxShadow(
                                     color: color.withValues(
@@ -690,6 +685,15 @@ class _FlowRow extends StatelessWidget {
                                   ),
                                 ]
                               : [],
+                          shape: RoundedSuperellipseBorder(
+                            borderRadius: BorderRadius.circular(9),
+                            side: BorderSide(
+                              color: active
+                                  ? color.withValues(alpha: .65 + .35 * pulse)
+                                  : color.withValues(alpha: .5),
+                              width: active ? 1.8 : 1,
+                            ),
+                          ),
                         ),
                         child: Center(
                           child: step.kind == 'bot' && bot != null

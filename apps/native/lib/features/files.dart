@@ -220,9 +220,11 @@ class _FileCardState extends State<FileCard> {
     final placeholder = Container(
       width: 240,
       height: 160,
-      decoration: BoxDecoration(
+      decoration: ShapeDecoration(
         color: tone.bubble,
-        borderRadius: BorderRadius.circular(12),
+        shape: RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
     // The picture keeps its own proportions and is never shown larger than
@@ -238,7 +240,7 @@ class _FileCardState extends State<FileCard> {
               cursor: SystemMouseCursors.click,
               child: GestureDetector(
                 onTap: open,
-                child: ClipRRect(
+                child: ClipRSuperellipse(
                   borderRadius: BorderRadius.circular(12),
                   child: isSvg(file)
                       ? SvgPicture.memory(
@@ -267,7 +269,7 @@ class _FileCardState extends State<FileCard> {
       constraints: const BoxConstraints(maxWidth: 340),
       child: Material(
         color: tone.surface,
-        shape: RoundedRectangleBorder(
+        shape: RoundedSuperellipseBorder(
           borderRadius: corners,
           side: BorderSide(color: tone.line),
         ),
@@ -282,9 +284,11 @@ class _FileCardState extends State<FileCard> {
                 Container(
                   width: 38,
                   height: 38,
-                  decoration: BoxDecoration(
+                  decoration: ShapeDecoration(
                     color: tone.bubble,
-                    borderRadius: BorderRadius.circular(10),
+                    shape: RoundedSuperellipseBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   child: Icon(
                     value?['available'] == false

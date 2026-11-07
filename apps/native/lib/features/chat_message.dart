@@ -286,9 +286,11 @@ class _MessageTileState extends State<MessageTile> {
                     horizontal: 11,
                     vertical: 7,
                   ),
-                  decoration: BoxDecoration(
+                  decoration: ShapeDecoration(
                     color: tone.ink,
-                    borderRadius: BorderRadius.circular(12),
+                    shape: RoundedSuperellipseBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: content,
                 ),
@@ -350,9 +352,11 @@ class _MessageTileState extends State<MessageTile> {
         ? content
         : Container(
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-            decoration: BoxDecoration(
+            decoration: ShapeDecoration(
               color: tone.bubble,
-              borderRadius: BorderRadius.circular(12),
+              shape: RoundedSuperellipseBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: content,
           );
@@ -564,9 +568,11 @@ class _ControlCardState extends State<ControlCard> {
               Container(
                 margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
+                decoration: ShapeDecoration(
                   color: tone.bubble,
-                  borderRadius: BorderRadius.circular(8),
+                  shape: RoundedSuperellipseBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 child: SelectableText(
                   full.trim(),
