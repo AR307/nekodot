@@ -2,10 +2,44 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/node_data.dart';
 
 void main() {
+  test('unopened chats keep their sidebar preview, not a message history', () {
+    final node = NodeData();
+    for (var i = 1; i <= 100; i++) {
+      node.update({
+        'type': 'event',
+        'payload': {
+          'seq': i,
+          'kind': 'message.upserted',
+          'data': {
+            'messageId': 'reply-$i',
+            'conversationId': 'background',
+            'seq': i,
+            'createdAt': '2026-11-07T00:00:00Z',
+            'kind': 'text',
+            'status': 'done',
+            'author': {'type': 'bot', 'id': 'dot'},
+            'content': {'text': 'Reply $i'},
+          },
+        },
+      });
+    }
+    expect(node.messages, isEmpty);
+    expect(node.latest['background']!.content['text'], 'Reply 100');
+    node.retainMessages('background');
+    final loaded = node.messages['background'];
+    node.retainMessages('background');
+    node.releaseMessages('background');
+    expect(identical(node.messages['background'], loaded), isTrue);
+    node.releaseMessages('background');
+    expect(node.messages, isEmpty);
+    expect(node.latest['background']!.content['text'], 'Reply 100');
+    node.dispose();
+  });
   test(
     'Streaming updates only its chat; completed replies update the sidebar',
     () {
       final node = NodeData();
+      node.retainMessages('dm');
       var chat = 0, otherChat = 0, sidebar = 0, metadata = 0;
       node.conversation('dm').addListener(() => chat++);
       node.conversation('other').addListener(() => otherChat++);

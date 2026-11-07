@@ -19,6 +19,12 @@ export class RunMessages {
     return this.streamingTexts.get(messageId);
   }
 
+  release(messageId: string | undefined) {
+    if (!messageId) return;
+    this.streamingTexts.delete(messageId);
+    this.textProgress.delete(messageId);
+  }
+
   append(run: RunRecord, message: TextMessage, delta: string, seq: number) {
     const previous = this.streamingTexts.get(message.messageId) ?? message.content.text;
     message.content = { ...message.content, text: previous + delta };
@@ -102,13 +108,15 @@ export class RunMessages {
   persistText(run: RunRecord, message: TextMessage | undefined, seq: number) {
     if (message) {
       message.seq = this.database.head();
-      this.textProgress.set(message.messageId, {
-        persistedAt: Date.now(),
-        length: message.content.text.length,
-      });
-      this.streamingTexts.set(message.messageId, message.content.text);
       run.lastSeq = seq;
       this.database.putMessage(message, { runId: run.runId }, run);
+      if (message.status === 'streaming') {
+        this.textProgress.set(message.messageId, {
+          persistedAt: Date.now(),
+          length: message.content.text.length,
+        });
+        this.streamingTexts.set(message.messageId, message.content.text);
+      } else this.release(message.messageId);
     } else {
       run.lastSeq = seq;
       this.database.saveRun(run);

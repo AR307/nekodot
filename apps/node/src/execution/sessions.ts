@@ -177,6 +177,7 @@ export class ConversationExecution {
           this.activeRuns.set(run.conversationId, run);
         },
         release: (run) => {
+          this.messages.release(run.textMessageId);
           this.activeRuns.delete(run.conversationId);
           if (run.runId) {
             this.appliedSeq.delete(run.runId);
@@ -554,6 +555,7 @@ export class ConversationExecution {
       if (previousReply) {
         previousReply.status = 'done';
         this.database.putMessage(previousReply, { runId: active.runId }, active);
+        this.messages.release(previousReply.messageId);
       }
       userMessage.seq = this.database.head();
       this.database.putMessage(
@@ -921,6 +923,7 @@ export class ConversationExecution {
   }
 
   private end(run: RunRecord) {
+    this.messages.release(run.textMessageId);
     void this.secrets
       .finish(run)
       .catch(() => console.warn('Temporary profile vault cleanup needs retry'));
@@ -1156,6 +1159,7 @@ export class ConversationExecution {
     message.content.failureReason = text;
     message.status = 'failed';
     this.database.putMessage(message, { runId: run.runId }, this.idleRun(run));
+    this.messages.release(message.messageId);
     run.state = 'idle';
     if (run.groupId) {
       await this.groupExecution.finishGroupRun(run, 'failed', text);

@@ -20,6 +20,23 @@ class NodeData extends ChangeNotifier {
   /// What the node can do: host (server/desktop), Bot screens and desktop control.
   Json capabilities = {};
   final Map<String, List<ChatMessage>> messages = {};
+  final _messageReaders = <String, int>{};
+  final viewports = <String, ({int oldestSeq, int since, double offset})>{};
+
+  void retainMessages(String id) {
+    _messageReaders[id] = (_messageReaders[id] ?? 0) + 1;
+    messages.putIfAbsent(id, () => []);
+  }
+
+  void releaseMessages(String id) {
+    final remaining = (_messageReaders[id] ?? 1) - 1;
+    if (remaining > 0) {
+      _messageReaders[id] = remaining;
+    } else {
+      _messageReaders.remove(id);
+      messages.remove(id);
+    }
+  }
 
   /// Each conversation's newest words as the node last reported them, so the
   /// list can preview a conversation whose messages are not loaded.
@@ -86,14 +103,21 @@ class NodeData extends ChangeNotifier {
           notifyListeners();
         case 'message.upserted':
           final message = ChatMessage.fromJson(data);
-          final list = messages.putIfAbsent(message.conversationId, () => []);
-          final index = list.indexWhere(
-            (m) => m.messageId == message.messageId,
-          );
-          if (index < 0) {
-            list.add(message);
-          } else {
-            list[index] = message;
+          final list = messages[message.conversationId];
+          if (list != null) {
+            final index = list.indexWhere(
+              (m) => m.messageId == message.messageId,
+            );
+            if (index < 0) {
+              list.add(message);
+            } else {
+              list[index] = message;
+            }
+          }
+          if ((message.kind == 'text' || message.kind == 'commentary') &&
+              '${message.content['text'] ?? ''}'.trim().isNotEmpty &&
+              message.seq >= (latest[message.conversationId]?.seq ?? 0)) {
+            latest[message.conversationId] = message;
           }
           changed(data['conversationId'] as String, summary: true);
       }
