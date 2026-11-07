@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+
 import 'package:nekodot_native/features/auth.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
 import 'package:nekodot_native/features/home.dart';
@@ -20,7 +21,7 @@ void main() {
     tester,
   ) async {
     final c = NekodotClient();
-    expect(c.origin.host, anyOf('127.0.0.1', 'localhost'));
+    expect(c.account.origin.host, anyOf('127.0.0.1', 'localhost'));
     if (Platform.isWindows) {
       await DesktopHost.initialize();
       tester.view.physicalSize = const Size(2560, 1800);
@@ -109,7 +110,7 @@ void main() {
     expect(find.text('请输入有效的邮箱'), findsOneWidget);
 
     // Use the real login endpoint, without replacing the user's OS-stored token.
-    final login = await c.request(
+    final login = await c.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -117,7 +118,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    c.token = login['token'] as String;
+    c.account.token = login['token'] as String;
     c.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await c.bootstrap();
     await until(() => c.online && c.node.bots.isNotEmpty, 'Real Node online');
@@ -177,7 +178,7 @@ void main() {
     }
     final input = find.byKey(const ValueKey('chat-input'));
     final before = (c.node.messages[conversation] ?? [])
-        .map((m) => m['messageId'])
+        .map((m) => m.messageId)
         .toSet();
     await tap(input);
     await tester.enterText(
@@ -190,18 +191,18 @@ void main() {
     await until(
       () => (c.node.messages[conversation] ?? []).any(
         (m) =>
-            !before.contains(m['messageId']) &&
-            m['author']['type'] == 'bot' &&
-            m['kind'] == 'text' &&
-            m['status'] == 'done' &&
-            '${m['content']?['text']}'.contains('FERRIS_NATIVE_OK'),
+            !before.contains(m.messageId) &&
+            m.author.type == 'bot' &&
+            m.kind == 'text' &&
+            m.status == 'done' &&
+            '${m.content['text']}'.contains('FERRIS_NATIVE_OK'),
       ),
       'Real model reply',
     );
     await settle();
     expect(
       (c.node.messages[conversation] ?? []).any(
-        (m) => !before.contains(m['messageId']) && m['kind'] == 'tool',
+        (m) => !before.contains(m.messageId) && m.kind == 'tool',
       ),
       isTrue,
     );

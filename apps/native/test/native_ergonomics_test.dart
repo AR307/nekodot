@@ -1,7 +1,9 @@
+import 'package:nekodot_native/data/chat_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
+
 import 'package:nekodot_native/features/auth.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
 import 'package:nekodot_native/features/chat.dart';
@@ -88,14 +90,22 @@ void main() {
     final client = JourneyClient();
     client.node.messages['dm'] = [
       for (var i = 0; i < 40; i++)
-        {
-          'messageId': 'reply-$i',
+        ChatMessage.fromJson({
+          'messageId': 'fixture',
           'conversationId': 'dm',
-          'author': {'type': 'bot', 'id': bot['botId']},
-          'kind': 'text',
-          'status': 'done',
-          'content': {'text': 'Reply $i\n\nA separate paragraph for reading.'},
-        },
+          'createdAt': '2026-11-06T00:00:00Z',
+          'seq': 0,
+          ...{
+            'messageId': 'reply-$i',
+            'conversationId': 'dm',
+            'author': {'type': 'bot', 'id': bot['botId']},
+            'kind': 'text',
+            'status': 'done',
+            'content': {
+              'text': 'Reply $i\n\nA separate paragraph for reading.',
+            },
+          },
+        }),
     ];
     await tester.pumpWidget(
       MaterialApp(
@@ -109,16 +119,28 @@ void main() {
     Focus.of(tester.element(find.byKey(const ValueKey('chat-messages'))))
         .requestFocus();
     await tester.pump();
-    final list = tester.widget<ListView>(
+    final list = tester.widget<ScrollView>(
       find.byKey(const ValueKey('chat-messages')),
     );
     final position = list.controller!.position;
     await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
     await tester.pumpAndSettle();
-    expect(position.pixels, greaterThan(0));
+    expect(position.pixels, greaterThan(position.minScrollExtent));
+    final reading = position.pixels;
     await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
     await tester.pumpAndSettle();
-    expect(position.pixels, closeTo(0, 1));
+    expect(position.pixels, lessThan(reading));
+    // PageDown may already reach the near-latest range. Move back into
+    // history before exercising the separately displayed return control.
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('chat-latest')).hitTestable(),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('chat-latest')));
+    await tester.pumpAndSettle();
+    expect(position.pixels, closeTo(position.minScrollExtent, 1));
     expect(tester.widget<TextField>(input).controller!.text, 'Unsent draft');
     await tester.pumpWidget(const SizedBox.shrink());
     client.dispose();

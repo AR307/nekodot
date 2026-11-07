@@ -230,6 +230,19 @@ if [ ! -f "$home/node.json" ]; then
     exit 1
   fi
 else
+  # One-time official endpoint cutover; self-hosted addresses and identity stay unchanged.
+  node - "$home/node.json" "$relay" <<'NODE'
+const fs = require('node:fs');
+const [file, target] = process.argv.slice(2);
+const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+if (target === 'https://api.nekodot.com' && data.relayUrl.replace(/\/+$/, '') === 'https://nekodot.com') {
+  const backup = file + '.before-api-domain';
+  if (!fs.existsSync(backup)) fs.copyFileSync(file, backup);
+  fs.chmodSync(backup, 0o600);
+  data.relayUrl = target;
+  fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n', { mode: 0o600 });
+}
+NODE
   printf '%s\n' 'Keeping the existing node identity and history; pairing code was not consumed.'
 fi
 if [ "$(loginctl show-user "$(id -un)" -p Linger --value)" != yes ]; then

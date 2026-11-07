@@ -1,9 +1,12 @@
+import 'package:nekodot_native/data/chat_models.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/platform/desktop.dart';
 import 'package:nekodot_native/ui/design.dart';
@@ -15,9 +18,9 @@ void main() {
     tester,
   ) async {
     if (Platform.isWindows) await DesktopHost.initialize();
-    final c = NekodotClient()..language = 'en';
+    final c = NekodotClient()..prefs.language = 'en';
     final botId = const String.fromEnvironment('QA_BOT');
-    final login = await c.request(
+    final login = await c.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -25,7 +28,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    c.token = login['token'];
+    c.account.token = login['token'];
     c.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await c.bootstrap();
     addTearDown(c.dispose);
@@ -60,8 +63,8 @@ void main() {
     final input = find.byKey(const ValueKey('chat-input'));
     await until(() => input.evaluate().isNotEmpty);
     await c.loadMessages(conversationId);
-    await until(() => c.node.activities[conversationId]?['state'] == 'idle');
-    List<Json> messages() => c.node.messages[conversationId] ?? [];
+    await until(() => c.node.activities[conversationId]?.state == 'idle');
+    List<ChatMessage> messages() => c.node.messages[conversationId] ?? [];
     Future<void> send(String text) async {
       await tap(input);
       await tester.enterText(input, text);
@@ -79,37 +82,37 @@ void main() {
     }
 
     Future<String> command(String text, String expected) async {
-      final before = messages().map((r) => r['messageId']).toSet();
+      final before = messages().map((r) => r.messageId).toSet();
       await send(text);
       await until(
         () => messages().any(
           (r) =>
-              !before.contains(r['messageId']) &&
-              r['kind'] == 'system' &&
-              '${r['content']['text']}'.startsWith(text) &&
-              '${r['content']['text']}'.contains(expected),
+              !before.contains(r.messageId) &&
+              r.kind == 'system' &&
+              '${r.content['text']}'.startsWith(text) &&
+              '${r.content['text']}'.contains(expected),
         ),
       );
       await until(
         () => tester.widget<TextField>(input).controller!.text.isEmpty,
       );
-      return '${messages().firstWhere((r) => !before.contains(r['messageId']) && r['kind'] == 'system' && '${r['content']['text']}'.startsWith(text))['content']['text']}';
+      return '${messages().firstWhere((r) => !before.contains(r.messageId) && r.kind == 'system' && '${r.content['text']}'.startsWith(text)).content['text']}';
     }
 
     Future<void> answer(String text, String expected) async {
-      final before = messages().map((r) => r['messageId']).toSet();
+      final before = messages().map((r) => r.messageId).toSet();
       await send(text);
       await until(
         () => messages().any(
           (r) =>
-              !before.contains(r['messageId']) &&
-              r['author']['type'] == 'bot' &&
-              r['status'] == 'done' &&
-              '${r['content']['text']}'.contains(expected),
+              !before.contains(r.messageId) &&
+              r.author.type == 'bot' &&
+              r.status == 'done' &&
+              '${r.content['text']}'.contains(expected),
         ),
         seconds: 240,
       );
-      await until(() => c.node.activities[conversationId]?['state'] == 'idle');
+      await until(() => c.node.activities[conversationId]?.state == 'idle');
     }
 
     final original = (await c.rpc('sessions.list', {
@@ -197,11 +200,11 @@ void main() {
         'QA RUNNING: actual child tail, steer, interrupt and spawning controls verified',
       );
 
-      final beforeSteer = messages().map((r) => r['messageId']).toSet();
+      final beforeSteer = messages().map((r) => r.messageId).toSet();
       await send(
         'Call terminal exactly once to run `sleep 30` in foreground. After it returns, reply $marker-ORIGINAL. Do not delegate or start background processes.',
       );
-      await until(() => c.node.activities[conversationId]?['state'] == 'tool');
+      await until(() => c.node.activities[conversationId]?.state == 'tool');
       await command(
         '/steer After the wait reply exactly $marker-STEER instead.',
         'Hermes steer: queued',
@@ -209,35 +212,33 @@ void main() {
       await until(
         () => messages().any(
           (r) =>
-              !beforeSteer.contains(r['messageId']) &&
-              r['author']['type'] == 'bot' &&
-              r['status'] == 'done' &&
-              '${r['content']['text']}'.contains('$marker-STEER'),
+              !beforeSteer.contains(r.messageId) &&
+              r.author.type == 'bot' &&
+              r.status == 'done' &&
+              '${r.content['text']}'.contains('$marker-STEER'),
         ),
         seconds: 180,
       );
-      await until(() => c.node.activities[conversationId]?['state'] == 'idle');
+      await until(() => c.node.activities[conversationId]?.state == 'idle');
       expect(
         messages().where(
           (r) =>
-              !beforeSteer.contains(r['messageId']) &&
-              r['kind'] == 'tool' &&
-              r['content']['tool'] == 'terminal',
+              !beforeSteer.contains(r.messageId) &&
+              r.kind == 'tool' &&
+              r.content['tool'] == 'terminal',
         ),
         hasLength(1),
       );
-      final beforeStop = messages().map((r) => r['messageId']).toSet();
+      final beforeStop = messages().map((r) => r.messageId).toSet();
       await send(
         'Call terminal once to run `sleep 90` in foreground, then reply $marker-STOP. Do not delegate.',
       );
-      await until(() => c.node.activities[conversationId]?['state'] == 'tool');
+      await until(() => c.node.activities[conversationId]?.state == 'tool');
       await tap(find.byTooltip('Stop'));
-      await until(() => c.node.activities[conversationId]?['state'] == 'idle');
+      await until(() => c.node.activities[conversationId]?.state == 'idle');
       expect(
         messages().any(
-          (r) =>
-              !beforeStop.contains(r['messageId']) &&
-              r['status'] == 'cancelled',
+          (r) => !beforeStop.contains(r.messageId) && r.status == 'cancelled',
         ),
         isTrue,
       );
@@ -280,11 +281,9 @@ void main() {
       };
     } finally {
       // Only this isolated session's background work is stopped; history stays.
-      if (c.node.activities[conversationId]?['state'] != 'idle') {
+      if (c.node.activities[conversationId]?.state != 'idle') {
         await c.rpc('runs.stop', {'conversationId': conversationId});
-        await until(
-          () => c.node.activities[conversationId]?['state'] == 'idle',
-        );
+        await until(() => c.node.activities[conversationId]?.state == 'idle');
       }
       await command('/stop', 'background processes and');
       await command('/agents resume', 'Hermes delegation spawning: enabled');

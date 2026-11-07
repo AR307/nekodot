@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import 'desktop.dart';
 
 /// Android delivery is exclusively FCM; Windows uses its live account channel.
@@ -150,14 +151,16 @@ class NativeNotifications {
   }
 
   void onClientChange() {
-    if (!disposed && client.token != boundSession) unawaited(register());
+    if (!disposed && client.account.token != boundSession) {
+      unawaited(register());
+    }
   }
 
   Future<void> register() async {
     if (!initialized || disposed || registering) return;
     registering = true;
     try {
-      if (client.token == null) {
+      if (client.account.token == null) {
         boundSession = null;
         seen.clear();
         return;
@@ -170,10 +173,10 @@ class NativeNotifications {
             '通知未授权，请在系统设置中开启',
             'Allow notifications in system settings',
           );
-          boundSession = client.token;
+          boundSession = client.account.token;
           return;
         }
-        final status = await client.request('/notifications/status');
+        final status = await client.account.request('/notifications/status');
         if (status['available'] != true) {
           throw StateError('Relay push unavailable');
         }
@@ -184,7 +187,7 @@ class NativeNotifications {
             const Duration(seconds: 20),
           );
         }
-        await client.request(
+        await client.account.request(
           '/devices',
           method: 'POST',
           body: {
@@ -194,12 +197,12 @@ class NativeNotifications {
           },
         );
       }
-      boundSession = client.token;
+      boundSession = client.account.token;
       client.notificationStatus = client.tr('通知已开启', 'Notifications enabled');
       client.notificationError = '';
     } catch (_) {
       // Retry on the next foreground/network recovery, not every chat delta.
-      boundSession = client.token;
+      boundSession = client.account.token;
       client.notificationError = client.tr(
         '通知连接失败，请返回前台后重试',
         'Notification connection failed. Reopen to retry.',
@@ -213,27 +216,31 @@ class NativeNotifications {
   Future<void> show(Json signal) async {
     try {
       if (disposed ||
-          client.token == null ||
+          client.account.token == null ||
           !seen.add('${signal['notificationId']}')) {
         return;
       }
       final focused = !DesktopHost.supported || await windowManager.isFocused();
       if (focused &&
-          client.active &&
+          client.connection.active &&
           client.selectedNodeId == signal['nodeId'] &&
           client.visibleConversation == signal['conversationId']) {
         return;
       }
       await local.show(
-        id: DateTime.now().millisecondsSinceEpoch.remainder(0x7fffffff),
+        // Android: FCM shows (conversation tag, id 0); the same pair replaces it.
+        id: Platform.isAndroid
+            ? 0
+            : DateTime.now().millisecondsSinceEpoch.remainder(0x7fffffff),
         title: '${signal['displayName']}',
         body: '${signal['preview']}',
-        notificationDetails: const NotificationDetails(
+        notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
             'nekodot_tasks',
             'nekodot tasks',
             importance: Importance.high,
             priority: Priority.high,
+            tag: '${signal['conversationId']}',
           ),
         ),
         payload: jsonEncode(signal),

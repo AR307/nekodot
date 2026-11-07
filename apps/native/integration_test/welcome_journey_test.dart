@@ -1,8 +1,9 @@
+import 'package:nekodot_native/features/chat_message.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
-import 'package:nekodot_native/features/chat.dart';
+
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/ui/design.dart';
 
@@ -56,7 +57,7 @@ void main() {
     );
     final id = await create('Maple', 'maple');
     await until(
-      () => (client.node.messages[id] ?? []).any((m) => m['status'] == 'done'),
+      () => (client.node.messages[id] ?? []).any((m) => m.status == 'done'),
     );
     await until(
       () => find.byKey(ValueKey('conversation-$id')).evaluate().isNotEmpty,
@@ -65,20 +66,20 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     final messages = client.node.messages[id]!;
     expect(messages, hasLength(1));
-    expect(messages.single['content']['welcome'], isTrue);
-    expect(messages.single['author']['type'], 'bot');
-    expect(messages.single['content']['text'], contains('Maple'));
+    expect(messages.single.content['welcome'], isTrue);
+    expect(messages.single.author.type, 'bot');
+    expect(messages.single.content['text'], contains('Maple'));
     expect(find.byType(MessageTile), findsOneWidget);
     debugPrint('QA: native welcome ready');
     if (inspect) await Future<void>.delayed(const Duration(seconds: 8));
-    await client.connect();
+    await client.connection.connect();
     await client.selectNode(client.selectedNodeId!);
     await until(() => client.online);
     await client.loadMessages(id);
     expect(client.node.messages[id], hasLength(1));
     expect(
-      client.node.messages[id]!.single['messageId'],
-      messages.single['messageId'],
+      client.node.messages[id]!.single.messageId,
+      messages.single.messageId,
     );
     // A wide window keeps the chat beside the list, with no page to leave.
     if (find.byType(BackButton).evaluate().isNotEmpty) {
@@ -88,7 +89,7 @@ void main() {
     final failedId = await create('Maple Retry', 'retry-intro');
     await until(
       () => (client.node.messages[failedId] ?? []).any(
-        (m) => m['status'] == 'failed',
+        (m) => m.status == 'failed',
       ),
     );
     await until(
@@ -102,13 +103,12 @@ void main() {
     if (inspect) await Future<void>.delayed(const Duration(seconds: 8));
     await tester.tap(find.text('重试自我介绍'));
     await until(
-      () => (client.node.messages[failedId] ?? []).any(
-        (m) => m['status'] == 'done',
-      ),
+      () =>
+          (client.node.messages[failedId] ?? []).any((m) => m.status == 'done'),
     );
     expect(client.node.messages[failedId], hasLength(2));
     expect(
-      client.node.messages[failedId]!.any((m) => m['author']['type'] == 'user'),
+      client.node.messages[failedId]!.any((m) => m.author.type == 'user'),
       isFalse,
     );
     expect(tester.takeException(), isNull);

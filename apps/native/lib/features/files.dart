@@ -12,6 +12,8 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
+import '../data/account.dart';
 import '../platform/file_actions.dart';
 import '../ui/design.dart';
 import 'bot_editor.dart';
@@ -19,8 +21,8 @@ import 'bot_editor.dart';
 Future<Uint8List> downloadFile(NekodotClient c, String id) async {
   final response = await http
       .get(
-        c.url('/api/nodes/${c.selectedNodeId}/files/$id'),
-        headers: {'Authorization': 'Bearer ${c.token}'},
+        c.account.url('/api/nodes/${c.selectedNodeId}/files/$id'),
+        headers: {'Authorization': 'Bearer ${c.account.token}'},
       )
       .timeout(const Duration(minutes: 2));
   if (response.statusCode != 200) {
@@ -113,13 +115,13 @@ Future<Json?> pickChatFile(
   await for (final chunk in bytes) {
     for (var start = 0; start < chunk.length; start += 196608) {
       final end = (start + 196608).clamp(0, chunk.length);
-      final response = await client.transport
+      final response = await client.account.transport
           .put(
-            client
+            client.account
                 .url('/api/nodes/$nodeId/imports/$importId')
                 .replace(queryParameters: {'path': name, 'offset': '$offset'}),
             headers: {
-              'Authorization': 'Bearer ${client.token}',
+              'Authorization': 'Bearer ${client.account.token}',
               'Content-Type': 'application/octet-stream',
             },
             body: chunk.sublist(start, end),
@@ -129,16 +131,16 @@ Future<Json?> pickChatFile(
         throw RelayError('Upload HTTP ${response.statusCode}');
       }
       offset += end - start;
-      onProgress('$name · ${fileSize(offset)}');
+      onProgress('$name  ${fileSize(offset)}');
     }
   }
   if (offset == 0) {
-    final response = await client.transport.put(
-      client
+    final response = await client.account.transport.put(
+      client.account
           .url('/api/nodes/$nodeId/imports/$importId')
           .replace(queryParameters: {'path': name, 'offset': '0'}),
       headers: {
-        'Authorization': 'Bearer ${client.token}',
+        'Authorization': 'Bearer ${client.account.token}',
         'Content-Type': 'application/octet-stream',
       },
       body: <int>[],
@@ -218,9 +220,11 @@ class _FileCardState extends State<FileCard> {
     final placeholder = Container(
       width: 240,
       height: 160,
-      decoration: BoxDecoration(
+      decoration: ShapeDecoration(
         color: tone.bubble,
-        borderRadius: BorderRadius.circular(12),
+        shape: RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
     // The picture keeps its own proportions and is never shown larger than
@@ -236,7 +240,7 @@ class _FileCardState extends State<FileCard> {
               cursor: SystemMouseCursors.click,
               child: GestureDetector(
                 onTap: open,
-                child: ClipRRect(
+                child: ClipRSuperellipse(
                   borderRadius: BorderRadius.circular(12),
                   child: isSvg(file)
                       ? SvgPicture.memory(
@@ -265,7 +269,7 @@ class _FileCardState extends State<FileCard> {
       constraints: const BoxConstraints(maxWidth: 340),
       child: Material(
         color: tone.surface,
-        shape: RoundedRectangleBorder(
+        shape: RoundedSuperellipseBorder(
           borderRadius: corners,
           side: BorderSide(color: tone.line),
         ),
@@ -280,9 +284,11 @@ class _FileCardState extends State<FileCard> {
                 Container(
                   width: 38,
                   height: 38,
-                  decoration: BoxDecoration(
+                  decoration: ShapeDecoration(
                     color: tone.bubble,
-                    borderRadius: BorderRadius.circular(10),
+                    shape: RoundedSuperellipseBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   child: Icon(
                     value?['available'] == false
@@ -474,11 +480,10 @@ class _FileViewerState extends State<FileViewer> {
       }
     } on PlatformException catch (e) {
       copy = null;
-      // Programs and scripts from a bot are never run by "Open"; say what to do instead.
       final message = e.code == 'blocked_type'
           ? client.tr(
-              '为了安全，程序和脚本文件不会直接打开。可以在文件夹中查看，或用「打开方式」自行选择应用。',
-              'For safety, programs and scripts are not opened directly. Show it in its folder, or use Open with to choose an app.',
+              '程序和脚本不能直接打开',
+              "Programs and scripts can't be opened directly",
             )
           : e.message ?? e.code;
       if (mounted) setState(() => error = message);

@@ -1,3 +1,5 @@
+import 'package:nekodot_native/features/chat_timeline.dart';
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -7,10 +9,10 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+
 import 'package:nekodot_native/features/auth.dart';
 import 'package:nekodot_native/features/bot_details.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
-import 'package:nekodot_native/features/chat.dart';
 import 'package:nekodot_native/features/extensions.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/features/pairing.dart';
@@ -30,7 +32,7 @@ void main() {
     final navigator = GlobalKey<NavigatorState>();
     final mode = ValueNotifier(ThemeMode.light);
     var glass = true;
-    client.token = const String.fromEnvironment('QA_TOKEN');
+    client.account.token = const String.fromEnvironment('QA_TOKEN');
     await tester.runAsync(() async {
       await client.bootstrap();
       await client.selectNode(const String.fromEnvironment('QA_NODE'));
@@ -164,6 +166,15 @@ void main() {
           await tester.tap(find.byTooltip('账户'));
           await run(const Duration(milliseconds: 400));
           await shot('$tag-account-menu');
+          navigator.currentState!.pop();
+          await run(const Duration(milliseconds: 300));
+          await tester.tap(find.byTooltip('搜索 (Ctrl+K)'));
+          await shot('$tag-search');
+          await tester.enterText(
+            find.byKey(const ValueKey('search-palette-input')),
+            '周报',
+          );
+          await shot('$tag-search-typed');
           navigator.currentState!.pop();
           await run(const Duration(milliseconds: 300));
           await tester.tap(find.byTooltip('新建').first);

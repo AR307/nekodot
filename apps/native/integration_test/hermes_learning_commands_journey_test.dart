@@ -1,9 +1,12 @@
+import 'package:nekodot_native/data/chat_models.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/platform/desktop.dart';
 import 'package:nekodot_native/ui/design.dart';
@@ -15,9 +18,9 @@ void main() {
     tester,
   ) async {
     if (Platform.isWindows) await DesktopHost.initialize();
-    final c = NekodotClient()..language = 'en';
+    final c = NekodotClient()..prefs.language = 'en';
     final botId = const String.fromEnvironment('QA_SECOND_BOT');
-    final login = await c.request(
+    final login = await c.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -25,7 +28,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    c.token = login['token'] as String;
+    c.account.token = login['token'] as String;
     c.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await c.bootstrap();
     addTearDown(c.dispose);
@@ -60,22 +63,22 @@ void main() {
     final input = find.byKey(const ValueKey('chat-input'));
     await until(() => input.evaluate().isNotEmpty, 'Composer');
     await c.loadMessages(conversationId);
-    List<Json> messages() => c.node.messages[conversationId] ?? [];
-    final before = messages().map((r) => r['messageId']).toSet();
+    List<ChatMessage> messages() => c.node.messages[conversationId] ?? [];
+    final before = messages().map((r) => r.messageId).toSet();
     final allowed = <Object?>{};
     allowPending = () async {
       final approval = messages()
           .where(
             (r) =>
-                !before.contains(r['messageId']) &&
-                !allowed.contains(r['messageId']) &&
-                r['kind'] == 'approval' &&
-                r['status'] == 'streaming',
+                !before.contains(r.messageId) &&
+                !allowed.contains(r.messageId) &&
+                r.kind == 'approval' &&
+                r.status == 'streaming',
           )
           .firstOrNull;
       if (approval == null) return;
       final allow = find.descendant(
-        of: find.byKey(ValueKey(approval['messageId'])),
+        of: find.byKey(ValueKey(approval.messageId)),
         matching: find.text('Allow once'),
       );
       FocusManager.instance.primaryFocus?.unfocus();
@@ -93,7 +96,7 @@ void main() {
       );
       await tester.ensureVisible(allow.last);
       await tester.tap(allow.last);
-      allowed.add(approval['messageId']);
+      allowed.add(approval.messageId);
     };
     Future<void> submit(String text) async {
       FocusManager.instance.primaryFocus?.unfocus();
@@ -117,15 +120,15 @@ void main() {
       await until(
         () => messages().any(
           (r) =>
-              r['kind'] == 'text' &&
-              r['author']['type'] == 'bot' &&
-              r['status'] == 'done' &&
-              '${r['content']['text']}'.contains(marker),
+              r.kind == 'text' &&
+              r.author.type == 'bot' &&
+              r.status == 'done' &&
+              '${r.content['text']}'.contains(marker),
         ),
         'Real reply: $marker',
       );
       await until(
-        () => c.node.activities[conversationId]?['state'] == 'idle',
+        () => c.node.activities[conversationId]?.state == 'idle',
         'Native run settled',
       );
     }
@@ -152,7 +155,7 @@ void main() {
       );
       await reply('$marker-INIT');
       expect(
-        messages().any((r) => r['kind'] == 'tool' && r['status'] == 'done'),
+        messages().any((r) => r.kind == 'tool' && r.status == 'done'),
         isTrue,
       );
       debugPrint('QA LEARN: /init finished in an isolated native worktree');
@@ -179,47 +182,47 @@ void main() {
       debugPrint(
         'QA LEARN: actual SKILL.md read back; other profile remains isolated',
       );
-      final beforeReview = messages().map((r) => r['messageId']).toSet();
+      final beforeReview = messages().map((r) => r.messageId).toSet();
       await submit(
         '/review Review only the harmless README-summary workflow and this isolated workspace AGENTS.md. No external services, no modifications or deletion. Include the exact marker $marker-REVIEW in your conclusion.',
       );
       await until(
         () => messages().any(
           (r) =>
-              !beforeReview.contains(r['messageId']) &&
-              r['author']['type'] == 'bot' &&
-              r['status'] == 'done' &&
-              '${r['content']['text']}'.contains('$marker-REVIEW'),
+              !beforeReview.contains(r.messageId) &&
+              r.author.type == 'bot' &&
+              r.status == 'done' &&
+              '${r.content['text']}'.contains('$marker-REVIEW'),
         ),
         'Native background review result must reach App',
         seconds: 480,
       );
       await until(
-        () => c.node.activities[conversationId]?['state'] == 'idle',
+        () => c.node.activities[conversationId]?.state == 'idle',
         'Review settled',
       );
       debugPrint('QA LEARN: actual native background review returned to chat');
-      final beforeRefine = messages().map((r) => r['messageId']).toSet();
+      final beforeRefine = messages().map((r) => r.messageId).toSet();
       const refineCommand =
           '/refine Review the harmless README-summary workflow. Keep personal identity and USER.md unchanged; do not remove anything. Retain reusable project-summary lessons only if useful.';
       await submit(refineCommand);
       await until(
         () => messages().any(
           (r) =>
-              !beforeRefine.contains(r['messageId']) &&
-              r['kind'] == 'system' &&
-              '${r['content']['text']}'.startsWith('$refineCommand\n\n'),
+              !beforeRefine.contains(r.messageId) &&
+              r.kind == 'system' &&
+              '${r.content['text']}'.startsWith('$refineCommand\n\n'),
         ),
         'Completed refine result must reach App',
       );
       final result = messages().lastWhere(
         (r) =>
-            !beforeRefine.contains(r['messageId']) &&
-            r['kind'] == 'system' &&
-            '${r['content']['text']}'.startsWith('$refineCommand\n\n'),
+            !beforeRefine.contains(r.messageId) &&
+            r.kind == 'system' &&
+            '${r.content['text']}'.startsWith('$refineCommand\n\n'),
       );
       expect(
-        '${result['content']['text']}'
+        '${result.content['text']}'
             .substring(refineCommand.length + 2)
             .toLowerCase(),
         anyOf(contains('review'), contains('skill'), contains('memory')),
@@ -235,7 +238,7 @@ void main() {
         'key': 'terminal.cwd',
         'value': cwd,
       });
-      if (c.node.activities[conversationId]?['state'] == 'idle') {
+      if (c.node.activities[conversationId]?.state == 'idle') {
         await submit('/resume $original');
       }
     }

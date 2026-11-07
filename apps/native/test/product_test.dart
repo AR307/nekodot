@@ -1,8 +1,13 @@
+import 'package:nekodot_native/features/chat_timeline.dart';
+import 'package:nekodot_native/data/chat_models.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
+import 'package:nekodot_native/data/account.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
 import 'package:nekodot_native/features/chat.dart';
 import 'package:nekodot_native/ui/design.dart';
@@ -25,7 +30,7 @@ class JourneyClient extends NekodotClient {
   bool rejectFirstCatalog = false;
   JourneyClient() {
     selectedNodeId = 'test-node';
-    ready = true;
+    connection.ready = true;
     node.online = true;
     node.bots = [bot];
     node.conversations = [
@@ -75,7 +80,9 @@ class JourneyClient extends NekodotClient {
         return accepted.future;
       case 'runs.stop':
         stops++;
-        node.activities['dm'] = {'state': 'idle'};
+        node.activities['dm'] = ConversationActivity.fromJson({
+          'state': 'idle',
+        });
         notifyListeners();
         return {};
       default:
@@ -115,10 +122,10 @@ void main() {
     'An interrupted execution keeps the draft and offers Stop before a new send',
     (tester) async {
       final client = JourneyClient();
-      client.node.activities['dm'] = {
+      client.node.activities['dm'] = ConversationActivity.fromJson({
         'state': 'unknown',
         'botId': bot['botId'],
-      };
+      });
       await tester.pumpWidget(
         MaterialApp(
           theme: appTheme(Brightness.light),
@@ -225,16 +232,25 @@ void main() {
   ) async {
     final client = JourneyClient();
     client.node.messages['dm'] = [
-      {
-        'messageId': 'm1',
-        'seq': 1,
-        'kind': 'text',
-        'status': 'done',
-        'author': {'type': 'user', 'id': 'me'},
-        'content': {'text': 'Hello'},
-      },
+      ChatMessage.fromJson({
+        'messageId': 'fixture',
+        'conversationId': 'dm',
+        'createdAt': '2026-11-06T00:00:00Z',
+        'seq': 0,
+        ...{
+          'messageId': 'm1',
+          'seq': 1,
+          'kind': 'text',
+          'status': 'done',
+          'author': {'type': 'user', 'id': 'me'},
+          'content': {'text': 'Hello'},
+        },
+      }),
     ];
-    client.node.activities['dm'] = {'state': 'thinking', 'botId': bot['botId']};
+    client.node.activities['dm'] = ConversationActivity.fromJson({
+      'state': 'thinking',
+      'botId': bot['botId'],
+    });
     await tester.pumpWidget(
       MaterialApp(
         theme: appTheme(Brightness.light),
@@ -243,14 +259,22 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byType(ThinkingRow), findsOneWidget);
-    client.node.messages['dm']!.add({
-      'messageId': 'm2',
-      'seq': 2,
-      'kind': 'text',
-      'status': 'streaming',
-      'author': {'type': 'bot', 'id': bot['botId']},
-      'content': {'text': 'Hi'},
-    });
+    client.node.messages['dm']!.add(
+      ChatMessage.fromJson({
+        'messageId': 'fixture',
+        'conversationId': 'dm',
+        'createdAt': '2026-11-06T00:00:00Z',
+        'seq': 0,
+        ...{
+          'messageId': 'm2',
+          'seq': 2,
+          'kind': 'text',
+          'status': 'streaming',
+          'author': {'type': 'bot', 'id': bot['botId']},
+          'content': {'text': 'Hi'},
+        },
+      }),
+    );
     client.notifyListeners();
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byType(ThinkingRow), findsNothing);

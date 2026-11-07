@@ -29,6 +29,9 @@ import {
   modelInfoSchema,
   hermesSettingsSchema,
   hermesSharedSettingsSchema,
+  modelCatalogEntrySchema,
+  modelReasoningSchema,
+  reasoningLevelSchema,
 } from './providers';
 import { userMemorySaveSchema, userMemoryViewSchema } from './user-memory';
 import {
@@ -39,6 +42,10 @@ import {
   attachmentSchema,
 } from './capabilities';
 const empty = z.strictObject({});
+/** USER.md is capped by the smallest native user_char_limit among the Bots sharing it. */
+const userMemoryLimitedViewSchema = userMemoryViewSchema.extend({
+  limit: z.number().int().positive(),
+});
 const botTarget = { botId: botSchema.shape.botId };
 /** Hermes `computer_use` readiness on the computer a desktop-hosted node runs on. */
 export const desktopControlSchema = z.strictObject({
@@ -266,7 +273,13 @@ export const rpcContracts = {
     params: z.strictObject(botTarget),
     result: z.strictObject({
       documents: z.array(
-        z.strictObject({ name: memoryDocumentSchema, content: z.string(), exists: z.boolean() }),
+        z.strictObject({
+          name: memoryDocumentSchema,
+          content: z.string(),
+          exists: z.boolean(),
+          /** Hermes' native character limit for MEMORY.md and USER.md. */
+          limit: z.number().int().positive().optional(),
+        }),
       ),
       pending: z.string(),
     }),
@@ -279,8 +292,8 @@ export const rpcContracts = {
     }),
     result: empty,
   },
-  'memory.user.get': { params: empty, result: userMemoryViewSchema },
-  'memory.user.save': { params: userMemorySaveSchema, result: userMemoryViewSchema },
+  'memory.user.get': { params: empty, result: userMemoryLimitedViewSchema },
+  'memory.user.save': { params: userMemorySaveSchema, result: userMemoryLimitedViewSchema },
   'memory.refine': {
     params: z.strictObject({ ...botTarget, focus: z.string() }),
     result: operationSchema,
@@ -468,6 +481,30 @@ export const rpcContracts = {
     }),
   },
   'providers.set': { params: providerInputSchema, result: providerOutputSchema },
+  'providers.test': {
+    params: z.strictObject({ sourceId: idSchema, model: z.string().min(1) }),
+    result: operationSchema,
+  },
+  'models.describe': {
+    params: z.strictObject({
+      sourceId: idSchema,
+      model: z.string().min(1),
+      refresh: z.boolean().optional(),
+    }),
+    result: modelCatalogEntrySchema,
+  },
+  'models.reasoning.get': {
+    params: z.strictObject(botTarget),
+    result: modelReasoningSchema,
+  },
+  'models.reasoning.set': {
+    params: z.strictObject({
+      ...botTarget,
+      sessionId: idSchema,
+      effort: reasoningLevelSchema.nullable(),
+    }),
+    result: modelReasoningSchema,
+  },
   'providers.authorize': {
     params: z.strictObject({
       provider: idSchema,

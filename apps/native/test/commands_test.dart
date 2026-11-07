@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
+
 import 'package:nekodot_native/features/commands.dart';
 import 'package:nekodot_native/ui/design.dart';
 
@@ -8,7 +9,7 @@ void main() {
   testWidgets(
     'phone command picker keeps usable actions first and explains other commands',
     (tester) async {
-      final client = NekodotClient()..language = 'en';
+      final client = NekodotClient()..prefs.language = 'en';
       String? selected;
       tester.view.physicalSize = const Size(390, 800);
       tester.view.devicePixelRatio = 1;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../local/runtime.dart';
 import '../ui/design.dart';
 
@@ -9,7 +10,11 @@ import '../ui/design.dart';
 class DesktopControlTile extends StatefulWidget {
   final NekodotClient client;
   final String botId;
-  const DesktopControlTile({super.key, required this.client, required this.botId});
+  const DesktopControlTile({
+    super.key,
+    required this.client,
+    required this.botId,
+  });
   @override
   State<DesktopControlTile> createState() => _DesktopControlTileState();
 }
@@ -51,10 +56,15 @@ class _DesktopControlTileState extends State<DesktopControlTile> {
   }
 
   String get readiness {
-    if (status['installed'] != true) return c.tr('未安装桌面驱动', 'Desktop driver not installed');
+    if (status['installed'] != true) {
+      return c.tr('未安装桌面驱动', 'Desktop driver not installed');
+    }
     if (status['ready'] == true) return c.tr('可用', 'Ready');
     if (status['canGrant'] == true) {
-      return c.tr('需要在这台电脑上授予辅助功能与屏幕录制权限', 'Needs Accessibility and Screen Recording on that computer');
+      return c.tr(
+        '需要在这台电脑上授予辅助功能与屏幕录制权限',
+        'Needs Accessibility and Screen Recording on that computer',
+      );
     }
     final detail = '${status['detail'] ?? ''}';
     return detail.isEmpty ? c.tr('暂不可用', 'Unavailable') : detail;

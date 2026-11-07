@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
+import '../data/account.dart';
 import '../platform/rust.dart';
 import '../ui/design.dart';
 import 'bridge/api.dart';
@@ -75,7 +77,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
     busy = true;
     try {
       await ensureRust();
-      final ticket = await c.request(
+      final ticket = await c.account.request(
         '/tunnels',
         method: 'POST',
         body: {
@@ -92,7 +94,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
       subscription =
           watchScreen(
             id: identity,
-            url: c.wsUrl('/ws/tunnel', {
+            url: c.account.wsUrl('/ws/tunnel', {
               'ticket': ticket['ticket'] as String,
             }).toString(),
           ).listen(
@@ -372,7 +374,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
             child: Row(
               children: [
                 connected && !own && status?['holder'] != 'human'
-                    ? const ShiningText(style: TextStyle(fontSize: 11))
+                    ? const ShiningText(style: TextStyle(fontSize: 12))
                     : StatusDot(on: connected),
                 const SizedBox(width: 10),
                 Expanded(
@@ -387,7 +389,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                if (busy) const ShiningText(style: TextStyle(fontSize: 11)),
+                if (busy) const ShiningText(style: TextStyle(fontSize: 12)),
                 if (status?['holder'] == 'human' && !own)
                   TextButton(
                     onPressed: busy ? null : () => control('force-release'),
@@ -435,14 +437,16 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: own ? context.tone.ink : context.tone.line,
-                    width: own ? 2 : 1,
+                decoration: ShapeDecoration(
+                  shape: RoundedSuperellipseBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(
+                      color: own ? context.tone.ink : context.tone.line,
+                      width: own ? 2 : 1,
+                    ),
                   ),
                 ),
-                child: ClipRRect(
+                child: ClipRSuperellipse(
                   borderRadius: BorderRadius.circular(9),
                   child: ColoredBox(
                     color: Colors.black,

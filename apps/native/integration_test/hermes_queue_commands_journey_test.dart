@@ -1,3 +1,5 @@
+import 'package:nekodot_native/data/chat_models.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -16,9 +18,9 @@ void main() {
     tester,
   ) async {
     if (Platform.isWindows) await DesktopHost.initialize();
-    final client = NekodotClient()..language = 'en';
+    final client = NekodotClient()..prefs.language = 'en';
     final botId = const String.fromEnvironment('QA_SECOND_BOT');
-    final login = await client.request(
+    final login = await client.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -26,7 +28,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    client.token = login['token'] as String;
+    client.account.token = login['token'] as String;
     client.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await client.bootstrap();
     addTearDown(client.dispose);
@@ -55,8 +57,8 @@ void main() {
     final input = find.byKey(const ValueKey('chat-input'));
     await until(() => input.evaluate().isNotEmpty);
     await client.loadMessages(conversationId);
-    List<Json> messages() => client.node.messages[conversationId] ?? [];
-    final existingMessages = messages().map((row) => row['messageId']).toSet();
+    List<ChatMessage> messages() => client.node.messages[conversationId] ?? [];
+    final existingMessages = messages().map((row) => row.messageId).toSet();
     Future<void> submit(String text) async {
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump(const Duration(milliseconds: 150));
@@ -88,20 +90,20 @@ void main() {
     );
     await until(
       () => messages().any(
-        (row) => row['kind'] == 'tool' && row['status'] == 'streaming',
+        (row) => row.kind == 'tool' && row.status == 'streaming',
       ),
     );
     // Pending approval deliberately holds the main turn while the queue is edited.
     await submit('/queue Do not use tools. Reply exactly $marker-OLD.');
     await submit('/queue Do not use tools. Reply exactly $marker-CANCEL.');
     expect(
-      messages().where((row) => row['content']['queue'] == 'queued').length,
+      messages().where((row) => row.content['queue'] == 'queued').length,
       2,
     );
     await submit('/queue list');
     int rank(String suffix) {
       final text =
-          '${messages().lastWhere((row) => row['kind'] == 'system' && '${row['content']['text']}'.startsWith('/queue list'))['content']['text']}';
+          '${messages().lastWhere((row) => row.kind == 'system' && '${row.content['text']}'.startsWith('/queue list')).content['text']}';
       final line = text
           .split('\n')
           .firstWhere((line) => line.contains('$marker-$suffix'));
@@ -118,37 +120,37 @@ void main() {
           messages()
               .where(
                 (row) =>
-                    row['content']['queue'] == 'cancelled' &&
-                    '${row['content']['text']}'.contains(marker),
+                    row.content['queue'] == 'cancelled' &&
+                    '${row.content['text']}'.contains(marker),
               )
               .length ==
           2,
     );
     // The same pending admissions return after a new client socket; no submit is repeated.
     final queuedIds = messages()
-        .where((row) => row['content']['queue'] != null)
-        .map((row) => row['messageId'])
+        .where((row) => row.content['queue'] != null)
+        .map((row) => row.messageId)
         .toSet();
-    await client.connect();
-    await until(() => client.ready);
+    await client.connection.connect();
+    await until(() => client.connection.ready);
     await client.synchronize(client.selectedNodeId!);
     await client.loadMessages(conversationId);
     expect(
-      messages().map((row) => row['messageId']).toSet().containsAll(queuedIds),
+      messages().map((row) => row.messageId).toSet().containsAll(queuedIds),
       isTrue,
     );
     Future<void> allowCurrentTool() async {
       final approval = messages()
           .where(
             (row) =>
-                !existingMessages.contains(row['messageId']) &&
-                row['kind'] == 'approval' &&
-                row['status'] == 'streaming',
+                !existingMessages.contains(row.messageId) &&
+                row.kind == 'approval' &&
+                row.status == 'streaming',
           )
           .firstOrNull;
       if (approval == null) return;
       final allow = find.descendant(
-        of: find.byKey(ValueKey(approval['messageId'])),
+        of: find.byKey(ValueKey(approval.messageId)),
         matching: find.text('Allow once'),
       );
       FocusManager.instance.primaryFocus?.unfocus();
@@ -172,32 +174,30 @@ void main() {
     await until(
       () => messages().any(
         (row) =>
-            row['kind'] == 'text' &&
-            row['author']['type'] == 'bot' &&
-            row['status'] == 'done' &&
-            '${row['content']['text']}'.contains('$marker-EDITED'),
+            row.kind == 'text' &&
+            row.author.type == 'bot' &&
+            row.status == 'done' &&
+            '${row.content['text']}'.contains('$marker-EDITED'),
       ),
     );
-    await until(
-      () => client.node.activities[conversationId]?['state'] == 'idle',
-    );
+    await until(() => client.node.activities[conversationId]?.state == 'idle');
     final replies = messages()
         .where(
           (row) =>
-              row['kind'] == 'text' &&
-              row['author']['type'] == 'bot' &&
-              '${row['content']['text']}'.contains(marker),
+              row.kind == 'text' &&
+              row.author.type == 'bot' &&
+              '${row.content['text']}'.contains(marker),
         )
         .toList();
     expect(replies.length, 2);
-    expect('${replies.first['content']['text']}', contains('$marker-MAIN'));
-    expect('${replies.last['content']['text']}', contains('$marker-EDITED'));
+    expect('${replies.first.content['text']}', contains('$marker-MAIN'));
+    expect('${replies.last.content['text']}', contains('$marker-EDITED'));
     expect(
       messages()
           .where(
             (row) =>
-                row['content']['queue'] == 'running' &&
-                '${row['content']['text']}'.contains(marker),
+                row.content['queue'] == 'running' &&
+                '${row.content['text']}'.contains(marker),
           )
           .length,
       1,
@@ -205,9 +205,9 @@ void main() {
     expect(
       messages().where(
         (row) =>
-            !existingMessages.contains(row['messageId']) &&
-            row['kind'] == 'approval' &&
-            row['status'] == 'streaming',
+            !existingMessages.contains(row.messageId) &&
+            row.kind == 'approval' &&
+            row.status == 'streaming',
       ),
       isEmpty,
       reason: 'A queued steer must not duplicate the running turn’s approval.',
@@ -222,11 +222,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     final queueMessage = messages().firstWhere(
       (row) =>
-          row['content']['queue'] == 'running' &&
-          '${row['content']['text']}'.contains(marker),
+          row.content['queue'] == 'running' &&
+          '${row.content['text']}'.contains(marker),
     );
     await tester.scrollUntilVisible(
-      find.byKey(ValueKey(queueMessage['messageId'])),
+      find.byKey(ValueKey(queueMessage.messageId)),
       240,
       scrollable: chatScroll,
       maxScrolls: 60,
@@ -237,7 +237,7 @@ void main() {
     );
     await until(
       () => messages().any(
-        (row) => row['kind'] == 'tool' && row['status'] == 'streaming',
+        (row) => row.kind == 'tool' && row.status == 'streaming',
       ),
     );
     await submit(
@@ -249,21 +249,19 @@ void main() {
     await until(
       () => messages().any(
         (row) =>
-            row['content']['queue'] == 'steered' &&
-            '${row['content']['text']}'.contains('$marker-STEERED'),
+            row.content['queue'] == 'steered' &&
+            '${row.content['text']}'.contains('$marker-STEERED'),
       ),
     );
-    await until(
-      () => client.node.activities[conversationId]?['state'] == 'idle',
-    );
+    await until(() => client.node.activities[conversationId]?.state == 'idle');
     expect(
       messages()
           .where(
             (row) =>
-                row['kind'] == 'text' &&
-                row['author']['type'] == 'bot' &&
-                row['status'] == 'done' &&
-                '${row['content']['text']}'.contains('$marker-STEERED'),
+                row.kind == 'text' &&
+                row.author.type == 'bot' &&
+                row.status == 'done' &&
+                '${row.content['text']}'.contains('$marker-STEERED'),
           )
           .length,
       1,
@@ -277,11 +275,11 @@ void main() {
     }
     await submit('/nekodot-routine-status');
     expect(
-      messages().lastWhere((row) => row['kind'] == 'system')['content']['text'],
+      messages().lastWhere((row) => row.kind == 'system').content['text'],
       contains('/nekodot-routine-status'),
     );
     expect(
-      messages().lastWhere((row) => row['kind'] == 'system')['content']['text'],
+      messages().lastWhere((row) => row.kind == 'system').content['text'],
       isNot(contains('Plugin command error')),
     );
     await submit('/wake');

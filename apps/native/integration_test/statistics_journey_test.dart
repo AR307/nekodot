@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+
 import 'package:nekodot_native/data/usage.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/features/statistics.dart';
@@ -96,7 +97,7 @@ void main() {
       }
     }
 
-    final login = await c.request(
+    final login = await c.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -104,7 +105,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    c.token = login['token'] as String;
+    c.account.token = login['token'] as String;
     c.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await c.bootstrap();
     addTearDown(c.dispose);
@@ -130,7 +131,7 @@ void main() {
     await tap(find.byKey(const ValueKey('conversation-$conversation')));
     final input = find.byKey(const ValueKey('chat-input'));
     final before = (c.node.messages[conversation] ?? [])
-        .map((m) => m['messageId'])
+        .map((m) => m.messageId)
         .toSet();
     await tap(input);
     await tester.enterText(
@@ -141,10 +142,10 @@ void main() {
     await until(
       () => (c.node.messages[conversation] ?? []).any(
         (m) =>
-            !before.contains(m['messageId']) &&
-            m['author']['type'] == 'bot' &&
-            m['kind'] == 'text' &&
-            m['status'] == 'done',
+            !before.contains(m.messageId) &&
+            m.author.type == 'bot' &&
+            m.kind == 'text' &&
+            m.status == 'done',
       ),
       'Real reply completed',
     );
@@ -297,7 +298,7 @@ void main() {
       alignment: 1,
     );
     await shot('dark-breakdown');
-    c.language = 'en';
+    c.prefs.language = 'en';
     dark.value = false;
     await settle();
     await scrollTop();

@@ -10,3 +10,4 @@
 !deploy/
 !deploy/docker/
 !deploy/docker/Dockerfile
+!deploy/docker/relay-package-lock.json

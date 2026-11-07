@@ -1,19 +1,16 @@
 name: nekodot-product
 services:
   relay:
-    image: ${NEKODOT_RELAY_IMAGE:-nekodot-relay:product-0.3.2-b9}
+    image: ${NEKODOT_RELAY_IMAGE:-nekodot-relay:product-0.3.3-b10}
     container_name: nekodot-product-relay
     restart: unless-stopped
     env_file: .env
-    environment:
-      SITE_DIR: /app/site
     ports:
       - '127.0.0.1:4349:4329'
     volumes:
       - ./data:/data
       - ./downloads:/app/distribution:ro
       - ./private:/run/nekodot-private:ro
-      - ./site:/app/site:ro
     networks:
       default: {}
       ingress:

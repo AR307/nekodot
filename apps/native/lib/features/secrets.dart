@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../data/secret_crypto.dart';
 import '../ui/design.dart';
 
@@ -17,9 +18,9 @@ String secretState(NekodotClient c, String state) => switch (state) {
   _ => state,
 };
 
-/// A Bot asking for a key or a password: its name, one field at a time with
-/// its submit, and whether the Bot may reuse it. The value is encrypted here
-/// for the owning node and never shown in the chat.
+/// A Bot asking for one key or password: its name, the field with its submit,
+/// and whether the Bot may reuse it. The value is encrypted here for the
+/// owning node and never shown in the chat.
 class SecretCard extends StatefulWidget {
   final NekodotClient client;
   final Json content;
@@ -33,9 +34,9 @@ class _SecretCardState extends State<SecretCard>
   Json? data;
   String error = '';
   bool busy = false, save = false;
-  int step = 0;
   final fields = <String, TextEditingController>{};
   NekodotClient get c => widget.client;
+  late final updates = c.node.summaries;
   Json get target => {
     'botId': widget.content['botId'],
     'requestId': widget.content['requestId'],
@@ -47,6 +48,7 @@ class _SecretCardState extends State<SecretCard>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     c.addListener(sync);
+    updates.addListener(sync);
     if (open(widget.content['state'])) unawaited(load());
   }
 
@@ -57,12 +59,12 @@ class _SecretCardState extends State<SecretCard>
     final message = (c.node.messages[request['conversationId']] ?? [])
         .where(
           (m) =>
-              m['kind'] == 'secret' &&
-              m['content']['requestId'] == target['requestId'],
+              m.kind == 'secret' &&
+              m.content['requestId'] == target['requestId'],
         )
         .firstOrNull;
     if (message == null) return;
-    final content = object(message['content']);
+    final content = object(message.content);
     if (!open(content['state'])) clear();
     setState(
       () => data = {
@@ -107,13 +109,13 @@ class _SecretCardState extends State<SecretCard>
     for (final field in fields.values) {
       field.clear();
     }
-    if (mounted && step != 0) setState(() => step = 0);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     c.removeListener(sync);
+    updates.removeListener(sync);
     nativeRoutes.unsubscribe(this);
     for (final field in fields.values) {
       field
@@ -144,18 +146,13 @@ class _SecretCardState extends State<SecretCard>
     }
   }
 
-  /// One field at a time: earlier fields move on, the last one delivers.
   Future<void> submit({String? savedId}) async {
     if (busy || !c.online) return;
     final request = object(data!['request']);
     final definitions = objects(request['fields']);
-    if (savedId == null) {
-      final current = fields['${definitions[step]['name']}']!;
-      if (current.text.isEmpty) return;
-      if (step < definitions.length - 1) {
-        setState(() => step++);
-        return;
-      }
+    if (savedId == null &&
+        fields['${definitions.first['name']}']!.text.isEmpty) {
+      return;
     }
     setState(() {
       busy = true;
@@ -238,8 +235,7 @@ class _SecretCardState extends State<SecretCard>
     }
     final Json? field = data == null || definitions.isEmpty
         ? null
-        : definitions[step.clamp(0, definitions.length - 1)];
-    final last = step >= definitions.length - 1;
+        : definitions.first;
     final kind = field?['kind'];
     return ChatCard(
       child: Column(
@@ -257,8 +253,6 @@ class _SecretCardState extends State<SecretCard>
                     key: ValueKey('secret-field-${field['name']}'),
                     controller: fields['${field['name']}'],
                     enabled: ready,
-                    // The next field takes over the typing after the first.
-                    autofocus: step > 0,
                     obscureText: kind == 'password' || kind == 'otp',
                     minLines: kind == 'private-key' ? 4 : 1,
                     maxLines: kind == 'private-key' ? 10 : 1,
@@ -274,15 +268,13 @@ class _SecretCardState extends State<SecretCard>
                 ),
                 const SizedBox(width: 8),
                 FilledButton(
-                  key: ValueKey(last ? 'secret-submit' : 'secret-next'),
+                  key: const ValueKey('secret-submit'),
                   style: optionStyle(context),
                   onPressed:
                       ready && fields['${field['name']}']!.text.isNotEmpty
                       ? () => submit()
                       : null,
-                  child: Text(
-                    last ? c.tr('提交', 'Submit') : c.tr('下一步', 'Next'),
-                  ),
+                  child: Text(c.tr('提交', 'Submit')),
                 ),
               ],
             ),
@@ -290,7 +282,9 @@ class _SecretCardState extends State<SecretCard>
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(8),
+                  customBorder: RoundedSuperellipseBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   onTap: ready ? () => setState(() => save = !save) : null,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -312,7 +306,7 @@ class _SecretCardState extends State<SecretCard>
                   ),
                 ),
               ),
-            if (saved.isNotEmpty && step == 0)
+            if (saved.isNotEmpty)
               TextButton(
                 key: const ValueKey('secret-saved'),
                 onPressed: ready
@@ -374,9 +368,12 @@ class BotSecretsPage extends StatelessWidget {
                       SelectableText(
                         '${object(entry['target'])['origin'] ?? object(entry['target'])['path']}',
                       ),
-                      Text(
-                        '${entry['enabled'] == true ? client.tr('已保存', 'Saved') : client.tr('已停用', 'Disabled')} · ${client.tr('最近使用', 'Last used')}: ${entry['lastUsedAt']}',
-                      ),
+                      MetaText([
+                        entry['enabled'] == true
+                            ? client.tr('已保存', 'Saved')
+                            : client.tr('已停用', 'Disabled'),
+                        '${client.tr('最近使用', 'Last used')}: ${entry['lastUsedAt']}',
+                      ]),
                       if (entry['enabled'] == true)
                         Wrap(
                           spacing: 12,

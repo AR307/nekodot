@@ -5,6 +5,7 @@ import 'design.dart';
 class PromptCard extends StatefulWidget {
   final Widget field, tools, action;
   final bool hasContent, running;
+  final bool holdSize;
   const PromptCard({
     super.key,
     required this.field,
@@ -12,16 +13,23 @@ class PromptCard extends StatefulWidget {
     required this.action,
     required this.hasContent,
     required this.running,
+    this.holdSize = false,
   });
   @override
   State<PromptCard> createState() => _PromptCardState();
 }
 
 class _PromptCardState extends State<PromptCard> {
-  bool focused = false;
+  bool focused = false, expanded = false;
   @override
   Widget build(BuildContext context) {
-    final expanded = focused || widget.hasContent || widget.running;
+    // Moving focus from the input to selected chat text must not move the
+    // words under the pointer by collapsing the composer mid-selection.
+    expanded =
+        focused ||
+        widget.hasContent ||
+        widget.running ||
+        (widget.holdSize && expanded);
     final duration = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : const Duration(milliseconds: 300);
@@ -31,19 +39,21 @@ class _PromptCardState extends State<PromptCard> {
         duration: duration,
         curve: Curves.easeOutCubic,
         constraints: BoxConstraints(maxWidth: expanded ? 480 : 320),
-        decoration: BoxDecoration(
+        decoration: ShapeDecoration(
           color: context.tone.surface,
-          border: Border.all(
-            color: focused ? context.tone.ink3 : context.tone.line,
-          ),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
+          shadows: [
             BoxShadow(
               color: Colors.black.withValues(alpha: .04),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
           ],
+          shape: RoundedSuperellipseBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(
+              color: focused ? context.tone.ink3 : context.tone.line,
+            ),
+          ),
         ),
         child: SizeMotion(
           duration: const Duration(milliseconds: 300),
@@ -57,27 +67,26 @@ class _PromptCardState extends State<PromptCard> {
                   ConstrainedBox(
                     constraints: BoxConstraints(minHeight: expanded ? 68 : 46),
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        16,
-                        8,
-                        expanded ? 16 : 96,
-                        8,
-                      ),
+                      padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
                       child: widget.field,
                     ),
                   ),
-                  if (expanded) const SizedBox(height: 44),
+                  const SizedBox(height: 44),
                 ],
               ),
               Positioned(
-                left: expanded ? 8 : null,
+                left: 8,
                 right: 7,
                 bottom: 7,
                 child: Row(
                   children: [
-                    if (expanded) const Spacer(),
                     widget.tools,
-                    widget.action,
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: widget.action,
+                      ),
+                    ),
                   ],
                 ),
               ),

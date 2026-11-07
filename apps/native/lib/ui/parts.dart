@@ -63,11 +63,14 @@ class Panel extends StatelessWidget {
     final shadows = lifted ? tone.lift : tone.rest;
     final corners = BorderRadius.circular(radius);
     return DecoratedBox(
-      decoration: BoxDecoration(borderRadius: corners, boxShadow: shadows),
+      decoration: ShapeDecoration(
+        shadows: shadows,
+        shape: RoundedSuperellipseBorder(borderRadius: corners),
+      ),
       child: Material(
         color: color ?? tone.surface,
         clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(borderRadius: corners),
+        shape: RoundedSuperellipseBorder(borderRadius: corners),
         child: child,
       ),
     );
@@ -89,10 +92,12 @@ class ChatCard extends StatelessWidget {
     final tone = context.tone;
     return Container(
       padding: padding,
-      decoration: BoxDecoration(
+      decoration: ShapeDecoration(
         color: tone.surface,
-        border: Border.all(color: tone.line),
-        borderRadius: BorderRadius.circular(16),
+        shape: RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: tone.line),
+        ),
       ),
       child: child,
     );
@@ -241,7 +246,9 @@ class MenuSelect<T> extends StatelessWidget {
     final enabled = onChanged != null && options.isNotEmpty;
     return Builder(
       builder: (field) => InkWell(
-        borderRadius: BorderRadius.circular(context.tone.corner),
+        customBorder: RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.circular(context.tone.corner),
+        ),
         onTap: enabled ? () => open(field) : null,
         child: InputDecorator(
           isEmpty: chosen == null,
@@ -338,7 +345,9 @@ class ChoiceRow extends StatelessWidget {
     final tone = context.tone;
     final text = Theme.of(context).textTheme;
     return InkWell(
-      borderRadius: BorderRadius.circular(10),
+      customBorder: RoundedSuperellipseBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
       onTap: onTap,
       child: Padding(
         padding: EdgeInsets.symmetric(
@@ -352,10 +361,12 @@ class ChoiceRow extends StatelessWidget {
               width: 24,
               height: 24,
               alignment: Alignment.center,
-              decoration: BoxDecoration(
+              decoration: ShapeDecoration(
                 color: selected ? tone.ink : tone.bubble,
-                border: Border.all(color: selected ? tone.ink : tone.line),
-                borderRadius: BorderRadius.circular(7),
+                shape: RoundedSuperellipseBorder(
+                  borderRadius: BorderRadius.circular(7),
+                  side: BorderSide(color: selected ? tone.ink : tone.line),
+                ),
               ),
               child: Text(
                 String.fromCharCode(65 + index % 26),
@@ -426,6 +437,7 @@ class AppPage extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) => Scaffold(
+    backgroundColor: context.tone.ground,
     extendBodyBehindAppBar: extendBodyBehindAppBar ?? false,
     appBar: AppBar(
       flexibleSpace: context.tone.glass ? const Frost() : const WindowDrag(),
@@ -460,14 +472,19 @@ void showNotice(BuildContext context, String text) {
   );
   measured.dispose();
   final side = (screen - width) / 2;
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(text, textAlign: TextAlign.center),
-      padding: const EdgeInsets.symmetric(horizontal: padding, vertical: 7),
-      margin: EdgeInsets.fromLTRB(side, 0, side, tone.glass ? 76 : 60),
-      duration: Duration(seconds: text.length > 24 ? 4 : 2),
-    ),
-  );
+  // A pill that rises above the bottom controls and leaves on its own: long
+  // enough to read, short enough not to stay in the way.
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(text, textAlign: TextAlign.center),
+        padding: const EdgeInsets.symmetric(horizontal: padding, vertical: 9),
+        margin: EdgeInsets.fromLTRB(side, 0, side, tone.glass ? 76 : 60),
+        shape: const StadiumBorder(),
+        duration: Duration(milliseconds: text.length > 24 ? 4000 : 2500),
+      ),
+    );
 }
 
 /// A field with its label above it, always visible and never inside the box.
@@ -521,7 +538,14 @@ class PanelGroup extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final (index, child) in children.indexed) ...[
-          if (index > 0) const Divider(height: 1),
+          // Hairlines inset from the leading edge, as the rows they part.
+          if (index > 0)
+            Divider(
+              height: 1,
+              thickness: 1 / MediaQuery.devicePixelRatioOf(context),
+              indent: 16,
+              color: context.tone.line,
+            ),
           child,
         ],
       ],
@@ -646,7 +670,9 @@ class Segment<T> extends StatelessWidget {
     final keys = options.keys.toList();
     final selected = keys.indexOf(value);
     final still = MediaQuery.disableAnimationsOf(context);
-    const corners = StadiumBorder();
+    const corners = RoundedSuperellipseBorder(
+      borderRadius: BorderRadius.all(Radius.circular(999)),
+    );
     return Container(
       height: tone.glass ? 36 : 28,
       padding: const EdgeInsets.all(2),
@@ -924,5 +950,52 @@ class RenderMeasureHeight extends RenderProxyBox {
       last = height;
       WidgetsBinding.instance.addPostFrameCallback((_) => onChange(height));
     }
+  }
+}
+
+/// Short facts side by side, parted by a hairline rather than a "·", whose
+/// height and baseline differ from font to font.
+class MetaText extends StatelessWidget {
+  final List<String> parts;
+  final TextStyle? style;
+  final int maxLines;
+  final TextAlign textAlign;
+  const MetaText(
+    this.parts, {
+    super.key,
+    this.style,
+    this.maxLines = 1,
+    this.textAlign = TextAlign.start,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final shown = [
+      for (final part in parts)
+        if (part.trim().isNotEmpty) part,
+    ];
+    final size = (style ?? DefaultTextStyle.of(context).style).fontSize ?? 13;
+    return Text.rich(
+      TextSpan(
+        children: [
+          for (final (index, part) in shown.indexed) ...[
+            if (index > 0)
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: Container(
+                  width: 1 / MediaQuery.devicePixelRatioOf(context),
+                  height: size * .8,
+                  margin: const EdgeInsets.symmetric(horizontal: 7),
+                  color: context.tone.ink3.withValues(alpha: .6),
+                ),
+              ),
+            TextSpan(text: part),
+          ],
+        ],
+      ),
+      style: style,
+      maxLines: maxLines,
+      overflow: TextOverflow.ellipsis,
+      textAlign: textAlign,
+    );
   }
 }

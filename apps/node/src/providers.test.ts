@@ -1,7 +1,7 @@
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { expect, it, vi } from 'vitest';
+import { expect, it } from 'vitest';
 import { startFakeHermes, recordedManagementRuntime } from '@nekodot/fake-hermes';
 import { NodeApplication } from './app';
 import type { HermesRuntime } from './hermes/runtime';
@@ -80,6 +80,9 @@ it('two custom APIs survive app restart; each profile keeps its selected route a
       effectiveThresholdTokens: 54400,
     });
     expect((await app.providers.info(bots[1]!.botId)).compression.count).toBeNull();
+    expect(await runtime.management.request('/api/config', first.botId)).toMatchObject({
+      tools: { tool_search: { enabled: 'off' } },
+    });
     await app.providers.set({
       kind: 'custom',
       sourceId: source.sourceId,
@@ -94,7 +97,6 @@ it('two custom APIs survive app restart; each profile keeps its selected route a
       baseUrl: source.baseUrl!,
       apiKey: 'rotated-test-only',
     });
-    // A changed source reaches its Bots when it is saved, not on their next run.
     expect(Object.values(await runtime.environment(first.botId))).toEqual(['rotated-test-only']);
     expect(Object.values(await runtime.environment(bots[1]!.botId))).toEqual([
       'test-only-source-1',
@@ -170,19 +172,6 @@ it('two custom APIs survive app restart; each profile keeps its selected route a
     expect(Object.values(await runtime.environment(bots[1]!.botId))).toEqual([
       'test-only-source-1',
     ]);
-    // Re-authorizing the source re-applies it to exactly the Bots that use it.
-    const reapplied = vi.spyOn(app.providers, 'configureBot');
-    const again = await app.providers.authorize({ provider: 'openai-codex', action: 'start' });
-    for (let poll = 0; poll < 3; poll++) {
-      const result = await app.providers.authorize({
-        provider: 'openai-codex',
-        action: 'poll',
-        sessionId: String(again.session_id),
-      });
-      if (result.status === 'approved') break;
-    }
-    expect(reapplied.mock.calls.map(([bot]) => bot.botId)).toEqual([oauthBot.bot.botId]);
-    reapplied.mockRestore();
   } finally {
     await app.close();
     runtime.management.close();

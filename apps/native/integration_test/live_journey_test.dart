@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+
 import 'package:nekodot_native/main.dart';
 import 'package:nekodot_native/ui/design.dart';
 
@@ -88,7 +89,7 @@ void main() {
     await tester.ensureVisible(find.widgetWithText(FilledButton, '登录'));
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.widgetWithText(FilledButton, '登录'));
-    await until(() => client.ready);
+    await until(() => client.connection.ready);
     await client.selectNode(nodeId);
     debugPrint('QA: authenticated real remote account');
     await until(() => client.online && client.node.conversations.isNotEmpty);
@@ -110,17 +111,17 @@ void main() {
     await client.loadMessages(conversationId);
     debugPrint('QA loaded history');
     final before = (client.node.messages[conversationId] ?? [])
-        .map((m) => m['messageId'])
+        .map((m) => m.messageId)
         .toSet();
     bool streamed = false;
     void observeReply() {
       streamed |= (client.node.messages[conversationId] ?? []).any(
         (m) =>
-            !before.contains(m['messageId']) &&
-            m['author']['type'] == 'bot' &&
-            m['kind'] == 'text' &&
-            m['status'] == 'streaming' &&
-            '${m['content']['text']}'.isNotEmpty,
+            !before.contains(m.messageId) &&
+            m.author.type == 'bot' &&
+            m.kind == 'text' &&
+            m.status == 'streaming' &&
+            '${m.content['text']}'.isNotEmpty,
       );
     }
 
@@ -136,25 +137,25 @@ void main() {
     debugPrint('QA tapped send');
     await until(
       () => (client.node.messages[conversationId] ?? []).any(
-        (m) => !before.contains(m['messageId']),
+        (m) => !before.contains(m.messageId),
       ),
     );
     await until(
       () => (client.node.messages[conversationId] ?? []).any(
         (m) =>
-            !before.contains(m['messageId']) &&
-            m['author']['type'] == 'bot' &&
-            m['kind'] == 'text' &&
-            m['status'] == 'done' &&
-            '${m['content']['text']}'.contains(marker),
+            !before.contains(m.messageId) &&
+            m.author.type == 'bot' &&
+            m.kind == 'text' &&
+            m.status == 'done' &&
+            '${m.content['text']}'.contains(marker),
       ),
       seconds: 180,
     );
-    expect(client.node.activities[conversationId]?['state'], 'idle');
+    expect(client.node.activities[conversationId]?.state, 'idle');
     if (toolFile.isNotEmpty) {
       expect(
         (client.node.messages[conversationId] ?? []).any(
-          (m) => !before.contains(m['messageId']) && m['kind'] == 'tool',
+          (m) => !before.contains(m.messageId) && m.kind == 'tool',
         ),
         isTrue,
         reason:

@@ -11,7 +11,9 @@ class ChatNotice extends StatelessWidget {
   Widget build(BuildContext context) => Center(
     child: InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
+      customBorder: RoundedSuperellipseBorder(
+        borderRadius: BorderRadius.circular(6),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         child: Row(

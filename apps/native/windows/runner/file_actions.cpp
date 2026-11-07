@@ -12,9 +12,8 @@
 
 namespace {
 
-// Types that run code when "opened". AssocIsDangerous covers the system's own list
-// (and FTA_AlwaysUnsafe registrations); these extensions are refused even where a
-// machine's registry is incomplete.
+// Types that run code when opened. AssocIsDangerous covers the system's own list;
+// these are refused even where a machine's registry is incomplete.
 constexpr const wchar_t* kAlwaysUnsafe[] = {
     L".appref-ms", L".bat", L".chm", L".cmd", L".com", L".cpl", L".diagcab",
     L".exe", L".hta", L".inf", L".jar", L".js", L".jse", L".library-ms", L".lnk",
@@ -32,8 +31,8 @@ bool IsExecutable(const std::wstring& path) {
                      [&](const wchar_t* unsafe) { return extension == unsafe; });
 }
 
-// Mark of the Web: the copy came from a bot, i.e. the internet zone, so Windows keeps
-// SmartScreen, Protected View and macro blocking on every route that opens it later.
+// Mark of the Web: a Bot's file counts as downloaded, so SmartScreen, Protected View
+// and macro blocking still apply to whichever app opens the copy.
 bool MarkFromInternet(const std::wstring& path) {
   const std::wstring stream = path + L":Zone.Identifier";
   const HANDLE handle = CreateFileW(stream.c_str(), GENERIC_WRITE, 0, nullptr,
@@ -85,8 +84,7 @@ void RegisterFileActions(flutter::BinaryMessenger* messenger, HWND window) {
       result->Error("unprotected", "The preview copy could not be marked as downloaded.");
       return;
     }
-    // A bot-delivered program or script is never run by a plain "open"; the person can
-    // still reveal it or explicitly choose an app with "open with".
+    // "Open with" and "Show in folder" stay available; only the default open is refused.
     if (method == "open" && IsExecutable(wide)) {
       result->Error("blocked_type", "Executable files are not opened directly.");
       return;

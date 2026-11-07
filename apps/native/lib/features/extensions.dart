@@ -9,6 +9,8 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
+import '../data/account.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
 
@@ -94,7 +96,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               )
               .toList();
           Widget tile(Json entry) => ListTile(
-            shape: RoundedRectangleBorder(
+            shape: RoundedSuperellipseBorder(
               borderRadius: BorderRadius.circular(context.tone.corner),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 8),
@@ -277,10 +279,10 @@ class _ExtensionPageState extends State<ExtensionPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('${entry['description']}', style: text.bodyMedium),
-                      Text(
-                        '${entry['source']} · ${entry['category']}',
-                        style: text.labelMedium,
-                      ),
+                      MetaText([
+                        '${entry['source']}',
+                        '${entry['category']}',
+                      ], style: text.labelMedium),
                     ],
                   ),
                 ),
@@ -466,7 +468,7 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
           offset += 196608
         ) {
           final end = (offset + 196608).clamp(0, bytes.length);
-          final url = c
+          final url = c.account
               .url('/api/nodes/${c.selectedNodeId}/imports/$importId')
               .replace(
                 queryParameters: {'path': file.name, 'offset': '$offset'},
@@ -474,7 +476,7 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
           final response = await http.put(
             url,
             headers: {
-              'Authorization': 'Bearer ${c.token}',
+              'Authorization': 'Bearer ${c.account.token}',
               'Content-Type': 'application/octet-stream',
             },
             body: bytes.sublist(offset, end),
@@ -485,7 +487,7 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
           if (mounted) {
             setState(
               () => uploadProgress =
-                  '${files.indexOf(file) + 1}/${files.length} · ${file.name}',
+                  '${files.indexOf(file) + 1}/${files.length}  ${file.name}',
             );
           }
         }

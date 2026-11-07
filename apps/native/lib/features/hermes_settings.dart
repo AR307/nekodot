@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../data/hermes_zh.dart';
 import '../ui/design.dart';
 import 'model_selection.dart';
@@ -278,7 +279,7 @@ class _HermesSettingsState extends State<HermesSettings> {
           if (name != key)
             TextSpan(
               text: '\n$key',
-              style: TextStyle(fontSize: 11.5, color: context.tone.ink3),
+              style: TextStyle(fontSize: 12, color: context.tone.ink3),
             ),
         ],
       ),
@@ -554,9 +555,9 @@ List<String> strings(Object? value) =>
 String _valueLabel(NekodotClient client, Json field) {
   if (field['sensitive'] == true) {
     return client.tr(
-      field['configured'] == true ? '已配置 · 凭据由 Hermes 保管' : '未配置',
+      field['configured'] == true ? '已配置，凭据由 Hermes 保管' : '未配置',
       field['configured'] == true
-          ? 'Configured · credential held by Hermes'
+          ? 'Configured, credential held by Hermes'
           : 'Not configured',
     );
   }

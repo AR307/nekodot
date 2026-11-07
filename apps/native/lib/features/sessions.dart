@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../ui/message_markdown.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
+import '../data/account.dart';
 import '../ui/design.dart';
 
 class BotSessionsPage extends StatefulWidget {
@@ -125,10 +127,10 @@ class _BotSessionsPageState extends State<BotSessionsPage> {
             children: [
               if (busy) const ShiningText(),
               if (error.isNotEmpty) ErrorNotice(error),
-              Text(
-                '${bot?['displayName'] ?? 'Bot'} · ${c.tr('独立的 Hermes profile', 'Own Hermes profile')}',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+              MetaText([
+                '${bot?['displayName'] ?? 'Bot'}',
+                c.tr('独立的 Hermes profile', 'Own Hermes profile'),
+              ], style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
               Text(
                 c.tr(
@@ -176,9 +178,10 @@ class _BotSessionsPageState extends State<BotSessionsPage> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  subtitle: Text(
-                    '${row['message_count'] ?? 0} ${c.tr('条消息', 'messages')}${row['running'] == true ? ' · ${c.tr('运行中', 'Running')}' : ''}',
-                  ),
+                  subtitle: MetaText([
+                    '${row['message_count'] ?? 0} ${c.tr('条消息', 'messages')}',
+                    if (row['running'] == true) c.tr('运行中', 'Running'),
+                  ]),
                   trailing: row['source'] == 'cron'
                       ? Text(c.tr('定时执行', 'Scheduled run'))
                       : (row['session_id'] ?? row['id']) ==

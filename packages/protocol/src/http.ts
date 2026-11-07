@@ -4,6 +4,8 @@ export const authInputSchema = z.strictObject({
   email: z.email().trim().toLowerCase(),
   password: z.string().min(8),
 });
+// Password creation rules do not apply to authentication attempts.
+export const loginInputSchema = authInputSchema.extend({ password: z.string().min(1) });
 export const pairInputSchema = z.strictObject({
   code: z.string().regex(/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/),
   nodeName: z.string().trim().min(1),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../data/usage.dart';
 import '../ui/design.dart';
 
@@ -47,7 +48,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
     });
     try {
       if (refresh) {
-        final result = await c.request(
+        final result = await c.account.request(
           '/usage/refresh',
           method: 'POST',
           body: {'nodeId': ?selectedNode},
@@ -61,7 +62,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
         }
       }
       final timezone = await FlutterTimezone.getLocalTimezone();
-      final result = await c.request(
+      final result = await c.account.request(
         '/usage/query',
         method: 'POST',
         body: {
@@ -157,7 +158,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                           value: '',
                           child: Text(c.tr('全部电脑', 'All computers')),
                         ),
-                        for (final n in objects(c.me?['nodes'] ?? []))
+                        for (final n in objects(c.account.me?['nodes'] ?? []))
                           DropdownMenuItem(
                             value: '${n['nodeId']}',
                             child: Text(
@@ -284,7 +285,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                         ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 18),
-                  ClipRRect(
+                  ClipRSuperellipse(
                     borderRadius: BorderRadius.circular(6),
                     child: SizedBox(
                       height: 12,
@@ -319,9 +320,11 @@ class _StatisticsPageState extends State<StatisticsPage> {
                             Container(
                               width: 8,
                               height: 8,
-                              decoration: BoxDecoration(
+                              decoration: ShapeDecoration(
                                 color: _colors[index],
-                                borderRadius: BorderRadius.circular(2),
+                                shape: RoundedSuperellipseBorder(
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 6),
@@ -384,10 +387,12 @@ class _UsageCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(20),
-    decoration: BoxDecoration(
+    decoration: ShapeDecoration(
       color: context.tone.surface,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: context.tone.line),
+      shape: RoundedSuperellipseBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: context.tone.line),
+      ),
     ),
     child: child,
   );
@@ -473,7 +478,7 @@ class _UsageRow extends StatelessWidget {
                     style: TextStyle(color: context.tone.ink2),
                   ),
                   const SizedBox(height: 8),
-                  ClipRRect(
+                  ClipRSuperellipse(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: row.percent / 100,
@@ -562,8 +567,7 @@ class UsageCalendar extends StatelessWidget {
                             width: 19,
                             height: 19,
                             margin: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(3),
+                            decoration: ShapeDecoration(
                               color: !available
                                   ? Colors.transparent
                                   : value == 0
@@ -573,6 +577,9 @@ class UsageCalendar extends StatelessWidget {
                                       _colors[0],
                                       max == 0 ? 0 : math.sqrt(value / max),
                                     ),
+                              shape: RoundedSuperellipseBorder(
+                                borderRadius: BorderRadius.circular(3),
+                              ),
                             ),
                             child: unknown > 0
                                 ? Center(

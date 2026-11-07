@@ -2,7 +2,7 @@ import { SignJWT, jwtVerify } from 'jose';
 import { hash, verify, argon2id } from 'argon2';
 import { z } from 'zod';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { authInputSchema, pairInputSchema } from '@nekodot/protocol';
+import { authInputSchema, loginInputSchema, pairInputSchema } from '@nekodot/protocol';
 import { RelayDatabase } from './database';
 import { EmailVerification, type SmtpConfiguration } from './email';
 
@@ -93,7 +93,7 @@ export function registerAuth(
     return { token: await token(id) };
   });
   app.post('/api/auth/login', limited, async (request) => {
-    const parsed = authInputSchema.safeParse(request.body);
+    const parsed = loginInputSchema.safeParse(request.body);
     if (!parsed.success) throw new HttpFault('invalid_params', 'Valid email and password required');
     const user = database.userByEmail(parsed.data.email);
     const valid = await verify(user?.password_hash ?? (await dummyHash), parsed.data.password);
@@ -107,7 +107,7 @@ export function registerAuth(
     return { token: await token(user.user_id) };
   });
   app.post('/api/auth/verify', limited, async (request) => {
-    const parsed = verifiedInput.safeParse(request.body);
+    const parsed = loginInputSchema.extend({ code: codeSchema }).safeParse(request.body);
     if (!parsed.success)
       throw new HttpFault('invalid_params', 'Email, password and 6-digit code required');
     const { email, password, code } = parsed.data;

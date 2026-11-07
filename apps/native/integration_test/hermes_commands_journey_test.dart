@@ -1,9 +1,12 @@
+import 'package:nekodot_native/data/chat_models.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/commands.dart';
 import 'package:nekodot_native/features/hermes_settings.dart';
 import 'package:nekodot_native/features/home.dart';
@@ -16,9 +19,9 @@ void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets('native command adapters and a real model reply', (tester) async {
     if (Platform.isWindows) await DesktopHost.initialize();
-    final client = NekodotClient()..language = 'en';
+    final client = NekodotClient()..prefs.language = 'en';
     final botId = const String.fromEnvironment('QA_SECOND_BOT');
-    final login = await client.request(
+    final login = await client.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -26,7 +29,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    client.token = login['token'] as String;
+    client.account.token = login['token'] as String;
     client.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await client.bootstrap();
     addTearDown(client.dispose);
@@ -89,20 +92,18 @@ void main() {
     }
 
     await client.loadMessages(conversationId);
-    await until(
-      () => client.node.activities[conversationId]?['state'] == 'idle',
-    );
-    List<Json> messages() => client.node.messages[conversationId] ?? [];
-    final before = messages().map((row) => row['messageId']).toSet();
+    await until(() => client.node.activities[conversationId]?.state == 'idle');
+    List<ChatMessage> messages() => client.node.messages[conversationId] ?? [];
+    final before = messages().map((row) => row.messageId).toSet();
     final marker = 'NATIVE_COMMAND_${DateTime.now().millisecondsSinceEpoch}';
     bool streamed = false;
     void observe() {
       streamed |= messages().any(
         (row) =>
-            !before.contains(row['messageId']) &&
-            row['author']['type'] == 'bot' &&
-            row['status'] == 'streaming' &&
-            '${row['content']['text'] ?? ''}'.isNotEmpty,
+            !before.contains(row.messageId) &&
+            row.author.type == 'bot' &&
+            row.status == 'streaming' &&
+            '${row.content['text'] ?? ''}'.isNotEmpty,
       );
     }
 
@@ -115,25 +116,23 @@ void main() {
     await until(
       () => messages().any(
         (row) =>
-            !before.contains(row['messageId']) &&
-            row['author']['type'] == 'bot' &&
-            row['status'] == 'done' &&
-            '${row['content']['text']}'.contains(marker),
+            !before.contains(row.messageId) &&
+            row.author.type == 'bot' &&
+            row.status == 'done' &&
+            '${row.content['text']}'.contains(marker),
       ),
       seconds: 240,
     );
     client.removeListener(observe);
     expect(streamed, isTrue);
-    await until(
-      () => client.node.activities[conversationId]?['state'] == 'idle',
-    );
+    await until(() => client.node.activities[conversationId]?.state == 'idle');
     await tester.pump(const Duration(milliseconds: 400));
     debugPrint('QA: real model reply completed and streamed');
     final modelReplies = messages()
-        .where((row) => row['author']['type'] == 'bot')
+        .where((row) => row.author.type == 'bot')
         .length;
     final userTurns = messages()
-        .where((row) => row['author']['type'] == 'user')
+        .where((row) => row.author.type == 'user')
         .length;
 
     Future<void> command(
@@ -141,17 +140,17 @@ void main() {
       String expected, {
       String? prefill,
     }) async {
-      final old = messages().map((row) => row['messageId']).toSet();
+      final old = messages().map((row) => row.messageId).toSet();
       await typeMessage(text);
       await tester.pump(const Duration(milliseconds: 300));
       await tapReady(find.byTooltip('Send'));
       await until(
         () => messages().any(
           (row) =>
-              !old.contains(row['messageId']) &&
-              row['kind'] == 'system' &&
-              '${row['content']['text']}'.startsWith(text) &&
-              '${row['content']['text']}'.contains(expected),
+              !old.contains(row.messageId) &&
+              row.kind == 'system' &&
+              '${row.content['text']}'.startsWith(text) &&
+              '${row.content['text']}'.contains(expected),
         ),
       );
       await until(
@@ -180,11 +179,11 @@ void main() {
     await tapReady(find.widgetWithText(ListTile, '/history'));
     await command('/history', marker);
     expect(
-      messages().where((row) => row['author']['type'] == 'bot').length,
+      messages().where((row) => row.author.type == 'bot').length,
       modelReplies,
     );
     expect(
-      messages().where((row) => row['author']['type'] == 'user').length,
+      messages().where((row) => row.author.type == 'user').length,
       userTurns,
     );
     debugPrint(
@@ -237,7 +236,7 @@ void main() {
     );
     await typeMessage('');
     expect(
-      messages().where((row) => row['author']['type'] == 'bot').length,
+      messages().where((row) => row.author.type == 'bot').length,
       modelReplies,
     );
 
@@ -257,15 +256,13 @@ void main() {
     await until(
       () => messages().any(
         (row) =>
-            row['author']['type'] == 'bot' &&
-            row['status'] == 'done' &&
-            '${row['content']['text']}'.contains('$marker-SESSION'),
+            row.author.type == 'bot' &&
+            row.status == 'done' &&
+            '${row.content['text']}'.contains('$marker-SESSION'),
       ),
       seconds: 240,
     );
-    await until(
-      () => client.node.activities[conversationId]?['state'] == 'idle',
-    );
+    await until(() => client.node.activities[conversationId]?.state == 'idle');
     await command('/fork $sessionName-branch', 'Branched Hermes session:');
     final branch = (await client.rpc('sessions.list', {
       'botId': botId,
@@ -283,14 +280,14 @@ void main() {
     );
     await command('/resume $fresh', 'Resumed Hermes session:');
     final repliesBeforeRetry = messages()
-        .where((row) => row['author']['type'] == 'bot')
+        .where((row) => row.author.type == 'bot')
         .length;
     await command('/retry', 'Hermes context rewound.');
     await until(
       () =>
-          messages().where((row) => row['author']['type'] == 'bot').length >
+          messages().where((row) => row.author.type == 'bot').length >
               repliesBeforeRetry &&
-          client.node.activities[conversationId]?['state'] == 'idle',
+          client.node.activities[conversationId]?.state == 'idle',
       seconds: 240,
     );
     await command('/compact --preview', 'Hermes compression (preview)');
@@ -321,12 +318,12 @@ void main() {
     });
     expect(objects(emptyHistory['messages']), isEmpty);
     await command('/resume $original', 'Resumed Hermes session:');
-    final ids = messages().map((row) => row['messageId']).toSet();
-    await client.connect();
-    await until(() => client.ready);
+    final ids = messages().map((row) => row.messageId).toSet();
+    await client.connection.connect();
+    await until(() => client.connection.ready);
     await client.synchronize(client.selectedNodeId!);
     await client.loadMessages(conversationId);
-    expect(messages().map((row) => row['messageId']).toSet(), ids);
+    expect(messages().map((row) => row.messageId).toSet(), ids);
     binding.reportData = {
       ...?binding.reportData,
       'realHermes': true,

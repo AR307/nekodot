@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/data/flow.dart';
 import 'package:nekodot_native/features/flowchart.dart';
 import 'package:nekodot_native/ui/design.dart';
@@ -8,7 +9,7 @@ import 'package:nekodot_native/ui/design.dart';
 class FlowClient extends NekodotClient {
   FlowClient() {
     selectedNodeId = 'node';
-    ready = true;
+    connection.ready = true;
     node.online = true;
     node.bots = [
       {

@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
+import '../data/account.dart';
 import '../ui/design.dart';
 
 class PetsPage extends StatefulWidget {
@@ -186,9 +188,12 @@ class _PetsPageState extends State<PetsPage> {
                   pet: pet,
                 ),
                 title: Text('${pet['displayName']}'),
-                subtitle: Text(
-                  '${pet['slug']} · ${pet['installed'] == true ? widget.client.tr('已安装', 'Installed') : widget.client.tr('原生目录', 'Native catalog')}',
-                ),
+                subtitle: MetaText([
+                  '${pet['slug']}',
+                  pet['installed'] == true
+                      ? widget.client.tr('已安装', 'Installed')
+                      : widget.client.tr('原生目录', 'Native catalog'),
+                ]),
                 trailing: TextButton(
                   onPressed: busy
                       ? null

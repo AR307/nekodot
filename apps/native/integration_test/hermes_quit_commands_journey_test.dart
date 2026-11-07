@@ -1,3 +1,5 @@
+import 'package:nekodot_native/data/chat_models.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -17,9 +19,9 @@ void main() {
     tester,
   ) async {
     if (Platform.isWindows) await DesktopHost.initialize();
-    final client = NekodotClient()..language = 'en';
+    final client = NekodotClient()..prefs.language = 'en';
     final botId = const String.fromEnvironment('QA_BOT');
-    final login = await client.request(
+    final login = await client.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -27,7 +29,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    client.token = login['token'] as String;
+    client.account.token = login['token'] as String;
     client.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await client.bootstrap();
     addTearDown(client.dispose);
@@ -76,20 +78,18 @@ void main() {
     await submit(
       'Harmless lifecycle test. Run terminal exactly once with python -c "import time; time.sleep(25)" in foreground. After it returns reply exactly $marker. Do not use any other tools.',
     );
-    List<Json> messages() => client.node.messages[id] ?? [];
+    List<ChatMessage> messages() => client.node.messages[id] ?? [];
     await until(
-      () => messages().any(
-        (m) => m['kind'] == 'tool' && m['status'] == 'streaming',
-      ),
+      () => messages().any((m) => m.kind == 'tool' && m.status == 'streaming'),
     );
     final approval = messages()
-        .where((m) => m['kind'] == 'approval' && m['status'] == 'streaming')
+        .where((m) => m.kind == 'approval' && m.status == 'streaming')
         .firstOrNull;
     if (approval != null) {
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump(const Duration(milliseconds: 300));
       final allow = find.descendant(
-        of: find.byKey(ValueKey(approval['messageId'])),
+        of: find.byKey(ValueKey(approval.messageId)),
         matching: find.text('Allow once'),
       );
       await tester.scrollUntilVisible(
@@ -106,7 +106,7 @@ void main() {
       await tester.tap(allow.last);
       await until(
         () => !messages().any(
-          (m) => m['kind'] == 'approval' && m['status'] == 'streaming',
+          (m) => m.kind == 'approval' && m.status == 'streaming',
         ),
       );
     }

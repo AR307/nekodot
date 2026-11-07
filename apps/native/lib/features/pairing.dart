@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../ui/design.dart';
 
 class PairingPage extends StatefulWidget {
@@ -25,18 +26,18 @@ class _PairingPageState extends State<PairingPage> {
   @override
   void initState() {
     super.initState();
-    previous.addAll(objects(c.me?['nodes']).map((x) => x['nodeId']));
+    previous.addAll(objects(c.account.me?['nodes']).map((x) => x['nodeId']));
     generate();
     timer = Timer.periodic(const Duration(seconds: 2), (_) async {
       try {
-        final me = await c.request('/me');
+        final me = await c.account.request('/me');
         if (!mounted) return;
         final added = objects(me['nodes'])
             .where(
               (x) => !previous.contains(x['nodeId']) && x['online'] == true,
             )
             .firstOrNull;
-        c.me = me;
+        c.account.me = me;
         if (added != null) {
           await c.selectNode(added['nodeId'] as String);
           if (mounted) Navigator.pop(context);
@@ -55,7 +56,7 @@ class _PairingPageState extends State<PairingPage> {
       error = '';
     });
     try {
-      final value = await c.request(
+      final value = await c.account.request(
         extend ? '/pairing-codes/${code!['code']}/extend' : '/pairing-codes',
         method: 'POST',
         body: {},
@@ -90,11 +91,11 @@ class _PairingPageState extends State<PairingPage> {
           Row(
             children: [
               Text(
-                'Linux x64 · WSL2',
+                'Linux x64 / WSL2',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               const Spacer(),
-              const ShiningText(style: TextStyle(fontSize: 11)),
+              const ShiningText(style: TextStyle(fontSize: 12)),
               const SizedBox(width: 8),
               Text(
                 '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}',

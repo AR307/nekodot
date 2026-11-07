@@ -6,12 +6,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
-import '../data/client.dart';
+import '../data/json.dart';
 import 'parts.dart';
+import 'sheet.dart';
 import 'shining_text.dart';
 
+export 'entry_motion.dart';
 export 'parts.dart';
 export 'shining_text.dart';
+export 'sheet.dart';
 
 final nativeRoutes = RouteObserver<ModalRoute<void>>();
 
@@ -62,6 +65,10 @@ class Tone extends ThemeExtension<Tone> {
   final Color base, sidebar, surface, ink, ink2, ink3, line;
   final Color bubble, raised, hover, menu, danger;
 
+  /// Behind grouped cards (settings and other list pages): a step darker than
+  /// the cards on a light ground, so they read without borders.
+  final Color ground;
+
   /// The chosen pill in a track: lighter than the track on either ground.
   final Color thumb;
   final bool glass;
@@ -91,6 +98,7 @@ class Tone extends ThemeExtension<Tone> {
     required this.menu,
     required this.danger,
     this.thumb = const Color(0xffffffff),
+    this.ground = const Color(0xfff4f4f5),
     this.glass = false,
     this.control = 32,
     this.corner = 8,
@@ -137,6 +145,7 @@ class Tone extends ThemeExtension<Tone> {
     menu: Color(0xff1c1c1c),
     danger: Color(0xffff8a80),
     thumb: Color(0xff3a3a3a),
+    ground: Color(0xff000000),
     rest: [
       BoxShadow(color: Color(0x66000000), blurRadius: 14, offset: Offset(0, 4)),
     ],
@@ -198,6 +207,7 @@ class Tone extends ThemeExtension<Tone> {
     menu: Color(0xff1c1c1c),
     danger: Color(0xffff8a80),
     thumb: Color(0xff3a3a3a),
+    ground: Color(0xff000000),
     bar: Color(0xeb000000),
     fieldFocus: Color(0xff1c1c1c),
     rest: [
@@ -335,24 +345,32 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
               fontSize: frosted ? 14 : 13,
               fontWeight: FontWeight.w600,
             ),
+            // Statuses and counts change while you watch: steady-width
+            // digits keep them from shaking, and nothing is under 12.
             labelMedium: TextStyle(
-              fontSize: frosted ? 12 : 11.5,
+              fontSize: 12,
               fontWeight: FontWeight.w500,
               color: tone.ink3,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+            labelSmall: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: tone.ink3,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           )
           .apply(fontFamily: 'Nunito', fontFamilyFallback: _sansFallback);
-  InputBorder field(Color color) => frosted
-      ? UnderlineInputBorder(
-          borderRadius: BorderRadius.circular(tone.corner),
-          borderSide: BorderSide.none,
-        )
-      : OutlineInputBorder(
-          borderRadius: BorderRadius.circular(tone.corner),
-          borderSide: BorderSide(color: color),
-        );
+  InputBorder field(Color color) => ShapedInputBorder(
+    shape: RoundedSuperellipseBorder(
+      borderRadius: BorderRadius.circular(tone.corner),
+    ),
+    borderSide: frosted ? BorderSide.none : BorderSide(color: color),
+  );
   // Text buttons are pills and icon buttons circles; fields keep their corners.
-  const control = StadiumBorder();
+  const control = RoundedSuperellipseBorder(
+    borderRadius: BorderRadius.all(Radius.circular(999)),
+  );
   final buttonSize = Size(0, tone.control - 2);
   return ThemeData(
     useMaterial3: true,
@@ -497,7 +515,7 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       horizontalTitleGap: 10,
     ),
     checkboxTheme: CheckboxThemeData(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+      shape: RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(4)),
       side: BorderSide(color: tone.ink3, width: 1.5),
       fillColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
@@ -549,7 +567,7 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       surfaceTintColor: Colors.transparent,
       elevation: 8,
       shadowColor: Colors.black.withValues(alpha: dark ? .5 : .12),
-      shape: RoundedRectangleBorder(
+      shape: RoundedSuperellipseBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: tone.line),
       ),
@@ -559,7 +577,9 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
     tooltipTheme: TooltipThemeData(
       decoration: ShapeDecoration(
         color: tone.ink,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        shape: RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.circular(6),
+        ),
       ),
       textStyle: text.labelMedium?.copyWith(color: tone.base),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -569,13 +589,13 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       behavior: SnackBarBehavior.floating,
       backgroundColor: tone.ink,
       contentTextStyle: text.bodyMedium?.copyWith(color: tone.base),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape: RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(10)),
       elevation: 0,
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: tone.menu,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(16)),
       titleTextStyle: text.titleLarge,
       contentTextStyle: text.bodyMedium,
     ),
@@ -627,7 +647,7 @@ MarkdownStyleSheet markdownStyle(BuildContext context, {Color? color}) {
     codeblockPadding: const EdgeInsets.all(10),
     codeblockDecoration: ShapeDecoration(
       color: tone.raised,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(8)),
     ),
     blockquote: body.copyWith(color: tone.ink2),
     blockquotePadding: const EdgeInsets.only(left: 14),
@@ -1012,8 +1032,14 @@ class ErrorNotice extends StatelessWidget {
   }
 }
 
+/// The next step: a new page, or, inside a floating sheet, the sheet's next
+/// step in the same frame.
 Future<T?> pushPage<T>(BuildContext context, Widget page) =>
-    Navigator.of(context).push<T>(MaterialPageRoute(builder: (_) => page));
+    Navigator.of(context).push<T>(
+      InSheet.of(context)
+          ? SheetRoute<T>(page, first: false)
+          : MaterialPageRoute(builder: (_) => page),
+    );
 
 class AsyncPane extends StatefulWidget {
   final Future<Json> Function() load;

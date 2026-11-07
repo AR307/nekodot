@@ -1,6 +1,5 @@
 import Fastify from 'fastify';
 import rateLimit from '@fastify/rate-limit';
-import staticFiles from '@fastify/static';
 import cors from '@fastify/cors';
 import { RelayDatabase } from './database';
 import { HttpFault, registerAuth } from './auth';
@@ -16,7 +15,6 @@ export interface RelayOptions {
   dataDir: string;
   jwtSecret: string;
   publicUrl: string;
-  siteDirectory?: string;
   distributionDirectory?: string;
   logger?: boolean;
   clientOrigins?: string[];
@@ -77,7 +75,6 @@ export async function createRelay(options: RelayOptions) {
   registerReleases(app, options.distributionDirectory);
   if (options.distributionDirectory)
     registerDownloads(app, options.distributionDirectory, options.publicUrl);
-  if (options.siteDirectory) await app.register(staticFiles, { root: options.siteDirectory });
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof HttpFault)
       return reply.code(error.status).send({ error: { code: error.code, message: error.message } });

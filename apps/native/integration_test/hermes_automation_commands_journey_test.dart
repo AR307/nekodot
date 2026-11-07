@@ -1,3 +1,5 @@
+import 'package:nekodot_native/data/chat_models.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -13,9 +15,9 @@ void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets('native goal and loop results reach the chat', (tester) async {
     if (Platform.isWindows) await DesktopHost.initialize();
-    final client = NekodotClient()..language = 'en';
+    final client = NekodotClient()..prefs.language = 'en';
     final botId = const String.fromEnvironment('QA_SECOND_BOT');
-    final login = await client.request(
+    final login = await client.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -23,7 +25,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    client.token = login['token'] as String;
+    client.account.token = login['token'] as String;
     client.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await client.bootstrap();
     addTearDown(client.dispose);
@@ -56,7 +58,7 @@ void main() {
     final input = find.byKey(const ValueKey('chat-input'));
     await until(() => input.evaluate().isNotEmpty, 'Composer');
     await client.loadMessages(conversationId);
-    List<Json> messages() => client.node.messages[conversationId] ?? [];
+    List<ChatMessage> messages() => client.node.messages[conversationId] ?? [];
     Future<void> submit(String text) async {
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump(const Duration(milliseconds: 150));
@@ -79,22 +81,22 @@ void main() {
       await until(
         () => messages().any(
           (row) =>
-              row['kind'] == 'text' &&
-              row['author']['type'] == 'bot' &&
-              row['status'] == 'done' &&
-              '${row['content']['text']}'.contains(marker),
+              row.kind == 'text' &&
+              row.author.type == 'bot' &&
+              row.status == 'done' &&
+              '${row.content['text']}'.contains(marker),
         ),
         'Real reply: $marker',
       );
       await until(
-        () => client.node.activities[conversationId]?['state'] == 'idle',
+        () => client.node.activities[conversationId]?.state == 'idle',
         'Native task must settle',
       );
     }
 
     String output(String command) {
       final text =
-          '${messages().lastWhere((row) => row['kind'] == 'system' && '${row['content']['text']}'.startsWith(command))['content']['text']}';
+          '${messages().lastWhere((row) => row.kind == 'system' && '${row.content['text']}'.startsWith(command)).content['text']}';
       return text.substring(text.indexOf('\n\n') + 2);
     }
 

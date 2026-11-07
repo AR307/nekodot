@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/platform/desktop.dart';
 import 'package:nekodot_native/ui/design.dart';
@@ -17,11 +18,11 @@ void main() {
   ) async {
     expect(Platform.isWindows, isTrue);
     await DesktopHost.initialize();
-    final client = NekodotClient()..language = 'en';
+    final client = NekodotClient()..prefs.language = 'en';
     final botId = const String.fromEnvironment('QA_BOT');
     final directory = const String.fromEnvironment('QA_SAVE_DIR');
     expect(directory, isNotEmpty);
-    final login = await client.request(
+    final login = await client.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -29,7 +30,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    client.token = login['token'] as String;
+    client.account.token = login['token'] as String;
     client.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await client.bootstrap();
     addTearDown(client.dispose);
@@ -84,10 +85,10 @@ void main() {
     await until(
       () => (client.node.messages[id] ?? []).any(
         (m) =>
-            m['author']['type'] == 'bot' &&
-            m['kind'] == 'text' &&
-            m['status'] == 'done' &&
-            '${m['content']['text']}'.contains(marker),
+            m.author.type == 'bot' &&
+            m.kind == 'text' &&
+            m.status == 'done' &&
+            '${m.content['text']}'.contains(marker),
       ),
     );
     final saved = <String>[];

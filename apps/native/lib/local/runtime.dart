@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../data/client.dart';
+import '../data/endpoints.dart';
+
 import 'installer.dart';
 import 'location.dart';
 import 'owned_process.dart';
@@ -63,10 +65,7 @@ class LocalRuntime extends ChangeNotifier {
   bool get working {
     final data = nodeId == null ? null : client.nodes[nodeId];
     return running &&
-        (data?.activities.values.any(
-              (a) => a['state'] != null && a['state'] != 'idle',
-            ) ??
-            false);
+        (data?.activities.values.any((a) => a.state != 'idle') ?? false);
   }
 
   Future<void> initialize() async {
@@ -78,9 +77,9 @@ class LocalRuntime extends ChangeNotifier {
   }
 
   void _follow() {
-    final id = client.token == null
+    final id = client.account.token == null
         ? null
-        : client.me?['user']?['userId'] as String?;
+        : client.account.me?['user']?['userId'] as String?;
     if (id != userId) unawaited(_switch(id));
   }
 
@@ -110,8 +109,17 @@ class LocalRuntime extends ChangeNotifier {
     final file = File(joinPath(_home, 'node.json'));
     if (!await file.exists()) return null;
     final value = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    // One-time official installation upgrade, before the existing identity check.
+    // Never rewrite self-hosted Relays or retry the retired address at runtime.
+    if (_relay(client.account.origin.toString()) == officialApiUrl &&
+        _relay(value['relayUrl'] as String) == 'https://nekodot.com') {
+      final backup = File('${file.path}.before-api-domain');
+      if (!await backup.exists()) await file.copy(backup.path);
+      value['relayUrl'] = officialApiUrl;
+      await file.writeAsString('${jsonEncode(value)}\n', flush: true);
+    }
     if (_relay(value['relayUrl'] as String) !=
-        _relay(client.origin.toString())) {
+        _relay(client.account.origin.toString())) {
       _fail(
         'start',
         'This computer was paired with another Relay: ${value['relayUrl']}',
@@ -167,12 +175,12 @@ class LocalRuntime extends ChangeNotifier {
       _installer = RuntimeInstaller(
         chosen,
         support.platform!,
-        client.transport,
+        client.account.transport,
         (id, state, detail) {
           step = id;
           _progress(id, state, detail);
         },
-        origin: client.origin,
+        origin: client.account.origin,
       );
       await _installer!.run();
       step = 'account';
@@ -216,8 +224,8 @@ class LocalRuntime extends ChangeNotifier {
     final bundle = File(_bundle);
     if (await bundle.exists()) return;
     await bundle.parent.create(recursive: true);
-    final response = await client.transport
-        .get(client.url('/downloads/nekodot-node.cjs'))
+    final response = await client.account.transport
+        .get(client.account.url('/downloads/nekodot-node.cjs'))
         .timeout(const Duration(minutes: 2));
     if (response.statusCode != 200) {
       throw InstallFailure(
@@ -232,7 +240,7 @@ class LocalRuntime extends ChangeNotifier {
 
   Future<void> _pair() async {
     final code =
-        (await client.request(
+        (await client.account.request(
               '/pairing-codes',
               method: 'POST',
               body: {},
@@ -244,7 +252,7 @@ class LocalRuntime extends ChangeNotifier {
         _bundle,
         'pair',
         '--relay',
-        _relay(client.origin.toString()),
+        _relay(client.account.origin.toString()),
         '--code',
         code,
         '--name',
@@ -272,9 +280,9 @@ class LocalRuntime extends ChangeNotifier {
         await RuntimeInstaller(
           location!,
           support.platform!,
-          client.transport,
+          client.account.transport,
           _progress,
-          origin: client.origin,
+          origin: client.account.origin,
         ).prepareAccount(joinPath(_home, 'hermes'));
       }
       await _applyUpdateMarkers();

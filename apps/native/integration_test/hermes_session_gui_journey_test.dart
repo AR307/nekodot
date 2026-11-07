@@ -1,9 +1,12 @@
+import 'package:nekodot_native/data/chat_models.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/features/sessions.dart';
 import 'package:nekodot_native/platform/desktop.dart';
@@ -16,10 +19,10 @@ void main() {
     tester,
   ) async {
     if (Platform.isWindows) await DesktopHost.initialize();
-    final c = NekodotClient()..language = 'en';
+    final c = NekodotClient()..prefs.language = 'en';
     const botId = String.fromEnvironment('QA_SECOND_BOT');
     const otherBotId = String.fromEnvironment('QA_BOT');
-    final login = await c.request(
+    final login = await c.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -27,7 +30,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    c.token = login['token'] as String;
+    c.account.token = login['token'] as String;
     c.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await c.bootstrap();
     addTearDown(c.dispose);
@@ -70,9 +73,9 @@ void main() {
     final input = find.byKey(const ValueKey('chat-input'));
     await until(() => input.evaluate().isNotEmpty);
     await c.loadMessages(conversationId);
-    await until(() => c.node.activities[conversationId]?['state'] == 'idle');
-    List<Json> messages() => c.node.messages[conversationId] ?? [];
-    final initialMessages = messages().map((r) => r['messageId']).toSet();
+    await until(() => c.node.activities[conversationId]?.state == 'idle');
+    List<ChatMessage> messages() => c.node.messages[conversationId] ?? [];
+    final initialMessages = messages().map((r) => r.messageId).toSet();
     final stamp = DateTime.now().millisecondsSinceEpoch;
     final titleA = 'GUI-$stamp-A', titleB = 'GUI-$stamp-B';
     final secretA = 'ORCHID-$stamp', secretB = 'CEDAR-$stamp';
@@ -109,7 +112,7 @@ void main() {
     }
 
     Future<void> send(String text, String expected) async {
-      final before = messages().map((r) => r['messageId']).toSet();
+      final before = messages().map((r) => r.messageId).toSet();
       await tester.tap(input);
       await tester.enterText(input, text);
       await tester.pump(const Duration(milliseconds: 300));
@@ -117,14 +120,14 @@ void main() {
       await until(
         () => messages().any(
           (r) =>
-              !before.contains(r['messageId']) &&
-              r['author']['type'] == 'bot' &&
-              r['status'] == 'done' &&
-              '${r['content']['text']}'.contains(expected),
+              !before.contains(r.messageId) &&
+              r.author.type == 'bot' &&
+              r.status == 'done' &&
+              '${r.content['text']}'.contains(expected),
         ),
         seconds: 240,
       );
-      await until(() => c.node.activities[conversationId]?['state'] == 'idle');
+      await until(() => c.node.activities[conversationId]?.state == 'idle');
     }
 
     await tester.enterText(input, draft);
@@ -134,7 +137,7 @@ void main() {
     await tester.pageBack();
     await until(() => input.evaluate().isNotEmpty);
     expect(tester.widget<TextField>(input).controller!.text, draft);
-    expect(messages().map((r) => r['messageId']).toSet(), initialMessages);
+    expect(messages().map((r) => r.messageId).toSet(), initialMessages);
     await open();
     await tap(find.byKey(const ValueKey('new-native-session')));
     await tap(find.text('Cancel'));
@@ -163,7 +166,7 @@ void main() {
       '$secretB. Do not use tools or write memory. Reply exactly $secretB.',
       secretB,
     );
-    final beforeRecall = messages().map((r) => r['messageId']).toSet();
+    final beforeRecall = messages().map((r) => r.messageId).toSet();
     await send(
       'Use Hermes session_search to read my earlier session $idA '
       '(session_id only). What was its passphrase? Reply with only that value. '
@@ -173,17 +176,17 @@ void main() {
     expect(
       messages().any(
         (r) =>
-            !beforeRecall.contains(r['messageId']) &&
-            r['kind'] == 'tool' &&
-            r['content']['tool'] == 'session_search' &&
-            r['content']['error'] != true,
+            !beforeRecall.contains(r.messageId) &&
+            r.kind == 'tool' &&
+            r.content['tool'] == 'session_search' &&
+            r.content['error'] != true,
       ),
       isTrue,
     );
     debugPrint(
       'QA session GUI: Bot read its earlier session with session_search',
     );
-    final beforeBrowse = messages().map((r) => r['messageId']).toSet();
+    final beforeBrowse = messages().map((r) => r.messageId).toSet();
     await open();
     await search(titleA);
     await tap(find.byKey(ValueKey('native-session-$idA')));
@@ -191,7 +194,7 @@ void main() {
     await until(() => find.text(secretA).evaluate().isNotEmpty);
     expect(find.text(secretB), findsNothing);
     expect((await sessions())['currentSessionId'], idB);
-    expect(messages().map((r) => r['messageId']).toSet(), beforeBrowse);
+    expect(messages().map((r) => r.messageId).toSet(), beforeBrowse);
     await tester.pageBack();
     await until(
       () => find.byKey(ValueKey('switch-session-$idA')).evaluate().isNotEmpty,
@@ -224,13 +227,13 @@ void main() {
     }
     await tester.pageBack();
     await until(() => input.evaluate().isNotEmpty);
-    final beforeReconnect = messages().map((r) => r['messageId']).toSet();
-    await c.connect();
-    await until(() => c.ready);
+    final beforeReconnect = messages().map((r) => r.messageId).toSet();
+    await c.connection.connect();
+    await until(() => c.connection.ready);
     await c.synchronize(c.selectedNodeId!);
     await c.loadMessages(conversationId);
     expect((await sessions())['currentSessionId'], idA);
-    expect(messages().map((r) => r['messageId']).toSet(), beforeReconnect);
+    expect(messages().map((r) => r.messageId).toSet(), beforeReconnect);
     final otherAfter = await sessions(otherBotId);
     expect(otherAfter['currentSessionId'], otherBefore['currentSessionId']);
     expect(

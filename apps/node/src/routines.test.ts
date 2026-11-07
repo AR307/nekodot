@@ -25,6 +25,18 @@ it('keeps credentials out of chat, requires a user grant and rotates the same sc
   });
   const conversationId = randomUUID();
   db.putConversation({ conversationId, botId, kind: 'dm', createdAt: new Date().toISOString() });
+  const groupId = randomUUID();
+  db.putGroup(
+    {
+      groupId,
+      name: 'Routine team',
+      botIds: [botId],
+      leadBotId: botId,
+      archived: false,
+      createdAt: new Date().toISOString(),
+    },
+    { conversationId: groupId, kind: 'group', groupId, createdAt: new Date().toISOString() },
+  );
   let enabled = false;
   const hermes = {
     webhookUrl: 'http://127.0.0.1:1',
@@ -76,6 +88,20 @@ it('keeps credentials out of chat, requires a user grant and rotates the same sc
       body: '{}',
     }),
   ).resolves.toMatchObject({ status: 403 });
+  const grouped = await routines.create(
+    { botId, name: 'Group scanner', description: '', prompt: 'test', events: [], skills: [] },
+    groupId,
+  );
+  expect(
+    db
+      .messages(groupId)
+      .some((m) => m.kind === 'routine' && m.content.routineId === grouped.routineId),
+  ).toBe(true);
+  expect(
+    db
+      .messages(conversationId)
+      .some((m) => m.kind === 'routine' && m.content.routineId === grouped.routineId),
+  ).toBe(false);
   await routines.close();
   db.db.close();
 });

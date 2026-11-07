@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../ui/design.dart';
 
 class SubscriptionPage extends StatelessWidget {

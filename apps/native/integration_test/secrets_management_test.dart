@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/features/secrets.dart';
 import 'package:nekodot_native/platform/desktop.dart';
@@ -40,7 +41,7 @@ void main() {
 
     late Json entry;
     await tester.runAsync(() async {
-      final s = await c.request(
+      final s = await c.account.request(
         '/auth/login',
         method: 'POST',
         body: {
@@ -48,11 +49,11 @@ void main() {
           'password': const String.fromEnvironment('QA_PASSWORD'),
         },
       );
-      c.token = s['token'];
+      c.account.token = s['token'];
       await c.bootstrap();
       await c.selectNode(const String.fromEnvironment('QA_NODE'));
     });
-    c.language = Platform.isWindows ? 'en' : 'zh';
+    c.prefs.language = Platform.isWindows ? 'en' : 'zh';
     runApp(
       MaterialApp(
         theme: appTheme(
@@ -149,7 +150,7 @@ void main() {
       }
       final peer = NekodotClient();
       await tester.runAsync(() async {
-        final session = await peer.request(
+        final session = await peer.account.request(
           '/auth/login',
           method: 'POST',
           body: {
@@ -157,7 +158,7 @@ void main() {
             'password': const String.fromEnvironment('QA_PASSWORD'),
           },
         );
-        peer.token = session['token'];
+        peer.account.token = session['token'];
         await peer.bootstrap();
         await peer.selectNode(const String.fromEnvironment('QA_NODE'));
       });
@@ -204,9 +205,9 @@ void main() {
     await until(
       () => (c.node.messages[conversationId] ?? []).any(
         (m) =>
-            m['kind'] == 'secret' &&
-            m['content']['state'] == 'applied' &&
-            m['content']['requestId'] == requestId,
+            m.kind == 'secret' &&
+            m.content['state'] == 'applied' &&
+            m.content['requestId'] == requestId,
       ),
     );
     expect(controller.text, isEmpty);

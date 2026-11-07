@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/platform/desktop.dart';
 import 'package:nekodot_native/ui/design.dart';
@@ -15,9 +16,9 @@ void main() {
     tester,
   ) async {
     if (Platform.isWindows) await DesktopHost.initialize();
-    final c = NekodotClient()..language = 'en';
+    final c = NekodotClient()..prefs.language = 'en';
     final botId = const String.fromEnvironment('QA_BOT');
-    final login = await c.request(
+    final login = await c.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -25,7 +26,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    c.token = login['token'] as String;
+    c.account.token = login['token'] as String;
     c.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await c.bootstrap();
     addTearDown(c.dispose);
@@ -64,7 +65,7 @@ void main() {
     final results = <Json>[];
     Future<String> submit(String command) async {
       final before = (c.node.messages[conversationId] ?? [])
-          .map((r) => r['messageId'])
+          .map((r) => r.messageId)
           .toSet();
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump(const Duration(milliseconds: 120));
@@ -86,13 +87,11 @@ void main() {
       );
       final response = (c.node.messages[conversationId] ?? []).lastWhere(
         (r) =>
-            !before.contains(r['messageId']) &&
-            r['kind'] == 'system' &&
-            '${r['content']['text']}'.startsWith('$command\n\n'),
+            !before.contains(r.messageId) &&
+            r.kind == 'system' &&
+            '${r.content['text']}'.startsWith('$command\n\n'),
       );
-      final text = '${response['content']['text']}'.substring(
-        command.length + 2,
-      );
+      final text = '${response.content['text']}'.substring(command.length + 2);
       expect(text.trim(), isNotEmpty, reason: command);
       expect(text, isNot(contains('Plugin command error')), reason: command);
       results.add({'command': command, 'actualResponse': true});

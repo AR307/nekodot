@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/client.dart';
+
 import '../local/location.dart';
 import '../local/runtime.dart';
 import '../ui/design.dart';
@@ -208,7 +209,7 @@ class _LocalSetupPageState extends State<LocalSetupPage> {
     final tone = context.tone;
     final icon = switch (step.state) {
       'done' => Icon(Icons.check, size: 18, color: tone.ink),
-      'running' => const ShiningText(style: TextStyle(fontSize: 11)),
+      'running' => const ShiningText(style: TextStyle(fontSize: 12)),
       'failed' => Icon(
         Icons.close,
         size: 18,
@@ -278,12 +279,14 @@ class _LocalSetupPageState extends State<LocalSetupPage> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      LinearProgressIndicator(
-                        key: const ValueKey('local-install-progress'),
-                        value: completed / local.steps.length,
-                        minHeight: 6,
+                      ClipRSuperellipse(
                         borderRadius: BorderRadius.circular(4),
-                        semanticsLabel: progressLabel,
+                        child: LinearProgressIndicator(
+                          key: const ValueKey('local-install-progress'),
+                          value: completed / local.steps.length,
+                          minHeight: 6,
+                          semanticsLabel: progressLabel,
+                        ),
                       ),
                     ],
                   ),
@@ -360,7 +363,7 @@ class LocalComputerPanel extends StatelessWidget {
               ListTile(
                 key: const ValueKey('local-status'),
                 leading: local.busy
-                    ? const ShiningText(style: TextStyle(fontSize: 11))
+                    ? const ShiningText(style: TextStyle(fontSize: 12))
                     : StatusDot(on: local.phase == LocalPhase.online),
                 title: Text(c.tr('这台电脑', 'This computer')),
                 subtitle: Text(

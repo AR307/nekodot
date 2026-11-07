@@ -1,9 +1,12 @@
+import 'package:nekodot_native/data/chat_models.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/platform/desktop.dart';
 import 'package:nekodot_native/ui/design.dart';
@@ -16,9 +19,9 @@ void main() {
     tester,
   ) async {
     if (Platform.isWindows) await DesktopHost.initialize();
-    final c = NekodotClient()..language = 'en';
+    final c = NekodotClient()..prefs.language = 'en';
     final botId = const String.fromEnvironment('QA_SECOND_BOT');
-    final login = await c.request(
+    final login = await c.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -26,7 +29,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    c.token = login['token'];
+    c.account.token = login['token'];
     c.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await c.bootstrap();
     addTearDown(c.dispose);
@@ -66,7 +69,7 @@ void main() {
     final input = find.byKey(const ValueKey('chat-input'));
     await until(() => input.evaluate().isNotEmpty);
     await c.loadMessages(conversationId);
-    List<Json> messages() => c.node.messages[conversationId] ?? [];
+    List<ChatMessage> messages() => c.node.messages[conversationId] ?? [];
     Future<void> send(String text) async {
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump(const Duration(milliseconds: 150));
@@ -87,14 +90,14 @@ void main() {
     }
 
     Future<void> command(String text, String expected) async {
-      final before = messages().map((row) => row['messageId']).toSet();
+      final before = messages().map((row) => row.messageId).toSet();
       await send(text);
       await until(
         () => messages().any(
           (row) =>
-              !before.contains(row['messageId']) &&
-              row['kind'] == 'system' &&
-              '${row['content']['text']}'.contains(expected),
+              !before.contains(row.messageId) &&
+              row.kind == 'system' &&
+              '${row.content['text']}'.contains(expected),
         ),
       );
       await until(
@@ -105,9 +108,9 @@ void main() {
     final results = <Json>[];
     for (final skill in skills) {
       final name = '${skill['name']}';
-      await until(() => c.node.activities[conversationId]?['state'] == 'idle');
+      await until(() => c.node.activities[conversationId]?.state == 'idle');
       await command('/new Skill dispatch QA $name', 'New Hermes session:');
-      final before = messages().map((row) => row['messageId']).toSet();
+      final before = messages().map((row) => row.messageId).toSet();
       final marker = 'SKILL_LOADED_${results.length + 1}';
       await send(
         '$name Acceptance is limited to loading this skill, NOT performing its workflow. '
@@ -118,21 +121,21 @@ void main() {
         () =>
             messages().any(
               (row) =>
-                  !before.contains(row['messageId']) &&
-                  row['author']['type'] == 'bot' &&
-                  ['done', 'failed', 'cancelled'].contains(row['status']),
+                  !before.contains(row.messageId) &&
+                  row.author.type == 'bot' &&
+                  ['done', 'failed', 'cancelled'].contains(row.status),
             ) &&
-            c.node.activities[conversationId]?['state'] == 'idle',
+            c.node.activities[conversationId]?.state == 'idle',
         seconds: 240,
       );
       final added = messages()
-          .where((row) => !before.contains(row['messageId']))
+          .where((row) => !before.contains(row.messageId))
           .toList();
-      final reply = added.lastWhere((row) => row['author']['type'] == 'bot');
+      final reply = added.lastWhere((row) => row.author.type == 'bot');
       final passed =
-          reply['status'] == 'done' &&
-          '${reply['content']['text']}'.contains(marker) &&
-          !added.any((row) => row['kind'] == 'tool');
+          reply.status == 'done' &&
+          '${reply.content['text']}'.contains(marker) &&
+          !added.any((row) => row.kind == 'tool');
       results.add({'command': name, 'loadedAndModelReplied': passed});
       debugPrint('QA DYNAMIC: $name ${passed ? 'passed' : 'failed'}');
     }

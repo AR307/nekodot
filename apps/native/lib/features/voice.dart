@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
+import '../data/account.dart';
 import '../ui/design.dart';
 
 /// The device captures audio; Hermes owns detection, transcription and settings.
@@ -293,9 +295,10 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
           const SizedBox(height: 16),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(
-              '${status['phrase'] ?? 'Hermes'} · ${status['provider'] ?? ''}',
-            ),
+            title: MetaText([
+              '${status['phrase'] ?? 'Hermes'}',
+              '${status['provider'] ?? ''}',
+            ]),
             subtitle: Text(
               '${status['hint'] ?? c.tr('正在读取原生状态…', 'Reading native status…')}',
             ),

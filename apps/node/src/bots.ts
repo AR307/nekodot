@@ -6,6 +6,7 @@ import type { Providers } from './providers';
 import type { HermesSettings } from './hermes-settings';
 
 import { NodeFault } from './fault';
+import { configureToolSearch } from './tool-search-policy';
 export class BotService {
   constructor(
     readonly database: NodeDatabase,
@@ -56,6 +57,7 @@ export class BotService {
     await this.hermes.configureBot(bot, !archive, approvalMode);
     await this.providers.configureBot(bot);
     await this.settings.applyShared(bot.botId);
+    if (bot.sourceId) await configureToolSearch(this.hermes, bot.botId);
     this.database.putBot(bot);
     const conversation: Conversation = {
       conversationId: randomUUID(),
@@ -79,6 +81,13 @@ export class BotService {
       fields.role !== undefined && fields.role !== previous.role ? previous.role : undefined,
     );
     await this.providers.configureBot(bot);
+    if (
+      bot.sourceId &&
+      (fields.sourceId !== undefined ||
+        fields.model !== undefined ||
+        fields.modelSettings?.contextLength !== undefined)
+    )
+      await configureToolSearch(this.hermes, bot.botId);
     this.database.putBot(bot);
     return { bot };
   }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'data/client.dart';
+
 import 'features/auth.dart';
 import 'features/home.dart';
 import 'features/local_setup.dart';
@@ -104,7 +105,7 @@ class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.client,
+    listenable: Listenable.merge([widget.client.account, widget.client.prefs]),
     builder: (_, child) => MaterialApp(
       title: 'nekodot',
       navigatorKey: navigation,
@@ -112,7 +113,7 @@ class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
       debugShowCheckedModeBanner: false,
       theme: lightTheme,
       darkTheme: darkTheme,
-      themeMode: switch (widget.client.theme) {
+      themeMode: switch (widget.client.prefs.theme) {
         'light' => ThemeMode.light,
         'dark' => ThemeMode.dark,
         _ => ThemeMode.system,
@@ -137,7 +138,7 @@ class _NekodotAppState extends State<NekodotApp> with WidgetsBindingObserver {
                 child: Center(child: ErrorNotice(error)),
               ),
             )
-          : widget.client.token == null
+          : widget.client.account.token == null
           ? AuthPage(client: widget.client)
           : HomePage(client: widget.client),
     ),

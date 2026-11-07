@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../ui/design.dart';
 
 /// One catalog-backed picker for creating a Bot and changing its model.

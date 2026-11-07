@@ -5,9 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/client.dart';
+import '../data/endpoints.dart';
+import '../data/account.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
 import '../ui/auth_layout.dart';
+import 'auth_errors.dart';
 import 'updates.dart';
 
 class AuthPage extends StatefulWidget {
@@ -32,7 +35,12 @@ class _AuthPageState extends State<AuthPage> {
     if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email.text.trim())) {
       return c.tr('请输入有效的邮箱', 'Enter a valid email address');
     }
-    if (needsPassword && password.text.length < 8) {
+    if (needsPassword && password.text.isEmpty) {
+      return c.tr('请输入密码', 'Enter your password');
+    }
+    if (needsPassword &&
+        (mode == 'signup' || mode == 'reset') &&
+        password.text.length < 8) {
       return c.tr('密码至少需要 8 个字符', 'Use at least 8 characters for the password');
     }
     if (needsCode && !RegExp(r'^\d{6}$').hasMatch(code.text.trim())) {
@@ -54,7 +62,7 @@ class _AuthPageState extends State<AuthPage> {
       notice = '';
     });
     try {
-      await c.request(
+      await c.account.request(
         '/auth/code',
         method: 'POST',
         body: {
@@ -87,7 +95,7 @@ class _AuthPageState extends State<AuthPage> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) setState(() => error = authError(c, e, sendingCode: true));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -109,7 +117,7 @@ class _AuthPageState extends State<AuthPage> {
       if (mode == 'login') {
         await c.login(email.text.trim(), password.text);
       } else if (mode == 'reset') {
-        await c.request(
+        await c.account.request(
           '/auth/password/reset',
           method: 'POST',
           body: {
@@ -128,7 +136,7 @@ class _AuthPageState extends State<AuthPage> {
         }
       } else {
         await c.acceptSession(
-          await c.request(
+          await c.account.request(
             '/auth/${mode == 'verify' ? 'verify' : 'signup'}',
             method: 'POST',
             body: {
@@ -151,12 +159,16 @@ class _AuthPageState extends State<AuthPage> {
               'Verify this account’s email. Your computers and history will be kept.',
             );
           } else {
-            error = e.message;
+            error = authError(
+              c,
+              e,
+              checkingPassword: mode == 'login' || mode == 'verify',
+            );
           }
         });
       }
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) setState(() => error = authError(c, e));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -445,7 +457,7 @@ class _AuthPageState extends State<AuthPage> {
               ),
               home: TextButton.icon(
                 onPressed: () => launchUrl(
-                  Uri.parse('https://nekodot.com'),
+                  Uri.parse(websiteUrl),
                   mode: LaunchMode.externalApplication,
                 ),
                 icon: const Icon(Icons.chevron_left, size: 18),
@@ -476,7 +488,7 @@ class _AuthPageState extends State<AuthPage> {
               right: 12 + WindowChrome.reserved(context),
               top: 8,
               child: TextButton(
-                onPressed: () => c.preferences(locale: c.zh ? 'en' : 'zh'),
+                onPressed: () => c.prefs.update(locale: c.zh ? 'en' : 'zh'),
                 child: Text(c.zh ? 'EN' : '中'),
               ),
             ),

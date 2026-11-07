@@ -5,6 +5,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../local/runtime.dart';
 import '../platform/desktop.dart';
 import 'extensions.dart';
@@ -14,21 +15,73 @@ import '../ui/design.dart';
 import 'updates.dart';
 import 'user_memory.dart';
 import 'statistics.dart';
+import 'source_models.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   final NekodotClient client;
   const SettingsPage({super.key, required this.client});
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+/// One titled run of settings, which the side list on a wide page jumps to.
+typedef _Section = ({
+  String id,
+  String title,
+  IconData icon,
+  List<Widget> children,
+});
+
+class _SettingsPageState extends State<SettingsPage> {
+  NekodotClient get client => widget.client;
+  final anchors = <String, GlobalKey>{};
+  String? current;
 
   Future<void> signOut(BuildContext context) async {
     try {
       await localRuntime?.stop();
       await client.logout();
       if (context.mounted) {
-        Navigator.popUntil(context, (route) => route.isFirst);
+        Navigator.of(
+          context,
+          rootNavigator: true,
+        ).popUntil((route) => route.isFirst);
       }
     } catch (e) {
       if (context.mounted) showNotice(context, '$e');
     }
+  }
+
+  GlobalKey anchor(String id) => anchors.putIfAbsent(id, GlobalKey.new);
+
+  void jump(String id) {
+    setState(() => current = id);
+    final target = anchors[id]?.currentContext;
+    if (target == null) return;
+    Scrollable.ensureVisible(
+      target,
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  /// The section whose title has passed the top of the list is the one shown.
+  bool follow(ScrollNotification note, List<_Section> sections) {
+    if (note.depth != 0) return false;
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return false;
+    var shown = sections.first.id;
+    for (final section in sections) {
+      final target = anchors[section.id]?.currentContext?.findRenderObject();
+      if (target is! RenderBox || !target.attached) continue;
+      final top = target.localToGlobal(Offset.zero, ancestor: box).dy;
+      if (top <= 120) shown = section.id;
+    }
+    if (note.metrics.extentAfter < 1) shown = sections.last.id;
+    if (shown != current) setState(() => current = shown);
+    return false;
   }
 
   @override
@@ -37,7 +90,7 @@ class SettingsPage extends StatelessWidget {
     builder: (context, child) {
       final c = client;
       final tone = context.tone;
-      final email = '${c.me?['user']['email'] ?? ''}';
+      final email = '${c.account.me?['user']['email'] ?? ''}';
       final name = email.split('@').first;
       Widget link(String key, String title, Widget page) => ListTile(
         key: ValueKey(key),
@@ -45,9 +98,11 @@ class SettingsPage extends StatelessWidget {
         trailing: const Icon(Icons.chevron_right),
         onTap: () => pushPage(context, page),
       );
-      return AppPage(
-        title: c.tr('设置', 'Settings'),
-        body: PageList(
+      final sections = <_Section>[
+        (
+          id: 'account',
+          title: c.tr('账户', 'Account'),
+          icon: Icons.person_outline,
           children: [
             PanelGroup(
               children: [
@@ -88,7 +143,13 @@ class SettingsPage extends StatelessWidget {
                 ),
               ],
             ),
-            SectionLabel(c.tr('所有 Bot', 'All Bots')),
+          ],
+        ),
+        (
+          id: 'bots',
+          title: c.tr('所有 Bot', 'All Bots'),
+          icon: Icons.smart_toy_outlined,
+          children: [
             PanelGroup(
               children: [
                 link(
@@ -117,26 +178,34 @@ class SettingsPage extends StatelessWidget {
                   ),
               ],
             ),
-            if (localRuntime?.location != null &&
-                localRuntime?.userId != null) ...[
-              SectionLabel(c.tr('这台电脑', 'This computer')),
-              LocalComputerPanel(client: c),
-            ],
-            SectionLabel(c.tr('应用', 'App')),
+          ],
+        ),
+        if (localRuntime?.location != null && localRuntime?.userId != null)
+          (
+            id: 'computer',
+            title: c.tr('这台电脑', 'This computer'),
+            icon: Icons.computer_outlined,
+            children: [LocalComputerPanel(client: c)],
+          ),
+        (
+          id: 'app',
+          title: c.tr('应用', 'App'),
+          icon: Icons.tune,
+          children: [
             PanelGroup(
               children: [
                 ListTile(
                   title: Text(c.tr('语言', 'Language')),
                   trailing: Segment<String>(
-                    value: c.language,
+                    value: c.prefs.language,
                     options: const {'zh': Text('中'), 'en': Text('EN')},
-                    onChanged: (value) => c.preferences(locale: value),
+                    onChanged: (value) => c.prefs.update(locale: value),
                   ),
                 ),
                 ListTile(
                   title: Text(c.tr('外观', 'Appearance')),
                   trailing: Segment<String>(
-                    value: c.theme,
+                    value: c.prefs.theme,
                     options: {
                       'system': Tooltip(
                         message: c.tr('跟随系统', 'System'),
@@ -151,7 +220,7 @@ class SettingsPage extends StatelessWidget {
                         child: const Icon(Icons.dark_mode_outlined),
                       ),
                     },
-                    onChanged: (value) => c.preferences(appearance: value),
+                    onChanged: (value) => c.prefs.update(appearance: value),
                   ),
                 ),
                 ListTile(
@@ -207,9 +276,151 @@ class SettingsPage extends StatelessWidget {
             ],
           ],
         ),
+      ];
+      // Every section stays in one list; a wide page adds a side list that
+      // jumps to them and shows where you are.
+      return LayoutBuilder(
+        builder: (context, box) {
+          final wide = box.maxWidth >= 640;
+          // Keep the few section anchors mounted, including those below the
+          // viewport: a category must work before it has been scrolled into view.
+          final list = SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              12,
+              16,
+              MediaQuery.paddingOf(context).bottom + 28,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final (index, section) in sections.indexed) ...[
+                      if (index > 0 || wide)
+                        KeyedSubtree(
+                          key: anchor(section.id),
+                          child: SectionLabel(section.title),
+                        )
+                      else
+                        SizedBox(key: anchor(section.id)),
+                      ...section.children,
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          );
+          return AppPage(
+            title: c.tr('设置', 'Settings'),
+            body: !wide
+                ? list
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 200,
+                        child: SettingsNav(
+                          sections: [
+                            for (final section in sections)
+                              (section.id, section.title, section.icon),
+                          ],
+                          current: current ?? sections.first.id,
+                          onPick: jump,
+                        ),
+                      ),
+                      Expanded(
+                        child: NotificationListener<ScrollNotification>(
+                          onNotification: (note) => follow(note, sections),
+                          child: list,
+                        ),
+                      ),
+                    ],
+                  ),
+          );
+        },
       );
     },
   );
+}
+
+/// The side list of a wide settings page: where each section is, and which
+/// one you are reading.
+class SettingsNav extends StatelessWidget {
+  final List<(String, String, IconData)> sections;
+  final String current;
+  final ValueChanged<String> onPick;
+  const SettingsNav({
+    super.key,
+    required this.sections,
+    required this.current,
+    required this.onPick,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    final text = Theme.of(context).textTheme;
+    final still = MediaQuery.disableAnimationsOf(context);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 30, 8, 12),
+      children: [
+        for (final (id, title, icon) in sections)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: AnimatedContainer(
+              duration: still
+                  ? Duration.zero
+                  : const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              decoration: BoxDecoration(
+                color: id == current
+                    ? tone.surface
+                    : tone.surface.withValues(alpha: 0),
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: id == current ? tone.rest : const [],
+              ),
+              child: Material(
+                type: MaterialType.transparency,
+                child: InkWell(
+                  key: ValueKey('settings-nav-$id'),
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => onPick(id),
+                  child: SizedBox(
+                    height: 38,
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 10),
+                        Icon(
+                          icon,
+                          size: 18,
+                          color: id == current ? tone.ink : tone.ink2,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: text.titleMedium?.copyWith(
+                              fontSize: 14,
+                              fontWeight: id == current
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                              color: id == current ? tone.ink : tone.ink2,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 class SourcesPage extends StatefulWidget {
@@ -310,6 +521,8 @@ class CustomSourcePage extends StatefulWidget {
 
 class _CustomSourcePageState extends State<CustomSourcePage> {
   late String? savedId = widget.source?['sourceId'] as String?;
+  late String apiMode = widget.source?['apiMode'] as String? ?? '';
+  int modelRevision = 0;
   late final name = TextEditingController(
     text: widget.source?['name'] as String? ?? '',
   );
@@ -362,6 +575,19 @@ class _CustomSourcePageState extends State<CustomSourcePage> {
           ),
         ),
         ErrorNotice(error),
+        LabeledField(
+          label: widget.client.tr('接口', 'API'),
+          child: MenuSelect<String>(
+            value: apiMode,
+            options: [
+              ('', widget.client.tr('自动', 'Automatic')),
+              ('chat_completions', 'Chat Completions'),
+              ('codex_responses', 'Responses'),
+              ('anthropic_messages', 'Messages'),
+            ],
+            onChanged: busy ? null : (v) => setState(() => apiMode = v),
+          ),
+        ),
         const SizedBox(height: 16),
         Align(
           alignment: Alignment.centerRight,
@@ -376,26 +602,16 @@ class _CustomSourcePageState extends State<CustomSourcePage> {
                         if (savedId != null) 'sourceId': savedId,
                         'name': name.text,
                         'baseUrl': url.text.trim(),
+                        'apiMode': apiMode,
                         if (key.text.isNotEmpty) 'apiKey': key.text,
                       });
                       if (mounted) {
-                        setState(() => savedId = saved['sourceId'] as String);
+                        setState(() {
+                          savedId = saved['sourceId'] as String;
+                          modelRevision++;
+                        });
                       }
                       key.clear();
-                      final catalog = await widget.client.rpc(
-                        'models.options',
-                        {'sourceId': saved['sourceId'], 'refresh': true},
-                      );
-                      if (context.mounted) {
-                        showNotice(
-                          context,
-                          widget.client.tr(
-                            '${(catalog['models'] as List).length} 个模型',
-                            '${(catalog['models'] as List).length} models',
-                          ),
-                        );
-                      }
-                      if (context.mounted) Navigator.pop(context);
                     } catch (e) {
                       if (mounted) setState(() => error = '$e');
                     } finally {
@@ -405,6 +621,12 @@ class _CustomSourcePageState extends State<CustomSourcePage> {
             child: Text(widget.client.tr('保存', 'Save')),
           ),
         ),
+        if (savedId != null)
+          SourceModels(
+            key: ValueKey('$savedId:$modelRevision'),
+            client: widget.client,
+            sourceId: savedId!,
+          ),
       ],
     ),
   );
@@ -588,6 +810,12 @@ class _AuthorizationPageState extends State<AuthorizationPage> {
               ),
             ),
           ],
+          if (authorized)
+            SourceModels(
+              key: ValueKey('oauth:${widget.provider['id']}'),
+              client: widget.client,
+              sourceId: 'oauth:${widget.provider['id']}',
+            ),
           ErrorNotice(error),
         ],
       ),
@@ -641,14 +869,17 @@ class _PasswordPageState extends State<PasswordPage> {
           child: FilledButton(
             onPressed: () async {
               try {
-                await widget.client.request(
+                await widget.client.account.request(
                   '/auth/password/change',
                   method: 'POST',
                   body: {'currentPassword': old.text, 'password': next.text},
                 );
                 await widget.client.clearSession();
                 if (context.mounted) {
-                  Navigator.popUntil(context, (route) => route.isFirst);
+                  Navigator.of(
+                    context,
+                    rootNavigator: true,
+                  ).popUntil((route) => route.isFirst);
                 }
               } catch (e) {
                 if (mounted) setState(() => error = '$e');

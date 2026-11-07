@@ -1,3 +1,5 @@
+import 'package:nekodot_native/data/chat_models.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -98,7 +100,7 @@ void main() {
       }
 
       await tester.runAsync(() async {
-        final auth = await c.request(
+        final auth = await c.account.request(
           '/auth/login',
           method: 'POST',
           body: {
@@ -106,11 +108,11 @@ void main() {
             'password': const String.fromEnvironment('QA_PASSWORD'),
           },
         );
-        c.token = auth['token'];
+        c.account.token = auth['token'];
         await c.bootstrap();
         await c.selectNode(const String.fromEnvironment('QA_NODE'));
       });
-      c.language = 'zh';
+      c.prefs.language = 'zh';
       runApp(
         MaterialApp(
           theme: appTheme(Brightness.light),
@@ -162,9 +164,9 @@ void main() {
         await until(
           () => (c.node.messages[id] ?? []).any(
             (m) =>
-                m['kind'] == 'text' &&
-                m['content']['welcome'] == true &&
-                m['status'] == 'done',
+                m.kind == 'text' &&
+                m.content['welcome'] == true &&
+                m.status == 'done',
           ),
           seconds: 900,
           label: '${member[0]} real welcome',
@@ -198,16 +200,16 @@ void main() {
       await tester.runAsync(() async {
         await c.loadMessages(id);
         while ((c.node.messages[id]?.length ?? 0) >= 50) {
-          final before = c.node.messages[id]!.first['seq'] as int;
+          final before = c.node.messages[id]!.first.seq;
           await c.loadMessages(id, before: before);
-          if (c.node.messages[id]!.first['seq'] == before) break;
+          if (c.node.messages[id]!.first.seq == before) break;
         }
       });
       const prompt = '''@everyone 上一轮验收无效，本轮从零开始，不提供论文名称、网址、预选题目或方法答案。你们必须实际调用原生工具自主完成研究，而不是只描述将如何做。请在大语言模型领域自行选一个可用单张GPU或API预算在1-2周内验证的问题，完成有真实原始文献支撑的研究构思。
 每位成员本轮必须实际调用工具并在结果中说明实际观察：工具统筹先搜索研究方向并读原始来源，提出一个值得检验的问题；自主检索独立搜索并读取至少3篇真实相关论文的原始页面或正文，核对题名、作者、年份、标识和现有工作重叠；原型实验基于前两位结果用terminal编写并真实运行一个小型可执行算法/评估验证，保存源码和实际输出到自己profile工作区的research-tool-qa目录，不要伪造论文实验，不安装大依赖、不运行长训练；复现审稿用工具独立核对至少一项文献或结果，审查泄漏/基线/成本/可复现性，然后@tool_lead；统筹最后结合真实工具结果形成Markdown研究方案，包含标题、摘要、文献表格链接、方法伪代码、实验设计、失败判据和未验证项目。统筹首轮末尾@tool_lit，他已在队列不要另外重复发任务，检索和实验两位不要@成员，最后统筹不要再@。
 可以用现有web_search、浏览器或terminal访问公开文献；缺少依赖或工具失败必须如实说明并用可用原生工具继续完成研究。只读取公开文献及本次研究材料，不读取凭据、私有日志或其他项目文件，不修改服务或系统配置。实际工具输出与假设必须区分，禁止说执行了未调用的工具。''';
       if (!(c.node.messages[id] ?? []).any(
-        (m) => m['author']['type'] == 'user' && m['content']?['text'] == prompt,
+        (m) => m.author.type == 'user' && m.content['text'] == prompt,
       )) {
         await tester.enterText(
           find.byKey(const ValueKey('chat-input')),
@@ -219,12 +221,12 @@ void main() {
         sentPrompt = true;
       }
       final members = (group['botIds'] as List).cast<String>();
-      List<Json> replies() => (c.node.messages[id] ?? [])
+      List<ChatMessage> replies() => (c.node.messages[id] ?? [])
           .where(
             (m) =>
-                m['kind'] == 'text' &&
-                m['author']['type'] == 'bot' &&
-                m['status'] == 'done',
+                m.kind == 'text' &&
+                m.author.type == 'bot' &&
+                m.status == 'done',
           )
           .toList();
       var seen = -1;
@@ -232,7 +234,7 @@ void main() {
         () {
           final messages = c.node.messages[id] ?? [];
           final failures = messages
-              .where((m) => m['kind'] == 'text' && m['status'] == 'failed')
+              .where((m) => m.kind == 'text' && m.status == 'failed')
               .toList();
           expect(failures, isEmpty, reason: 'Real research model run failed');
           final n = replies().length;
@@ -241,9 +243,7 @@ void main() {
             seen = n;
           }
           return n >= 5 &&
-              members.every(
-                (b) => replies().any((m) => m['author']['id'] == b),
-              ) &&
+              members.every((b) => replies().any((m) => m.author.id == b)) &&
               find.byTooltip('停止').evaluate().isEmpty;
         },
         seconds: 2400,
@@ -257,15 +257,15 @@ void main() {
       for (final botId in members) {
         expect(
           (c.node.messages[id] ?? []).any(
-            (m) => m['kind'] == 'tool' && m['author']['id'] == botId,
+            (m) => m.kind == 'tool' && m.author.id == botId,
           ),
           isTrue,
           reason: 'Each Bot must actually invoke a native tool',
         );
       }
-      final messageIds = replies().map((m) => m['messageId']).toList();
+      final messageIds = replies().map((m) => m.messageId).toList();
       await tester.runAsync(() => c.loadMessages(id));
-      expect(replies().map((m) => m['messageId']).toList(), messageIds);
+      expect(replies().map((m) => m.messageId).toList(), messageIds);
       if (Platform.isAndroid) {
         await binding.convertFlutterSurfaceToImage();
         await tester.pump();

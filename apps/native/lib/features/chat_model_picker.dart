@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
+import '../data/json.dart';
 import '../ui/design.dart';
 
 /// The Bot's models on the menu card at [anchor]: its own model and its

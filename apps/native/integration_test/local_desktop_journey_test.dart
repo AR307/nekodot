@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
 import 'package:nekodot_native/local/location.dart';
 import 'package:nekodot_native/local/runtime.dart';
@@ -152,7 +153,7 @@ void main() {
       final uri = Uri.parse('$relay$path');
       final headers = {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${client.token}',
+        'Authorization': 'Bearer ${client.account.token}',
       };
       final response = body == null
           ? await http.get(uri, headers: headers)
@@ -222,7 +223,7 @@ void main() {
     } else {
       await tester.tap(find.widgetWithText(FilledButton, '登录'));
     }
-    await until(() => client.ready, what: 'signed in');
+    await until(() => client.connection.ready, what: 'signed in');
     note('signedIn', DateTime.now().toIso8601String());
 
     if (fresh) {
@@ -340,7 +341,7 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
       await shot('online');
       note('nodeId', local.nodeId);
-      final paired = (objects(client.me?['nodes']))
+      final paired = (objects(client.account.me?['nodes']))
           .firstWhere((n) => n['nodeId'] == local.nodeId);
       note('pairedPlatform', paired['platform']);
 
@@ -428,15 +429,12 @@ void main() {
       while (recorded != null &&
           !recorded.every(
             (id) => (client.node.messages[conversationId] ?? []).any(
-              (message) => message['messageId'] == id,
+              (message) => message.messageId == id,
             ),
           )) {
         final messages = client.node.messages[conversationId]!;
         final previousLength = messages.length;
-        await client.loadMessages(
-          conversationId,
-          before: messages.first['seq'] as int,
-        );
+        await client.loadMessages(conversationId, before: messages.first.seq);
         if (client.node.messages[conversationId]!.length == previousLength) {
           break;
         }
@@ -490,28 +488,27 @@ void main() {
     await shot('composer');
     // A fresh Bot is usually still introducing itself here; the send must steer that run.
     final welcome = (client.node.messages[conversationId] ?? [])
-        .where((m) => m['content']['welcome'] == true)
+        .where((m) => m.content['welcome'] == true)
         .lastOrNull;
     note('sentDuringWelcome', {
-      'activity': client.node.activities[conversationId]?['state'],
-      'welcome': welcome?['status'],
+      'activity': client.node.activities[conversationId]?.state,
+      'welcome': welcome?.status,
     });
     await tester.tap(find.byTooltip('发送').hitTestable().last);
     await until(
       () => (client.node.messages[conversationId] ?? []).any(
-        (m) =>
-            !before.contains(m['messageId']) && m['author']['type'] == 'user',
+        (m) => !before.contains(m.messageId) && m.author.type == 'user',
       ),
       seconds: 30,
       what: 'user message sent',
     );
     bool replied() => (client.node.messages[conversationId] ?? []).any(
       (m) =>
-          !before.contains(m['messageId']) &&
-          m['author']['type'] == 'bot' &&
-          m['kind'] == 'text' &&
-          m['status'] == 'done' &&
-          '${m['content']['text']}'.contains(marker),
+          !before.contains(m.messageId) &&
+          m.author.type == 'bot' &&
+          m.kind == 'text' &&
+          m.status == 'done' &&
+          '${m.content['text']}'.contains(marker),
     );
     var approvals = 0;
     final deadline = DateTime.now().add(const Duration(minutes: 10));
@@ -532,8 +529,8 @@ void main() {
 
     expect(replied(), isTrue, reason: 'real model reply with the written line');
     final tools = (client.node.messages[conversationId] ?? [])
-        .where((m) => !before.contains(m['messageId']) && m['kind'] == 'tool')
-        .map((m) => '${m['content']['tool']}:${m['status']}')
+        .where((m) => !before.contains(m.messageId) && m.kind == 'tool')
+        .map((m) => '${m.content['tool']}:${m.status}')
         .toList();
     note('tools', tools);
     final written = await File(target).readAsString();
@@ -542,7 +539,7 @@ void main() {
 
     // A second message from the same composer, once the first turn is idle, is its own turn.
     await until(
-      () => client.node.activities[conversationId]?['state'] == 'idle',
+      () => client.node.activities[conversationId]?.state == 'idle',
       what: 'first turn idle',
     );
     final second = 'NEKODOT_SECOND_$stamp';
@@ -564,11 +561,11 @@ void main() {
     await until(
       () => (client.node.messages[conversationId] ?? []).any(
         (m) =>
-            !beforeSecond.contains(m['messageId']) &&
-            m['author']['type'] == 'bot' &&
-            m['kind'] == 'text' &&
-            m['status'] == 'done' &&
-            '${m['content']['text']}'.contains(second),
+            !beforeSecond.contains(m.messageId) &&
+            m.author.type == 'bot' &&
+            m.kind == 'text' &&
+            m.status == 'done' &&
+            '${m.content['text']}'.contains(second),
       ),
       seconds: 180,
       what: 'second message answered',
@@ -577,7 +574,7 @@ void main() {
 
     if (const bool.fromEnvironment('QA_CHECK_PLUGIN')) {
       await until(
-        () => client.node.activities[conversationId]?['state'] == 'idle',
+        () => client.node.activities[conversationId]?.state == 'idle',
         what: 'ready for installed plugin',
       );
       final previous = {
@@ -595,17 +592,17 @@ void main() {
       await until(
         () => (client.node.messages[conversationId] ?? []).any(
           (m) =>
-              !previous.contains(m['messageId']) &&
-              m['kind'] == 'tool' &&
-              m['content']['tool'] == 'runtime_probe' &&
-              m['status'] == 'done' &&
-              '${m['content']['resultPreview']}'.contains('1,234,567'),
+              !previous.contains(m.messageId) &&
+              m.kind == 'tool' &&
+              m.content['tool'] == 'runtime_probe' &&
+              m.status == 'done' &&
+              '${m.content['resultPreview']}'.contains('1,234,567'),
         ),
         seconds: 300,
         what: 'real installed plugin after runtime replacement',
       );
       await until(
-        () => client.node.activities[conversationId]?['state'] == 'idle',
+        () => client.node.activities[conversationId]?.state == 'idle',
         what: 'plugin turn completed',
       );
       note('pluginAfterRuntimeReplacement', true);
@@ -621,7 +618,7 @@ void main() {
     await until(
       () =>
           objects(
-            client.me?['nodes'],
+            client.account.me?['nodes'],
           ).any((n) => n['nodeId'] == local.nodeId && n['online'] == false) ||
           !client.node.online,
       seconds: 60,

@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+
 import 'package:nekodot_native/data/flow.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/platform/desktop.dart';
@@ -90,7 +91,7 @@ void main() {
       }
     }
 
-    final login = await c.request(
+    final login = await c.account.request(
       '/auth/login',
       method: 'POST',
       body: {
@@ -98,7 +99,7 @@ void main() {
         'password': const String.fromEnvironment('QA_PASSWORD'),
       },
     );
-    c.token = login['token'] as String;
+    c.account.token = login['token'] as String;
     c.selectedNodeId = const String.fromEnvironment('QA_NODE');
     await c.bootstrap();
     addTearDown(c.dispose);
@@ -248,7 +249,7 @@ void main() {
       await tap(find.byKey(ValueKey('flow-step-${plan.stepId}')));
       await shot('compact-plan-expanded');
       visual.value = true;
-      c.language = 'en';
+      c.prefs.language = 'en';
       c.notifyListeners();
       await shot('compact-dark-en-reduced');
       if (Platform.isAndroid) {
@@ -373,7 +374,7 @@ void main() {
       expect(c.node.flows[dm]!.flowId, completed.flowId);
       await shot('plan-reconnected');
       visual.value = true;
-      c.language = 'en';
+      c.prefs.language = 'en';
       c.notifyListeners();
       await shot('plan-dark-en-reduced');
       if (Platform.isAndroid) {
@@ -480,14 +481,14 @@ void main() {
       await submit('/queue list');
       final listing = (c.node.messages[dm] ?? []).lastWhere(
         (m) =>
-            m['kind'] == 'system' &&
-            m['content']['command'] == '/queue' &&
-            '${m['content']['text']}'.contains('[queued]'),
+            m.kind == 'system' &&
+            m.content['command'] == '/queue' &&
+            '${m.content['text']}'.contains('[queued]'),
       );
       final queued = RegExp(
         r'^(\d+)\. \[queued\]',
         multiLine: true,
-      ).firstMatch('${listing['content']['text']}')!;
+      ).firstMatch('${listing.content['text']}')!;
       await submit('/queue rm ${queued.group(1)}');
       await openGraph();
       await c.bootstrap();
