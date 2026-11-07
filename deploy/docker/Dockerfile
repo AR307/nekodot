@@ -4,7 +4,7 @@ WORKDIR /app
 COPY dist/relay/package.json ./package.json
 RUN npm install --omit=dev --no-audit --no-fund && mkdir -p /data && chown node:node /data
 COPY dist/relay/index.mjs ./index.mjs
-COPY dist/distribution/ ./distribution/
+COPY dist/distribution/install.sh dist/distribution/nekodot-node.cjs dist/distribution/nekodot-node.json ./distribution/
 USER node
 EXPOSE 4329
 CMD ["node", "index.mjs"]
