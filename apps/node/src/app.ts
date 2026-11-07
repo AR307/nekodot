@@ -130,7 +130,6 @@ export class NodeApplication {
       this.hermes,
       this.bots,
       this.operations,
-      this.providers,
       this.files,
       this.routines,
       this.secrets,
