@@ -128,6 +128,25 @@ it('keeps disabled approvals as a string for the native YAML reader after profil
   }
 });
 
+it.each([undefined, '', 'high', 'none', false])(
+  'uses xhigh only for unset profile reasoning (%s)',
+  async (effort) => {
+    const { home, runtime, bot, close } = await existingProfile(
+      effort === undefined ? '{}' : `agent:\n  reasoning_effort: ${JSON.stringify(effort)}\n`,
+    );
+    try {
+      await runtime.configureBot(bot, false);
+      const config = parse(await readFile(join(home, 'config.yaml'), 'utf8'));
+      expect(config.agent.reasoning_effort).toBe(
+        effort === undefined || effort === '' ? 'xhigh' : effort,
+      );
+    } finally {
+      await runtime.close();
+      await close();
+    }
+  },
+);
+
 it('reports the same approval mode as the native boolean normalizer', async () => {
   const { runtime, close } = await existingProfile('{}');
   const read = vi.spyOn(cli, 'runHermesCli');

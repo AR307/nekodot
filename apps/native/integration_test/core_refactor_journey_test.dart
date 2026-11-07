@@ -179,6 +179,19 @@ void main() {
       turnCount,
     );
     await open(group);
+    final expectedMembers =
+        (c.node.groups.firstWhere(
+                  (row) =>
+                      row['groupId'] ==
+                      c.node.conversations.firstWhere(
+                        (conversation) =>
+                            conversation['conversationId'] == group,
+                      )['groupId'],
+                )['botIds']
+                as List)
+            .cast<String>()
+            .toSet();
+    expect(expectedMembers.length, greaterThan(1));
     final groupBefore = (c.node.messages[group] ?? [])
         .map((m) => m.messageId)
         .toSet();
@@ -197,7 +210,7 @@ void main() {
               .map((m) => m.author.id)
               .toSet()
               .length ==
-          3,
+          expectedMembers.length,
       seconds: 480,
     );
     await until(() => c.node.activities[group]?.state == 'idle');
@@ -209,7 +222,7 @@ void main() {
       'realModel': 'gpt-6.1-sol',
       'fileRead': true,
       'codeExecution': true,
-      'groupBots': 3,
+      'groupBots': expectedMembers.length,
       'reconnectNoReplay': true,
     };
     await tester.pumpWidget(const SizedBox.shrink());

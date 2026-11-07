@@ -9,6 +9,7 @@ class DesktopHost with WindowListener {
   static bool get supported =>
       Platform.isWindows || Platform.isMacOS || Platform.isLinux;
   static final instance = DesktopHost();
+  static final focused = ValueNotifier<bool>(true);
   static TrayIcon? icon;
   // Native handles own the menu callbacks; keep them alive with the tray.
   static Menu? _menu;
@@ -104,6 +105,12 @@ class DesktopHost with WindowListener {
   void onWindowClose() {
     windowManager.hide();
   }
+
+  @override
+  void onWindowFocus() => focused.value = true;
+
+  @override
+  void onWindowBlur() => focused.value = false;
 
   @override
   void onWindowResized() async {

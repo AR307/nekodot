@@ -50,7 +50,7 @@ class SheetRoute<T> extends PageRoute<T> {
   @override
   bool get maintainState => true;
   @override
-  Duration get transitionDuration => Duration(milliseconds: first ? 260 : 220);
+  Duration get transitionDuration => Duration(milliseconds: first ? 220 : 200);
   @override
   Duration get reverseTransitionDuration => const Duration(milliseconds: 180);
 
@@ -113,11 +113,13 @@ class SheetFrame extends StatelessWidget {
         width: width,
         height: height,
         child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(radius),
-            boxShadow: tone.lift,
+          decoration: ShapeDecoration(
+            shape: RoundedSuperellipseBorder(
+              borderRadius: BorderRadius.circular(radius),
+            ),
+            shadows: tone.lift,
           ),
-          child: ClipRRect(
+          child: ClipRSuperellipse(
             borderRadius: BorderRadius.circular(radius),
             child: MediaQuery.removePadding(
               context: context,

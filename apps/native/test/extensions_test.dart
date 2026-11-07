@@ -39,6 +39,37 @@ class DocumentClient extends NekodotClient {
 }
 
 void main() {
+  testWidgets('catalog search keeps its query when the page resizes', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final client = DocumentClient();
+    addTearDown(client.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: appTheme(Brightness.light, glass: true),
+        home: ExtensionsPage(client: client, kind: 'plugins'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'no-match');
+    await tester.pumpAndSettle();
+    expect(find.byType(ListTile), findsNothing);
+    tester.view.physicalSize = const Size(844, 390);
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      'no-match',
+    );
+    await tester.enterText(find.byType(TextField), 'Readable');
+    await tester.pumpAndSettle();
+    expect(
+      find.widgetWithText(ListTile, 'Readable package title'),
+      findsOneWidget,
+    );
+  });
   testWidgets(
     'A phone opens installed plugin documentation, reads it and returns without losing the detail page',
     (tester) async {

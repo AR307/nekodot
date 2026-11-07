@@ -90,12 +90,13 @@ class _PairingPageState extends State<PairingPage> {
         children: [
           Row(
             children: [
-              Text(
-                'Linux x64 / WSL2',
-                style: Theme.of(context).textTheme.titleSmall,
+              Expanded(
+                child: Text(
+                  'Linux x64 / WSL2',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
               ),
-              const Spacer(),
-              const ShiningText(style: TextStyle(fontSize: 12)),
+              if (busy) const ShiningText(style: TextStyle(fontSize: 12)),
               const SizedBox(width: 8),
               Text(
                 '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}',

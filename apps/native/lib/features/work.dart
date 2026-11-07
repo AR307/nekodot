@@ -235,7 +235,7 @@ class StepFrame extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       shape: RoundedSuperellipseBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: tone.line),
+        side: BorderSide(color: tone.line, width: .5),
       ),
       child: child,
     );
@@ -265,7 +265,7 @@ class StepLine extends StatelessWidget {
   Widget build(BuildContext context) => InkWell(
     onTap: onTap,
     child: ConstrainedBox(
-      constraints: BoxConstraints(minHeight: context.tone.glass ? 38 : 32),
+      constraints: BoxConstraints(minHeight: context.tone.glass ? 48 : 32),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: Row(

@@ -26,19 +26,16 @@ class _PromptCardState extends State<PromptCard> {
     // Moving focus from the input to selected chat text must not move the
     // words under the pointer by collapsing the composer mid-selection.
     expanded =
-        focused ||
-        widget.hasContent ||
-        widget.running ||
-        (widget.holdSize && expanded);
+        widget.hasContent || widget.running || (widget.holdSize && expanded);
     final duration = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
-        : const Duration(milliseconds: 300);
+        : const Duration(milliseconds: 180);
     final card = Focus(
       onFocusChange: (value) => setState(() => focused = value),
       child: AnimatedContainer(
         duration: duration,
         curve: Curves.easeOutCubic,
-        constraints: BoxConstraints(maxWidth: expanded ? 480 : 320),
+        constraints: const BoxConstraints(maxWidth: 720),
         decoration: ShapeDecoration(
           color: context.tone.surface,
           shadows: [
@@ -52,45 +49,54 @@ class _PromptCardState extends State<PromptCard> {
             borderRadius: BorderRadius.circular(24),
             side: BorderSide(
               color: focused ? context.tone.ink3 : context.tone.line,
+              width: .5,
             ),
           ),
         ),
         child: SizeMotion(
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
           alignment: Alignment.bottomCenter,
-          child: Stack(
-            children: [
-              Column(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final toolbar = Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: expanded ? 68 : 46),
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
-                      child: widget.field,
-                    ),
-                  ),
-                  const SizedBox(height: 44),
+                  widget.tools,
+                  Flexible(child: widget.action),
                 ],
-              ),
-              Positioned(
-                left: 8,
-                right: 7,
-                bottom: 7,
-                child: Row(
-                  children: [
-                    widget.tools,
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: widget.action,
+              );
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 44),
+                  child: Flex(
+                    direction: expanded ? Axis.vertical : Axis.horizontal,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: widget.field,
+                        ),
                       ),
-                    ),
-                  ],
+                      SizedBox(height: expanded ? 4 : 0),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: constraints.maxWidth * (expanded ? 1 : .6),
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          widthFactor: expanded ? null : 1,
+                          heightFactor: 1,
+                          child: toolbar,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),

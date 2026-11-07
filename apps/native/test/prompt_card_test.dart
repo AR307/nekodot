@@ -7,6 +7,66 @@ import 'package:nekodot_native/ui/prompt_card.dart';
 import 'package:nekodot_native/ui/message_selection.dart';
 
 void main() {
+  testWidgets(
+    'typing and clearing keeps the same editor with large phone text',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final input = TextEditingController();
+      final focus = FocusNode();
+      addTearDown(input.dispose);
+      addTearDown(focus.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: appTheme(Brightness.light, glass: true),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(2)),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: ValueListenableBuilder(
+                valueListenable: input,
+                builder: (_, value, child) => PromptCard(
+                  hasContent: value.text.isNotEmpty,
+                  running: false,
+                  field: TextField(
+                    controller: input,
+                    focusNode: focus,
+                    maxLines: 7,
+                  ),
+                  tools: IconButton(
+                    onPressed: () {},
+                    icon: const Icon(Icons.add),
+                  ),
+                  action: TextButton(
+                    onPressed: () {},
+                    child: const Text('xhigh'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byType(TextField));
+      final editor = tester.state(find.byType(EditableText));
+      await tester.enterText(find.byType(TextField), '中文输入与草稿保留');
+      await tester.pumpAndSettle();
+      expect(tester.state(find.byType(EditableText)), same(editor));
+      expect(focus.hasFocus, isTrue);
+      await tester.enterText(find.byType(TextField), '');
+      await tester.pumpAndSettle();
+      expect(tester.state(find.byType(EditableText)), same(editor));
+      expect(focus.hasFocus, isTrue);
+      expect(input.text, isEmpty);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   testWidgets('selecting a reply keeps the focused composer from moving it', (
     tester,
   ) async {
@@ -142,7 +202,14 @@ void main() {
         await tester.tapAt(const Offset(5, 5), kind: PointerDeviceKind.mouse);
         await tester.pumpAndSettle();
         expect(focus.hasFocus, isFalse);
-        expect(tester.getSize(find.byType(PromptCard)).width, 320);
+        expect(
+          tester.getSize(find.byType(PromptCard)).width,
+          width > 768 ? 720 : width - 48,
+        );
+        expect(
+          tester.getSize(find.byType(PromptCard)).height,
+          lessThanOrEqualTo(72),
+        );
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
       });
@@ -180,10 +247,10 @@ void main() {
         ),
       ),
     );
-    expect(tester.getSize(find.byType(PromptCard)).width, 320);
+    expect(tester.getSize(find.byType(PromptCard)).width, 720);
     await tester.tap(find.byType(TextField));
     await tester.pumpAndSettle();
-    expect(tester.getSize(find.byType(PromptCard)).width, 480);
+    expect(tester.getSize(find.byType(PromptCard)).width, 720);
     await tester.enterText(find.byType(TextField), '下一条草稿');
     expect(input.text, '下一条草稿');
     tester.view.physicalSize = const Size(390, 844);

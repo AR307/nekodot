@@ -33,6 +33,8 @@ class _HomePageState extends State<HomePage> {
   StreamSubscription<Json>? destinations;
   String? conversation;
   Json? details;
+  Json? previewFile;
+  bool expandedFile = false;
   FlowMessageFocus? flowFocus;
   String search = '';
   String? hovered;
@@ -155,6 +157,7 @@ class _HomePageState extends State<HomePage> {
         conversation = id;
         details = null;
         flowFocus = null;
+        previewFile = null;
       });
     }
   }
@@ -181,6 +184,7 @@ class _HomePageState extends State<HomePage> {
             conversation = null;
             details = null;
             flowFocus = null;
+            previewFile = null;
           });
           c.selectNode(id);
         }
@@ -515,8 +519,8 @@ class _HomePageState extends State<HomePage> {
     final state = c.node.activities[id]?.state;
     final working = state != null && state != 'idle';
     final selected = !narrow && conversation == id;
-    // The selected row lifts off the list; hovering a row only raises it.
-    final raised = selected || (!glass && hovered == id);
+    // Hover is flat and immediate, with no trailing lift or motion.
+    final hoveredRow = !glass && hovered == id;
     // A phone shows when it last spoke; a desktop, what the Bot is for.
     final note = glass || isGroup
         ? ''
@@ -525,6 +529,11 @@ class _HomePageState extends State<HomePage> {
     final lastAt = glass ? lastActivity(id) : null;
     // Something in there is waiting for your answer.
     final waiting = c.node.flows[id]?.state == 'waiting';
+    final unread = c.reading.unread(
+      c.selectedNodeId!,
+      id,
+      c.incomingSequence(id),
+    );
     final size = glass ? 44.0 : 40.0;
     final corners = BorderRadius.circular(12);
     return MouseRegion(
@@ -534,8 +543,11 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.symmetric(vertical: 1),
         child: Container(
           decoration: ShapeDecoration(
-            color: raised ? tone.surface : tone.surface.withValues(alpha: 0),
-            shadows: raised ? (selected ? tone.lift : tone.rest) : const [],
+            color: selected
+                ? tone.raised
+                : hoveredRow
+                ? tone.hover
+                : Colors.transparent,
             shape: RoundedSuperellipseBorder(borderRadius: corners),
           ),
           child: Material(
@@ -628,7 +640,7 @@ class _HomePageState extends State<HomePage> {
                               ],
                             ],
                           ),
-                          if (last != null || waiting) ...[
+                          if (last != null || waiting || unread) ...[
                             const SizedBox(height: 3),
                             Row(
                               children: [
@@ -643,6 +655,17 @@ class _HomePageState extends State<HomePage> {
                                     ),
                                   ),
                                 ),
+                                if (unread && !waiting)
+                                  Container(
+                                    key: ValueKey('unread-$id'),
+                                    width: 8,
+                                    height: 8,
+                                    margin: const EdgeInsets.only(left: 8),
+                                    decoration: BoxDecoration(
+                                      color: tone.ink,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
                                 if (waiting)
                                   Semantics(
                                     label: c.tr('等你确认', 'Needs your OK'),
@@ -695,7 +718,7 @@ class _HomePageState extends State<HomePage> {
           if (!folded.remove(key)) folded.add(key);
         }),
         child: SizedBox(
-          height: 40,
+          height: tone.glass ? 48 : 40,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 10, 0),
             child: Row(
@@ -836,12 +859,11 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: Listenable.merge([c, c.node]),
+    listenable: Listenable.merge([c, c.node, c.reading]),
     builder: (context, child) => LayoutBuilder(
       builder: (context, constraints) {
         final tone = context.tone;
         final narrow = constraints.maxWidth < 840;
-        final roomy = constraints.maxWidth >= 1000;
         final updateCommand =
             objects(c.account.me?['nodes'])
                     .where((n) => n['nodeId'] == c.selectedNodeId)
@@ -946,13 +968,28 @@ class _HomePageState extends State<HomePage> {
         final hasChat =
             conversation != null &&
             active.any((x) => x['conversationId'] == conversation);
-        final panel = roomy && hasChat ? details : null;
+        final panel = hasChat ? details : null;
         final widest = (constraints.maxWidth - 420).clamp(240.0, 560.0);
-        final sidebar =
-            (dragging ?? c.prefs.sidebarWidth ?? constraints.maxWidth * .34)
-                .clamp(240.0, widest);
+        final sidebar = (dragging ?? c.prefs.sidebarWidth ?? 280.0).clamp(
+          240.0,
+          widest,
+        );
         final flowShown = hasChat && flowFocus != null;
-        final inlineFlow = flowShown && constraints.maxWidth - sidebar >= 760;
+        final fileShown = hasChat && previewFile != null;
+        final panelShown = fileShown || flowShown || panel != null;
+        final panelWidth = fileShown
+            ? (expandedFile
+                  ? constraints.maxWidth
+                  : 560.0.clamp(0.0, constraints.maxWidth))
+            : 340.0;
+        final inlinePanel =
+            panelShown && constraints.maxWidth - sidebar - panelWidth >= 480;
+        void closePanel() => setState(() {
+          details = null;
+          flowFocus = null;
+          previewFile = null;
+          expandedFile = false;
+        });
         Widget flowPanel() => FlowchartPanel(
           key: ValueKey('flow:${c.selectedNodeId}:$conversation'),
           client: c,
@@ -969,10 +1006,8 @@ class _HomePageState extends State<HomePage> {
           canPop: !Platform.isAndroid,
           onPopInvokedWithResult: (didPop, result) {
             if (!didPop && Platform.isAndroid) {
-              if (flowShown) {
-                setState(() => flowFocus = null);
-              } else if (panel != null) {
-                setState(() => details = null);
+              if (panelShown) {
+                closePanel();
               } else {
                 const MethodChannel('app.nekodot/lifecycle')
                     .invokeMethod('background');
@@ -982,54 +1017,104 @@ class _HomePageState extends State<HomePage> {
           child: Scaffold(
             body: narrow
                 ? SafeArea(child: list)
-                : Stack(
-                    children: [
-                      Row(
-                        children: [
-                          SizedBox(
-                            width: sidebar,
-                            child: Material(color: tone.sidebar, child: list),
-                          ),
-                          const VerticalDivider(width: 1),
-                          Expanded(
-                            child: hasChat
-                                ? ChatPage(
-                                    key: ValueKey(
-                                      '${c.selectedNodeId}:$conversation',
-                                    ),
-                                    client: c,
-                                    conversationId: conversation!,
-                                    embedded: true,
-                                    reserveControls:
-                                        panel == null && !flowShown,
-                                    onDetails: roomy
-                                        ? (bot) => setState(() {
-                                            details = bot;
-                                            flowFocus = null;
-                                          })
-                                        : null,
-                                    flowOpen: flowShown,
-                                    onFlow: (focus) => setState(() {
-                                      details = null;
-                                      flowFocus = flowFocus == null
-                                          ? focus
-                                          : null;
-                                    }),
-                                  )
-                                : Stack(
-                                    children: const [
-                                      Positioned.fill(child: WindowDrag()),
-                                      Center(
-                                        child: Opacity(
-                                          opacity: .08,
-                                          child: CatAvatar(size: 72),
-                                        ),
+                : FilePreviewScope(
+                    open: (file) => setState(() {
+                      previewFile = file;
+                      expandedFile = false;
+                      details = null;
+                      flowFocus = null;
+                    }),
+                    child: Stack(
+                      children: [
+                        Row(
+                          children: [
+                            SizedBox(
+                              width: sidebar,
+                              child: Material(color: tone.sidebar, child: list),
+                            ),
+                            const VerticalDivider(width: 1),
+                            Expanded(
+                              child: AnimatedPadding(
+                                duration:
+                                    MediaQuery.disableAnimationsOf(context)
+                                    ? Duration.zero
+                                    : Duration(
+                                        milliseconds: panelShown ? 240 : 180,
                                       ),
-                                    ],
-                                  ),
+                                curve: Curves.easeOutCubic,
+                                padding: EdgeInsets.only(
+                                  right: inlinePanel ? panelWidth : 0,
+                                ),
+                                child: hasChat
+                                    ? ChatPage(
+                                        key: ValueKey(
+                                          '${c.selectedNodeId}:$conversation',
+                                        ),
+                                        client: c,
+                                        conversationId: conversation!,
+                                        embedded: true,
+                                        readingVisible:
+                                            !panelShown || inlinePanel,
+                                        reserveControls: !panelShown,
+                                        onDetails: (bot) => setState(() {
+                                          details = bot;
+                                          flowFocus = null;
+                                          previewFile = null;
+                                        }),
+                                        flowOpen: flowShown,
+                                        onFlow: (focus) => setState(() {
+                                          details = null;
+                                          previewFile = null;
+                                          flowFocus = flowFocus == null
+                                              ? focus
+                                              : null;
+                                        }),
+                                      )
+                                    : Stack(
+                                        children: const [
+                                          Positioned.fill(child: WindowDrag()),
+                                          Center(
+                                            child: Opacity(
+                                              opacity: .08,
+                                              child: CatAvatar(size: 72),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (panelShown && !inlinePanel)
+                          Positioned.fill(
+                            child: GestureDetector(
+                              onTap: closePanel,
+                              child: const ColoredBox(color: Colors.black26),
+                            ),
                           ),
-                          SidePanel(
-                            child: inlineFlow
+                        Positioned(
+                          key: const ValueKey('workspace-side-panel'),
+                          top: 0,
+                          bottom: 0,
+                          right: 0,
+                          child: SidePanel(
+                            width: panelWidth,
+                            child: fileShown
+                                ? SafeArea(
+                                    child: FileViewer(
+                                      key: ValueKey(
+                                        '${c.selectedNodeId}:${previewFile!['fileId']}',
+                                      ),
+                                      client: c,
+                                      file: previewFile!,
+                                      onClose: closePanel,
+                                      expanded: expandedFile,
+                                      onExpand: () => setState(
+                                        () => expandedFile = !expandedFile,
+                                      ),
+                                    ),
+                                  )
+                                : flowShown
                                 ? flowPanel()
                                 : panel == null
                                 ? null
@@ -1037,45 +1122,31 @@ class _HomePageState extends State<HomePage> {
                                     key: ValueKey(panel['botId']),
                                     client: c,
                                     bot: panel,
-                                    onClose: () =>
-                                        setState(() => details = null),
+                                    onClose: closePanel,
                                   ),
                           ),
-                        ],
-                      ),
-                      if (flowShown && !inlineFlow)
-                        Positioned.fill(
-                          child: GestureDetector(
-                            onTap: () => setState(() => flowFocus = null),
-                            child: const ColoredBox(color: Colors.black26),
+                        ),
+                        Positioned(
+                          left: sidebar - 4,
+                          top: 0,
+                          bottom: 0,
+                          width: 9,
+                          child: SplitHandle(
+                            onDrag: (dx) => setState(
+                              () => dragging = (sidebar + dx).clamp(
+                                240.0,
+                                widest,
+                              ),
+                            ),
+                            onEnd: () {
+                              final width = dragging;
+                              setState(() => dragging = null);
+                              if (width != null) c.prefs.setSidebarWidth(width);
+                            },
                           ),
                         ),
-                      Positioned(
-                        top: 0,
-                        bottom: 0,
-                        right: 0,
-                        child: SidePanel(
-                          child: flowShown && !inlineFlow ? flowPanel() : null,
-                        ),
-                      ),
-                      Positioned(
-                        left: sidebar - 4,
-                        top: 0,
-                        bottom: 0,
-                        width: 9,
-                        child: SplitHandle(
-                          onDrag: (dx) => setState(
-                            () =>
-                                dragging = (sidebar + dx).clamp(240.0, widest),
-                          ),
-                          onEnd: () {
-                            final width = dragging;
-                            setState(() => dragging = null);
-                            if (width != null) c.prefs.setSidebarWidth(width);
-                          },
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
           ),
         );

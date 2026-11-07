@@ -119,6 +119,7 @@ class _SourceModelsState extends State<SourceModels> {
     final filtered = models
         .where((m) => m.toLowerCase().contains(query.toLowerCase()))
         .toList();
+    final rowHeight = context.tone.glass ? 52.0 : 40.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -150,15 +151,19 @@ class _SourceModelsState extends State<SourceModels> {
           },
         ),
         SizedBox(
-          height: (filtered.length * 40.0).clamp(0, 240),
+          height: (filtered.length * rowHeight).clamp(0, 260),
           child: ListView.builder(
             controller: scroll,
-            itemExtent: 40,
+            itemExtent: rowHeight,
             itemCount: filtered.length,
             itemBuilder: (context, i) => ListTile(
               key: ValueKey('source-model-${filtered[i]}'),
-              dense: true,
-              title: Text(filtered[i]),
+              dense: !context.tone.glass,
+              title: Text(
+                filtered[i],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               selected: selected == filtered[i],
               trailing: selected == filtered[i]
                   ? const Icon(Icons.check, size: 18)

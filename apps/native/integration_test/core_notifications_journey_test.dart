@@ -8,6 +8,7 @@ import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/main.dart';
 import 'package:nekodot_native/platform/desktop.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'local_desktop_journey_test.dart' show MemoryVault;
 
@@ -99,6 +100,7 @@ void main() {
     // Android runner moves the actual task into background after this marker.
     debugPrint('QA notification background ready');
     if (Platform.isWindows) {
+      await windowManager.minimize();
       await until(() => signal.isCompleted);
       await tester.runAsync(() => c.loadMessages(dm));
       expect(
@@ -113,9 +115,13 @@ void main() {
       // Unpackaged Windows apps cannot enumerate toast history. Observe the
       // real system toast separately; a Relay signal alone is not OS proof.
       debugPrint('QA Windows toast observation window: $marker');
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(seconds: 45)),
-      );
+      final previousPointers = binding.shouldPropagateDevicePointerEvents;
+      binding.shouldPropagateDevicePointerEvents = true;
+      try {
+        await until(() => c.visibleConversation == dm, seconds: 240);
+      } finally {
+        binding.shouldPropagateDevicePointerEvents = previousPointers;
+      }
       expect(c.notificationError, isEmpty);
     }
     if (Platform.isAndroid) {
@@ -133,12 +139,12 @@ void main() {
       'realModel': 'gpt-6.1-sol',
       'systemNotificationEvidenceRequired': true,
       'windowsToastRequiresSeparateObservation': Platform.isWindows,
-      'actualTap': Platform.isAndroid,
+      'actualTap': true,
     };
     debugPrint(
       Platform.isAndroid
           ? 'QA Android system notification and tap passed'
-          : 'QA Windows signal passed; inspect separate OS evidence',
+          : 'QA Windows real notification tap returned to its conversation',
     );
     await tester.pumpWidget(const SizedBox.shrink());
   }, timeout: const Timeout(Duration(minutes: 8)));
