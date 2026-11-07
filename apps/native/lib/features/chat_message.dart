@@ -214,8 +214,19 @@ class _MessageTileState extends State<MessageTile> {
                 child: Text(
                   m.status == 'cancelled'
                       ? c.tr('已停止', 'Stopped')
-                      : body['failureReason'] as String? ??
-                            c.tr('已中断', 'Interrupted'),
+                      : switch (body['failureCode']) {
+                          'run_start' => c.tr(
+                            '无法开始，请检查模型来源后重试',
+                            "Couldn't start. Check the model source and try again",
+                          ),
+                          'timeout' => c.tr(
+                            '启动超时，请重试',
+                            'Timed out while starting. Try again',
+                          ),
+                          _ =>
+                            body['failureReason'] as String? ??
+                                c.tr('已中断', 'Interrupted'),
+                        },
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: m.status == 'cancelled' ? tone.ink3 : tone.danger,
                   ),
