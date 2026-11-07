@@ -1,4 +1,5 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import {
   hermesModelOptionsSchema,
   type Bot,
@@ -9,6 +10,10 @@ import {
 import type { NodeDatabase } from './database';
 import type { HermesRuntime } from './hermes/runtime';
 import { NodeFault } from './fault';
+import { ModelCatalog } from './model-catalog';
+import { openNativeSession, type NativeSessionSnapshot } from './hermes/session';
+import type { Operations } from './operations';
+import type { NativeAdmission } from './execution/types';
 
 interface NativeEndpoint {
   id: string;
@@ -30,10 +35,13 @@ interface NativeConfig {
 }
 /** Owns source selection only. Credentials, grants, discovery and execution belong to Hermes. */
 export class Providers {
+  readonly catalog: ModelCatalog;
   constructor(
     readonly hermes: HermesRuntime,
     readonly database: NodeDatabase,
-  ) {}
+  ) {
+    this.catalog = new ModelCatalog(database);
+  }
 
   async list(): Promise<RpcResult<'providers.list'>> {
     const [custom, authorization, config, env] = await Promise.all([
@@ -59,6 +67,7 @@ export class Providers {
         baseUrl: entry.base_url,
         ...(secret ? { apiKeyLast4: secret.slice(-4) } : {}),
         ready: entry.has_api_key,
+        apiMode: (config.providers?.[entry.id]?.api_mode ?? '') as ProviderSource['apiMode'],
       };
     });
     for (const entry of authorization.providers)
@@ -120,7 +129,7 @@ export class Providers {
           name: input.name,
           base_url: input.baseUrl,
           key_env: key,
-          api_mode: 'chat_completions',
+          api_mode: input.apiMode ?? previous?.apiMode ?? '',
           discover_models: true,
         },
       },
@@ -170,6 +179,160 @@ export class Providers {
       models: [...new Set(row?.models ?? [])],
       ...(row?.warning ? { warning: row.warning } : {}),
     };
+  }
+
+  async describe(input: RpcParams<'models.describe'>) {
+    const source = await this.source(input.sourceId);
+    return {
+      ...(await this.catalog.describe(source.provider, input.model, source.baseUrl, input.refresh)),
+      apiMode: source.apiMode,
+    };
+  }
+
+  test(input: RpcParams<'providers.test'>, operations: Operations) {
+    return operations.start('provider-test', [], async (operation) => {
+      const source = await this.source(input.sourceId);
+      if (source.kind === 'custom') {
+        const config = await this.config('default');
+        const key = String(config.providers?.[source.provider]?.key_env ?? '');
+        const validation = await this.hermes.management.request<{ ok: boolean; message: string }>(
+          '/api/providers/custom-endpoints/validate',
+          'default',
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              name: source.name,
+              base_url: source.baseUrl,
+              model: input.model,
+              api_mode: source.apiMode,
+              api_key: (await this.hermes.environment('default'))[key],
+            }),
+          },
+        );
+        if (!validation.ok) throw new NodeFault('unavailable', validation.message);
+      }
+      // A successful /models or route probe is not a successful model call. Test through Hermes, without tools.
+      const gateway = this.hermes.gateway('default');
+      const session = await gateway.rpc<NativeSessionSnapshot>('session.create', {
+        profile: 'default',
+        source: 'gui',
+        hidden: true,
+        title: 'Nekodot model connection test',
+        request_id: randomUUID(),
+        provider: source.provider,
+        model: input.model,
+        toolsets: [],
+        ignore_rules: true,
+        max_turns: 1,
+        run_budget: 85,
+      });
+      const admission = await gateway.rpc<NativeAdmission>('prompt.submit', {
+        session_id: session.session_id,
+        text: 'Reply with OK only. Do not use tools.',
+        submission_id: randomUUID(),
+        input_id: randomUUID(),
+      });
+      const deadline = Date.now() + 90_000;
+      while (Date.now() < deadline) {
+        const receipt = await gateway.rpc<NativeAdmission>('prompt.receipt', {
+          session_id: session.session_id,
+          admission_id: admission.admission_id,
+          include_result: true,
+        });
+        if (receipt.status === 'terminal') {
+          if (
+            receipt.outcome !== 'completed' ||
+            receipt.result?.failed ||
+            !receipt.result?.final_response?.trim()
+          )
+            throw new NodeFault(
+              'unavailable',
+              receipt.result?.final_response || String(receipt.outcome),
+            );
+          operation.detail = 'Connection test passed';
+          operation.results = [
+            {
+              botId: 'default',
+              ok: true,
+              detail: 'Connection test passed',
+              native: {
+                sourceId: source.sourceId,
+                model: input.model,
+                sessionId: session.stored_session_id,
+              },
+            },
+          ];
+          return;
+        }
+        await delay(500);
+      }
+      throw new NodeFault('unavailable', 'Connection test timed out');
+    });
+  }
+
+  private async reasoningSession(botId: string) {
+    const bot = this.database.bot(botId);
+    if (!bot || bot.archived) throw new NodeFault('not_found', 'Bot not found');
+    const dm = this.database.conversations().find((c) => c.kind === 'dm' && c.botId === botId)!;
+    const existing = this.database.hermesSession(dm.conversationId);
+    // A read-only control must not advance the execution subscriber's replay cursor.
+    if (existing)
+      return this.hermes.gateway(botId).rpc<NativeSessionSnapshot>('session.resume', {
+        session_id: existing.storedSessionId,
+        defer_history: true,
+        omit_messages: true,
+      });
+    return openNativeSession(this.database, this.hermes, botId, dm.conversationId);
+  }
+  private async reasoningInfo(
+    snapshot: NativeSessionSnapshot,
+  ): Promise<RpcResult<'models.reasoning.get'>> {
+    const info = snapshot.info!;
+    const source = (await this.list()).sources.find((s) => s.provider === info.provider);
+    const metadata = await this.catalog.describe(
+      info.provider ?? '',
+      info.model ?? '',
+      source?.baseUrl,
+    );
+    const levels = [...metadata.reasoningLevels];
+    // Hermes advertises ultra only on its Codex app-server route, not generic Responses.
+    if (
+      info.provider === 'openai-codex' &&
+      info.api_mode === 'codex_app_server' &&
+      levels.includes('max') &&
+      !levels.includes('ultra')
+    )
+      levels.push('ultra');
+    return {
+      sessionId: snapshot.session_id,
+      model: info.model ?? '',
+      provider: info.provider ?? '',
+      apiMode: info.api_mode ?? '',
+      effort: info.reasoning_effort || null,
+      wireEffort: info.reasoning_effort_wire || null,
+      levels,
+    };
+  }
+  async reasoning(botId: string) {
+    return this.reasoningInfo(await this.reasoningSession(botId));
+  }
+  async setReasoning(input: RpcParams<'models.reasoning.set'>) {
+    const session = await this.reasoningSession(input.botId);
+    if (session.session_id !== input.sessionId)
+      throw new NodeFault('conflict', 'The active session changed');
+    if (session.running) throw new NodeFault('conflict', 'Wait for the current turn to finish');
+    const info = await this.reasoningInfo(session);
+    if (input.effort !== null && !info.levels.includes(input.effort))
+      throw new NodeFault('invalid_params', 'This model does not list that reasoning level');
+    await this.hermes.gateway(input.botId).rpc('session.mutate', {
+      session_id: session.session_id,
+      request_id: randomUUID(),
+      expected_revision: session.revision,
+      expected_generation: session.execution_generation,
+      operation: 'reasoning',
+      payload: { effort: input.effort },
+    });
+    return this.reasoning(input.botId);
   }
 
   private async prepareSource(profile: string, sourceId: string) {

@@ -29,6 +29,9 @@ import {
   modelInfoSchema,
   hermesSettingsSchema,
   hermesSharedSettingsSchema,
+  modelCatalogEntrySchema,
+  modelReasoningSchema,
+  reasoningLevelSchema,
 } from './providers';
 import { userMemorySaveSchema, userMemoryViewSchema } from './user-memory';
 import {
@@ -468,6 +471,30 @@ export const rpcContracts = {
     }),
   },
   'providers.set': { params: providerInputSchema, result: providerOutputSchema },
+  'providers.test': {
+    params: z.strictObject({ sourceId: idSchema, model: z.string().min(1) }),
+    result: operationSchema,
+  },
+  'models.describe': {
+    params: z.strictObject({
+      sourceId: idSchema,
+      model: z.string().min(1),
+      refresh: z.boolean().optional(),
+    }),
+    result: modelCatalogEntrySchema,
+  },
+  'models.reasoning.get': {
+    params: z.strictObject(botTarget),
+    result: modelReasoningSchema,
+  },
+  'models.reasoning.set': {
+    params: z.strictObject({
+      ...botTarget,
+      sessionId: idSchema,
+      effort: reasoningLevelSchema.nullable(),
+    }),
+    result: modelReasoningSchema,
+  },
   'providers.authorize': {
     params: z.strictObject({
       provider: idSchema,

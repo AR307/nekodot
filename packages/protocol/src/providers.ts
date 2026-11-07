@@ -1,4 +1,46 @@
 import { z } from 'zod';
+export const providerApiModeSchema = z.enum([
+  '',
+  'chat_completions',
+  'codex_responses',
+  'anthropic_messages',
+]);
+export const reasoningLevelSchema = z.enum([
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+  'ultra',
+]);
+export const modelCatalogEntrySchema = z.strictObject({
+  model: z.string(),
+  name: z.string(),
+  catalogProvider: z.string().nullable(),
+  catalogUpdatedAt: z.string(),
+  sdk: z.string().nullable(),
+  api: z.string().nullable(),
+  apiMode: providerApiModeSchema.optional(),
+  parameters: z.array(z.string()),
+  reasoningLevels: z.array(reasoningLevelSchema),
+  reasoningOptions: z.array(z.json()),
+  context: z.number().nullable(),
+  output: z.number().nullable(),
+  inputModalities: z.array(z.string()),
+  outputModalities: z.array(z.string()),
+});
+export const modelReasoningSchema = z.strictObject({
+  sessionId: z.string(),
+  model: z.string(),
+  provider: z.string(),
+  apiMode: z.string(),
+  effort: z.string().nullable(),
+  wireEffort: z.string().nullable(),
+  levels: z.array(reasoningLevelSchema),
+});
+export type ModelCatalogEntry = z.infer<typeof modelCatalogEntrySchema>;
 
 export const modelSettingsSchema = z.strictObject({
   contextLength: z.number().int().positive().nullable().optional(),
@@ -11,6 +53,7 @@ export const providerOutputSchema = z.strictObject({
   baseUrl: z.url().optional(),
   apiKeyLast4: z.string().max(4).optional(),
   ready: z.boolean(),
+  apiMode: providerApiModeSchema.optional(),
 });
 export const providerInputSchema = z.strictObject({
   sourceId: z.string().min(1).optional(),
@@ -18,6 +61,7 @@ export const providerInputSchema = z.strictObject({
   name: z.string().trim().min(1),
   baseUrl: z.url(),
   apiKey: z.string().min(1).optional(),
+  apiMode: providerApiModeSchema.optional(),
 });
 export const modelInfoSchema = z.strictObject({
   model: z.string(),
