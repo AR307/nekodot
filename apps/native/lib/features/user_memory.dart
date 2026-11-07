@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/client.dart';
 import '../data/json.dart';
 import '../ui/design.dart';
+import 'memory_usage.dart';
 
 class SharedUserMemoryPage extends StatefulWidget {
   final NekodotClient client;
@@ -190,6 +191,17 @@ class _SharedUserMemoryPageState extends State<SharedUserMemoryPage> {
               decoration: const InputDecoration(),
             ),
           ),
+          if (view?['limit'] != null) ...[
+            const SizedBox(height: 8),
+            ValueListenableBuilder(
+              valueListenable: text,
+              builder: (context, value, _) => MemoryUsage(
+                client: c,
+                content: value.text,
+                limit: view!['limit'] as int,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Align(
             alignment: Alignment.centerRight,

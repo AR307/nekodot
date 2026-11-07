@@ -213,9 +213,15 @@ export class NodeRpc {
         await this.features.userMemory.sync();
         return this.features.management.memory(request.params.botId);
       case 'memory.user.get':
-        return this.features.userMemory.sync();
+        return {
+          ...(await this.features.userMemory.sync()),
+          limit: await this.features.userMemory.limit(),
+        } satisfies RpcResult<'memory.user.get'>;
       case 'memory.user.save':
-        return this.features.userMemory.save(request.params);
+        return {
+          ...(await this.features.userMemory.save(request.params)),
+          limit: await this.features.userMemory.limit(),
+        } satisfies RpcResult<'memory.user.save'>;
       case 'memory.save':
         return this.features.management.save(request.params);
       case 'memory.refine':

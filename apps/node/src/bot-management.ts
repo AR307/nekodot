@@ -8,6 +8,7 @@ import type { GatewayFrame } from './hermes/gateway';
 import { openNativeSession } from './hermes/session';
 import type { Operations } from './operations';
 import { NodeFault } from './fault';
+import { memoryLimits } from './memory-limits';
 import type { SharedUserMemory } from './user-memory';
 
 export class BotManagement {
@@ -26,6 +27,7 @@ export class BotManagement {
   }
   async memory(botId: string): Promise<RpcResult<'memory.get'>> {
     this.bots.get(botId);
+    const limits = await memoryLimits(this.hermes, botId);
     const documents = await Promise.all(
       (['SOUL.md', 'MEMORY.md', 'USER.md'] as const).map(async (name) => {
         if (name === 'SOUL.md') {
@@ -35,15 +37,16 @@ export class BotManagement {
           );
           return { name, ...v };
         }
+        const limit = name === 'MEMORY.md' ? limits.memory : limits.user;
         try {
           const v = await this.hermes.management.request<{ text: string }>(
             '/api/fs/read-text?path=' + encodeURIComponent(this.documentPath(botId, name)),
             botId,
           );
-          return { name, content: v.text, exists: true };
+          return { name, content: v.text, exists: true, limit };
         } catch (error) {
           if (error instanceof NodeFault && error.code === 'not_found')
-            return { name, content: '', exists: false };
+            return { name, content: '', exists: false, limit };
           throw error;
         }
       }),

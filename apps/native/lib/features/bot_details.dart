@@ -11,6 +11,7 @@ import 'bot_editor.dart';
 import 'files.dart';
 import 'hermes_settings.dart';
 import 'learning.dart';
+import 'memory_usage.dart';
 import 'model_info.dart';
 import 'routines.dart';
 import 'sessions.dart';
@@ -125,62 +126,91 @@ class BotDetails extends StatelessWidget {
           ),
           AsyncPane(
             load: () => c.rpc('memory.get', {'botId': botId}),
-            builder: (context, data, reload) => PageList(
-              children: [
-                PanelGroup(
-                  children: [
-                    // What a Bot knows about you is shared, so it lives in app settings.
-                    for (final doc in objects(
-                      data['documents'],
-                    ).where((doc) => doc['name'] != 'USER.md'))
-                      ListTile(
-                        title: Text('${doc['name']}'),
-                        subtitle: '${doc['content']}'.trim().isEmpty
-                            ? null
-                            : Text(
-                                '${doc['content']}',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+            builder: (context, data, reload) {
+              Future<void> refine() async {
+                await pushPage(context, RefinePage(client: c, botId: botId));
+                reload();
+              }
+
+              final full = objects(data['documents']).any(
+                (doc) =>
+                    doc['name'] == 'MEMORY.md' &&
+                    doc['limit'] != null &&
+                    nearMemoryLimit('${doc['content']}', doc['limit'] as int),
+              );
+              const refineIcon = Icon(Icons.auto_fix_high_outlined, size: 18);
+              final refineLabel = Text(c.tr('整理记忆', 'Refine memory'));
+              return PageList(
+                children: [
+                  PanelGroup(
+                    children: [
+                      // What a Bot knows about you is shared, so it lives in app settings.
+                      for (final doc in objects(
+                        data['documents'],
+                      ).where((doc) => doc['name'] != 'USER.md'))
+                        ListTile(
+                          title: Text('${doc['name']}'),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if ('${doc['content']}'.trim().isNotEmpty)
+                                Text(
+                                  '${doc['content']}',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              if (doc['limit'] != null) ...[
+                                const SizedBox(height: 6),
+                                MemoryUsage(
+                                  client: c,
+                                  content: '${doc['content']}',
+                                  limit: doc['limit'] as int,
+                                ),
+                              ],
+                            ],
+                          ),
+                          onTap: () async {
+                            await pushPage(
+                              context,
+                              MemoryEditor(
+                                client: c,
+                                botId: botId,
+                                document: doc,
                               ),
-                        onTap: () async {
-                          await pushPage(
-                            context,
-                            MemoryEditor(
-                              client: c,
-                              botId: botId,
-                              document: doc,
-                            ),
-                          );
-                          reload();
-                        },
+                            );
+                            reload();
+                          },
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: full
+                        ? FilledButton.icon(
+                            key: const ValueKey('refine-memory-full'),
+                            onPressed: refine,
+                            icon: refineIcon,
+                            label: refineLabel,
+                          )
+                        : OutlinedButton.icon(
+                            onPressed: refine,
+                            icon: refineIcon,
+                            label: refineLabel,
+                          ),
+                  ),
+                  if ('${data['pending'] ?? ''}'.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: SelectableText(
+                        '${data['pending']}',
+                        style: text.bodySmall,
                       ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      await pushPage(
-                        context,
-                        RefinePage(client: c, botId: botId),
-                      );
-                      reload();
-                    },
-                    icon: const Icon(Icons.auto_fix_high_outlined, size: 18),
-                    label: Text(c.tr('整理记忆', 'Refine memory')),
-                  ),
-                ),
-                if ('${data['pending'] ?? ''}'.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: SelectableText(
-                      '${data['pending']}',
-                      style: text.bodySmall,
                     ),
-                  ),
-              ],
-            ),
+                ],
+              );
+            },
           ),
           LibraryPage(client: c, bot: bot, embedded: true),
           HermesSettings(
@@ -461,6 +491,18 @@ class _MemoryEditorState extends State<MemoryEditor> {
               ),
             ),
           ),
+          if (widget.document['limit'] != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+              child: ValueListenableBuilder(
+                valueListenable: text,
+                builder: (context, value, _) => MemoryUsage(
+                  client: widget.client,
+                  content: value.text,
+                  limit: widget.document['limit'] as int,
+                ),
+              ),
+            ),
         ],
       ),
     ),
