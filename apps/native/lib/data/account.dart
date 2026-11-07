@@ -77,7 +77,9 @@ class AccountSession extends ChangeNotifier {
     req.headers['Content-Type'] = 'application/json';
     if (token != null) req.headers['Authorization'] = 'Bearer $token';
     if (body != null) req.body = jsonEncode(body);
-    final response = await http.Response.fromStream(await transport.send(req))
+    final response = await transport
+        .send(req)
+        .then(http.Response.fromStream)
         .timeout(const Duration(seconds: 30));
     if (response.statusCode >= 400) {
       // Reverse proxies may return an HTML error page; retain the HTTP status.
