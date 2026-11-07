@@ -39,7 +39,7 @@ void main() {
           theme: appTheme(Brightness.light),
           home: RepaintBoundary(
             key: capture,
-            child: AuthPage(client: client),
+            child: Ambient(child: AuthPage(client: client)),
           ),
         ),
       );
