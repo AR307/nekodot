@@ -403,7 +403,7 @@ class _HermesSettingsState extends State<HermesSettings> {
                     : () async {
                         update(() => busy = true);
                         try {
-                          await c.rpc('models.assign', {
+                          await c.continueAction('models.assign', {
                             'botId': widget.botId,
                             'key': field['key'],
                             'sourceId': source,

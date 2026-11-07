@@ -236,6 +236,7 @@ class _RoutinePageState extends State<RoutinePage> {
       'executionId': execution['executionId'],
       'name': data!['routine']['name'],
     };
+    c.saveContent();
     await pushPage(context, ChatPage(client: c, conversationId: id));
   }
 
@@ -658,9 +659,8 @@ class _RoutinePageState extends State<RoutinePage> {
                                     key: ValueKey(
                                       'routine-followup-${execution['executionId']}',
                                     ),
-                                    onPressed: c.online
-                                        ? () => continueExecution(execution)
-                                        : null,
+                                    onPressed: () =>
+                                        continueExecution(execution),
                                     icon: const Icon(Icons.reply),
                                     label: Text(c.tr('继续对话', 'Discuss result')),
                                   ),

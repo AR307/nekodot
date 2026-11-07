@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:collection/collection.dart';
 
 import 'account.dart';
 import 'client.dart';
@@ -187,8 +188,73 @@ class DeliveryQueue extends ChangeNotifier {
               final field = objects(actual['fields'])
                   .where((f) => f['key'] == params['key'])
                   .firstOrNull;
-              if (field != null && field['value'] == params['value']) {
+              if (field != null &&
+                  const DeepCollectionEquality().equals(
+                    field['value'],
+                    params['value'],
+                  )) {
                 result = {'key': params['key'], 'saved': true};
+              }
+            }
+            if (item['method'] == 'bots.update' ||
+                item['method'] == 'groups.update') {
+              final group = item['method'] == 'groups.update';
+              final snapshot = await client.connection.rpc(
+                'sync.snapshot',
+                {},
+                item['nodeId'] as String,
+              );
+              final key = group ? 'groupId' : 'botId';
+              final actual = objects(snapshot[group ? 'groups' : 'bots'])
+                  .where((row) => row[key] == params[key])
+                  .firstOrNull;
+              if (actual != null) {
+                final compared = <String, dynamic>{...actual};
+                if (params.containsKey('approvalMode')) {
+                  compared['approvalMode'] = (await client.connection.rpc(
+                    'bots.permissions.get',
+                    {'botId': params['botId']},
+                    item['nodeId'] as String,
+                  ))['mode'];
+                }
+                if (params.entries.every(
+                  (entry) => const DeepCollectionEquality().equals(
+                    compared[entry.key],
+                    entry.value,
+                  ),
+                )) {
+                  result = {group ? 'group' : 'bot': actual};
+                }
+              }
+            }
+            if (item['method'] == 'models.assign') {
+              final settings = await client.connection.rpc(
+                'hermes.settings.get',
+                {'botId': params['botId']},
+                item['nodeId'] as String,
+              );
+              final sources = await client.connection.rpc(
+                'providers.list',
+                {},
+                item['nodeId'] as String,
+              );
+              final source = objects(sources['sources'])
+                  .where((row) => row['sourceId'] == params['sourceId'])
+                  .firstOrNull;
+              final values = {
+                for (final field in objects(settings['fields']))
+                  field['key']: field['value'],
+              };
+              final providerKey = params['key'] == 'cron.model'
+                  ? 'cron.model_provider'
+                  : '${params['key']}'.replaceFirst(
+                      RegExp(r'\.model$'),
+                      '.provider',
+                    );
+              if (source != null &&
+                  values[params['key']] == params['model'] &&
+                  values[providerKey] == source['provider']) {
+                result = {'saved': true};
               }
             }
             if (item['method'] == 'models.reasoning.set') {
