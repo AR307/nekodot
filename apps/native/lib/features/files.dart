@@ -249,11 +249,23 @@ class _FileCardState extends State<FileCard> {
                           placeholderBuilder: (_) => placeholder,
                           errorBuilder: (_, _, _) => row(file),
                         )
-                      : Image.memory(
-                          bytes,
-                          semanticLabel: name,
-                          frameBuilder: (context, child, frame, sync) =>
-                              frame == null && !sync ? placeholder : child,
+                      : LayoutBuilder(
+                          builder: (context, constraints) {
+                            final density = MediaQuery.devicePixelRatioOf(
+                              context,
+                            );
+                            return Image(
+                              image: ResizeImage(
+                                MemoryImage(bytes),
+                                width: (constraints.maxWidth * density).ceil(),
+                                height: (360 * density).ceil(),
+                                policy: ResizeImagePolicy.fit,
+                              ),
+                              semanticLabel: name,
+                              frameBuilder: (context, child, frame, sync) =>
+                                  frame == null && !sync ? placeholder : child,
+                            );
+                          },
                         ),
                 ),
               ),
