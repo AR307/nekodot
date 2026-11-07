@@ -76,7 +76,8 @@ export class Providers {
           sourceId: 'oauth:' + entry.id,
           kind: 'oauth',
           name: entry.name,
-          provider: entry.id,
+          // Claude Code is an account card; Hermes executes it through Anthropic.
+          provider: entry.id === 'claude-code' ? 'anthropic' : entry.id,
           ready: true,
         });
     // The native catalog includes status previews but never grants/refresh tokens.
@@ -250,6 +251,11 @@ export class Providers {
               receipt.result?.final_response || String(receipt.outcome),
             );
           operation.detail = 'Connection test passed';
+          const actual = await gateway.rpc<NativeSessionSnapshot>('session.resume', {
+            session_id: session.stored_session_id,
+            defer_history: true,
+            omit_messages: true,
+          });
           operation.results = [
             {
               botId: 'default',
@@ -259,6 +265,7 @@ export class Providers {
                 sourceId: source.sourceId,
                 model: input.model,
                 sessionId: session.stored_session_id,
+                apiMode: actual.info?.api_mode ?? '',
               },
             },
           ];
