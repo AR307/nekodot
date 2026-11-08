@@ -16,7 +16,9 @@ extension ClientContent on NekodotClient {
     ].contains(method)) {
       throw ArgumentError('This action cannot be deferred');
     }
-    if (method == 'runs.stop' && params['runId'] == null) {
+    if (method == 'runs.stop' &&
+        params['runId'] == null &&
+        params['inputMessageId'] == null) {
       return Future.value({});
     }
     return deliveries.action(method, params, nodeId ?? selectedNodeId!);

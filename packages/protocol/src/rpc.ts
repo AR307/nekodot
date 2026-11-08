@@ -429,7 +429,11 @@ export const rpcContracts = {
     result: z.strictObject({ messageId: idSchema }),
   },
   'runs.stop': {
-    params: z.strictObject({ conversationId: idSchema, runId: z.string().optional() }),
+    params: z.strictObject({
+      conversationId: idSchema,
+      runId: z.string().optional(),
+      inputMessageId: idSchema.optional(),
+    }),
     result: empty,
   },
   'approvals.respond': {

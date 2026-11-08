@@ -47,7 +47,7 @@ class GroupActivity {
 }
 
 class ConversationActivity {
-  final String? runId;
+  final String? runId, inputMessageId;
   final String state;
   final String? botId, connection, detail;
 
@@ -56,6 +56,7 @@ class ConversationActivity {
   final GroupActivity? chain;
   const ConversationActivity.idle()
     : runId = null,
+      inputMessageId = null,
       state = 'idle',
       botId = null,
       connection = null,
@@ -64,6 +65,7 @@ class ConversationActivity {
       chain = null;
   ConversationActivity.fromJson(Json value)
     : runId = value['runId'] as String?,
+      inputMessageId = value['inputMessageId'] as String?,
       state = value['state'] as String,
       botId = value['botId'] as String?,
       connection = value['connection'] as String?,
@@ -75,6 +77,7 @@ class ConversationActivity {
   Json toJson() => {
     'state': state,
     'runId': ?runId,
+    'inputMessageId': ?inputMessageId,
     'botId': ?botId,
     'connection': ?connection,
     'detail': ?detail,

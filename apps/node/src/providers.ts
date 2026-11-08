@@ -345,11 +345,13 @@ export class Providers {
     const session = await this.reasoningSession(input.botId);
     if (session.session_id !== input.sessionId)
       throw new NodeFault('conflict', 'The active session changed');
-    if (session.running) throw new NodeFault('conflict', 'Wait for the current turn to finish');
     const info = await this.reasoningInfo(session);
     if (input.effort !== null && !info.levels.includes(input.effort))
       throw new NodeFault('invalid_params', 'This model does not list that reasoning level');
-    await this.hermes.gateway(input.botId).rpc('session.mutate', {
+    const changed = await this.hermes.gateway(input.botId).rpc<{
+      status?: string;
+      effort?: string | null;
+    }>('session.mutate', {
       session_id: session.session_id,
       request_id: randomUUID(),
       expected_revision: session.revision,
@@ -357,6 +359,10 @@ export class Providers {
       operation: 'reasoning',
       payload: { effort: input.effort },
     });
+    if (changed.status === 'deferred') {
+      // Hermes owns the next-turn pick; do not mutate or restart the active run.
+      return { ...info, effort: changed.effort ?? null, wireEffort: null };
+    }
     return this.reasoning(input.botId);
   }
 
