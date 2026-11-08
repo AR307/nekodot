@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -125,7 +127,9 @@ void main() {
       );
     }
 
-    client.addListener(observeReply);
+    final conversationChanges = client.node.conversation(conversationId);
+    conversationChanges.addListener(observeReply);
+    addTearDown(() => conversationChanges.removeListener(observeReply));
     await tester.enterText(
       input,
       toolFile.isEmpty
@@ -163,7 +167,7 @@ void main() {
       );
       debugPrint('QA: real local file tool result received on Android');
     }
-    client.removeListener(observeReply);
+    conversationChanges.removeListener(observeReply);
     expect(
       streamed,
       isTrue,
@@ -219,7 +223,7 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       expect(find.byKey(const ValueKey('chat-input')), findsOneWidget);
     }
-    await tester.pageBack();
+    if (Platform.isAndroid) await tester.pageBack();
     await tester.pump(const Duration(seconds: 1));
     expect(conversation, findsOneWidget);
     binding.reportData = {
