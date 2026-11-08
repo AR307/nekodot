@@ -1,2 +1,3 @@
 * text=auto eol=lf
 *.pdf -text
+third_party/** linguist-vendored
