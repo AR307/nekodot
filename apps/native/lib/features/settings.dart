@@ -550,7 +550,11 @@ class CustomSourcePage extends StatefulWidget {
 
 class _CustomSourcePageState extends State<CustomSourcePage> {
   late String? savedId = widget.source?['sourceId'] as String?;
-  late String apiMode = widget.source?['apiMode'] as String? ?? '';
+  late String apiMode = switch (widget.source?['apiMode']) {
+    null || '' => 'chat_completions',
+    final String value => value,
+    _ => 'chat_completions',
+  };
   int modelRevision = 0;
   late final name = TextEditingController(
     text: widget.source?['name'] as String? ?? '',
@@ -609,10 +613,10 @@ class _CustomSourcePageState extends State<CustomSourcePage> {
           child: MenuSelect<String>(
             value: apiMode,
             options: [
-              ('', widget.client.tr('自动', 'Automatic')),
               ('chat_completions', 'Chat Completions'),
               ('codex_responses', 'Responses'),
               ('anthropic_messages', 'Messages'),
+              ('gemini_generate_content', 'Gemini · generateContent'),
             ],
             onChanged: busy ? null : (v) => setState(() => apiMode = v),
           ),

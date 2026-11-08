@@ -6,7 +6,7 @@ import '../data/client.dart';
 import '../data/json.dart';
 import '../ui/design.dart';
 
-/// Both OAuth and custom sources use the native provider inventory.
+/// Displays the selected source's live model inventory.
 class SourceModels extends StatefulWidget {
   final NekodotClient client;
   final String sourceId;
