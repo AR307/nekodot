@@ -97,6 +97,8 @@ export class NodeApplication {
       this.onLive({
         kind: 'activity',
         conversationId: run.conversationId,
+        runId: run.runId,
+        inputMessageId: run.inputMessageId,
         botId: run.botId,
         state: waiting ? 'waiting_question' : 'thinking',
       });

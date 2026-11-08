@@ -2,6 +2,8 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { setTimeout as delay } from 'node:timers/promises';
 import { describe, expect, it } from 'vitest';
 import { startFakeHermes, recordedManagementRuntime } from '@nekodot/fake-hermes';
@@ -53,6 +55,12 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
     const notifications: TaskNotification[] = [];
     app.notifications.onSend = (signal) => notifications.push(signal);
     const request = (method: string, params: unknown) => rpcRequestSchema.parse({ method, params });
+    const catalog = createServer((_request, response) => {
+      response.setHeader('Content-Type', 'application/json');
+      response.end(JSON.stringify({ data: [{ id: 'test-model' }] }));
+    });
+    await new Promise<void>((resolve) => catalog.listen(0, '127.0.0.1', resolve));
+    const baseUrl = 'http://127.0.0.1:' + (catalog.address() as AddressInfo).port + '/v1';
     try {
       expect((await app.extensions.list('skills')).entries.length).toBeGreaterThan(0);
       const secret = 'provider-secret-never-returned';
@@ -61,13 +69,13 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
           kind: 'custom',
           name: 'Journey API',
           apiKey: secret,
-          baseUrl: 'https://api.example.test/v1',
+          baseUrl,
         }),
       )) as { apiKeyLast4: string; sourceId: string };
       expect(configured).toMatchObject({
         kind: 'custom',
         name: 'Journey API',
-        baseUrl: 'https://api.example.test/v1',
+        baseUrl,
         apiKeyLast4: 'rned',
       });
       expect(app.database.setting('provider')).toBeUndefined();
@@ -308,6 +316,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
     } finally {
       await app.close();
       await relay.close();
+      await new Promise<void>((resolve) => catalog.close(() => resolve()));
     }
   });
 });

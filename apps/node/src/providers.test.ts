@@ -2,6 +2,8 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { startFakeHermes, recordedManagementRuntime } from '@nekodot/fake-hermes';
 import { NodeApplication } from './app';
 import type { HermesRuntime } from './hermes/runtime';
@@ -26,6 +28,13 @@ it('two custom APIs survive app restart; each profile keeps its selected route a
     syncRules: async () => {},
     configureBot: async () => {},
   };
+  const endpoint = createServer((request, response) => {
+    expect(request.headers.authorization).toMatch(/^Bearer test-only-source-/);
+    response.setHeader('content-type', 'application/json');
+    response.end(JSON.stringify({ data: [{ id: fixture.info.model }] }));
+  });
+  await new Promise<void>((resolve) => endpoint.listen(0, '127.0.0.1', resolve));
+  const sourceBase = 'http://127.0.0.1:' + (endpoint.address() as AddressInfo).port;
   let app = new NodeApplication(home, runtime);
   try {
     const sources = await Promise.all(
@@ -33,12 +42,17 @@ it('two custom APIs survive app restart; each profile keeps its selected route a
         app.providers.set({
           kind: 'custom',
           name,
-          baseUrl: `https://source-${i}.example.test/v1`,
+          baseUrl: sourceBase + '/' + i + '/v1',
+          apiMode: i === 0 ? 'codex_responses' : 'chat_completions',
           apiKey: 'test-only-source-' + i,
         }),
       ),
     );
     expect(new Set(sources.map((source) => source.sourceId)).size).toBe(2);
+    expect(sources.map((source) => source.apiMode)).toEqual([
+      'codex_responses',
+      'chat_completions',
+    ]);
     expect((await app.providers.list()).oauth.length).toBeGreaterThan(1);
     const bots = [];
     for (const [i, source] of sources.entries()) {
@@ -57,6 +71,7 @@ it('two custom APIs survive app restart; each profile keeps its selected route a
         providers: Record<string, { key_env: string }>;
       }>('/api/config', created.bot.botId);
       expect(config.model.provider).toBe(source.provider);
+      expect(config.providers[source.provider]).toMatchObject({ api_mode: source.apiMode });
       const env = await runtime.environment(created.bot.botId);
       expect(Object.values(env)).toEqual(['test-only-source-' + i]);
       expect(Object.keys(config.providers)).toEqual([source.provider]);
@@ -176,5 +191,6 @@ it('two custom APIs survive app restart; each profile keeps its selected route a
     await app.close();
     runtime.management.close();
     await fake.close();
+    await new Promise<void>((resolve) => endpoint.close(() => resolve()));
   }
 });

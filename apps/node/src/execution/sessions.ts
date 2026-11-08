@@ -225,6 +225,7 @@ export class ConversationExecution {
             '',
           state: run?.state ?? 'idle',
           runId: run?.runId,
+          inputMessageId: run?.inputMessageId,
           chain: chain ? { count: chain.count, max: MAX_CHAIN } : undefined,
           ...this.stall(run),
         });
@@ -239,6 +240,7 @@ export class ConversationExecution {
         botId: conversation.botId,
         state: run?.state ?? 'idle',
         runId: run?.runId,
+        inputMessageId: run?.inputMessageId,
         ...this.stall(run),
       });
     }
@@ -670,6 +672,10 @@ export class ConversationExecution {
         [instructions, input + routineContext.text].filter(Boolean).join('\n\n'),
         attachments,
       );
+      if (run.stopRequested) {
+        await this.finishFromState(run, 'cancelled');
+        return;
+      }
       const admission = await gateway.rpc<NativeAdmission>(
         run.replacesAdmissionId ? 'prompt.replace_queued' : 'prompt.submit',
         {
@@ -691,6 +697,10 @@ export class ConversationExecution {
         this.database.setMessageRun(run.inputMessageId, admission.admission_id);
       this.database.saveRun(run);
       if (admission.status === 'started' && run.queue !== 'queued') this.flow.start(run);
+      this.publishActivity(run);
+      if (run.stopRequested) {
+        await this.stop(run.conversationId, run.runId, run.inputMessageId);
+      }
       if (admission.status === 'unknown') {
         this.pauseUnknown(run);
       } else if (admission.status === 'terminal') {
@@ -938,6 +948,8 @@ export class ConversationExecution {
           this.onLive({
             kind: 'activity',
             conversationId: run.conversationId,
+            runId: run.runId,
+            inputMessageId: run.inputMessageId,
             botId: run.botId,
             state: run.state,
             connection: 'reconnecting',
@@ -1015,6 +1027,7 @@ export class ConversationExecution {
       conversationId: run.conversationId,
       runId: run.runId,
       botId: run.botId,
+      inputMessageId: run.inputMessageId,
       state: run.state,
       chain: chain ? { count: chain.count, max: MAX_CHAIN } : undefined,
       ...this.stall(run),
@@ -1029,11 +1042,18 @@ export class ConversationExecution {
     this.database.putMessage(message, { runId: run.runId });
   }
 
-  async stop(conversationId: string, runId?: string) {
+  async stop(conversationId: string, runId?: string, inputMessageId?: string) {
     const run =
       this.activeRuns.get(conversationId) ??
       this.database.runs().find((item) => item.conversationId === conversationId);
     if (runId && run?.runId !== runId) return {};
+    if (inputMessageId && run?.inputMessageId !== inputMessageId) return {};
+    if (run && !run.runId) {
+      run.stopRequested = true;
+      this.database.saveRun(run);
+      if (run.groupId) this.database.clearChain(conversationId);
+      return {};
+    }
     if (!run?.runId || !run.sessionId || run.executionGeneration === undefined)
       throw new NodeFault('not_found', 'No active run');
     run.stopRequested = true;

@@ -11,6 +11,8 @@ import type { NodeDatabase } from './database';
 import type { HermesRuntime } from './hermes/runtime';
 import { NodeFault } from './fault';
 import { ModelCatalog } from './model-catalog';
+import { customModels } from './provider-models';
+import { installGeminiProvider } from './hermes/provider-plugin';
 import {
   defaultSessionReasoning,
   openNativeSession,
@@ -37,7 +39,7 @@ interface NativeConfig {
   compression?: { enabled?: boolean; threshold?: number; threshold_tokens?: number | null };
   [key: string]: unknown;
 }
-/** Owns source selection only. Credentials, grants, discovery and execution belong to Hermes. */
+/** Owns source configuration and catalogs. Credentials, grants and inference stay in Hermes. */
 export class Providers {
   readonly catalog: ModelCatalog;
   constructor(
@@ -128,14 +130,18 @@ export class Providers {
     if (!input.apiKey && !(await this.hermes.environment('default'))[key])
       throw new NodeFault('invalid_params', 'Enter an API key for this source');
     if (input.apiKey) await this.saveSecret('default', key, input.apiKey);
+    const apiMode = input.apiMode || previous?.apiMode || 'chat_completions';
+    if (apiMode === 'gemini_generate_content')
+      await installGeminiProvider(this.hermes.profileHome('default'), id, key, input.baseUrl);
     await this.saveConfig('default', {
       providers: {
         [id]: {
           name: input.name,
           base_url: input.baseUrl,
           key_env: key,
-          api_mode: input.apiMode ?? previous?.apiMode ?? '',
-          discover_models: true,
+          api_mode: apiMode,
+          discover_models: false,
+          models_discovered: false,
         },
       },
     });
@@ -183,6 +189,26 @@ export class Providers {
 
   async models(input: RpcParams<'models.options'>): Promise<RpcResult<'models.options'>> {
     const source = await this.source(input.sourceId);
+    if (source.kind === 'custom') {
+      const entry = (await this.config('default')).providers?.[source.provider];
+      if (!input.refresh && entry?.models_discovered && entry.models)
+        return {
+          models: Array.isArray(entry.models)
+            ? (entry.models as string[])
+            : Object.keys(entry.models),
+        };
+      const key = (await this.hermes.environment('default'))[String(entry?.key_env)];
+      const models = await customModels(source, key!);
+      await this.saveConfig('default', {
+        providers: {
+          [source.provider]: {
+            models,
+            models_discovered: true,
+          },
+        },
+      });
+      return { models };
+    }
     const options = hermesModelOptionsSchema.parse(
       await this.hermes.management.request(
         '/api/model/options?include_unconfigured=false&refresh=' + Boolean(input.refresh),
@@ -207,25 +233,6 @@ export class Providers {
   test(input: RpcParams<'providers.test'>, operations: Operations) {
     return operations.start('provider-test', [], async (operation) => {
       const source = await this.source(input.sourceId);
-      if (source.kind === 'custom') {
-        const config = await this.config('default');
-        const key = String(config.providers?.[source.provider]?.key_env ?? '');
-        const validation = await this.hermes.management.request<{ ok: boolean; message: string }>(
-          '/api/providers/custom-endpoints/validate',
-          'default',
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              name: source.name,
-              base_url: source.baseUrl,
-              model: input.model,
-              api_mode: source.apiMode,
-              api_key: (await this.hermes.environment('default'))[key],
-            }),
-          },
-        );
-        if (!validation.ok) throw new NodeFault('unavailable', validation.message);
-      }
       // A successful /models or route probe is not a successful model call. Test through Hermes, without tools.
       const gateway = this.hermes.gateway('default');
       const session = await gateway.rpc<NativeSessionSnapshot>('session.create', {
@@ -345,11 +352,13 @@ export class Providers {
     const session = await this.reasoningSession(input.botId);
     if (session.session_id !== input.sessionId)
       throw new NodeFault('conflict', 'The active session changed');
-    if (session.running) throw new NodeFault('conflict', 'Wait for the current turn to finish');
     const info = await this.reasoningInfo(session);
     if (input.effort !== null && !info.levels.includes(input.effort))
       throw new NodeFault('invalid_params', 'This model does not list that reasoning level');
-    await this.hermes.gateway(input.botId).rpc('session.mutate', {
+    const changed = await this.hermes.gateway(input.botId).rpc<{
+      status?: string;
+      effort?: string | null;
+    }>('session.mutate', {
       session_id: session.session_id,
       request_id: randomUUID(),
       expected_revision: session.revision,
@@ -357,6 +366,10 @@ export class Providers {
       operation: 'reasoning',
       payload: { effort: input.effort },
     });
+    if (changed.status === 'deferred') {
+      // Hermes owns the next-turn pick; do not mutate or restart the active run.
+      return { ...info, effort: changed.effort ?? null, wireEffort: null };
+    }
     return this.reasoning(input.botId);
   }
 
@@ -370,6 +383,8 @@ export class Providers {
       if (!entry || !secret)
         throw new NodeFault('invalid_params', 'Custom source has no saved credential');
       await this.saveSecret(profile, key, secret);
+      if (source.apiMode === 'gemini_generate_content')
+        await installGeminiProvider(this.hermes.profileHome(profile), id, key, source.baseUrl!);
       await this.saveConfig(profile, { providers: { [id]: entry } });
     }
     // OAuth grants stay in the project root. Hermes inherits and rotates the original grant;
