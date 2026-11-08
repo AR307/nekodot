@@ -414,6 +414,7 @@ class WordCanvas extends LeafRenderObjectWidget {
     if (viewport != null) {
       renderObject.viewport = viewport!;
     }
+    if (renderObject.hasSize && !compact) renderObject._clampViewport();
     renderObject.markNeedsPaint();
   }
 }
@@ -698,6 +699,7 @@ class RenderWordCanvas extends RenderBox implements MouseTrackerAnnotation {
     _images.dispose();
     super.dispose();
   }
+
   LaidOutDocument? _fittedLayout;
   final Set<LaidOutPage> _fittedPages = <LaidOutPage>{};
   int? _visualHandle;
@@ -708,6 +710,7 @@ class RenderWordCanvas extends RenderBox implements MouseTrackerAnnotation {
   ({WmlTable table, bool column, int anchor, int current})? _tableBand;
   Offset? _hoverLocal;
   var _scrollDrag = false;
+  var _scrollHorizontal = false;
   int? _scrollPageTip;
   var _panZoomScale = 1.0;
   RulerHit? _rulerHover;
@@ -1059,8 +1062,32 @@ class RenderWordCanvas extends RenderBox implements MouseTrackerAnnotation {
     }
     return Size(
       _maxPageWidthPt * scale + _pageSideGutter * 2 + _scrollBar,
-      stackH,
+      stackH + (_hasHScroll ? _scrollBar : 0),
     );
+  }
+
+  bool get _hasHScroll =>
+      _maxPageWidthPt * _viewScale + _pageSideGutter * 2 + _scrollBar >
+      size.width;
+
+  Rect get _hTrack => Rect.fromLTWH(
+    0,
+    size.height - _scrollBar,
+    size.width - _scrollBar,
+    _scrollBar,
+  );
+
+  Rect get _hThumb {
+    final track = _hTrack;
+    final width = (track.width * size.width / _contentSize.width).clamp(
+      22.0,
+      track.width,
+    );
+    final maxX = math.max(0.0, _contentSize.width - size.width);
+    final left = maxX == 0
+        ? 0.0
+        : (track.width - width) * viewport.origin.dx / maxX;
+    return Rect.fromLTWH(left, track.top + 2, width, track.height - 4);
   }
 
   void _clampViewport() {
@@ -1075,7 +1102,7 @@ class RenderWordCanvas extends RenderBox implements MouseTrackerAnnotation {
       size.width - _scrollBar,
       top,
       _scrollBar,
-      math.max(0, size.height - top),
+      math.max(0, size.height - top - (_hasHScroll ? _scrollBar : 0)),
     );
   }
 
@@ -1104,24 +1131,50 @@ class RenderWordCanvas extends RenderBox implements MouseTrackerAnnotation {
   }
 
   void _jumpScroll(Offset local) {
-    final double maxY = _maxScrollY;
-    if (maxY <= 0 || _vTrack.height <= 0) {
+    if (_scrollHorizontal) {
+      final travel = _hTrack.width - _hThumb.width;
+      if (travel <= 0) return;
+      final t = ((local.dx - _hThumb.width / 2) / travel).clamp(0.0, 1.0);
+      viewport.origin = Offset(
+        (_contentSize.width - size.width) * t,
+        viewport.origin.dy,
+      );
+      _clampViewport();
       return;
     }
-    final double t = ((local.dy - _vTrack.top) / _vTrack.height).clamp(0, 1);
+    final double maxY = _maxScrollY;
+    final travel = _vTrack.height - _vThumb.height;
+    if (maxY <= 0 || travel <= 0) {
+      return;
+    }
+    final double t = ((local.dy - _vTrack.top - _vThumb.height / 2) / travel)
+        .clamp(0, 1);
     viewport.origin = Offset(viewport.origin.dx, maxY * t);
     _clampViewport();
     _scrollPageTip = _pageAtViewport();
   }
 
   void _dragScroll(Offset delta) {
+    if (_scrollHorizontal) {
+      final travel = _hTrack.width - _hThumb.width;
+      if (travel <= 0) return;
+      viewport.origin += Offset(
+        delta.dx * (_contentSize.width - size.width) / travel,
+        0,
+      );
+      _clampViewport();
+      markNeedsPaint();
+      onChanged?.call();
+      return;
+    }
     final double maxY = _maxScrollY;
-    if (maxY <= 0 || _vTrack.height <= 0) {
+    final travel = _vTrack.height - _vThumb.height;
+    if (maxY <= 0 || travel <= 0) {
       return;
     }
     viewport.origin = Offset(
       viewport.origin.dx,
-      viewport.origin.dy + delta.dy * (maxY / _vTrack.height),
+      viewport.origin.dy + delta.dy * (maxY / travel),
     );
     _clampViewport();
     _scrollPageTip = _pageAtViewport();
@@ -1138,6 +1191,13 @@ class RenderWordCanvas extends RenderBox implements MouseTrackerAnnotation {
       RRect.fromRectAndRadius(_vThumb, const Radius.circular(4)),
       Paint()..color = const Color(0xFF7A7A7A),
     );
+    if (_hasHScroll) {
+      canvas.drawRect(_hTrack, Paint()..color = const Color(0xFFE8E8E8));
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(_hThumb, const Radius.circular(4)),
+        Paint()..color = const Color(0xFF7A7A7A),
+      );
+    }
     final int? tip = _scrollPageTip;
     if (tip == null) {
       return;
@@ -1257,9 +1317,7 @@ class RenderWordCanvas extends RenderBox implements MouseTrackerAnnotation {
 
   void _applyWheelScroll(PointerScrollEvent event) {
     if (_zoomKeys) {
-      viewport.setScale(
-        viewport.scale * (event.scrollDelta.dy > 0 ? 0.9 : 1.1),
-      );
+      _zoomAt(event.scrollDelta.dy > 0 ? 1 / 1.1 : 1.1, event.localPosition);
     } else {
       Offset delta = event.scrollDelta;
       if (HardwareKeyboard.instance.isShiftPressed &&
@@ -1274,12 +1332,18 @@ class RenderWordCanvas extends RenderBox implements MouseTrackerAnnotation {
   void _applyPanZoom(PointerPanZoomUpdateEvent event) {
     if (_zoomKeys || (event.scale - _panZoomScale).abs() > 0.02) {
       final double current = _panZoomScale == 0 ? 1 : _panZoomScale;
-      viewport.setScale(viewport.scale * (event.scale / current));
+      _zoomAt(event.scale / current, event.localPosition);
       _panZoomScale = event.scale == 0 ? current : event.scale;
     } else {
       viewport.pan(-event.localPanDelta);
     }
     _finishPointerScroll();
+  }
+
+  void _zoomAt(double factor, Offset focal) {
+    final (page, point) = _hitPage(focal);
+    viewport.setScale(viewport.scale * factor);
+    viewport.origin += windowForPagePoint(page, point) - focal;
   }
 
   @override
@@ -1330,9 +1394,16 @@ class RenderWordCanvas extends RenderBox implements MouseTrackerAnnotation {
     }
     if (event is PointerDownEvent &&
         !compact &&
-        _vTrack.contains(event.localPosition)) {
+        event.buttons == kPrimaryMouseButton &&
+        (_vTrack.contains(event.localPosition) ||
+            (_hasHScroll && _hTrack.contains(event.localPosition)))) {
       _scrollDrag = true;
-      _jumpScroll(event.localPosition);
+      _scrollHorizontal = _hasHScroll && _hTrack.contains(event.localPosition);
+      if (!(_scrollHorizontal ? _hThumb : _vThumb).contains(
+        event.localPosition,
+      )) {
+        _jumpScroll(event.localPosition);
+      }
       _ensureRecognizers();
       _pan!.addPointer(event);
       markNeedsPaint();

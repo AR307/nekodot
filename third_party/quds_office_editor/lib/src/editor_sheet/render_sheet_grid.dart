@@ -306,6 +306,7 @@ class SheetGrid extends LeafRenderObjectWidget {
     if (viewport != null) {
       renderObject.viewport = viewport!;
     }
+    if (renderObject.hasSize) renderObject._clampViewport();
     renderObject.markNeedsPaint();
   }
 }
@@ -1098,8 +1099,9 @@ class RenderSheetGrid extends RenderBox implements MouseTrackerAnnotation {
         }
         if (HardwareKeyboard.instance.isControlPressed ||
             HardwareKeyboard.instance.isMetaPressed) {
-          viewport.setScale(
-            viewport.scale * (signal.scrollDelta.dy > 0 ? 0.9 : 1.1),
+          _zoomAt(
+            signal.scrollDelta.dy > 0 ? 1 / 1.1 : 1.1,
+            signal.localPosition,
           );
         } else if (HardwareKeyboard.instance.isShiftPressed) {
           viewport.pan(Offset(signal.scrollDelta.dy, signal.scrollDelta.dx));
@@ -1122,7 +1124,7 @@ class RenderSheetGrid extends RenderBox implements MouseTrackerAnnotation {
           HardwareKeyboard.instance.isMetaPressed;
       if (zoomKeys || (event.scale - _panZoomScale).abs() > 0.02) {
         final double current = _panZoomScale == 0 ? 1 : _panZoomScale;
-        viewport.setScale(viewport.scale * (event.scale / current));
+        _zoomAt(event.scale / current, event.localPosition);
         _panZoomScale = event.scale == 0 ? current : event.scale;
       } else if (HardwareKeyboard.instance.isShiftPressed) {
         viewport.pan(Offset(-event.localPanDelta.dy, -event.localPanDelta.dx));
@@ -1137,6 +1139,21 @@ class RenderSheetGrid extends RenderBox implements MouseTrackerAnnotation {
     if (event is PointerPanZoomEndEvent) {
       _panZoomScale = 1;
       return;
+    }
+    if (event is PointerDownEvent && event.buttons == kPrimaryMouseButton) {
+      final String? bar = _hitScrollBar(event.localPosition);
+      if (bar != null) {
+        _scrollH = bar == 'h';
+        _scrollV = bar == 'v';
+        _ensurePan();
+        _pan!.addPointer(event);
+        if (!(_scrollH ? _hThumb : _vThumb).contains(event.localPosition)) {
+          _jumpScroll(event.localPosition);
+        }
+        markNeedsPaint();
+        onChanged?.call();
+        return;
+      }
     }
     if (!config.allowsSelection) {
       return;
@@ -1178,13 +1195,6 @@ class RenderSheetGrid extends RenderBox implements MouseTrackerAnnotation {
       }
       _ensurePan();
       _pan!.addPointer(event);
-      final String? bar = _hitScrollBar(event.localPosition);
-      if (bar != null) {
-        _scrollH = bar == 'h';
-        _scrollV = bar == 'v';
-        _jumpScroll(event.localPosition);
-        return;
-      }
       if (config.allowsMutation) {
         final int? resizeCol = _hitColResize(event.localPosition);
         if (resizeCol != null) {
@@ -2187,6 +2197,43 @@ class RenderSheetGrid extends RenderBox implements MouseTrackerAnnotation {
     );
   }
 
+  Rect get _hThumb {
+    final content = _sheetContentSize;
+    final width = (_hTrack.width * size.width / content.width).clamp(
+      22.0,
+      _hTrack.width,
+    );
+    final maxX = math.max(0.0, content.width - size.width);
+    final left = maxX == 0
+        ? _hTrack.left
+        : _hTrack.left + (_hTrack.width - width) * viewport.origin.dx / maxX;
+    return Rect.fromLTWH(left, _hTrack.top + 2, width, _hTrack.height - 4);
+  }
+
+  Rect get _vThumb {
+    final content = _sheetContentSize;
+    final height = (_vTrack.height * size.height / content.height).clamp(
+      22.0,
+      _vTrack.height,
+    );
+    final maxY = math.max(0.0, content.height - size.height);
+    final top = maxY == 0
+        ? _vTrack.top
+        : _vTrack.top + (_vTrack.height - height) * viewport.origin.dy / maxY;
+    return Rect.fromLTWH(_vTrack.left + 2, top, _vTrack.width - 4, height);
+  }
+
+  void _zoomAt(double factor, Offset focal) {
+    final before = viewport.scale;
+    final anchor = Offset(
+      _rtl ? size.width - _headW - focal.dx : focal.dx - _headW,
+      focal.dy - _barH - _headH,
+    );
+    viewport.setScale(before * factor);
+    viewport.origin =
+        (viewport.origin + anchor) * (viewport.scale / before) - anchor;
+  }
+
   String? _hitScrollBar(Offset local) {
     if (_vTrack.contains(local)) {
       return 'v';
@@ -2199,14 +2246,20 @@ class RenderSheetGrid extends RenderBox implements MouseTrackerAnnotation {
 
   void _jumpScroll(Offset local) {
     final Size content = _sheetContentSize;
-    if (_scrollV) {
+    if (_scrollV && _vTrack.height > _vThumb.height) {
       final double maxY = math.max(0, content.height - size.height);
-      final double t = ((local.dy - _vTrack.top) / _vTrack.height).clamp(0, 1);
+      final double t =
+          ((local.dy - _vTrack.top - _vThumb.height / 2) /
+                  (_vTrack.height - _vThumb.height))
+              .clamp(0, 1);
       viewport.origin = Offset(viewport.origin.dx, maxY * t);
     }
-    if (_scrollH) {
+    if (_scrollH && _hTrack.width > _hThumb.width) {
       final double maxX = math.max(0, content.width - size.width);
-      final double t = ((local.dx - _hTrack.left) / _hTrack.width).clamp(0, 1);
+      final double t =
+          ((local.dx - _hTrack.left - _hThumb.width / 2) /
+                  (_hTrack.width - _hThumb.width))
+              .clamp(0, 1);
       viewport.origin = Offset(maxX * t, viewport.origin.dy);
     }
     _clampViewport();
@@ -2214,17 +2267,19 @@ class RenderSheetGrid extends RenderBox implements MouseTrackerAnnotation {
 
   void _dragScroll(Offset delta) {
     final Size content = _sheetContentSize;
-    if (_scrollV && _vTrack.height > 0) {
+    if (_scrollV && _vTrack.height > _vThumb.height) {
       final double maxY = math.max(0, content.height - size.height);
       viewport.origin = Offset(
         viewport.origin.dx,
-        viewport.origin.dy + delta.dy * (maxY / _vTrack.height),
+        viewport.origin.dy +
+            delta.dy * (maxY / (_vTrack.height - _vThumb.height)),
       );
     }
-    if (_scrollH && _hTrack.width > 0) {
+    if (_scrollH && _hTrack.width > _hThumb.width) {
       final double maxX = math.max(0, content.width - size.width);
       viewport.origin = Offset(
-        viewport.origin.dx + delta.dx * (maxX / _hTrack.width),
+        viewport.origin.dx +
+            delta.dx * (maxX / (_hTrack.width - _hThumb.width)),
         viewport.origin.dy,
       );
     }
@@ -2232,39 +2287,16 @@ class RenderSheetGrid extends RenderBox implements MouseTrackerAnnotation {
   }
 
   void _paintScrollBars(Canvas canvas) {
-    final Size content = _sheetContentSize;
     final Paint track = Paint()..color = const Color(0xFFD8D8D8);
     final Paint thumb = Paint()..color = const Color(0xFF7A7A7A);
     canvas.drawRect(_vTrack, track);
     canvas.drawRect(_hTrack, track);
-    final double maxY = math.max(0, content.height - size.height);
-    final double maxX = math.max(0, content.width - size.width);
-    final double vThumbH = (_vTrack.height * (size.height / content.height))
-        .clamp(22.0, _vTrack.height);
-    final double hThumbW = (_hTrack.width * (size.width / content.width)).clamp(
-      22.0,
-      _hTrack.width,
-    );
-    final double vY = maxY <= 0
-        ? _vTrack.top
-        : _vTrack.top +
-              (_vTrack.height - vThumbH) * (viewport.origin.dy / maxY);
-    final double hX = maxX <= 0
-        ? _hTrack.left
-        : _hTrack.left +
-              (_hTrack.width - hThumbW) * (viewport.origin.dx / maxX);
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(_vTrack.left + 2, vY, _vTrack.width - 4, vThumbH),
-        const Radius.circular(4),
-      ),
+      RRect.fromRectAndRadius(_vThumb, const Radius.circular(4)),
       thumb,
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(hX, _hTrack.top + 2, hThumbW, _hTrack.height - 4),
-        const Radius.circular(4),
-      ),
+      RRect.fromRectAndRadius(_hThumb, const Radius.circular(4)),
       thumb,
     );
   }

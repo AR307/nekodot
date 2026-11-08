@@ -3,12 +3,15 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:quds_office_editor/quds_office_editor.dart' as office;
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/chat.dart';
@@ -176,6 +179,92 @@ void main() {
               .isNotEmpty,
         );
         await shot('$extension-open');
+        if (!phone && extension != 'pptx') {
+          final word = extension == 'docx';
+          final office.OfficeController controller = word
+              ? tester
+                    .widget<office.QudsWordEditor>(
+                      find.byType(office.QudsWordEditor),
+                    )
+                    .controller
+              : tester
+                    .widget<office.QudsSheetEditor>(
+                      find.byType(office.QudsSheetEditor),
+                    )
+                    .controller;
+          final canvas = find.byType(
+            word ? office.WordCanvas : office.SheetGrid,
+          );
+          final rect = tester.getRect(canvas);
+          final initial = controller.viewport.scale;
+          await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+          await tester.sendEventToBinding(
+            PointerScrollEvent(
+              position: rect.center,
+              scrollDelta: const Offset(0, -120),
+            ),
+          );
+          await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+          await frames();
+          expect(controller.viewport.scale, greaterThan(initial));
+          await shot('$extension-ctrl-wheel');
+          await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+          await tester.sendEventToBinding(
+            PointerScrollEvent(
+              position: rect.center,
+              scrollDelta: const Offset(0, 120),
+            ),
+          );
+          await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+          await frames();
+          expect(controller.viewport.scale, closeTo(initial, .00001));
+          // Enlarge through the visible control, never mutate the viewport.
+          for (var i = 0; i < 3; i++) {
+            await tap(find.byKey(const ValueKey('office-zoom-in')));
+          }
+          final center = controller.viewport.extent.center(Offset.zero);
+          Offset anchor() {
+            if (word) {
+              return tester
+                  .renderObject<office.RenderWordCanvas>(canvas)
+                  .windowForPagePoint(0, const Offset(180, 220));
+            }
+            return (controller.viewport.origin +
+                    center -
+                    const Offset(28, 20)) /
+                controller.viewport.scale;
+          }
+
+          final beforeAnchor = anchor();
+          final beforeScale = controller.viewport.scale;
+          await tap(find.byKey(const ValueKey('office-zoom-in')));
+          final expected = word
+              ? center +
+                    (beforeAnchor - center) *
+                        (controller.viewport.scale / beforeScale)
+              : beforeAnchor;
+          expect((anchor() - expected).distance, lessThan(.1));
+          await shot('$extension-center-zoom');
+          final beforeDrag = controller.viewport.origin.dx;
+          await tester.dragFrom(
+            Offset(rect.left + rect.width * .45, rect.bottom - 6),
+            const Offset(90, 0),
+            kind: PointerDeviceKind.mouse,
+          );
+          await frames();
+          expect(controller.viewport.origin.dx, greaterThan(beforeDrag));
+          await shot('$extension-scroll-right');
+          final afterRight = controller.viewport.origin.dx;
+          await tester.dragFrom(
+            Offset(rect.left + rect.width * .6, rect.bottom - 6),
+            const Offset(-120, 0),
+            kind: PointerDeviceKind.mouse,
+          );
+          await frames();
+          expect(controller.viewport.origin.dx, lessThan(afterRight));
+          expect(controller.config.allowsMutation, isFalse);
+          await shot('$extension-scroll-left');
+        }
         await tap(find.byKey(const ValueKey('office-zoom-in')));
         await tap(find.byKey(const ValueKey('office-zoom-out')));
         if (extension == 'xlsx') {
