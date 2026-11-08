@@ -92,5 +92,5 @@ for number, title in enumerate(['办公预览 / Office preview', '第二页 / Se
             table.cell(row, col).text = value
     slide.shapes.add_textbox(SlideInches(.8), SlideInches(6), SlideInches(11), SlideInches(.7)).text = 'Original layout · images · tables · 中文'
 deck.save(root / 'preview.pptx')
-(root / 'preview.md').write_text('# Markdown 文件预览\n\n**中文粗体**与 English。\n\n| 项目 | 数值 |\n| --- | ---: |\n| 23 × 29 | 667 |\n\n- 文件不会自动发送\n- 保留原始附件\n', encoding='utf-8')
+(root / 'preview.md').write_text('# Markdown 文件预览\n\n**中文粗体**与 English。\n\n| 项目    | 数值 |\n| ------- | ---: |\n| 23 × 29 |  667 |\n\n- 文件不会自动发送\n- 保留原始附件\n', encoding='utf-8')
 print('Created DOCX, XLSX, PPTX and Markdown fixtures')
