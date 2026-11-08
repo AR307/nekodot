@@ -2,8 +2,10 @@ import '../data/chat_models.dart';
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -225,6 +227,7 @@ class ChatComposerState extends State<ChatComposer> {
     Uint8List? bytes,
     bool imageOnly = false,
   }) async {
+    if (uploading || sending) return;
     final key = draftKey;
     setState(() {
       uploading = true;
@@ -255,6 +258,42 @@ class ChatComposerState extends State<ChatComposer> {
           uploadProgress = '';
         });
       }
+    }
+  }
+
+  Future<void> attachDroppedFiles(List<DropItemFile> files) async {
+    if (uploading || sending || files.isEmpty) return;
+    final key = draftKey, conversationId = id;
+    setState(() {
+      uploading = true;
+      error = '';
+    });
+    try {
+      for (final item in files) {
+        if (!mounted || draftKey != key) break;
+        // Windows reports directory drops as file items too. Do not traverse
+        // folders or silently attach their contents.
+        if (item.path.isNotEmpty &&
+            await FileSystemEntity.isDirectory(item.path)) {
+          continue;
+        }
+        if (!mounted || draftKey != key) break;
+        final file = await pickChatFile(
+          c,
+          conversationId,
+          (_) {},
+          droppedFile: item,
+        );
+        if (file != null) {
+          c.attachmentDrafts.putIfAbsent(key, () => []).add(file);
+          c.saveContent();
+          if (mounted) setState(() {});
+        }
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    } finally {
+      if (mounted) setState(() => uploading = false);
     }
   }
 

@@ -1,0 +1,7 @@
+name: quds_office_engine
+version: 1.5.0
+publish_to: none
+environment:
+  sdk: ^3.12.0
+dependencies:
+  crypto: ^3.0.7

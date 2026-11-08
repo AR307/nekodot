@@ -61,6 +61,13 @@ dependencies:
   cryptography: ^2.9.0
   collection: ^1.19.1
   flutter_timezone: ^5.1.1
+  desktop_drop: 0.8.1
+  quds_office_editor:
+    path: ../../third_party/quds_office_editor
+
+dependency_overrides:
+  quds_office_engine:
+    path: ../../third_party/quds_office_engine
 
 dev_dependencies:
   integration_test:

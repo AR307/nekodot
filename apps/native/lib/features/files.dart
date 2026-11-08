@@ -17,6 +17,7 @@ import '../platform/file_actions.dart';
 import '../ui/design.dart';
 import '../ui/message_markdown.dart';
 import 'bot_editor.dart';
+import 'office_preview.dart';
 
 Future<Uint8List> downloadFile(NekodotClient c, String id) async {
   final nodeId = c.selectedNodeId, token = c.account.token;
@@ -97,16 +98,23 @@ Future<Json?> pickChatFile(
   ValueChanged<String> onProgress, {
   String? localPath,
   Uint8List? imageBytes,
+  XFile? droppedFile,
   bool imageOnly = false,
 }) async {
   final nodeId = client.selectedNodeId!;
-  final file = localPath == null && imageBytes == null
+  final file = localPath == null && imageBytes == null && droppedFile == null
       ? await FilePicker.pickFile(
           type: imageOnly ? FileType.image : FileType.any,
         )
       : null;
-  if (file == null && localPath == null && imageBytes == null) return null;
+  if (file == null &&
+      localPath == null &&
+      imageBytes == null &&
+      droppedFile == null) {
+    return null;
+  }
   final name =
+      droppedFile?.name.split(RegExp(r'[/\\]')).last ??
       file?.name ??
       (localPath == null
           ? 'clipboard-${DateTime.now().millisecondsSinceEpoch}.png'
@@ -116,20 +124,28 @@ Future<Json?> pickChatFile(
   final target = storage.file('pending-files/${uid()}/${safeFileName(name)}');
   await target.parent.create(recursive: true);
   final bytes =
+      droppedFile?.openRead() ??
       file?.readAsByteStream() ??
       (localPath == null
           ? Stream.value(imageBytes!)
           : File(localPath).openRead());
-  await bytes.pipe(target.openWrite());
+  final sink = target.openWrite();
+  try {
+    await sink.addStream(bytes);
+  } finally {
+    await sink.close();
+  }
   return {
     'localPath': target.path,
     'name': name,
     'size': await target.length(),
     'nodeId': nodeId,
     'conversationId': conversationId,
-    'mime': imageOnly || imageBytes != null
-        ? 'image/png'
-        : 'application/octet-stream',
+    'mime':
+        droppedFile?.mimeType ??
+        (imageOnly || imageBytes != null
+            ? 'image/png'
+            : 'application/octet-stream'),
   };
 }
 
@@ -766,6 +782,16 @@ class _FileViewerState extends State<FileViewer> {
                       }
                       final bytes = snapshot.data!,
                           mime = file['mime'] as String;
+                      final office = officeFormat('${file['name']}', mime);
+                      if (office != null) {
+                        return OfficePreview(
+                          key: ValueKey(file['fileId']),
+                          bytes: bytes,
+                          format: office,
+                          zoomInLabel: client.tr('放大', 'Zoom in'),
+                          zoomOutLabel: client.tr('缩小', 'Zoom out'),
+                        );
+                      }
                       if (svg && !source) {
                         return InteractiveViewer(
                           key: const ValueKey('viewer-svg'),
@@ -801,7 +827,14 @@ class _FileViewerState extends State<FileViewer> {
                           sourceName: file['name'] as String,
                         );
                       }
+                      final markdown =
+                          mime == 'text/markdown' ||
+                          RegExp(
+                            r'\.(md|markdown)$',
+                            caseSensitive: false,
+                          ).hasMatch('${file['name']}');
                       if (svg ||
+                          markdown ||
                           mime.startsWith('text/') ||
                           mime == 'application/json') {
                         return ColoredBox(
@@ -815,11 +848,7 @@ class _FileViewerState extends State<FileViewer> {
                                 constraints: const BoxConstraints(
                                   maxWidth: 720,
                                 ),
-                                child:
-                                    mime == 'text/markdown' ||
-                                        '${file['name']}'
-                                            .toLowerCase()
-                                            .endsWith('.md')
+                                child: markdown
                                     ? MessageMarkdown(
                                         key: const ValueKey('viewer-markdown'),
                                         data: utf8.decode(

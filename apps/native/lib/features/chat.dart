@@ -17,6 +17,7 @@ import 'flowchart.dart';
 import 'chat_presentation.dart';
 import 'chat_timeline.dart';
 import 'chat_composer.dart';
+import 'chat_file_drop.dart';
 
 class ChatPage extends StatefulWidget {
   final NekodotClient client;
@@ -497,117 +498,122 @@ class _ChatPageState extends State<ChatPage>
       return Scaffold(
         extendBodyBehindAppBar: false,
         appBar: header,
-        body: Stack(
-          children: [
-            if (messages.isEmpty)
-              Center(
-                child: bot == null
-                    ? null
-                    : group == null
-                    ? CatAvatar.of(bot, size: 56)
-                    : GroupAvatar(size: 56, avatars: memberAvatars),
-              )
-            else
-              ChatTimeline(
-                client: c,
-                conversationId: id,
-                view: view,
-                scroll: scroll,
-                composerHeight: composerHeight,
-                onFocusChanged: (value) =>
-                    setState(() => historyFocused = value),
-                focusedMessage: focusedMessage,
-                focusedKey: focusedKey,
-                onRetry: (text) => composer.currentState?.editDraft(text),
-                onError: (value) => composer.currentState?.showError(value),
-                onQuote: (words) => composer.currentState?.quote(words),
-                fresh: fresh,
-                since: since,
-              ),
-            // While you read further up, what you last asked stays in sight
-            // under the bar; tapping it returns to the latest.
-            if (lastAsked != null)
-              Builder(
-                builder: (context) => Positioned(
-                  top: MediaQuery.paddingOf(context).top + 4,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: IgnorePointer(
-                      ignoring: !away,
-                      child: AnimatedOpacity(
-                        opacity: away ? 1 : 0,
+        body: ChatFileDrop(
+          enabled: widget.readingVisible,
+          onFiles: (files) async =>
+              composer.currentState?.attachDroppedFiles(files),
+          child: Stack(
+            children: [
+              if (messages.isEmpty)
+                Center(
+                  child: bot == null
+                      ? null
+                      : group == null
+                      ? CatAvatar.of(bot, size: 56)
+                      : GroupAvatar(size: 56, avatars: memberAvatars),
+                )
+              else
+                ChatTimeline(
+                  client: c,
+                  conversationId: id,
+                  view: view,
+                  scroll: scroll,
+                  composerHeight: composerHeight,
+                  onFocusChanged: (value) =>
+                      setState(() => historyFocused = value),
+                  focusedMessage: focusedMessage,
+                  focusedKey: focusedKey,
+                  onRetry: (text) => composer.currentState?.editDraft(text),
+                  onError: (value) => composer.currentState?.showError(value),
+                  onQuote: (words) => composer.currentState?.quote(words),
+                  fresh: fresh,
+                  since: since,
+                ),
+              // While you read further up, what you last asked stays in sight
+              // under the bar; tapping it returns to the latest.
+              if (lastAsked != null)
+                Builder(
+                  builder: (context) => Positioned(
+                    top: MediaQuery.paddingOf(context).top + 4,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: IgnorePointer(
+                        ignoring: !away,
+                        child: AnimatedOpacity(
+                          opacity: away ? 1 : 0,
+                          duration: still
+                              ? Duration.zero
+                              : const Duration(milliseconds: 180),
+                          child: AnimatedSlide(
+                            offset: away ? Offset.zero : const Offset(0, -.3),
+                            duration: still
+                                ? Duration.zero
+                                : const Duration(milliseconds: 220),
+                            curve: Curves.easeOutCubic,
+                            child: AskedPill(text: lastAsked, onTap: toLatest),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: composerHeight + 6,
+                child: Center(
+                  child: IgnorePointer(
+                    ignoring: !away,
+                    child: AnimatedOpacity(
+                      opacity: away ? 1 : 0,
+                      duration: still
+                          ? Duration.zero
+                          : const Duration(milliseconds: 180),
+                      child: AnimatedScale(
+                        scale: away ? 1 : .8,
                         duration: still
                             ? Duration.zero
                             : const Duration(milliseconds: 180),
-                        child: AnimatedSlide(
-                          offset: away ? Offset.zero : const Offset(0, -.3),
-                          duration: still
-                              ? Duration.zero
-                              : const Duration(milliseconds: 220),
-                          curve: Curves.easeOutCubic,
-                          child: AskedPill(text: lastAsked, onTap: toLatest),
+                        curve: Curves.easeOutCubic,
+                        child: LatestButton(
+                          tooltip: c.tr('回到最新', 'Jump to latest'),
+                          missed: missed,
+                          onPressed: toLatest,
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: composerHeight + 6,
-              child: Center(
-                child: IgnorePointer(
-                  ignoring: !away,
-                  child: AnimatedOpacity(
-                    opacity: away ? 1 : 0,
-                    duration: still
-                        ? Duration.zero
-                        : const Duration(milliseconds: 180),
-                    child: AnimatedScale(
-                      scale: away ? 1 : .8,
-                      duration: still
-                          ? Duration.zero
-                          : const Duration(milliseconds: 180),
-                      curve: Curves.easeOutCubic,
-                      child: LatestButton(
-                        tooltip: c.tr('回到最新', 'Jump to latest'),
-                        missed: missed,
-                        onPressed: toLatest,
-                      ),
-                    ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: MeasureHeight(
+                  onChange: (height) {
+                    if (mounted && height != composerHeight) {
+                      setState(() => composerHeight = height);
+                    }
+                  },
+                  child: ChatComposer(
+                    key: composer,
+                    historyFocused: historyFocused,
+                    client: c,
+                    conversationId: id,
+                    view: view,
+                    onSent: () {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (scroll.hasClients) {
+                          scroll.jumpTo(scroll.position.minScrollExtent);
+                        }
+                      });
+                    },
                   ),
                 ),
               ),
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: MeasureHeight(
-                onChange: (height) {
-                  if (mounted && height != composerHeight) {
-                    setState(() => composerHeight = height);
-                  }
-                },
-                child: ChatComposer(
-                  key: composer,
-                  historyFocused: historyFocused,
-                  client: c,
-                  conversationId: id,
-                  view: view,
-                  onSent: () {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (scroll.hasClients) {
-                        scroll.jumpTo(scroll.position.minScrollExtent);
-                      }
-                    });
-                  },
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     },
