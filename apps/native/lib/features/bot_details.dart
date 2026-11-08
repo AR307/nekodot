@@ -339,96 +339,25 @@ class BotDetails extends StatelessWidget {
   );
 }
 
-/// The details tabs as a pill track as wide as its labels; the chosen tab is
-/// a raised pill that glides with the page swipe.
+/// The shared compact selector follows native tab swipes without another track.
 class DetailTabs extends StatelessWidget {
   final List<String> labels;
   const DetailTabs({super.key, required this.labels});
   @override
   Widget build(BuildContext context) {
-    final tone = context.tone;
     final controller = DefaultTabController.of(context);
-    final text = Theme.of(context).textTheme.labelLarge;
-    final height = tone.glass ? 48.0 : 32.0;
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: ShapeDecoration(
-        color: tone.glass ? tone.surface : tone.raised.withValues(alpha: .7),
-        shape: const RoundedSuperellipseBorder(
-          borderRadius: BorderRadius.all(Radius.circular(999)),
+    return AnimatedBuilder(
+      animation: controller.animation!,
+      builder: (context, _) => Segment<int>(
+        value: controller.index,
+        position: controller.animation!.value,
+        options: {for (final (i, label) in labels.indexed) i: Text(label)},
+        onChanged: (index) => controller.animateTo(
+          index,
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 160),
         ),
-      ),
-      child: AnimatedBuilder(
-        animation: controller.animation!,
-        builder: (context, _) {
-          final at = controller.animation!.value;
-          return IntrinsicWidth(
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: Align(
-                    alignment: Alignment(
-                      labels.length == 1
-                          ? 0
-                          : -1 + 2 * at / (labels.length - 1),
-                      0,
-                    ),
-                    child: FractionallySizedBox(
-                      widthFactor: 1 / labels.length,
-                      heightFactor: 1,
-                      child: DecoratedBox(
-                        decoration: ShapeDecoration(
-                          color: tone.glass ? tone.ink : tone.thumb,
-                          shape: const RoundedSuperellipseBorder(
-                            borderRadius: BorderRadius.all(
-                              Radius.circular(999),
-                            ),
-                          ),
-                          shadows: tone.glass ? null : tone.rest,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Row(
-                  children: [
-                    for (final (index, label) in labels.indexed)
-                      Expanded(
-                        child: Semantics(
-                          button: true,
-                          selected: controller.index == index,
-                          child: InkWell(
-                            customBorder: const RoundedSuperellipseBorder(
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(999),
-                              ),
-                            ),
-                            onTap: () => controller.animateTo(index),
-                            child: Tab(
-                              height: height,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                ),
-                                child: Text(
-                                  label,
-                                  style: text?.copyWith(
-                                    color: (at - index).abs() < .5
-                                        ? (tone.glass ? tone.base : tone.ink)
-                                        : tone.ink2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:quds_office_editor/quds_office_editor.dart' as office;
@@ -51,6 +53,7 @@ class _OfficePreviewState extends State<OfficePreview> {
   office.OfficeController? controller;
   late final ready = load();
   bool fit = true;
+  double? fittedScale;
 
   Future<void> load() async {
     await office.OfficeHostFonts.ensureRegistered();
@@ -96,7 +99,47 @@ class _OfficePreviewState extends State<OfficePreview> {
   void zoom(double factor) {
     final c = controller!;
     fit = false;
-    c.viewport.setScale(c.viewport.scale * factor);
+    final view = c.viewport;
+    final before = view.scale;
+    final center = view.extent.center(Offset.zero);
+    if (c is office.WordEditorController) {
+      final layout = c.documentLaidOut;
+      final page = layout.pageIndexAtContentY(
+        view.origin.dy + center.dy,
+        before * 96 / 72,
+      );
+      final width = layout.pages.fold<double>(
+        layout.pageSize.width,
+        (width, page) => math.max(width, page.width),
+      );
+      double left(double scale) =>
+          math.max(16, (view.extent.width - 14 - width * scale * 96 / 72) / 2);
+      final offset = Offset(
+        left(before),
+        layout.pageStackTop(page, before * 96 / 72),
+      );
+      final point = (view.origin + center - offset) / before;
+      view.setScale(before * factor);
+      view.origin =
+          point * view.scale +
+          Offset(
+            left(view.scale),
+            layout.pageStackTop(page, view.scale * 96 / 72),
+          ) -
+          center;
+    } else if (c is office.SheetEditorController) {
+      final header = Offset(
+        c.config.showGridHeaders ? 28 : 0,
+        (c.config.showGridHeaders ? 20 : 0) +
+            (c.config.showFormulaBar ? 28 : 0),
+      );
+      final anchor = center - header;
+      view.setScale(before * factor);
+      view.origin = (view.origin + anchor) * (view.scale / before) - anchor;
+    } else {
+      // Slides already scale around their stage center.
+      view.setScale(before * factor);
+    }
     c.refresh();
   }
 
@@ -114,87 +157,91 @@ class _OfficePreviewState extends State<OfficePreview> {
         builder: (context, _) => LayoutBuilder(
           builder: (context, constraints) {
             if (fit && c is office.WordEditorController) {
+              if (fittedScale != null && c.viewport.scale != fittedScale) {
+                fit = false;
+              }
               final pages = c.documentLaidOut.pages;
-              if (pages.isNotEmpty) {
-                // The native Word canvas uses 64px gutters, a 14px scrollbar
+              if (fit && pages.isNotEmpty) {
+                // The read-only Word canvas uses 16px gutters, a 14px scrollbar
                 // and a 96/72 point-to-pixel conversion.
                 c.viewport.setScale(
-                  (constraints.maxWidth - 142) / (pages.first.width * 96 / 72),
+                  (constraints.maxWidth - 46) / (pages.first.width * 96 / 72),
                 );
+                fittedScale = c.viewport.scale;
               }
             }
+            final config = c.config.copyWith(
+              theme: office.OfficeTheme.light.copyWith(
+                canvasBackground: context.tone.bubble,
+                chromeFill: context.tone.surface,
+                chromeText: context.tone.ink2,
+              ),
+            );
             return Column(
               children: [
-                SizedBox(
-                  height: 44,
-                  child: Row(
-                    children: [
-                      if (c is office.SheetEditorController)
-                        Expanded(
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: [
-                                for (
-                                  var i = 0;
-                                  i < c.workbook.sheets.length;
-                                  i++
-                                )
-                                  TextButton(
-                                    key: ValueKey('office-sheet-$i'),
-                                    onPressed: () => c.setActiveSheet(i),
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: i == c.activeSheetIndex
-                                          ? context.tone.ink
-                                          : context.tone.ink3,
-                                    ),
-                                    child: Text(c.workbook.sheets[i].name),
-                                  ),
-                              ],
-                            ),
+                Material(
+                  color: context.tone.surface,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Row(
+                      children: [
+                        if (c is office.SlideEditorController) ...[
+                          IconButton(
+                            key: const ValueKey('office-previous-slide'),
+                            tooltip: MaterialLocalizations.of(context)
+                                .previousPageTooltip,
+                            onPressed: c.activeSlideIndex > 0
+                                ? () => c.setActiveSlide(c.activeSlideIndex - 1)
+                                : null,
+                            icon: const Icon(Icons.chevron_left, size: 18),
                           ),
-                        )
-                      else if (c is office.SlideEditorController) ...[
+                          Text(
+                            '${c.activeSlideIndex + 1} / ${c.presentation.slides.length}',
+                            style: Theme.of(context).textTheme.labelMedium
+                                ?.copyWith(
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                  color: context.tone.ink2,
+                                ),
+                          ),
+                          IconButton(
+                            key: const ValueKey('office-next-slide'),
+                            tooltip: MaterialLocalizations.of(context)
+                                .nextPageTooltip,
+                            onPressed:
+                                c.activeSlideIndex + 1 <
+                                    c.presentation.slides.length
+                                ? () => c.setActiveSlide(c.activeSlideIndex + 1)
+                                : null,
+                            icon: const Icon(Icons.chevron_right, size: 18),
+                          ),
+                        ],
+                        const Spacer(),
                         IconButton(
-                          key: const ValueKey('office-previous-slide'),
-                          tooltip: MaterialLocalizations.of(context)
-                              .previousPageTooltip,
-                          onPressed: c.activeSlideIndex > 0
-                              ? () => c.setActiveSlide(c.activeSlideIndex - 1)
-                              : null,
-                          icon: const Icon(Icons.chevron_left),
+                          key: const ValueKey('office-zoom-out'),
+                          tooltip: widget.zoomOutLabel,
+                          onPressed: () => zoom(1 / 1.2),
+                          icon: const Icon(Icons.remove, size: 18),
                         ),
                         Text(
-                          '${c.activeSlideIndex + 1} / ${c.presentation.slides.length}',
+                          '${(c.viewport.scale * 100).round()}%',
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                                color: context.tone.ink2,
+                              ),
                         ),
                         IconButton(
-                          key: const ValueKey('office-next-slide'),
-                          tooltip: MaterialLocalizations.of(context)
-                              .nextPageTooltip,
-                          onPressed:
-                              c.activeSlideIndex + 1 <
-                                  c.presentation.slides.length
-                              ? () => c.setActiveSlide(c.activeSlideIndex + 1)
-                              : null,
-                          icon: const Icon(Icons.chevron_right),
+                          key: const ValueKey('office-zoom-in'),
+                          tooltip: widget.zoomInLabel,
+                          onPressed: () => zoom(1.2),
+                          icon: const Icon(Icons.add, size: 18),
                         ),
-                        const Spacer(),
-                      ] else
-                        const Spacer(),
-                      IconButton(
-                        key: const ValueKey('office-zoom-out'),
-                        tooltip: widget.zoomOutLabel,
-                        onPressed: () => zoom(1 / 1.2),
-                        icon: const Icon(Icons.remove),
-                      ),
-                      Text('${(c.viewport.scale * 100).round()}%'),
-                      IconButton(
-                        key: const ValueKey('office-zoom-in'),
-                        tooltip: widget.zoomInLabel,
-                        onPressed: () => zoom(1.2),
-                        icon: const Icon(Icons.add),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 Expanded(
@@ -202,18 +249,43 @@ class _OfficePreviewState extends State<OfficePreview> {
                     office.WordEditorController() => office.QudsWordEditor(
                       key: const ValueKey('office-word'),
                       controller: c,
+                      config: config,
                     ),
                     office.SheetEditorController() => office.QudsSheetEditor(
                       key: const ValueKey('office-sheet'),
                       controller: c,
+                      config: config,
                     ),
                     office.SlideEditorController() => office.QudsSlideEditor(
                       key: const ValueKey('office-slides'),
                       controller: c,
+                      config: config,
                     ),
                     _ => const SizedBox.shrink(),
                   },
                 ),
+                if (c is office.SheetEditorController)
+                  Material(
+                    color: context.tone.surface,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      child: Segment<int>(
+                        value: c.activeSheetIndex,
+                        options: {
+                          for (var i = 0; i < c.workbook.sheets.length; i++)
+                            i: Text(
+                              c.workbook.sheets[i].name,
+                              key: ValueKey('office-sheet-$i'),
+                            ),
+                        },
+                        onChanged: c.setActiveSheet,
+                      ),
+                    ),
+                  ),
               ],
             );
           },

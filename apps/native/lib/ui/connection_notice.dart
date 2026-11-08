@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
+import 'design.dart';
 
 /// One non-modal notice per interruption, above (not instead of) the workspace.
 class ConnectionNotice extends StatefulWidget {
@@ -82,26 +83,41 @@ class _ConnectionNoticeState extends State<ConnectionNotice> {
             bottom: MediaQuery.viewInsetsOf(context).bottom + 100,
             child: IgnorePointer(
               child: Material(
-                elevation: 3,
-                borderRadius: BorderRadius.circular(20),
-                color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                elevation: 2,
+                shape: RoundedSuperellipseBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                color: context.tone.menu,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
+                    horizontal: 12,
+                    vertical: 8,
                   ),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       maxWidth: MediaQuery.sizeOf(context).width - 60,
                     ),
-                    child: Text(
-                      pending
-                          ? c.tr(
-                              '无法连接，内容会在重连后自动发出',
-                              'Unable to connect. Your messages will send after reconnecting.',
-                            )
-                          : c.tr('无法连接', 'Unable to connect'),
-                      style: Theme.of(context).textTheme.bodySmall,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.cloud_off_outlined,
+                          size: 16,
+                          color: context.tone.ink3,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            pending
+                                ? c.tr(
+                                    '无法连接，内容会在重连后自动发出',
+                                    'Unable to connect. Your messages will send after reconnecting.',
+                                  )
+                                : c.tr('无法连接', 'Unable to connect'),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

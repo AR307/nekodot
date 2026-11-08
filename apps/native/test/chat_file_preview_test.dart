@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -169,7 +170,10 @@ void main() {
               .readAsBytesSync();
           await tester.pumpWidget(
             MaterialApp(
-              theme: appTheme(narrow ? Brightness.dark : Brightness.light),
+              theme: appTheme(
+                narrow ? Brightness.dark : Brightness.light,
+                glass: narrow,
+              ),
               home: RepaintBoundary(
                 key: const ValueKey('office-preview-evidence'),
                 child: Scaffold(
@@ -227,6 +231,17 @@ void main() {
               find.text('${(c.viewport.scale * 100).round()}%'),
               findsOneWidget,
             );
+            final fitted = c.viewport.scale;
+            await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+            await tester.sendEventToBinding(
+              PointerScrollEvent(
+                position: tester.getCenter(find.byType(office.WordCanvas)),
+                scrollDelta: const Offset(0, -120),
+              ),
+            );
+            await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+            await tester.pump();
+            expect(c.viewport.scale, greaterThan(fitted));
           } else if (entry.value == OfficeFormat.sheet) {
             final c = tester
                 .widget<office.QudsSheetEditor>(
@@ -262,6 +277,79 @@ void main() {
           }
           await tester.tap(find.byKey(const ValueKey('office-zoom-in')));
           await tester.pump();
+          if (!narrow && entry.value != OfficeFormat.slides) {
+            final office.OfficeController c = entry.value == OfficeFormat.word
+                ? tester
+                      .widget<office.QudsWordEditor>(
+                        find.byType(office.QudsWordEditor),
+                      )
+                      .controller
+                : tester
+                      .widget<office.QudsSheetEditor>(
+                        find.byType(office.QudsSheetEditor),
+                      )
+                      .controller;
+            final canvas = find.byType(
+              entry.value == OfficeFormat.word
+                  ? office.WordCanvas
+                  : office.SheetGrid,
+            );
+            final rect = tester.getRect(canvas);
+            final old = c.viewport.scale;
+            await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+            await tester.sendEventToBinding(
+              PointerScrollEvent(
+                position: rect.center,
+                scrollDelta: const Offset(0, -120),
+              ),
+            );
+            await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+            await tester.pump();
+            expect(c.viewport.scale, greaterThan(old));
+            final wheelScale = c.viewport.scale;
+            await tester.pump(const Duration(milliseconds: 200));
+            expect(c.viewport.scale, wheelScale);
+            if (c is office.SheetEditorController) {
+              // A small sheet stays at its content edge until it fills the view.
+              c.viewport.setScale(2);
+              c.viewport.origin = const Offset(100, 50);
+              c.refresh();
+              await tester.pump();
+            }
+            final center = c.viewport.extent.center(Offset.zero);
+            Offset anchor() {
+              if (c is office.WordEditorController) {
+                final render = tester.renderObject<office.RenderWordCanvas>(
+                  canvas,
+                );
+                return render.windowForPagePoint(0, const Offset(180, 220));
+              }
+              return (c.viewport.origin + center - const Offset(28, 20)) /
+                  c.viewport.scale;
+            }
+
+            final beforeAnchor = anchor();
+            final beforeScale = c.viewport.scale;
+            await tester.tap(find.byKey(const ValueKey('office-zoom-in')));
+            await tester.pump();
+            final expected = c is office.WordEditorController
+                ? center +
+                      (beforeAnchor - center) * (c.viewport.scale / beforeScale)
+                : beforeAnchor;
+            expect((anchor() - expected).distance, lessThan(.1));
+            await tester.tap(find.byKey(const ValueKey('office-zoom-out')));
+            await tester.pump();
+            final beforeDrag = c.viewport.origin.dx;
+            final track = Offset(rect.left + rect.width * .45, rect.bottom - 6);
+            await tester.dragFrom(
+              track,
+              const Offset(120, 0),
+              kind: PointerDeviceKind.mouse,
+            );
+            await tester.pump();
+            expect(c.viewport.origin.dx, greaterThan(beforeDrag));
+            expect(c.config.allowsMutation, isFalse);
+          }
           expect(tester.takeException(), isNull);
           await tester.pumpWidget(const SizedBox());
         },

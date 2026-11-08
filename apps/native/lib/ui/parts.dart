@@ -696,33 +696,51 @@ class Segment<T> extends StatelessWidget {
   final T value;
   final Map<T, Widget> options;
   final ValueChanged<T> onChanged;
+  final double? position;
   const Segment({
     super.key,
     required this.value,
     required this.options,
     required this.onChanged,
+    this.position,
   });
   @override
   Widget build(BuildContext context) {
     final tone = context.tone;
     final keys = options.keys.toList();
-    final selected = keys.indexOf(value);
+    final selected = position ?? keys.indexOf(value).toDouble();
     final still = MediaQuery.disableAnimationsOf(context);
+    final fontSize = tone.glass ? 14.0 : 13.0;
+    final height = math.max(
+      tone.glass ? 32.0 : 28.0,
+      MediaQuery.textScalerOf(context).scale(fontSize) * 1.2 + 8,
+    );
+    final target = math.max(height, tone.glass ? 48.0 : height);
     const corners = RoundedSuperellipseBorder(
       borderRadius: BorderRadius.all(Radius.circular(999)),
     );
-    return Container(
-      height: tone.glass ? 52 : 32,
-      padding: const EdgeInsets.all(2),
-      decoration: ShapeDecoration(color: tone.raised, shape: corners),
-      child: IntrinsicWidth(
+    return IntrinsicWidth(
+      child: SizedBox(
+        height: target,
         child: Stack(
           children: [
             Positioned.fill(
+              top: (target - height) / 2,
+              bottom: (target - height) / 2,
+              child: DecoratedBox(
+                key: const ValueKey('segment-track'),
+                decoration: ShapeDecoration(color: tone.raised, shape: corners),
+              ),
+            ),
+            Positioned.fill(
+              left: 2,
+              right: 2,
+              top: (target - height) / 2 + 2,
+              bottom: (target - height) / 2 + 2,
               child: AnimatedAlign(
-                duration: still
+                duration: still || position != null
                     ? Duration.zero
-                    : const Duration(milliseconds: 200),
+                    : const Duration(milliseconds: 160),
                 curve: Curves.easeOutCubic,
                 alignment: Alignment(
                   keys.length == 1 ? 0 : -1 + 2 * selected / (keys.length - 1),
@@ -735,7 +753,6 @@ class Segment<T> extends StatelessWidget {
                     decoration: ShapeDecoration(
                       color: tone.ink,
                       shape: corners,
-                      shadows: tone.rest,
                     ),
                   ),
                 ),
@@ -751,22 +768,31 @@ class Segment<T> extends StatelessWidget {
                       child: InkWell(
                         customBorder: corners,
                         onTap: () => onChanged(key),
-                        child: Center(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            child: IconTheme(
-                              data: IconThemeData(
-                                size: tone.glass ? 18 : 15,
-                                color: key == value ? tone.base : tone.ink2,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minWidth: tone.glass ? 48 : 36,
+                          ),
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
                               ),
-                              child: DefaultTextStyle.merge(
-                                style: Theme.of(context).textTheme.labelLarge
-                                    ?.copyWith(
-                                      color: key == value
-                                          ? tone.base
-                                          : tone.ink2,
-                                    ),
-                                child: options[key]!,
+                              child: IconTheme(
+                                data: IconThemeData(
+                                  size: tone.glass ? 17 : 15,
+                                  color: key == value ? tone.base : tone.ink2,
+                                ),
+                                child: DefaultTextStyle.merge(
+                                  style: Theme.of(context).textTheme.labelLarge
+                                      ?.copyWith(
+                                        fontSize: fontSize,
+                                        height: 1.2,
+                                        color: key == value
+                                            ? tone.base
+                                            : tone.ink2,
+                                      ),
+                                  child: options[key]!,
+                                ),
                               ),
                             ),
                           ),
