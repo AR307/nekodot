@@ -32,6 +32,7 @@ export interface RunRecord {
   lastSeq: number;
   state: 'thinking' | 'tool' | 'waiting_approval' | 'waiting_question' | 'unknown' | 'idle';
   textMessageId?: string;
+  /** Stable originating input; queued/native records are persisted under this ID. */
   inputMessageId: string;
   welcome?: true;
   queue?: 'queued' | 'started';

@@ -102,7 +102,6 @@ export class GroupExecution {
         active,
       );
       active.textMessageId = undefined;
-      active.inputMessageId = userMessage.messageId;
       active.state = 'thinking';
       const chain = this.database.chain(conversation.conversationId);
       if (chain) {

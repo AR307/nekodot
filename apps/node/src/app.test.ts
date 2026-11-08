@@ -297,6 +297,50 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
           .at(-1)?.runId,
       ).toBe(lastRun.runId);
 
+      // A delivered secret queues a native continuation. Steering it must not
+      // change its persisted identity and leave the original record running.
+      const nativeSession = app.database.hermesSession(conversation.conversationId)!;
+      const submissionId = 'secret-delivery:' + randomUUID();
+      const createdAt = new Date().toISOString();
+      await app.secrets.onContinue(
+        {
+          requestId: randomUUID(),
+          botId: bot.botId,
+          conversationId: conversation.conversationId,
+          sessionId: nativeSession.storedSessionId,
+          service: 'Continuation regression',
+          purpose: 'Verify session switching after steer',
+          fields: [{ name: 'TEST_KEY', label: 'API Key', kind: 'password' }],
+          target: { kind: 'file', path: join(home, 'test.env'), format: 'env' },
+          state: 'applied',
+          saved: false,
+          createdAt,
+          updatedAt: createdAt,
+          result: '',
+        },
+        submissionId,
+        'same run steer approval',
+      );
+      await waitFor(() => app.database.runs().some((run) => run.native && run.state === 'tool'));
+      const continuation = app.database.runs().find((run) => run.native)!;
+      await send('Please keep the same run and explain what you found.');
+      await waitFor(() => !app.database.runs().some((run) => run.runId === continuation.runId));
+      const records = app.database.db
+        .prepare(
+          "SELECT key,value FROM settings WHERE key LIKE 'native-admission:%' AND json_extract(value,'$.runId')=?",
+        )
+        .all(continuation.runId!);
+      expect(records).toHaveLength(1);
+      expect(records[0]?.key).toBe('native-admission:' + submissionId);
+      expect(JSON.parse(String(records[0]?.value))).toMatchObject({
+        inputMessageId: submissionId,
+        state: 'idle',
+      });
+      await app.commands.sessions.execute(bot.botId, '/new', 'After confidential continuation');
+      expect(app.database.hermesSession(conversation.conversationId)?.storedSessionId).not.toBe(
+        nativeSession.storedSessionId,
+      );
+
       const snapshot = (await app.handle(request('sync.snapshot', {}))) as { headSeq: number };
       const sync = (await app.handle(request('sync.since', { seq: 0 }))) as {
         events: unknown[];

@@ -597,7 +597,6 @@ export class ConversationExecution {
         active,
       );
       active.textMessageId = undefined;
-      active.inputMessageId = userMessage.messageId;
       active.state = 'thinking';
       this.database.saveRun(active);
       this.publishActivity(active);
