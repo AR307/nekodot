@@ -659,15 +659,39 @@ class ChatComposerState extends State<ChatComposer> {
                             for (final file in attached)
                               InputChip(
                                 avatar: Icon(
-                                  '${file['mime']}'.startsWith('image/')
-                                      ? Icons.image_outlined
-                                      : Icons.description_outlined,
+                                  fileIcon(
+                                    '${file['name']}',
+                                    '${file['mime']}',
+                                  ),
                                   size: 16,
                                 ),
-                                label: MetaText([
-                                  '${file['name']}',
-                                  fileSize(file['size'] as num),
-                                ]),
+                                side: BorderSide.none,
+                                backgroundColor: tone.bubble,
+                                label: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth: tone.glass ? 210 : 280,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          '${file['name']}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        fileSize(file['size'] as num),
+                                        style: TextStyle(
+                                          color: tone.ink3,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                                 onDeleted: sending
                                     ? null
                                     : () {

@@ -13,6 +13,7 @@ import 'package:share_plus/share_plus.dart';
 import '../data/client.dart';
 import '../data/json.dart';
 import '../data/account.dart';
+import '../platform/desktop.dart';
 import '../platform/file_actions.dart';
 import '../ui/design.dart';
 import '../ui/message_markdown.dart';
@@ -91,6 +92,28 @@ String fileSize(num bytes) => bytes < 1024
     : bytes < 1048576
     ? '${(bytes / 1024).toStringAsFixed(1)} KB'
     : '${(bytes / 1048576).toStringAsFixed(1)} MB';
+
+IconData fileIcon(String name, String mime) {
+  final format = officeFormat(name, mime);
+  if (format != null) {
+    return switch (format) {
+      OfficeFormat.word => Icons.article_outlined,
+      OfficeFormat.sheet => Icons.table_chart_outlined,
+      OfficeFormat.slides => Icons.slideshow_outlined,
+    };
+  }
+  if (mime.startsWith('image/') ||
+      RegExp(
+        r'\.(png|jpe?g|gif|webp|svg)$',
+        caseSensitive: false,
+      ).hasMatch(name)) {
+    return Icons.image_outlined;
+  }
+  if (mime == 'application/pdf' || name.toLowerCase().endsWith('.pdf')) {
+    return Icons.picture_as_pdf_outlined;
+  }
+  return Icons.description_outlined;
+}
 
 Future<Json?> pickChatFile(
   NekodotClient client,
@@ -261,39 +284,29 @@ class _FileCardState extends State<FileCard> {
   Widget row(Json? value) {
     final tone = context.tone;
     final text = Theme.of(context).textTheme;
-    final corners = BorderRadius.circular(16);
+    final corners = BorderRadius.circular(12);
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 340),
       child: Material(
-        color: tone.surface,
-        shape: RoundedSuperellipseBorder(
-          borderRadius: corners,
-          side: BorderSide(color: tone.line, width: .5),
-        ),
+        color: tone.bubble,
+        shape: RoundedSuperellipseBorder(borderRadius: corners),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: open,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(10, 10, 16, 10),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: ShapeDecoration(
-                    color: tone.bubble,
-                    shape: RoundedSuperellipseBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Icon(
-                    value?['available'] == false
-                        ? Icons.broken_image_outlined
-                        : Icons.description_outlined,
-                    size: 19,
-                    color: tone.ink2,
-                  ),
+                Icon(
+                  value?['available'] == false
+                      ? Icons.broken_image_outlined
+                      : fileIcon(
+                          '${value?['name'] ?? ''}',
+                          '${value?['mime'] ?? ''}',
+                        ),
+                  size: 24,
+                  color: tone.ink2,
                 ),
                 const SizedBox(width: 12),
                 Flexible(
@@ -304,7 +317,7 @@ class _FileCardState extends State<FileCard> {
                       Text(
                         value?['name'] as String? ??
                             widget.client.tr('附件', 'Attachment'),
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: text.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
@@ -585,30 +598,44 @@ class _FileViewerState extends State<FileViewer> {
       items: [
         menuItem(
           anchor,
-          key: const ValueKey('open-default'),
-          value: 'open',
-          icon: Icons.open_in_new,
-          label: client.tr('用默认应用打开', 'Open in default app'),
+          value: 'share',
+          icon: Icons.ios_share_outlined,
+          label: client.tr('分享文件', 'Share file'),
         ),
-        if (Platform.isWindows) ...[
+        if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) ...[
           menuItem(
             anchor,
-            key: const ValueKey('open-with'),
-            value: 'openWith',
-            icon: Icons.apps_outlined,
-            label: client.tr('打开方式…', 'Open with…'),
+            key: const ValueKey('open-default'),
+            value: 'open',
+            icon: Icons.open_in_new,
+            label: client.tr('用默认应用打开', 'Open in default app'),
           ),
-          menuItem(
-            anchor,
-            key: const ValueKey('open-folder'),
-            value: 'reveal',
-            icon: Icons.folder_open_outlined,
-            label: client.tr('在文件夹中显示', 'Show in folder'),
-          ),
+          if (Platform.isWindows) ...[
+            menuItem(
+              anchor,
+              key: const ValueKey('open-with'),
+              value: 'openWith',
+              icon: Icons.apps_outlined,
+              label: client.tr('打开方式…', 'Open with…'),
+            ),
+            menuItem(
+              anchor,
+              key: const ValueKey('open-folder'),
+              value: 'reveal',
+              icon: Icons.folder_open_outlined,
+              label: client.tr('在文件夹中显示', 'Show in folder'),
+            ),
+          ],
         ],
       ],
     );
-    if (action != null && mounted) await openOutside(action);
+    if (action != null && mounted) {
+      if (action == 'share') {
+        await deliver(share: true);
+      } else {
+        await openOutside(action);
+      }
+    }
   }
 
   Future<void> deliver({required bool share}) async {
@@ -648,100 +675,105 @@ class _FileViewerState extends State<FileViewer> {
   Widget build(BuildContext context) {
     final tone = context.tone;
     final available = file['available'] == true, svg = isSvg(file);
-    final desktop = Platform.isWindows || Platform.isMacOS || Platform.isLinux;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(18, 8, 8, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+          child: Row(
             children: [
-              Text(
-                '${file['name']}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleSmall,
+              Icon(
+                fileIcon('${file['name']}', '${file['mime']}'),
+                size: 20,
+                color: tone.ink3,
               ),
-              Wrap(
-                alignment: WrapAlignment.end,
-                children: [
-                  if (RegExp(r'\.(tar\.gz|tgz)$').hasMatch('${file['name']}') &&
-                      available)
-                    IconButton(
-                      tooltip: client.tr('作为新 Bot 导入', 'Import as a new Bot'),
-                      icon: const Icon(Icons.person_add_alt_1_outlined),
-                      onPressed: () {
-                        final navigator = Navigator.of(context);
-                        if (widget.onClose != null) {
-                          widget.onClose!();
-                        } else {
-                          navigator.pop();
-                        }
-                        pushPage(
-                          navigator.context,
-                          BotEditor(
-                            client: client,
-                            importProfile: true,
-                            initialArchive: file,
-                          ),
-                        );
-                      },
-                    ),
-                  if (svg && available)
-                    IconButton(
-                      key: const ValueKey('viewer-svg-source'),
-                      tooltip: source
-                          ? client.tr('查看图片', 'Show picture')
-                          : client.tr('查看源码', 'Show source'),
-                      onPressed: () => setState(() => source = !source),
-                      icon: Icon(source ? Icons.image_outlined : Icons.code),
-                    ),
-                  if (desktop)
-                    Builder(
-                      builder: (anchor) => IconButton(
-                        key: const ValueKey('viewer-open'),
-                        tooltip: client.tr('打开', 'Open'),
-                        onPressed: available && !busy
-                            ? () => openMenu(anchor)
-                            : null,
-                        icon: const Icon(Icons.open_in_new),
-                      ),
-                    ),
-                  IconButton(
-                    tooltip: client.tr('分享文件', 'Share file'),
-                    onPressed: available && !busy
-                        ? () => deliver(share: true)
-                        : null,
-                    icon: const Icon(Icons.ios_share_outlined),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Tooltip(
+                  message: '${file['name']}',
+                  child: Text(
+                    '${file['name']}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall,
                   ),
-                  IconButton(
-                    tooltip: client.tr('保存文件', 'Save file'),
-                    onPressed: available && !busy
-                        ? () => deliver(share: false)
-                        : null,
-                    icon: const Icon(Icons.download_outlined),
-                  ),
-                  IconButton(
-                    tooltip: client.tr('关闭', 'Close'),
-                    onPressed: widget.onClose ?? () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                  if (widget.onExpand != null)
-                    IconButton(
-                      key: const ValueKey('viewer-expand'),
-                      tooltip: widget.expanded
-                          ? client.tr('收起', 'Collapse')
-                          : client.tr('展开', 'Expand'),
-                      onPressed: widget.onExpand,
-                      icon: Icon(
-                        widget.expanded
-                            ? Icons.fullscreen_exit
-                            : Icons.fullscreen,
-                      ),
-                    ),
-                ],
+                ),
               ),
+              const SizedBox(width: 8),
+              if (RegExp(r'\.(tar\.gz|tgz)$').hasMatch('${file['name']}') &&
+                  available)
+                IconButton(
+                  tooltip: client.tr('作为新 Bot 导入', 'Import as a new Bot'),
+                  icon: const Icon(Icons.person_add_alt_1_outlined),
+                  onPressed: () {
+                    final navigator = Navigator.of(context);
+                    if (widget.onClose != null) {
+                      widget.onClose!();
+                    } else {
+                      navigator.pop();
+                    }
+                    pushPage(
+                      navigator.context,
+                      BotEditor(
+                        client: client,
+                        importProfile: true,
+                        initialArchive: file,
+                      ),
+                    );
+                  },
+                ),
+              if (svg && available)
+                IconButton(
+                  key: const ValueKey('viewer-svg-source'),
+                  tooltip: source
+                      ? client.tr('查看图片', 'Show picture')
+                      : client.tr('查看源码', 'Show source'),
+                  onPressed: () => setState(() => source = !source),
+                  icon: Icon(source ? Icons.image_outlined : Icons.code),
+                ),
+              if (tone.glass)
+                IconButton(
+                  tooltip: client.tr('分享文件', 'Share file'),
+                  onPressed: available && !busy
+                      ? () => deliver(share: true)
+                      : null,
+                  icon: const Icon(Icons.ios_share_outlined),
+                )
+              else
+                Builder(
+                  builder: (anchor) => IconButton(
+                    key: const ValueKey('viewer-open'),
+                    tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+                    onPressed: available && !busy
+                        ? () => openMenu(anchor)
+                        : null,
+                    icon: const Icon(Icons.more_horiz),
+                  ),
+                ),
+              IconButton(
+                tooltip: client.tr('保存文件', 'Save file'),
+                onPressed: available && !busy
+                    ? () => deliver(share: false)
+                    : null,
+                icon: const Icon(Icons.download_outlined),
+              ),
+              if (widget.onExpand != null)
+                IconButton(
+                  key: const ValueKey('viewer-expand'),
+                  tooltip: widget.expanded
+                      ? client.tr('收起', 'Collapse')
+                      : client.tr('展开', 'Expand'),
+                  onPressed: widget.onExpand,
+                  icon: Icon(
+                    widget.expanded ? Icons.fullscreen_exit : Icons.fullscreen,
+                  ),
+                ),
+              IconButton(
+                tooltip: client.tr('关闭', 'Close'),
+                onPressed: widget.onClose ?? () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+              ),
+              SizedBox(width: WindowChrome.reserved(context)),
             ],
           ),
         ),

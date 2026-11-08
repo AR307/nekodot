@@ -169,7 +169,10 @@ void main() {
               .readAsBytesSync();
           await tester.pumpWidget(
             MaterialApp(
-              theme: appTheme(narrow ? Brightness.dark : Brightness.light),
+              theme: appTheme(
+                narrow ? Brightness.dark : Brightness.light,
+                glass: narrow,
+              ),
               home: RepaintBoundary(
                 key: const ValueKey('office-preview-evidence'),
                 child: Scaffold(

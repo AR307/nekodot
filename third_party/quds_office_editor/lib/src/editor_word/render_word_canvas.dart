@@ -1035,7 +1035,8 @@ class RenderWordCanvas extends RenderBox implements MouseTrackerAnnotation {
     _resetPaintFit();
   }
 
-  static const double _pageSideGutter = 64;
+  double get _pageSideGutter =>
+      config.mode == OfficeInteractionMode.viewing ? 16 : 64;
 
   double get _maxPageWidthPt {
     var maxW = laidOut.pageSize.width;

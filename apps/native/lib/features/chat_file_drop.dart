@@ -47,12 +47,30 @@ class _ChatFileDropState extends State<ChatFileDrop> {
               child: IgnorePointer(
                 child: DecoratedBox(
                   key: const ValueKey('chat-drop-highlight'),
-                  decoration: BoxDecoration(
-                    color: context.tone.ink.withValues(alpha: .06),
-                    border: Border.all(color: context.tone.ink2, width: 2),
-                    borderRadius: BorderRadius.circular(16),
+                  decoration: ShapeDecoration(
+                    color: context.tone.base.withValues(alpha: .88),
+                    shape: RoundedSuperellipseBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(color: context.tone.ink3, width: .5),
+                    ),
                   ),
-                  child: const Center(child: Icon(Icons.attach_file, size: 40)),
+                  child: Center(
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      decoration: ShapeDecoration(
+                        color: context.tone.raised,
+                        shape: RoundedSuperellipseBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.add_rounded,
+                        size: 28,
+                        color: context.tone.ink2,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
