@@ -1,6 +1,7 @@
 pnpm-lock.yaml
 tests/fixtures/**
 .runtime/**
+.claude/**
 dist/**
 node_modules/**
 .env*
