@@ -152,19 +152,8 @@ void main() {
       );
       expect(tableScrollable.position.pixels, greaterThan(0));
       await binding.takeScreenshot('tool-markdown-table-scrolled-android');
-      // Steps are folded under the box's status line: open it first.
-      final box = find.byKey(const ValueKey('work-status')).last;
-      await Scrollable.ensureVisible(tester.element(box), alignment: .2);
-      await tester.tap(box);
-      await tester.pump(const Duration(milliseconds: 400));
-      final failedTool = find.byWidgetPredicate(
-        (w) => w is StepRow && w.message.content['error'] == true,
-      );
-      await Scrollable.ensureVisible(tester.element(failedTool), alignment: .2);
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.tap(failedTool);
-      await tester.pump(const Duration(milliseconds: 400));
-      await binding.takeScreenshot('tool-details-expanded-android');
+      expect(find.byKey(const ValueKey('work-status')), findsNothing);
+      expect(find.byType(StepRow), findsNothing);
     } else {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(seconds: 60)),

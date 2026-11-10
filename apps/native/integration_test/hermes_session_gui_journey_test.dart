@@ -12,6 +12,8 @@ import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/data/tasks.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/features/task_details.dart';
+import 'package:nekodot_native/features/chat_message.dart';
+import 'package:nekodot_native/features/work.dart';
 import 'package:nekodot_native/platform/desktop.dart';
 import 'package:nekodot_native/ui/design.dart';
 import 'package:window_manager/window_manager.dart';
@@ -74,6 +76,8 @@ void main() {
       Future<void> shot(String stage) async {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 400));
+        // Apply the measured composer height after its entrance animation.
+        await tester.pump();
         if (Platform.isAndroid) {
           if (!androidSurfaceReady) {
             await binding.convertFlutterSurfaceToImage();
@@ -228,6 +232,158 @@ void main() {
         await shot('reconnected-light');
       }
 
+      if (const bool.fromEnvironment('QA_TASK_COMPACT_ONLY')) {
+        DotTask task;
+        if (const bool.fromEnvironment('QA_TASK_COMPACT_REUSE')) {
+          task = c.node.tasks.values.lastWhere(
+            (t) =>
+                t.conversationId == id &&
+                t.title.characters.length <= 7 &&
+                t.reportMessageId != null,
+          );
+        } else {
+          await send(
+            '请检查 $work/input.txt 的内容，用真实工具计算 1 到 100 的平方和，前台等待 20 秒后把结果与 COMPACT_DONE_$stamp 写入 $work/task-compact-ui.txt，再报告实际结果。不要只给示例代码。',
+          );
+          await until(
+            () => c.node.tasks.values.any(
+              (t) => t.conversationId == id && !original.contains(t.taskId),
+            ),
+            'compact requirement created',
+          );
+          task = c.node.tasks.values.firstWhere(
+            (t) => t.conversationId == id && !original.contains(t.taskId),
+          );
+          expect(task.title.characters.length, lessThanOrEqualTo(7));
+          expect(find.byKey(const ValueKey('work-status')), findsNothing);
+          await shot('compact-running');
+          final thinking = find.byKey(const ValueKey('thinking-row'));
+          if (thinking.evaluate().isNotEmpty) {
+            expect(
+              tester.getRect(thinking).bottom,
+              lessThanOrEqualTo(
+                tester
+                    .getRect(find.byKey(ValueKey('task-${task.taskId}')).last)
+                    .top,
+              ),
+              reason: 'reception and task title remain separate',
+            );
+          }
+          await until(
+            () => c.node.tasks[task.taskId]!.reportMessageId != null,
+            'compact requirement reported',
+          );
+        }
+        task = c.node.tasks[task.taskId]!;
+        expect(find.byKey(const ValueKey('work-status')), findsNothing);
+        for (final element in find.byType(TaskLink).evaluate()) {
+          final texts = tester.widgetList<Text>(
+            find.descendant(
+              of: find.byWidget(element.widget),
+              matching: find.byType(Text),
+            ),
+          );
+          expect(
+            texts.every((t) => t.data!.split(' · ').last.characters.length <= 7),
+            isTrue,
+          );
+        }
+        await shot('compact-chat');
+        c.destinations.add({
+          'nodeId': c.selectedNodeId,
+          'conversationId': id,
+          'taskId': task.taskId,
+        });
+        await until(
+          () => find.byType(TaskDetailsPage).evaluate().isNotEmpty,
+          'compact requirement details',
+        );
+        expect(find.byKey(const ValueKey('work-status')), findsNothing);
+        expect(find.byType(StepRow), findsNothing);
+        await shot('compact-details');
+        await tap(find.byTooltip('Flow'));
+        await until(
+          () =>
+              c.node
+                  .flow(id, task.taskId)
+                  ?.steps
+                  .any((s) => s.tool != null && s.messageId != null) ==
+              true,
+          'real tool graph loaded',
+        );
+        final graph = c.node.flow(id, task.taskId)!;
+        final step = graph.steps.lastWhere(
+          (s) => s.tool == 'read_file' && s.messageId != null,
+        );
+        final parent = graph.steps
+            .where((s) => s.stepId == step.parentStepId)
+            .firstOrNull;
+        if (parent?.kind == 'plan') {
+          await tap(find.byKey(ValueKey('flow-step-${parent!.stepId}')));
+        }
+        final row = find.byKey(ValueKey('flow-step-${step.stepId}'));
+        await tester.scrollUntilVisible(
+          row,
+          200,
+          scrollable: find.descendant(
+            of: find.byKey(const ValueKey('flow-steps')),
+            matching: find.byType(Scrollable),
+          ),
+          maxScrolls: 20,
+        );
+        await tap(row);
+        await until(
+          () => find.byType(StepRow).evaluate().isNotEmpty,
+          'original tool details accessible from graph',
+        );
+        await shot('compact-tool-details');
+        await tester.binding.handlePopRoute();
+        await tester.pump(const Duration(milliseconds: 250));
+        await tap(find.byKey(const ValueKey('flow-close')));
+        await tester.pageBack();
+        await tester.pump(const Duration(milliseconds: 250));
+        final cards = c.node.tasks.values.lastWhere(
+          (t) =>
+              t.conversationId == id &&
+              t.title.startsWith('Cards') &&
+              t.reportMessageId != null,
+        );
+        c.destinations.add({
+          'nodeId': c.selectedNodeId,
+          'conversationId': id,
+          'taskId': cards.taskId,
+        });
+        await until(
+          () => find.byType(TaskDetailsPage).evaluate().isNotEmpty,
+          'existing interaction cards opened',
+        );
+        final controls = find.byType(ControlCard);
+        await tester.scrollUntilVisible(
+          controls.first,
+          -300,
+          scrollable: find
+              .descendant(
+                of: find.byType(TaskDetailsPage),
+                matching: find.byType(Scrollable),
+              )
+              .last,
+          maxScrolls: 30,
+        );
+        expect(controls, findsWidgets);
+        expect(find.byKey(const ValueKey('work-status')), findsNothing);
+        await shot('compact-control-cards');
+        binding.reportData = {
+          ...?binding.reportData,
+          'realServices': true,
+          'taskId': task.taskId,
+          'shortTitle': task.title,
+          'stepsRemoved': true,
+          'toolDetailsViaFlow': true,
+          'controlCardsPreserved': true,
+        };
+        return;
+      }
+
       if (const bool.fromEnvironment('QA_TASK_LAYOUT_ONLY')) {
         final task = c.node.tasks.values.lastWhere(
           (t) =>
@@ -333,7 +489,7 @@ void main() {
             .where(
               (t) =>
                   t.conversationId == id &&
-                  t.title.startsWith('Cards ') &&
+                  t.title.startsWith('Cards') &&
                   t.active,
             )
             .lastOrNull;
@@ -499,7 +655,7 @@ void main() {
         );
         try {
           await send(
-            'Create one independent requirement titled Cards $stamp. Its executor must first use native clarify to ask which format to use, with choices Table and List. After my answer, read the nekodot-secrets skill and use the native terminal to run hermes secret request with this JSON spec: ${jsonEncode(spec)}. Never ask for the value in chat. After requesting the card, end that execution turn; the confidential delivery will continue it. After delivery use real code to check the file has a nonempty QA_KEY, print only true/false, never the value. Then report CARD_DONE_$stamp. Do not schedule anything.',
+            'Create one independent requirement titled Cards. Its executor must first use native clarify to ask which format to use, with choices Table and List. After my answer, read the nekodot-secrets skill and use the native terminal to run hermes secret request with this JSON spec: ${jsonEncode(spec)}. Never ask for the value in chat. After requesting the card, end that execution turn; the confidential delivery will continue it. After delivery use real code to check the file has a nonempty QA_KEY, print only true/false, never the value. Then report CARD_DONE_$stamp. Do not schedule anything.',
           );
           await until(
             () => c.node.tasks.values.any(
