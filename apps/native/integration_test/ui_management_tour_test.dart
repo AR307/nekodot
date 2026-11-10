@@ -25,7 +25,6 @@ import 'package:nekodot_native/local/system.dart';
 import 'package:nekodot_native/screen/viewer.dart';
 import 'package:nekodot_native/features/pets.dart';
 import 'package:nekodot_native/features/secrets.dart';
-import 'package:nekodot_native/features/sessions.dart';
 import 'package:nekodot_native/features/settings.dart';
 import 'package:nekodot_native/features/source_models.dart';
 import 'package:nekodot_native/features/statistics.dart';
@@ -274,7 +273,6 @@ void main() {
         BotModelPage(client: c, botId: botId),
         form: true,
       );
-      await open('sessions', BotSessionsPage(client: c, botId: botId));
       await open('learning', LearningPage(client: c, botId: botId));
       await open('secrets', BotSecretsPage(client: c, botId: botId));
       await open('settings', SettingsPage(client: c));
