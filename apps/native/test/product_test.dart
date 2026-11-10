@@ -227,7 +227,7 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('A thinking Bot shows its working cat until the reply streams', (
+  testWidgets('The fixed Dot status stays visible while the reply streams', (
     tester,
   ) async {
     final client = JourneyClient();
@@ -277,7 +277,7 @@ void main() {
     );
     client.notifyListeners();
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.byType(ThinkingRow), findsNothing);
+    expect(find.byType(ThinkingRow), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     client.dispose();
   });

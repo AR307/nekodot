@@ -1,12 +1,9 @@
-import 'task_details.dart';
-
 import 'package:flutter/material.dart';
 
 import '../data/chat_models.dart';
 import '../data/client.dart';
 import '../data/json.dart';
 import '../ui/design.dart';
-import 'work.dart';
 
 import 'chat_presentation.dart';
 import 'chat_message.dart';
@@ -20,7 +17,8 @@ class ChatTimeline extends StatelessWidget {
   final double composerHeight;
   final String? focusedMessage;
   final GlobalKey focusedKey;
-  final ValueChanged<String> onRetry, onError, onQuote;
+  final ValueChanged<String> onRetry, onError;
+  final void Function(String words, String? taskId) onQuote;
   final ValueChanged<bool>? onFocusChanged;
 
   /// Whether a message arrived while the page was open and has not been shown
@@ -50,15 +48,13 @@ class ChatTimeline extends StatelessWidget {
 
   /// A pause this long between two messages puts the time between them.
   static const pause = Duration(minutes: 30);
-  static const _earlier = ValueKey('chat-earlier'),
-      _thinking = ValueKey('chat-thinking');
+  static const _earlier = ValueKey('chat-earlier');
   @override
   Widget build(BuildContext context) {
     final c = client,
         id = conversationId,
         messages = view.messages,
         members = view.members,
-        bot = view.bot,
         group = view.group,
         working = view.working,
         cut = since;
@@ -72,7 +68,6 @@ class ChatTimeline extends StatelessWidget {
         if (cut == null || m.seq >= cut) m,
     ];
     final items = [...earlier, ...current];
-    final thinking = view.thinking && messages.isNotEmpty;
     // The bar floats over the top and the composer over the bottom.
     final head = MediaQuery.paddingOf(context).top + 6,
         bottom = composerHeight + 2;
@@ -108,8 +103,6 @@ class ChatTimeline extends StatelessWidget {
                     ),
                   ),
                 ),
-              if (m.taskId != null && c.node.tasks[m.taskId] != null)
-                TaskLink(client: c, task: c.node.tasks[m.taskId]!),
               EntryMotion(
                 play: fresh(m),
                 own: m.author.type == 'user',
@@ -127,7 +120,7 @@ class ChatTimeline extends StatelessWidget {
                         previous.author.id == m.author.id &&
                         previous.author.type == m.author.type,
                     onRetry: onRetry,
-                    onQuote: onQuote,
+                    onQuote: (words) => onQuote(words, m.taskId),
                   ),
                 ),
               ),
@@ -137,21 +130,6 @@ class ChatTimeline extends StatelessWidget {
       );
     }
 
-    final thinkingRow = Align(
-      key: _thinking,
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 720),
-        child: EntryMotion(
-          play: true,
-          child: ThinkingRow(
-            key: const ValueKey('thinking-row'),
-            bot: bot,
-            line: workingLine(c, '${bot?['displayName'] ?? 'Bot'}'),
-          ),
-        ),
-      ),
-    );
     final more = (c.node.messages[id]?.length ?? 0) < 50
         ? const SizedBox.shrink()
         : Center(
@@ -189,12 +167,9 @@ class ChatTimeline extends StatelessWidget {
                   padding: EdgeInsets.fromLTRB(14, 0, 14, bottom),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
-                      (context, index) => index < current.length
-                          ? entry(earlier.length + index)
-                          : thinkingRow,
-                      childCount: current.length + (thinking ? 1 : 0),
+                      (context, index) => entry(earlier.length + index),
+                      childCount: current.length,
                       findChildIndexCallback: (key) {
-                        if (key == _thinking) return current.length;
                         final index = current.indexWhere(
                           (item) => ValueKey(item.messageId) == key,
                         );
@@ -228,23 +203,33 @@ class ChatTimeline extends StatelessWidget {
           ),
         );
         final top = head - 6;
-        if (top == 0 || !height.isFinite || height <= top) return list;
-        // Lines fade out as they pass under the floating bar, so nothing shows
-        // around its pills.
+        if (!height.isFinite || height <= 0) return list;
+        final bottomEnd = ((height - composerHeight) / height).clamp(0.0, 1.0);
+        final bottomStart = ((height - composerHeight - 12) / height).clamp(
+          0.0,
+          bottomEnd,
+        );
+        // History stays clear of the fixed activity line and floating input.
         return ShaderMask(
           blendMode: BlendMode.dstIn,
           shaderCallback: (rect) => LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: const [
-              Colors.transparent,
-              Colors.transparent,
+            colors: [
+              top == 0 ? Colors.black : Colors.transparent,
+              top == 0 ? Colors.black : Colors.transparent,
               Colors.black,
+              Colors.black,
+              Colors.transparent,
+              Colors.transparent,
             ],
             stops: [
               0,
-              ((top - 24) / height).clamp(0.0, 1.0),
-              ((top + 8) / height).clamp(0.0, 1.0),
+              ((top - 24) / height).clamp(0.0, bottomStart),
+              ((top + 8) / height).clamp(0.0, bottomStart),
+              bottomStart,
+              bottomEnd,
+              1,
             ],
           ).createShader(rect),
           child: list,
@@ -305,18 +290,24 @@ class _LatestPosition extends ScrollPositionWithSingleContext {
   }
 }
 
-/// The coordinating Dot's reply indicator; task activity has separate titles.
+/// One activity line, anchored above the composer rather than in chat history.
 class ThinkingRow extends StatelessWidget {
   final Json? bot;
   final String line;
-  const ThinkingRow({super.key, this.bot, required this.line});
+  final bool moving;
+  const ThinkingRow({
+    super.key,
+    this.bot,
+    required this.line,
+    this.moving = true,
+  });
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: 12),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        if (bot != null) CatAvatar.of(bot!, size: 24, working: true),
+        if (bot != null) CatAvatar.of(bot!, size: 24, working: moving),
         const SizedBox(width: 10),
         Flexible(
           child: AnimatedSwitcher(
@@ -327,12 +318,20 @@ class ThinkingRow extends StatelessWidget {
               alignment: Alignment.centerLeft,
               children: [...previous, ?current],
             ),
-            child: ShiningText(
-              key: ValueKey(line),
-              text: line,
-              style: Theme.of(context).textTheme.bodyMedium
-                  ?.copyWith(color: context.tone.ink3),
-            ),
+            child: !moving
+                ? Text(
+                    line,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium
+                        ?.copyWith(color: context.tone.ink3),
+                  )
+                : ShiningText(
+                    key: ValueKey(line),
+                    text: line,
+                    style: Theme.of(context).textTheme.bodyMedium
+                        ?.copyWith(color: context.tone.ink3),
+                  ),
           ),
         ),
       ],

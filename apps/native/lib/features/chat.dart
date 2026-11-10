@@ -507,7 +507,8 @@ class _ChatPageState extends State<ChatPage>
                   focusedKey: focusedKey,
                   onRetry: (text) => composer.currentState?.editDraft(text),
                   onError: (value) => composer.currentState?.showError(value),
-                  onQuote: (words) => composer.currentState?.quote(words),
+                  onQuote: (words, taskId) =>
+                      composer.currentState?.quote(words, taskId: taskId),
                   fresh: fresh,
                   since: since,
                 ),
