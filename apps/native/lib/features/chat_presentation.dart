@@ -154,7 +154,11 @@ List<List<ChatMessage>> groupMessages(List<ChatMessage> messages) {
       const {'once', 'session', 'always'}.contains(object(m.content)['choice']);
   bool step(ChatMessage m) => m.kind == 'tool' || allowed(m);
   for (final m in messages) {
-    if (isProgressMessage(m)) continue;
+    if (isProgressMessage(m) ||
+        (m.kind == 'commentary' &&
+            '${m.content['text'] ?? ''}'.trim().isEmpty)) {
+      continue;
+    }
     final last = items.lastOrNull;
     if (step(m) &&
         last != null &&
