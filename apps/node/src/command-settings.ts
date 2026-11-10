@@ -83,7 +83,7 @@ export async function settingsCommand(
         });
     }
     return {
-      output: `Hermes profile tools: ${changed.join(', ') || 'no changes'}\nUnknown: ${unknown.join(', ') || 'none'}\nMissing servers/tools: ${missing.join(', ') || 'none'}\nNative profile configuration saved. Existing context is not rebuilt; use /new for its new tool policy.`,
+      output: `Hermes profile tools: ${changed.join(', ') || 'no changes'}\nUnknown: ${unknown.join(', ') || 'none'}\nMissing servers/tools: ${missing.join(', ') || 'none'}`,
     };
   }
   if (name === '/pet') {

@@ -174,13 +174,6 @@ export class NodeRpc {
         return this.features.routines.list(request.params.botId);
       case 'routines.get':
         return this.features.routines.get(request.params.botId, request.params.routineId);
-      case 'routines.approvalRespond':
-        return this.features.routines.approvalRespond(
-          request.params.botId,
-          request.params.executionId,
-          request.params.promptId,
-          request.params.choice,
-        );
       case 'routines.create':
         return this.features.routines.create(request.params);
       case 'routines.update':
@@ -256,7 +249,9 @@ export class NodeRpc {
       case 'extensions.configure':
         return this.features.extensions.configure(request.params);
       case 'flow.get':
-        return { flow: this.features.flow.get(request.params.conversationId) };
+        return {
+          flow: this.features.flow.get(request.params.conversationId, request.params.taskId),
+        };
       case 'sync.snapshot':
         this.execution.activities();
         return {
@@ -265,6 +260,7 @@ export class NodeRpc {
           conversations: this.features.database.conversations(),
           latest: this.features.database.latestTexts(),
           flows: this.features.flow.all(),
+          tasks: this.features.database.tasks(),
           headSeq: this.features.database.head(),
           node: this.features.desktopControl.capabilities(),
         } satisfies RpcResult<'sync.snapshot'>;
@@ -296,6 +292,14 @@ export class NodeRpc {
         };
       case 'messages.send':
         return this.execution.sendMessage(request.params);
+      case 'tasks.list':
+        return { tasks: this.features.database.tasks(request.params.conversationId) };
+      case 'tasks.get': {
+        const task = this.features.database.task(request.params.taskId);
+        if (!task || task.conversationId !== request.params.conversationId)
+          throw new NodeFault('not_found', 'Task not found');
+        return { task, messages: this.features.database.taskMessages(task.taskId) };
+      }
       case 'runs.stop':
         return this.execution.stop(request.params.conversationId, request.params.runId);
       case 'approvals.respond':

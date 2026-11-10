@@ -168,9 +168,9 @@ it('reports the same approval mode as the native boolean normalizer', async () =
 
 describe('nekodot managed SOUL rules', () => {
   const bot = { displayName: '笔笔', handle: 'bibi' } as Bot;
-  it('asks every Bot for one short sentence before each step', () => {
-    expect(managedRules(bot)).toContain('Before each tool call or command, write one short line');
-    expect(managedRules(bot)).toContain('正在查看推文');
+  it('leaves execution progress to the native task display', () => {
+    expect(managedRules(bot)).toContain('Do not narrate internal delegation');
+    expect(managedRules(bot)).toContain('real task status separately');
   });
   it('replaces only the managed block and keeps what the user wrote', () => {
     const soul = `My own notes.\n\n${managedRules({ ...bot, handle: 'old' } as Bot)}`;

@@ -219,11 +219,7 @@ export class FileLibrary {
   async capture(message: Extract<Message, { kind: 'text' }>) {
     if (message.author.type !== 'bot' || !message.author.id) return;
     const botId = message.author.id;
-    const conversation = this.database
-      .conversations()
-      .find((item) => item.kind === 'dm' && item.botId === botId);
-    if (!conversation) return;
-    const sessionId = this.database.hermesSession(conversation.conversationId)?.storedSessionId;
+    const sessionId = message.nativeSessionId;
     if (!sessionId) return;
     const ids: string[] = [];
     for (const reference of deliveryReferences(message.content.text)) {
@@ -269,6 +265,7 @@ export class FileLibrary {
         botId,
         conversationId: message.conversationId,
         messageId: message.messageId,
+        taskId: message.taskId,
         name,
         mime,
         size,

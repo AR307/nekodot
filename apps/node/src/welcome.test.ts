@@ -195,7 +195,7 @@ it('A message sent during the introduction is queued behind it once, even before
     const resent = app.handle({ method: 'messages.send', params });
     await delay(50);
     expect(app.database.runs()[0]?.runId).toBeUndefined();
-    expect(app.database.byClient('early')).toBeUndefined();
+    expect(app.database.byClient('early')).toMatchObject({ content: { text: params.text } });
     admit();
     const [first, second] = (await Promise.all([sent, resent])) as { messageId: string }[];
     expect(second).toEqual(first);
@@ -211,7 +211,7 @@ it('A message sent during the introduction is queued behind it once, even before
     // The introduction is submitted first; the user's message is a native queued prompt after it.
     expect(submits).toMatchObject([
       { text: expect.stringContaining('You have just been created') },
-      { text: params.text, input_id: first!.messageId, queued: true },
+      { text: expect.stringContaining(params.text), input_id: first!.messageId, queued: true },
     ]);
     expect(submits[0]).not.toHaveProperty('queued');
     expect(fake.inspectRuns()).toHaveLength(2);

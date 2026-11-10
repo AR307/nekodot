@@ -7,7 +7,6 @@ import type { CommandResult } from './session-commands';
 import { NodeFault } from './fault';
 
 export const controlCommandNames = new Set([
-  '/stop',
   '/steer',
   '/reload-mcp',
   '/rollback',
@@ -151,20 +150,6 @@ export async function commandControl(
       text: arg,
     });
     return { output: `Hermes steer: ${result.status}` };
-  }
-  if (name === '/stop') {
-    if (arg)
-      throw new NodeFault(
-        'invalid_params',
-        '/stop stops this session’s background processes and subagents. Use the chat Stop button to stop the main turn.',
-      );
-    const result = await gateway.rpc<{ killed: number; delegations: number }>(
-      'process.stop',
-      params,
-    );
-    return {
-      output: `Hermes stopped ${result.killed} background processes and ${result.delegations} delegations. The chat Stop button controls the main turn.`,
-    };
   }
   if (name === '/reload-mcp') {
     if (arg && arg !== 'confirm')

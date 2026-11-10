@@ -10,6 +10,7 @@ import type {
   RpcResult,
   FlowSnapshot,
   FlowChange,
+  DotTask,
 } from '@nekodot/protocol';
 
 export interface NativeModelOverride {
@@ -18,6 +19,17 @@ export interface NativeModelOverride {
 }
 
 export interface RunRecord {
+  role?: 'coordinator' | 'execution' | 'report';
+  taskId?: string;
+  executionId?: string;
+  /** Logical native session scope; never use the private chat for a group run. */
+  sessionKey?: string;
+  groupChainId?: string;
+  groupFollowup?: boolean;
+  pendingInput?: string;
+  targetTaskId?: string;
+  background?: 'cron' | 'webhook';
+  routineId?: string;
   runId?: string;
   conversationId: string;
   botId: string;
@@ -32,6 +44,7 @@ export interface RunRecord {
   lastSeq: number;
   state: 'thinking' | 'tool' | 'waiting_approval' | 'waiting_question' | 'unknown' | 'idle';
   textMessageId?: string;
+  /** Stable originating input; queued/native records are persisted under this ID. */
   inputMessageId: string;
   welcome?: true;
   queue?: 'queued' | 'started';
@@ -41,6 +54,7 @@ export interface RunRecord {
 }
 
 export interface HermesSessionRecord {
+  ownerConversationId?: string;
   conversationId: string;
   botId: string;
   storedSessionId: string;
@@ -50,6 +64,8 @@ export interface HermesSessionRecord {
 
 export interface GroupChainRecord {
   notificationId: string;
+  inputMessageId?: string;
+  taskId?: string;
   failed?: boolean;
   conversationId: string;
   group: Group;
@@ -126,6 +142,10 @@ export class NodeDatabase {
       reference TEXT NOT NULL,storage_path TEXT,data TEXT NOT NULL,
       UNIQUE(message_id,reference)
     ); CREATE INDEX IF NOT EXISTS attachments_bot ON attachments(bot_id);`);
+    this.db
+      .exec(`CREATE TABLE IF NOT EXISTS dot_tasks(task_id TEXT PRIMARY KEY,conversation_id TEXT NOT NULL,data TEXT NOT NULL);
+      CREATE INDEX IF NOT EXISTS dot_tasks_conversation ON dot_tasks(conversation_id);
+      CREATE TABLE IF NOT EXISTS task_executions(execution_id TEXT PRIMARY KEY,task_id TEXT NOT NULL,data TEXT NOT NULL);`);
   }
   private all<T>(sql: string, ...params: string[]): T[] {
     return this.db
@@ -210,6 +230,7 @@ export class NodeDatabase {
     const newest = this.db.prepare(
       `SELECT data FROM messages WHERE conversation_id=?
         AND json_extract(data,'$.kind') IN ('text','commentary')
+         AND coalesce(json_extract(data,'$.taskRole'),'') <> 'execution'
         AND trim(coalesce(json_extract(data,'$.content.text'),''))<>''
         ORDER BY created_seq DESC LIMIT 1`,
     );
@@ -361,6 +382,15 @@ export class NodeDatabase {
     run?: RunRecord,
     chain?: GroupChainRecord,
   ) {
+    const owner =
+      run ??
+      (metadata.runId ? this.runs().find((item) => item.runId === metadata.runId) : undefined);
+    if (owner?.storedSessionId) message.nativeSessionId = owner.storedSessionId;
+    if (owner?.groupChainId) message.groupChainId = owner.groupChainId;
+    if (owner?.taskId) {
+      message.taskId = owner.taskId;
+      message.taskRole = owner.role === 'execution' ? 'execution' : 'report';
+    }
     if (metadata.clientMsgId) message.clientMsgId = metadata.clientMsgId;
     const event = this.write(
       'message.upserted',
@@ -413,7 +443,7 @@ export class NodeDatabase {
     this.write('flow.changed', change, (seq) => {
       flow.seq = seq;
       change.seq = seq;
-      this.setSetting('flow:' + flow.conversationId, flow);
+      this.setSetting('flow:' + (flow.taskId ?? flow.conversationId), flow);
     });
   }
   updateMessage(message: Message, run?: RunRecord, metadata: { toolCallId?: string } = {}) {
@@ -423,13 +453,19 @@ export class NodeDatabase {
     this.db.prepare('UPDATE messages SET run_id=? WHERE message_id=?').run(runId, messageId);
   }
   saveRun(run: RunRecord) {
+    if (run.runId && run.taskId)
+      this.setSetting('usage-task:' + run.botId + ':admission:' + run.runId, run.taskId);
+    if (run.role === 'execution' && run.storedSessionId && run.taskId)
+      this.setSetting('usage-task-session:' + run.botId + ':' + run.storedSessionId, run.taskId);
+    if (run.runId && run.routineId)
+      this.setSetting('usage-routine:' + run.botId + ':' + 'admission:' + run.runId, run.routineId);
     if (run.runId)
       this.db
         .prepare('INSERT OR IGNORE INTO usage_owners VALUES(?,?,?,?)')
         .run(run.botId, 'execution', 'admission:' + run.runId, run.conversationId);
-    if (run.queue || run.native) {
+    if (run.queue || run.native || run.role) {
       this.setSetting(
-        (run.native ? 'native-admission:' : 'native-queue:') + run.inputMessageId,
+        (run.native || run.role ? 'native-admission:' : 'native-queue:') + run.inputMessageId,
         run,
       );
       return;
@@ -439,6 +475,21 @@ export class NodeDatabase {
         'INSERT INTO runs VALUES(?,?) ON CONFLICT(conversation_id) DO UPDATE SET data=excluded.data',
       )
       .run(run.conversationId, JSON.stringify(run));
+  }
+  hermesSessions(): HermesSessionRecord[] {
+    return this.db
+      .prepare(
+        "SELECT s.*, o.conversation_id owner_id FROM hermes_sessions s LEFT JOIN usage_owners o ON o.profile=s.bot_id AND o.kind='session' AND o.id=s.stored_session_id",
+      )
+      .all()
+      .map((row) => ({
+        conversationId: String(row.conversation_id),
+        ownerConversationId: String(row.owner_id),
+        botId: String(row.bot_id),
+        storedSessionId: String(row.stored_session_id),
+        replayEpoch: String(row.replay_epoch),
+        lastSequence: Number(row.last_sequence),
+      }));
   }
   hermesSession(conversationId: string) {
     const row = this.db
@@ -457,7 +508,12 @@ export class NodeDatabase {
   saveHermesSession(session: HermesSessionRecord) {
     this.db
       .prepare('INSERT OR IGNORE INTO usage_owners VALUES(?,?,?,?)')
-      .run(session.botId, 'session', session.storedSessionId, session.conversationId);
+      .run(
+        session.botId,
+        'session',
+        session.storedSessionId,
+        session.ownerConversationId ?? session.conversationId,
+      );
     this.db
       .prepare(
         'INSERT INTO hermes_sessions VALUES(?,?,?,?,?) ON CONFLICT(conversation_id) DO UPDATE SET bot_id=excluded.bot_id,stored_session_id=excluded.stored_session_id,replay_epoch=excluded.replay_epoch,last_sequence=excluded.last_sequence',
@@ -482,14 +538,42 @@ export class NodeDatabase {
       ),
     ].filter((r) => r.state !== 'idle');
   }
-  groupHistory(conversationId: string) {
-    return this.all<GroupChainRecord>(
-      'SELECT data FROM group_chains WHERE conversation_id=?',
-      conversationId,
-    )[0];
+  tasks(conversationId?: string) {
+    return conversationId
+      ? this.all<DotTask>(
+          'SELECT data FROM dot_tasks WHERE conversation_id=? ORDER BY rowid',
+          conversationId,
+        )
+      : this.all<DotTask>('SELECT data FROM dot_tasks ORDER BY rowid');
   }
-  chain(conversationId: string) {
-    const chain = this.groupHistory(conversationId);
+  task(taskId: string) {
+    return this.all<DotTask>('SELECT data FROM dot_tasks WHERE task_id=?', taskId)[0];
+  }
+  saveTask(task: DotTask) {
+    this.write('task.upserted', task, () => {
+      this.db
+        .prepare(
+          'INSERT INTO dot_tasks VALUES(?,?,?) ON CONFLICT(task_id) DO UPDATE SET data=excluded.data',
+        )
+        .run(task.taskId, task.conversationId, JSON.stringify(task));
+    });
+  }
+  taskMessages(taskId: string) {
+    return this.all<Message>(
+      "SELECT data FROM messages WHERE json_extract(data,'$.taskId')=? ORDER BY created_seq",
+      taskId,
+    );
+  }
+  groupHistory(conversationId: string) {
+    return this.all<GroupChainRecord>('SELECT data FROM group_chains')
+      .filter((chain) => chain.conversationId === conversationId)
+      .at(-1);
+  }
+  chain(chainId: string) {
+    const chain = this.all<GroupChainRecord>(
+      'SELECT data FROM group_chains WHERE conversation_id=?',
+      chainId,
+    )[0];
     return chain?.active ? chain : undefined;
   }
   chains() {
@@ -502,10 +586,10 @@ export class NodeDatabase {
       .prepare(
         'INSERT INTO group_chains VALUES(?,?) ON CONFLICT(conversation_id) DO UPDATE SET data=excluded.data',
       )
-      .run(chain.conversationId, JSON.stringify(chain));
+      .run(chain.notificationId, JSON.stringify(chain));
   }
-  clearChain(conversationId: string) {
-    const chain = this.groupHistory(conversationId);
+  clearChain(chainId: string) {
+    const chain = this.chain(chainId);
     if (chain) this.saveChain({ ...chain, active: false, queue: [], currentBotId: undefined });
   }
 }

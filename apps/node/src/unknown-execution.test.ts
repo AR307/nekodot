@@ -116,6 +116,7 @@ it.each(['dm', 'group'] as const)(
         replayEpoch: nativeSession.replay_epoch,
         lastSequence: nativeSession.last_sequence,
       });
+      app.database.setSetting('coordinator-session:' + dm.conversationId, true);
       let conversation: Conversation = dm;
       if (kind === 'group') {
         const group = {
@@ -161,7 +162,9 @@ it.each(['dm', 'group'] as const)(
           conversationId: conversation.conversationId,
           botId: bot.botId,
           runId: 'lost-admission',
-          ...(kind === 'group' ? { groupId: 'recovery-group' } : {}),
+          role: 'coordinator',
+          sessionKey: dm.conversationId,
+          ...(kind === 'group' ? { groupId: 'recovery-group', groupChainId: 'lost-chain' } : {}),
           sessionId: runtimeSessionId,
           storedSessionId,
           replayEpoch: nativeSession.replay_epoch,
@@ -175,15 +178,6 @@ it.each(['dm', 'group'] as const)(
       await app.resume();
       expect(app.database.runs()[0]?.state).toBe('unknown');
       expect(recorded.inspectRuns()).toHaveLength(0);
-      await expect(
-        app.handle(
-          request('messages.send', {
-            conversationId: conversation.conversationId,
-            text: 'Do not lose this draft.',
-            clientMsgId: randomUUID(),
-          }),
-        ),
-      ).rejects.toMatchObject({ code: 'conflict', message: expect.stringContaining('Click Stop') });
       expect(app.database.messages(conversation.conversationId)).toHaveLength(1);
       await app.close();
       app = new NodeApplication(home, runtime);
@@ -192,11 +186,15 @@ it.each(['dm', 'group'] as const)(
       expect(app.database.messages(conversation.conversationId)).toHaveLength(1);
 
       const stop = () =>
-        app.handle(request('runs.stop', { conversationId: conversation.conversationId }));
+        app.handle(
+          request('runs.stop', {
+            conversationId: conversation.conversationId,
+            runId: 'lost-admission',
+          }),
+        );
       await expect(stop()).rejects.toMatchObject({ code: 'unavailable' });
       expect(app.database.runs()[0]?.state).toBe('unknown');
-      if (kind === 'group')
-        expect(app.database.chain(conversation.conversationId)?.queue).toEqual(['nk-ghijkl']);
+      if (kind === 'group') expect(app.database.chain('lost-chain')?.queue).toEqual(['nk-ghijkl']);
       refuseResolution = false;
       await stop();
       expect(resolutions).toEqual([
@@ -204,7 +202,7 @@ it.each(['dm', 'group'] as const)(
         { admission_id: 'lost-admission', execution_generation: 4 },
       ]);
       expect(app.database.runs()).toHaveLength(0);
-      expect(app.database.chain(conversation.conversationId)).toBeUndefined();
+      expect(app.database.chain('lost-chain')).toBeUndefined();
       expect(app.database.message('partial-reply')).toMatchObject({
         status: 'cancelled',
         content: { text: 'Already completed work stays here.' },
@@ -222,7 +220,7 @@ it.each(['dm', 'group'] as const)(
       expect(recorded.inspectRuns()).toHaveLength(1);
       expect(recorded.inspectRuns()[0]).toMatchObject({
         profile: bot.botId,
-        sessionId: runtimeSessionId,
+        ...(kind === 'dm' ? { sessionId: runtimeSessionId } : {}),
       });
       expect(app.database.messages(conversation.conversationId)).toEqual(
         expect.arrayContaining([

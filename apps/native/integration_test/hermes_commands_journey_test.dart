@@ -10,7 +10,6 @@ import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/commands.dart';
 import 'package:nekodot_native/features/hermes_settings.dart';
 import 'package:nekodot_native/features/home.dart';
-import 'package:nekodot_native/features/sessions.dart';
 import 'package:nekodot_native/platform/desktop.dart';
 import 'package:nekodot_native/ui/design.dart';
 
@@ -240,84 +239,22 @@ void main() {
       modelReplies,
     );
 
-    final original = (await client.rpc('sessions.list', {
-      'botId': botId,
-    }))['currentSessionId'];
-    final sessionName = 'NativeQA-${DateTime.now().millisecondsSinceEpoch}';
-    await command('/new $sessionName', 'New Hermes session:');
-    final fresh = (await client.rpc('sessions.list', {
-      'botId': botId,
-    }))['currentSessionId'];
-    expect(fresh, isNot(original));
-    final prompt =
-        'Harmless test. Do not use tools. Reply exactly $marker-SESSION.';
-    await typeMessage(prompt);
-    await tapReady(find.byTooltip('Send'));
-    await until(
-      () => messages().any(
-        (row) =>
-            row.author.type == 'bot' &&
-            row.status == 'done' &&
-            '${row.content['text']}'.contains('$marker-SESSION'),
-      ),
-      seconds: 240,
-    );
-    await until(() => client.node.activities[conversationId]?.state == 'idle');
-    await command('/fork $sessionName-branch', 'Branched Hermes session:');
-    final branch = (await client.rpc('sessions.list', {
-      'botId': botId,
-    }))['currentSessionId'];
-    expect(branch, isNot(fresh));
-    await command('/history', '$marker-SESSION');
-    await command('/undo', 'Hermes context rewound.', prefill: prompt);
-    final undone = await client.rpc('sessions.history', {
-      'botId': botId,
-      'sessionId': branch,
-    });
     expect(
-      objects(undone['messages']).where((row) => row['role'] == 'user'),
+      catalog.where(
+        (row) => [
+          '/new',
+          '/resume',
+          '/sessions',
+          '/clear',
+          '/reset',
+          '/branch',
+          '/fork',
+        ].contains(row['name']),
+      ),
       isEmpty,
     );
-    await command('/resume $fresh', 'Resumed Hermes session:');
-    final repliesBeforeRetry = messages()
-        .where((row) => row.author.type == 'bot')
-        .length;
-    await command('/retry', 'Hermes context rewound.');
-    await until(
-      () =>
-          messages().where((row) => row.author.type == 'bot').length >
-              repliesBeforeRetry &&
-          client.node.activities[conversationId]?.state == 'idle',
-      seconds: 240,
-    );
-    await command('/compact --preview', 'Hermes compression (preview)');
+    expect(find.byKey(const ValueKey('chat-sessions')), findsNothing);
     await command('/save', 'Usage: /save');
-
-    await typeMessage('/sessions');
-    await tapReady(find.byTooltip('Send'));
-    await until(() => find.byType(BotSessionsPage).evaluate().isNotEmpty);
-    await until(() => find.text(sessionName).evaluate().isNotEmpty);
-    await tapReady(find.text(sessionName));
-    await until(() => find.text('Native transcript').evaluate().isNotEmpty);
-    await until(() => find.text('Resume here').evaluate().isNotEmpty);
-    await tapReady(find.text('Resume here'));
-    await until(
-      () =>
-          find.byType(BotSessionsPage).evaluate().isNotEmpty &&
-          find.text('Native transcript').evaluate().isEmpty,
-    );
-    await tester.pageBack();
-    await until(() => input.evaluate().isNotEmpty);
-    await command('/reset', 'New Hermes session:');
-    final empty = (await client.rpc('sessions.list', {
-      'botId': botId,
-    }))['currentSessionId'];
-    final emptyHistory = await client.rpc('sessions.history', {
-      'botId': botId,
-      'sessionId': empty,
-    });
-    expect(objects(emptyHistory['messages']), isEmpty);
-    await command('/resume $original', 'Resumed Hermes session:');
     final ids = messages().map((row) => row.messageId).toSet();
     await client.connection.connect();
     await until(() => client.connection.ready);
@@ -335,11 +272,6 @@ void main() {
       'reloadSkills': true,
       'settingsNavigation': true,
       'unavailableClearlySeparated': true,
-      'newSessionAndReset': true,
-      'branchAndUndo': true,
-      'resumeAndRetry': true,
-      'nativeSessionPicker': true,
-      'compressionPreview': true,
       'reconnectWithoutReplay': true,
       'catalog': {
         for (final status in ['available', 'app', 'terminal', 'not-integrated'])

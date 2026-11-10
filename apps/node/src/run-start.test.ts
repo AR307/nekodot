@@ -126,7 +126,12 @@ it('a relay turn never waits on the provider model probe: run start does not re-
         clientMsgId: randomUUID(),
       },
     });
-    await until(() => app.database.chain(conversation.conversationId) === undefined);
+    await until(
+      () =>
+        !app.database
+          .chains()
+          .some((chain) => chain.conversationId === conversation.conversationId),
+    );
 
     expect(
       fake
@@ -152,7 +157,12 @@ it('a relay turn never waits on the provider model probe: run start does not re-
         clientMsgId: randomUUID(),
       },
     });
-    await until(() => app.database.chain(conversation.conversationId) === undefined);
+    await until(
+      () =>
+        !app.database
+          .chains()
+          .some((chain) => chain.conversationId === conversation.conversationId),
+    );
     expect(
       fake
         .inspectRuns()

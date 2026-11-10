@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'json.dart';
 import 'flow.dart';
+import 'tasks.dart';
 
 class NodeData extends ChangeNotifier {
   final summaries = ValueNotifier<int>(0);
@@ -42,8 +43,22 @@ class NodeData extends ChangeNotifier {
   /// list can preview a conversation whose messages are not loaded.
   Map<String, ChatMessage> latest = {};
   final Map<String, ConversationActivity> activities = {};
+  final Map<String, ConversationActivity> taskActivities = {};
   final Map<String, Json> screens = {};
   final Map<String, FlowSnapshot> flows = {};
+  final Map<String, DotTask> tasks = {};
+  FlowSnapshot? flow(String conversationId, [String? taskId]) {
+    if (taskId != null) return flows[taskId];
+    final latest = tasks.values
+        .where(
+          (t) =>
+              t.conversationId == conversationId &&
+              (t.source == 'chat' || t.source == 'group'),
+        )
+        .lastOrNull;
+    return latest == null ? null : flows[latest.taskId];
+  }
+
   int seq = 0;
   bool online = false, syncing = false;
   final List<Json> buffer = [];
@@ -65,10 +80,21 @@ class NodeData extends ChangeNotifier {
     };
     seq = data['headSeq'] as int;
     capabilities = object(data['node'] ?? {});
+    tasks.clear();
+    for (final value in objects(data['tasks'])) {
+      final task = DotTask.fromJson(value);
+      tasks[task.taskId] = task;
+    }
+    taskActivities.clear();
+    for (final entry in object(data['taskActivities'] ?? {}).entries) {
+      taskActivities[entry.key] = ConversationActivity.fromJson(
+        object(entry.value),
+      );
+    }
     flows.clear();
     for (final value in objects(data['flows'])) {
       final flow = FlowSnapshot.fromJson(value);
-      flows[flow.conversationId] = flow;
+      flows[flow.key] = flow;
     }
   }
 
@@ -79,11 +105,16 @@ class NodeData extends ChangeNotifier {
       seq = p['seq'] as int;
       final data = object(p['data']);
       switch (p['kind']) {
+        case 'task.upserted':
+          final task = DotTask.fromJson(data);
+          tasks[task.taskId] = task;
+          changed(task.conversationId, summary: true);
         case 'flow.changed':
           final id = data['conversationId'] as String;
-          final previous = flows[id];
+          final key = data['taskId'] as String? ?? id;
+          final previous = flows[key];
           if (previous == null || previous.seq < (data['seq'] as int)) {
-            flows[id] = FlowSnapshot.fromJson(data, previous);
+            flows[key] = FlowSnapshot.fromJson(data, previous);
             changed(id);
           }
         case 'bot.upserted':
@@ -114,7 +145,8 @@ class NodeData extends ChangeNotifier {
               list[index] = message;
             }
           }
-          if ((message.kind == 'text' || message.kind == 'commentary') &&
+          if (message.taskRole != 'execution' &&
+              (message.kind == 'text' || message.kind == 'commentary') &&
               '${message.content['text'] ?? ''}'.trim().isNotEmpty &&
               message.seq >= (latest[message.conversationId]?.seq ?? 0)) {
             latest[message.conversationId] = message;
@@ -122,6 +154,13 @@ class NodeData extends ChangeNotifier {
           changed(data['conversationId'] as String, summary: true);
       }
     } else if (p['kind'] == 'activity') {
+      if (p['taskId'] != null) {
+        taskActivities[p['taskId'] as String] = ConversationActivity.fromJson(
+          p,
+        );
+        changed(p['conversationId'] as String);
+        return;
+      }
       activities[p['conversationId'] as String] = ConversationActivity.fromJson(
         p,
       );

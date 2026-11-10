@@ -125,6 +125,12 @@ export function recordedManagementRuntime(
     const rpc = async <T>(method: string, params: Record<string, unknown>): Promise<T> => {
       if (method === 'commands.catalog')
         return (await management.rpc('commands.catalog', { profile })) as T;
+      if (method === 'session.list')
+        return {
+          sessions: [...sessions.values()]
+            .filter((s) => s.profile === profile)
+            .map((s) => ({ session_id: s.storedSessionId })),
+        } as T;
       if (method === 'session.create') {
         const requestId = String(params.request_id ?? randomUUID());
         const sessionProfile = String(params.profile ?? profile);
@@ -152,6 +158,7 @@ export function recordedManagementRuntime(
       }
       const session = sessionFor(String(params.session_id));
       if (!session) throw new Error('not_found');
+      if (method === 'session.info') return { reasoning_effort: 'xhigh' } as T;
       if (method === 'slash.exec' || method === 'command.dispatch') {
         const command =
           method === 'slash.exec'

@@ -33,6 +33,7 @@ class FlowSnapshot {
   Map<String, dynamic> toJson() => {
     'flowId': flowId,
     'conversationId': conversationId,
+    'taskId': ?taskId,
     'state': state,
     'sessionId': ?sessionId,
     'seq': seq,
@@ -41,7 +42,8 @@ class FlowSnapshot {
     'reset': true,
   };
   final String flowId, conversationId, state;
-  final String? sessionId;
+  final String? sessionId, taskId;
+  String get key => taskId ?? conversationId;
   final int seq;
   final List<String> queuedBotIds;
   final List<FlowStep> steps;
@@ -49,6 +51,7 @@ class FlowSnapshot {
     : flowId = value['flowId'] as String,
       conversationId = value['conversationId'] as String,
       sessionId = value['sessionId'] as String?,
+      taskId = value['taskId'] as String?,
       state = value['state'] as String,
       seq = value['seq'] as int,
       queuedBotIds = List<String>.from(value['queuedBotIds'] as List),

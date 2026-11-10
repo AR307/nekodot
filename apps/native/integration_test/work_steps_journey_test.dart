@@ -251,12 +251,6 @@ void main() {
 
     List<ChatMessage> messages() => client.node.messages[id] ?? [];
     bool idle() => client.node.activities[id]?.state == 'idle';
-    String? shown(Finder finder) {
-      final found = finder.evaluate();
-      if (found.isEmpty) return null;
-      return (found.last.widget as Text).data;
-    }
-
     // Files and pictures already in this chat open over it, not as a page.
     final files = [
       for (final m in messages())
@@ -338,8 +332,7 @@ void main() {
     await until(idle, seconds: 120, what: 'new conversation');
     await settle(800);
 
-    // A task with steps: the box below the message says what the Bot is
-    // doing while it works, with every step folded under it.
+    // Tool events remain available as records, without a chat steps block.
     // An earlier run cut off mid-task waits for Stop to be acknowledged.
     if (client.node.activities[id]?.state == 'unknown') {
       await tap(find.byTooltip('停止'));
@@ -510,8 +503,7 @@ void main() {
       steps.any((s) => '${s.content['context'] ?? ''}'.isNotEmpty),
       isTrue,
     );
-    // Every line was the Bot's name and what it was doing, and at least one
-    // was a line the Bot wrote itself.
+    // The activity suffix stays within seven displayed characters.
     expect(statuses, isNotEmpty);
     expect(statuses.every((s) => s.startsWith(name)), isTrue);
     final own = [
@@ -528,49 +520,12 @@ void main() {
     ].where((w) => w.isNotEmpty).toList();
     note('ownLines', own);
     expect(
-      statuses.any((s) => own.any((w) => s.endsWith(w))),
+      statuses.every((s) => s.split(' · ').last.characters.length <= 7),
       isTrue,
-      reason: 'the row showed what the Bot wrote',
     );
-
-    // Done: one line with the count, the steps folded until opened.
-    final box = find.byWidgetPredicate(
-      (w) =>
-          w is WorkBlock &&
-          w.steps.any((s) => s.messageId == steps.first.messageId),
-    );
-    await until(() => box.evaluate().isNotEmpty, what: 'work box');
-    final summary = find.descendant(
-      of: box,
-      matching: find.byKey(const ValueKey('work-status')),
-    );
-    final line = shown(
-      find.descendant(of: summary, matching: find.byType(Text)),
-    )!;
-    note('summary', line);
-    expect(line, contains('个步骤'));
-    expect(
-      find.descendant(of: box, matching: find.byType(StepRow)),
-      findsNothing,
-    );
-    await reveal(box);
-    await shot('done-folded');
-    await tap(summary);
-    expect(
-      find.descendant(of: box, matching: find.byType(StepRow)),
-      findsNWidgets(steps.length),
-    );
-    final labels = [
-      for (final row
-          in find
-              .descendant(of: box, matching: find.byType(StepRow))
-              .evaluate())
-        stepLabel(client, object((row.widget as StepRow).message.content)),
-    ];
-    note('labels', labels);
-    expect(labels.any((l) => l.startsWith('{')), isFalse);
-    await reveal(box);
-    await shot('done-open');
+    expect(find.byKey(const ValueKey('work-status')), findsNothing);
+    expect(find.byType(StepRow), findsNothing);
+    await shot('done-no-steps');
     expect(tester.takeException(), isNull);
 
     // A drawing the Bot makes shows as a drawing in the chat and in the

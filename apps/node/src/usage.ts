@@ -120,7 +120,10 @@ export class NodeUsage {
           .all()
           .map((r) => JSON.parse(String(r.data)) as RoutineLabel)
           .filter((r) => r.botId === bot.botId);
-        const jobs = rows.some((r) => r.jobId)
+        const jobs = rows.some(
+          (r) =>
+            r.jobId || this.database.setting('usage-routine:' + bot.botId + ':' + r.executionId),
+        )
           ? await this.hermes.management.request<{ id: string; name: string }[]>(
               '/api/cron/jobs',
               bot.botId,
@@ -128,23 +131,41 @@ export class NodeUsage {
           : [];
         const records = rows.map((row): UsageRecord => {
           let entity = this.owner(bot, row);
-          if (row.route || row.jobId) {
+          const reportRoutineId = this.database.setting<string>(
+            'usage-routine:' + bot.botId + ':' + row.executionId,
+          );
+          if (row.route || row.jobId || reportRoutineId) {
             const routine = routines.find((r) =>
-              row.route ? r.route === row.route : r.cronJobId === row.jobId,
+              reportRoutineId
+                ? r.routineId === reportRoutineId
+                : row.route
+                  ? r.route === row.route
+                  : r.cronJobId === row.jobId,
             );
             // Adding a webhook to an existing cron must keep one lifetime statistics row.
-            const id = row.jobId
-              ? 'cron:' + row.jobId
-              : (routine?.routineId ?? 'webhook:' + row.route);
+            const jobId =
+              row.jobId ??
+              routine?.cronJobId ??
+              (reportRoutineId?.startsWith('cron:') ? reportRoutineId.slice(5) : undefined);
+            const id = jobId
+              ? 'cron:' + jobId
+              : (routine?.routineId ?? reportRoutineId ?? 'webhook:' + row.route);
             entity = {
               ...entity,
               kind: 'routine',
               id: bot.botId + ':' + id,
-              name: routine?.name ?? jobs.find((j) => j.id === row.jobId)?.name ?? id,
+              name: routine?.name ?? jobs.find((j) => j.id === jobId)?.name ?? id,
             };
           }
           return {
             id: row.id,
+            taskId:
+              this.database.setting<string>('usage-task:' + bot.botId + ':' + row.executionId) ??
+              row.lineage
+                .map((sid) =>
+                  this.database.setting<string>('usage-task-session:' + bot.botId + ':' + sid),
+                )
+                .find(Boolean),
             profile: bot.botId,
             sessionId: row.sessionId,
             executionId: row.executionId,

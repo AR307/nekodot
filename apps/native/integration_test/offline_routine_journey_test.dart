@@ -205,21 +205,20 @@ void main() {
     await until(
       () => c.node.messages[dm]!.any(
         (m) =>
-            m.messageId.startsWith('routine-approval:') &&
-            m.status == 'streaming',
+            m.kind == 'approval' && m.taskId != null && m.status == 'streaming',
       ),
       seconds: 420,
     );
     final approval = c.node.messages[dm]!.firstWhere(
       (m) =>
-          m.messageId.startsWith('routine-approval:') &&
-          m.status == 'streaming',
+          m.kind == 'approval' && m.taskId != null && m.status == 'streaming',
     );
-    final executionId = approval.content['runId'] as String;
+    final task = c.node.tasks[approval.taskId]!;
+    final executionId = task.routineExecutionId!;
     await fault(true);
     await tap(find.byKey(ValueKey('choice-${approval.messageId}-0')));
     expect(
-      c.deliveries.items.any((i) => i['method'] == 'routines.approvalRespond'),
+      c.deliveries.items.any((i) => i['method'] == 'approvals.respond'),
       isTrue,
     );
     await fault(false);
@@ -233,10 +232,8 @@ void main() {
       seconds: 360,
     );
     await tester.runAsync(
-      () => c.rpc('routines.approvalRespond', {
-        'botId': botId,
-        'executionId': executionId,
-        'promptId': approval.content['requestId'],
+      () => c.rpc('approvals.respond', {
+        'messageId': approval.messageId,
         'choice': 'once',
       }),
     );

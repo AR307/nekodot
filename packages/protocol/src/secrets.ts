@@ -25,6 +25,7 @@ export const secretRequestSchema = secretSpecSchema.extend({
   requestId: z.string(),
   botId: z.string(),
   conversationId: z.string(),
+  taskId: z.string().optional(),
   sessionId: z.string(),
   state: z.enum([
     'pending',

@@ -11,13 +11,16 @@ class MessageAuthor {
 /// One stored representation of a product message. Native tool/card payloads
 /// remain structured data; the envelope is parsed once at the receive boundary.
 class ChatMessage {
+  final String? taskId, taskRole;
   final String? clientMsgId;
   final String messageId, conversationId, kind, status, createdAt;
   final int seq;
   final MessageAuthor author;
   Json content;
   ChatMessage.fromJson(Json value)
-    : clientMsgId = value['clientMsgId'] as String?,
+    : taskId = value['taskId'] as String?,
+      taskRole = value['taskRole'] as String?,
+      clientMsgId = value['clientMsgId'] as String?,
       messageId = value['messageId'] as String,
       conversationId = value['conversationId'] as String,
       kind = value['kind'] as String,
@@ -27,6 +30,8 @@ class ChatMessage {
       author = MessageAuthor.fromJson(object(value['author'])),
       content = object(value['content']);
   Json toJson() => {
+    'taskId': ?taskId,
+    'taskRole': ?taskRole,
     'messageId': messageId,
     'conversationId': conversationId,
     'clientMsgId': ?clientMsgId,

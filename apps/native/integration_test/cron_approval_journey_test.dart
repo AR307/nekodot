@@ -168,9 +168,6 @@ void main() {
       () => client.node.activities[conversationId]?.state == 'idle',
       'Conversation idle',
     );
-    final originalSession = (await call('sessions.list', {
-      'botId': botId,
-    }))['currentSessionId'];
     addTearDown(() async {
       if (!client.online) return;
       final deadline = DateTime.now().add(const Duration(seconds: 30));
@@ -181,25 +178,11 @@ void main() {
         expect(
           DateTime.now().isBefore(deadline),
           isTrue,
-          reason: 'Wait for final task pause before restoring the session',
+          reason: 'Wait for final task pause',
         );
         await Future<void>.delayed(const Duration(milliseconds: 250));
       }
-      var operation = await client.rpc('commands.execute', {
-        'botId': botId,
-        'conversationId': conversationId,
-        'command': '/resume $originalSession',
-        'clientMsgId': uid(),
-      });
-      while (operation['status'] == 'running') {
-        await Future<void>.delayed(const Duration(milliseconds: 250));
-        operation = await client.rpc('operations.get', {
-          'operationId': operation['operationId'],
-        });
-      }
-      expect(operation['status'], 'done');
     });
-    if (!reuseRoutine) await submit('/new $name');
     await idle();
     Json? routine;
     var answeredBeforeCreation = false;

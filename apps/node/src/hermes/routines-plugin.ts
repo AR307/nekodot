@@ -131,21 +131,6 @@ def _status(raw_args):
     return json.dumps(events, ensure_ascii=False)
 
 
-def _context(raw_args):
-    from hermes_state import SessionDB
-    from hermes_cli.profiles import get_profile_dir
-    params = json.loads(raw_args)
-    db = SessionDB(db_path=get_profile_dir(params["profile"]) / "state.db", read_only=True)
-    try:
-        sid = db.get_compression_tip(params["sessionId"]) or params["sessionId"]
-        messages = db.get_messages_as_conversation(sid, include_ancestors=True)
-        bodies = [str(message.get("content") or "") for message in messages]
-        return json.dumps([result["id"] for result in params["results"]
-            if result["text"] and any(result["text"] in body for body in bodies)])
-    finally:
-        db.close()
-
-
 def _approval_policy(raw_args):
     from zoneinfo import ZoneInfo
     from cron.jobs import get_job, resume_job
@@ -175,7 +160,6 @@ def _approval_policy(raw_args):
 def register(ctx):
     ctx.register_cli_command("routine", "Manage nekodot routines and send approved webhook events", _setup, _command)
     ctx.register_command("nekodot-routine-status", _status, "Read native routine execution records")
-    ctx.register_command("nekodot-routine-context", _context, "Check routine results already in a conversation")
     ctx.register_command("nekodot-cron-approval-policy", _approval_policy, "Confirm a scheduled task's approval policy")
 `;
 

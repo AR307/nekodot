@@ -413,28 +413,29 @@ class NekodotClient extends ChangeNotifier {
     saveContent(id, conversationId);
   }
 
-  Future<void> loadFlow(String conversationId) async {
+  Future<void> loadFlow(String conversationId, [String? taskId]) async {
     final target = selectedNodeId!;
     final n = node;
-    if ((!connection.ready || !n.online) &&
-        n.flows.containsKey(conversationId)) {
+    final key = taskId ?? n.flow(conversationId)?.key ?? conversationId;
+    if ((!connection.ready || !n.online) && n.flows.containsKey(key)) {
       return;
     }
     final requestedAt = n.seq;
     final response = await rpc('flow.get', {
       'conversationId': conversationId,
+      'taskId': ?taskId,
     }, target);
     if (_closed || !identical(nodes[target], n)) return;
     final value = response['flow'];
-    final current = n.flows[conversationId];
+    final current = n.flows[key];
     if (value == null) {
       if (current == null || current.seq <= requestedAt) {
-        n.flows.remove(conversationId);
+        n.flows.remove(key);
       }
     } else {
       final flow = FlowSnapshot.fromJson(object(value));
       if (current == null || current.seq <= flow.seq) {
-        n.flows[conversationId] = flow;
+        n.flows[flow.key] = flow;
       }
     }
     n.changed(conversationId);

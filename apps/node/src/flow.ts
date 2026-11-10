@@ -39,43 +39,57 @@ export class ExecutionFlows {
     return value;
   }
 
-  get(conversationId: string) {
-    const conversation = this.database.conversation(conversationId);
-    if (!conversation) throw new NodeFault('not_found', 'Conversation not found');
-    const flow = this.load(conversationId);
-    if (
-      conversation.kind === 'dm' &&
-      flow?.sessionId !== this.database.hermesSession(conversationId)?.storedSessionId
-    )
-      return null;
-    return flow ?? null;
+  get(conversationId: string, taskId?: string) {
+    if (!this.database.conversation(conversationId))
+      throw new NodeFault('not_found', 'Conversation not found');
+    const task = taskId
+      ? this.database.task(taskId)
+      : this.database
+          .tasks(conversationId)
+          .filter((task) => task.source === 'chat' || task.source === 'group')
+          .at(-1);
+    if (!task || task.conversationId !== conversationId) return null;
+    if (task.source !== 'chat' && task.source !== 'group') return null;
+    return this.load(task.taskId) ?? null;
   }
 
   all() {
-    return this.database.conversations().flatMap((c) => {
-      const flow = this.get(c.conversationId);
+    return this.database.tasks().flatMap((task) => {
+      const flow = this.get(task.conversationId, task.taskId);
       return flow ? [flow] : [];
     });
   }
 
   start(run: RunRecord) {
-    if (!run.runId || !run.storedSessionId || run.queue === 'queued') return;
-    const chain = run.groupId ? this.database.chain(run.conversationId) : undefined;
-    const flowId = chain?.notificationId ?? run.runId;
-    let flow = this.load(run.conversationId);
+    if (
+      run.role !== 'execution' ||
+      !run.taskId ||
+      !run.runId ||
+      !run.storedSessionId ||
+      run.queue === 'queued'
+    )
+      return;
+    const task = this.database.task(run.taskId);
+    if (!task || (task.source !== 'chat' && task.source !== 'group')) return;
+    const chain = run.groupId
+      ? this.database.chain(run.groupChainId ?? run.conversationId)
+      : undefined;
+    const flowId = chain?.notificationId ?? run.executionId ?? run.runId;
+    let flow = this.load(run.taskId ?? run.conversationId);
     if (flow?.steps.some((step) => step.runId === run.runId)) return;
     const reset = flow?.flowId !== flowId;
     if (reset || !flow) {
       flow = {
         flowId,
         conversationId: run.conversationId,
+        taskId: run.taskId,
         ...(run.groupId ? {} : { sessionId: run.storedSessionId }),
         state: 'running',
         queuedBotIds: [],
         steps: [],
         seq: 0,
       };
-      this.values.set(run.conversationId, flow);
+      this.values.set(run.taskId, flow);
     }
     const bot = this.step(run, 'bot', run.runId + ':bot', this.frontier(flow));
     const thinking = this.step(run, 'thinking', run.runId + ':thinking:start', [bot.stepId]);
@@ -85,25 +99,8 @@ export class ExecutionFlows {
     this.database.saveFlow(flow, [bot, thinking], reset);
   }
 
-  sessionChanged(conversationId: string) {
-    const previous = this.load(conversationId);
-    const sessionId = this.database.hermesSession(conversationId)?.storedSessionId;
-    if (!previous?.sessionId || previous.sessionId === sessionId || !sessionId) return;
-    const flow: FlowSnapshot = {
-      flowId: 'session:' + sessionId,
-      conversationId,
-      sessionId,
-      state: 'done',
-      queuedBotIds: [],
-      steps: [],
-      seq: 0,
-    };
-    this.values.set(conversationId, flow);
-    this.database.saveFlow(flow, [], true);
-  }
-
   private owned(run: RunRecord) {
-    const flow = this.load(run.conversationId);
+    const flow = this.load(run.taskId ?? run.conversationId);
     return flow?.steps.some((s) => s.runId === run.runId) ? flow : undefined;
   }
 
@@ -111,7 +108,7 @@ export class ExecutionFlows {
     const parent =
       kind === 'bot' || kind === 'plan'
         ? undefined
-        : this.load(run.conversationId)?.steps.find(
+        : this.load(run.taskId ?? run.conversationId)?.steps.find(
             (s) => s.runId === run.runId && s.kind === 'plan' && s.state === 'running',
           );
     return {
@@ -291,7 +288,7 @@ export class ExecutionFlows {
   }
 
   group(chain: GroupChainRecord, state?: FlowSnapshot['state']) {
-    const flow = this.load(chain.conversationId);
+    const flow = this.load(chain.taskId ?? chain.conversationId);
     if (!flow || flow.flowId !== chain.notificationId) return;
     if (
       (!state || flow.state === state) &&

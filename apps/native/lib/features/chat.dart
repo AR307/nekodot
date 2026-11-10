@@ -11,7 +11,6 @@ import '../ui/design.dart';
 import '../screen/viewer.dart';
 import 'bot_details.dart';
 import 'bot_editor.dart';
-import 'sessions.dart';
 import 'flowchart.dart';
 
 import 'chat_presentation.dart';
@@ -280,11 +279,7 @@ class _ChatPageState extends State<ChatPage>
           .where((x) => x['conversationId'] == id)
           .firstOrNull;
       if (conversation == null) return const SizedBox.shrink();
-      final view = ChatPresentation(
-        c.node,
-        conversation,
-        focus: c.prefs.chatDisplay['focus'] == true,
-      );
+      final view = ChatPresentation(c.node, conversation);
       final owner = conversation['kind'] == 'group' ? view.group : view.bot;
       if (owner == null || owner['archived'] == true) {
         return AppPage(
@@ -398,19 +393,6 @@ class _ChatPageState extends State<ChatPage>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (group == null && bot != null)
-                IconButton(
-                  key: const ValueKey('chat-sessions'),
-                  tooltip: c.tr('历史会话与切换', 'Sessions and switch'),
-                  onPressed: () {
-                    FocusManager.instance.primaryFocus?.unfocus();
-                    pushPage(
-                      context,
-                      BotSessionsPage(client: c, botId: '${bot['botId']}'),
-                    );
-                  },
-                  icon: const Icon(Icons.forum_outlined),
-                ),
               flowButton(),
               IconButton(
                 tooltip: c.tr('屏幕', 'Screen'),

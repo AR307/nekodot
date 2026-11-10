@@ -8,7 +8,6 @@ import 'bot_editor.dart';
 import 'bot_model.dart';
 import 'extensions.dart';
 import 'hermes_settings.dart';
-import 'sessions.dart';
 import 'settings.dart';
 import 'learning.dart';
 import 'pets.dart';
@@ -19,6 +18,12 @@ import 'voice.dart';
 /// English; a command newer than [hermesCommandZh] shows as they wrote it.
 String commandText(NekodotClient c, Json entry) {
   final name = '${entry['name']}';
+  if (name == '/stop') {
+    return c.tr(
+      '停止指定需求；/stop all 停止本聊天全部工作。',
+      'Stop a selected task; /stop all stops all work in this chat.',
+    );
+  }
   if (entry['unavailableReason'] != null) {
     return (c.zh ? hermesUnavailableZh[name] : null) ??
         '${entry['unavailableReason']}';
@@ -45,7 +50,6 @@ Future<void> openCommandPage(
     'model' => BotModelPage(client: client, botId: botId),
     'profile-import' => BotEditor(client: client, importProfile: true),
     'plugins' => ExtensionsPage(client: client, kind: 'plugins'),
-    'sessions' => BotSessionsPage(client: client, botId: botId),
     'sources' => SourcesPage(client: client),
     'journey' =>
       argument.isEmpty

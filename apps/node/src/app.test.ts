@@ -163,7 +163,11 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
         app.database.runs().find((run) => run.conversationId === conversation.conversationId)
           ?.state,
       ).toBe('waiting_question');
-      await expect(send('This must not become a steer while waiting')).rejects.toThrow();
+      const queued = (await send('runs-basic')) as { messageId: string };
+      expect(app.database.runs().find((r) => r.inputMessageId === queued.messageId)?.queue).toBe(
+        'queued',
+      );
+      expect(relay.inspectRuns().at(-1)?.steers).toHaveLength(0);
       await app.handle(
         request('questions.respond', { messageId: question.messageId, answer: 'Amber' }),
       );
@@ -182,6 +186,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
       await expect(
         app.handle(request('questions.respond', { messageId: question.messageId, answer: 'Teal' })),
       ).rejects.toThrow();
+      await waitFor(() => !app.database.runs().length);
 
       const toolScenario = await send('runs-tools-approval');
       void toolScenario;
@@ -270,11 +275,15 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
           )
         );
       });
-      const secondInstruction = await send('Please keep the same run and explain what you found.');
-      expect(secondInstruction).toHaveProperty('messageId');
+      const active = app.database.runs().find((r) => r.inputMessageId === steerMessage.messageId)!;
+      await runtime.gateway(bot.botId).rpc('session.steer', {
+        session_id: active.sessionId,
+        execution_generation: active.executionGeneration,
+        text: 'Please keep the same run and explain what you found.',
+      });
       const lastRun = relay.inspectRuns().at(-1)!;
       expect(lastRun.steers).toEqual(['Please keep the same run and explain what you found.']);
-      expect(relay.inspectRuns().filter((run) => run.profile === bot.botId)).toHaveLength(7);
+      expect(relay.inspectRuns().filter((run) => run.profile === bot.botId)).toHaveLength(8);
       await waitFor(
         () =>
           !app.database.runs().some((run) => run.conversationId === conversation.conversationId),
@@ -297,6 +306,53 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
           .at(-1)?.runId,
       ).toBe(lastRun.runId);
 
+      // A delivered secret queues a native continuation. Steering it must not
+      // change its persisted identity and leave the original record running.
+      const nativeSession = app.database.hermesSession(conversation.conversationId)!;
+      const submissionId = 'secret-delivery:' + randomUUID();
+      const createdAt = new Date().toISOString();
+      await app.secrets.onContinue(
+        {
+          requestId: randomUUID(),
+          botId: bot.botId,
+          conversationId: conversation.conversationId,
+          sessionId: nativeSession.storedSessionId,
+          service: 'Continuation regression',
+          purpose: 'Verify session switching after steer',
+          fields: [{ name: 'TEST_KEY', label: 'API Key', kind: 'password' }],
+          target: { kind: 'file', path: join(home, 'test.env'), format: 'env' },
+          state: 'applied',
+          saved: false,
+          createdAt,
+          updatedAt: createdAt,
+          result: '',
+        },
+        submissionId,
+        'same run steer approval',
+      );
+      await waitFor(() => app.database.runs().some((run) => run.native && run.state === 'tool'));
+      const continuation = app.database.runs().find((run) => run.native)!;
+      await runtime.gateway(bot.botId).rpc('session.steer', {
+        session_id: continuation.sessionId,
+        execution_generation: continuation.executionGeneration,
+        text: 'Please keep the same run and explain what you found.',
+      });
+      await waitFor(() => !app.database.runs().some((run) => run.runId === continuation.runId));
+      const records = app.database.db
+        .prepare(
+          "SELECT key,value FROM settings WHERE key LIKE 'native-admission:%' AND json_extract(value,'$.runId')=?",
+        )
+        .all(continuation.runId!);
+      expect(records).toHaveLength(1);
+      expect(records[0]?.key).toBe('native-admission:' + submissionId);
+      expect(JSON.parse(String(records[0]?.value))).toMatchObject({
+        inputMessageId: submissionId,
+        state: 'idle',
+      });
+      expect(app.database.hermesSession(conversation.conversationId)?.storedSessionId).toBe(
+        nativeSession.storedSessionId,
+      );
+
       const snapshot = (await app.handle(request('sync.snapshot', {}))) as { headSeq: number };
       const sync = (await app.handle(request('sync.since', { seq: 0 }))) as {
         events: unknown[];
@@ -313,7 +369,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
 });
 
 describe('Node group journeys with the recorded Hermes HTTP service', () => {
-  it('manages groups, relays recorded replies, resumes a run, and clears queued work on steer or stop', async () => {
+  it('keeps group context separate, resumes native work, preserves handoffs on direction and stops the selected chain', async () => {
     const schedule: string[] = [];
     const relay = await startFakeHermes({
       fixturesDirectory: join(process.cwd(), 'tests/fixtures'),
@@ -439,7 +495,10 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
           }),
         );
       const waitIdle = () =>
-        waitFor(() => app.database.chain(conversation.conversationId) === undefined);
+        waitFor(
+          () =>
+            !app.database.chains().some((c) => c.conversationId === conversation.conversationId),
+        );
       schedule.push('group-lead');
       await app.handle(
         request('messages.send', {
@@ -455,7 +514,9 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
         .filter((run) => run.profile === lead.bot.botId || run.profile === writer.bot.botId);
       expect(groupRuns).toHaveLength(1);
       expect(groupRuns[0]?.profile).toBe(lead.bot.botId);
-      expect(groupRuns[0]?.sessionId).toBe(privateSessionId);
+      const groupSessionId = groupRuns[0]?.sessionId;
+      expect(groupSessionId).not.toBe(privateSessionId);
+      expect(groupRuns[0]?.input).not.toContain('the project color is amber');
 
       schedule.push('group-target-1', 'group-target-2');
       await app.handle(
@@ -482,9 +543,9 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
         throw new Error('Writer private conversation missing.');
       const writerSessionId = groupRuns[1]?.sessionId;
       expect(groupRuns.map((run) => run.sessionId)).toEqual([
-        privateSessionId,
+        groupSessionId,
         writerSessionId,
-        privateSessionId,
+        groupSessionId,
       ]);
       expect(writerSessionId).toBeTruthy();
       expect(writerSessionId).not.toBe(privateSessionId);
@@ -589,12 +650,20 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       app = new NodeApplication(home, runtime);
       await app.resume();
       expect(app.database.runs()[0]?.runId).toBe(activeId);
-      expect(app.database.chain(conversation.conversationId)?.queue).toEqual([writer.bot.botId]);
-      await send('Keep the same run and use the new final instruction.');
+      const active = app.database.runs().find((r) => r.runId === activeId)!;
+      expect(app.database.chain(active.groupChainId!)?.queue).toEqual([writer.bot.botId]);
+      schedule.push('group-writer');
+      await runtime.gateway(active.botId).rpc('session.steer', {
+        session_id: active.sessionId,
+        execution_generation: active.executionGeneration,
+        text: 'Keep the same run and use the new final instruction.',
+      });
       await waitIdle();
-      expect(relay.inspectRuns().slice(before)).toHaveLength(1);
-      expect(relay.inspectRuns().at(-1)).toMatchObject({ runId: activeId, toolStarts: 1 });
-      expect(relay.inspectRuns().at(-1)?.steers).toHaveLength(1);
+      expect(relay.inspectRuns().slice(before)).toHaveLength(2);
+      expect(relay.inspectRuns().find((r) => r.runId === activeId)).toMatchObject({
+        toolStarts: 1,
+      });
+      expect(relay.inspectRuns().find((r) => r.runId === activeId)?.steers).toHaveLength(1);
 
       schedule.push('group-stop');
       before = relay.inspectRuns().length;
@@ -602,7 +671,9 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       await waitFor(() => app.database.runs().some((run) => run.state === 'tool'));
       await app.handle(request('runs.stop', { conversationId: conversation.conversationId }));
       await waitFor(() => app.database.runs().length === 0);
-      expect(app.database.chain(conversation.conversationId)).toBeUndefined();
+      expect(
+        app.database.chains().some((c) => c.conversationId === conversation.conversationId),
+      ).toBe(false);
       expect(relay.inspectRuns().slice(before)).toHaveLength(1);
       expect(
         app.database
@@ -666,7 +737,10 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
         }),
       );
       expect(
-        app.database.chain(conversation.conversationId)?.roster.map((bot) => bot.botId),
+        app.database
+          .chains()
+          .find((c) => c.conversationId === conversation.conversationId)
+          ?.roster.map((bot) => bot.botId),
       ).toEqual([lead.bot.botId, writer.bot.botId]);
       await app.handle(
         request('messages.send', {
@@ -675,13 +749,18 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
           clientMsgId: randomUUID(),
         }),
       );
-      await waitFor(() => !app.database.chain(otherConversation.conversationId));
+      await waitFor(
+        () =>
+          !app.database.chains().some((c) => c.conversationId === otherConversation.conversationId),
+      );
       expect(app.database.runs()).toHaveLength(1);
       expect(app.database.runs()[0]?.state).toBe('waiting_approval');
       await app.close();
       app = new NodeApplication(home, runtime);
       await app.resume();
-      expect(app.database.chain(conversation.conversationId)?.queue).toEqual([writer.bot.botId]);
+      expect(
+        app.database.chains().find((c) => c.conversationId === conversation.conversationId)?.queue,
+      ).toEqual([writer.bot.botId]);
       const approval = app.database
         .messages(conversation.conversationId)
         .find((message) => message.kind === 'approval' && message.status === 'streaming')!;

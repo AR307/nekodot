@@ -95,6 +95,13 @@ export class RunMessages {
   ): TextMessage | Extract<Message, { kind: 'commentary' }> {
     return {
       messageId: randomUUID(),
+      nativeSessionId: run.storedSessionId,
+      ...(run.taskId
+        ? {
+            taskId: run.taskId,
+            taskRole: run.role === 'execution' ? ('execution' as const) : ('report' as const),
+          }
+        : {}),
       conversationId: run.conversationId,
       seq: this.database.head(),
       author: { type: 'bot', id: run.botId },
@@ -107,6 +114,7 @@ export class RunMessages {
 
   persistText(run: RunRecord, message: TextMessage | undefined, seq: number) {
     if (message) {
+      run.textMessageId = message.messageId;
       message.seq = this.database.head();
       run.lastSeq = seq;
       this.database.putMessage(message, { runId: run.runId }, run);

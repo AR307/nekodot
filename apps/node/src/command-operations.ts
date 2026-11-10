@@ -21,7 +21,10 @@ export class CommandOperations {
     private readonly commands: BotCommands,
     private readonly flow: ExecutionFlows,
     private readonly files: FileLibrary,
-    private readonly execution: Pick<ConversationExecution, 'queueInput' | 'sendMessage'>,
+    private readonly execution: Pick<
+      ConversationExecution,
+      'queueInput' | 'sendMessage' | 'stopTasks'
+    >,
   ) {}
   execute(params: RpcParams<'commands.execute'>) {
     this.bots.get(params.botId);
@@ -44,21 +47,18 @@ export class CommandOperations {
       params.sessionId !== this.database.hermesSession(params.conversationId)?.storedSessionId
     )
       throw new NodeFault('conflict', 'The original conversation session has changed.');
-    if (
-      this.operations
-        .list()
-        .some(
-          (op) =>
-            op.kind.startsWith('command:') &&
-            op.status === 'running' &&
-            op.botIds.includes(params.botId),
-        )
-    )
-      throw new NodeFault('conflict', 'A Hermes command is already running for this bot.');
     return this.operations.start(operationKind, [params.botId], async (operation) => {
       const refine = /^\/refine(?:\s+(.*))?$/.exec(params.command.trim());
       let result: CommandResult;
-      if (refine && !/^(pending|approve|reject|diff)(?:\s|$)/.test(refine[1] ?? '')) {
+      if (/^\/stop(?:\s|$)/.test(params.command.trim())) {
+        result = {
+          output: await this.execution.stopTasks(
+            params.conversationId,
+            params.command.trim().slice(5).trim(),
+            params.taskId,
+          ),
+        };
+      } else if (refine && !/^(pending|approve|reject|diff)(?:\s|$)/.test(refine[1] ?? '')) {
         await this.management.refineInOperation(params.botId, refine[1] ?? '', operation);
         result = { output: operation.detail };
       } else result = await this.commands.execute(params.botId, params.command, params.clientMsgId);
@@ -82,7 +82,6 @@ export class CommandOperations {
           { botId: params.botId, input: result.message, modelOverride: result.modelOverride },
         );
       }
-      this.flow.sessionChanged(params.conversationId);
       const output = [result.output, result.warning, result.notice].filter(Boolean).join('\n');
       if (output) {
         const messageId = randomUUID();

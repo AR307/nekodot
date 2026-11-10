@@ -10,8 +10,7 @@ class ChatPresentation {
   final Json? group, bot;
   final List<Json> members;
   final ConversationActivity activity;
-  final List<ChatMessage> messages, turn;
-  final List<List<ChatMessage>> items;
+  final List<ChatMessage> messages;
   final String title;
   ChatPresentation._(
     this.conversation,
@@ -20,15 +19,9 @@ class ChatPresentation {
     this.members,
     this.activity,
     this.messages,
-    this.turn,
-    this.items,
     this.title,
   );
-  factory ChatPresentation(
-    NodeData node,
-    Json conversation, {
-    required bool focus,
-  }) {
+  factory ChatPresentation(NodeData node, Json conversation) {
     final group = conversation['kind'] == 'group'
         ? node.groups
               .where((x) => x['groupId'] == conversation['groupId'])
@@ -44,15 +37,14 @@ class ChatPresentation {
               : (group['botIds'] as List).contains(b['botId']),
         )
         .toList();
-    final messages = (node.messages[conversation['conversationId']] ?? [])
-        .where(
-          (row) =>
-              (!focus || row.kind != 'tool') &&
-              // A text segment that ended empty when a tool started has nothing to show.
-              !(row.kind == 'commentary' &&
-                  '${row.content['text'] ?? ''}'.trim().isEmpty),
-        )
-        .toList();
+    final messages =
+        visibleChatMessages(node.messages[conversation['conversationId']] ?? [])
+            .where(
+              (row) =>
+                  (row.taskRole != 'execution' ||
+                  const {'approval', 'question', 'secret'}.contains(row.kind)),
+            )
+            .toList();
     final lastBot = messages
         .where((m) => m.author.type == 'bot')
         .lastOrNull
@@ -73,17 +65,6 @@ class ChatPresentation {
     final title =
         group?['name'] as String? ?? bot?['displayName'] as String? ?? 'Bot';
 
-    final all =
-        node.messages[conversation['conversationId']] ?? const <ChatMessage>[];
-    final start = all.lastIndexWhere((m) => m.author.type == 'user');
-    final turn = all
-        .skip(start + 1)
-        .where(
-          (m) =>
-              m.author.type == 'bot' &&
-              (bot == null || m.author.id == bot['botId']),
-        )
-        .toList();
     return ChatPresentation._(
       conversation,
       group,
@@ -91,8 +72,6 @@ class ChatPresentation {
       members,
       activity,
       messages,
-      turn,
-      groupMessages(messages),
       title,
     );
   }
@@ -127,42 +106,12 @@ class ChatPresentation {
         };
 }
 
-bool isWorkGroup(List<ChatMessage> item) => item.any(
-  (m) =>
-      m.kind == 'tool' ||
-      (m.kind == 'approval' &&
-          m.status != 'streaming' &&
-          const {'once', 'session', 'always'}.contains(m.content['choice'])),
-);
-List<List<ChatMessage>> groupMessages(List<ChatMessage> messages) {
-  // Steps fold together: the tool calls in a row and what the Bot wrote
-  // between them, until it writes its reply or asks you something.
-  final items = <List<ChatMessage>>[];
-  // An approval the user allowed is one of the steps: it runs inside the box.
-  bool allowed(ChatMessage m) =>
-      m.kind == 'approval' &&
-      m.status != 'streaming' &&
-      const {'once', 'session', 'always'}.contains(object(m.content)['choice']);
-  bool step(ChatMessage m) => m.kind == 'tool' || allowed(m);
-  for (final m in messages) {
-    if (isProgressMessage(m)) continue;
-    final last = items.lastOrNull;
-    if (step(m) &&
-        last != null &&
-        step(last.first) &&
-        last.first.author.id == m.author.id) {
-      last.add(m);
-    } else {
-      items.add([m]);
-    }
-  }
-  for (var i = items.length - 1; i >= 0; i--) {
-    if (items[i].length > 1 && !isWorkGroup(items[i])) {
-      items.replaceRange(i, i + 1, [
-        for (final m in items[i]) [m],
-      ]);
-    }
-  }
-
-  return items;
-}
+List<ChatMessage> visibleChatMessages(List<ChatMessage> messages) => messages
+    .where(
+      (m) =>
+          m.kind != 'tool' &&
+          !isProgressMessage(m) &&
+          !(m.kind == 'commentary' &&
+              '${m.content['text'] ?? ''}'.trim().isEmpty),
+    )
+    .toList();

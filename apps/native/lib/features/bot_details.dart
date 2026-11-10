@@ -14,7 +14,6 @@ import 'learning.dart';
 import 'memory_usage.dart';
 import 'model_info.dart';
 import 'routines.dart';
-import 'sessions.dart';
 import 'desktop_control.dart';
 import 'secrets.dart';
 import 'voice.dart';
@@ -106,12 +105,6 @@ class BotDetails extends StatelessWidget {
                   ),
                   PanelGroup(
                     children: [
-                      link(
-                        'bot-sessions',
-                        Icons.forum_outlined,
-                        c.tr('历史会话', 'Sessions'),
-                        () => BotSessionsPage(client: c, botId: botId),
-                      ),
                       link(
                         'bot-learning',
                         Icons.auto_stories_outlined,

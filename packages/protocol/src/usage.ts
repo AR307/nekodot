@@ -22,6 +22,7 @@ export const usageEntitySchema = z.strictObject({
 });
 export type UsageEntity = z.infer<typeof usageEntitySchema>;
 export const usageRecordSchema = z.strictObject({
+  taskId: z.string().optional(),
   id: z.string().min(1),
   profile: z.string().min(1),
   sessionId: z.string(),

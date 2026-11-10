@@ -209,10 +209,11 @@ export async function startFakeHermes(options: FakeHermesOptions) {
               )
               .join('\n');
       const normalized = { ...input, input: text };
-      const inputText = text.toLowerCase();
+      // Scenario words belong to the test input, not the coordinator's instructions.
+      const inputText = text.split('\n\n').at(-1)!.toLowerCase();
       const scenario =
         options.scenarioFor?.(normalized, profile) ??
-        (text.startsWith('You have just been created as a nekodot Bot.')
+        (text.includes('You have just been created as a nekodot Bot.')
           ? 'runs-welcome'
           : undefined) ??
         scenarios.find((name) => name === text) ??

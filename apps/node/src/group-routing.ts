@@ -21,7 +21,18 @@ export function mentionedBots(text: string, roster: Pick<Bot, 'botId' | 'handle'
 export function groupPrompt(chain: GroupChainRecord, botId: string, messages: Message[]) {
   const members = new Map(chain.roster.map((bot) => [bot.botId, bot]));
   const lines = messages.flatMap((message) => {
-    if (message.kind !== 'text' || message.author.type === 'system') return [];
+    if (
+      message.kind !== 'text' ||
+      message.author.type === 'system' ||
+      message.taskRole === 'execution'
+    )
+      return [];
+    if (
+      message.groupChainId !== chain.notificationId &&
+      message.messageId !== chain.inputMessageId &&
+      (!chain.taskId || message.taskId !== chain.taskId)
+    )
+      return [];
     const author = message.author.id ? members.get(message.author.id) : undefined;
     const name = author ? `${author.displayName} (@${author.handle})` : 'User';
     return [`${name}: ${message.content.text}`];

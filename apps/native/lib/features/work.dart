@@ -93,137 +93,14 @@ String visibleMessageText(ChatMessage message) {
 bool isProgressMessage(ChatMessage message) =>
     _said(message) != null && visibleMessageText(message).isEmpty;
 
-/// What the Bot says it is doing in this turn: the newest line it wrote
-/// (one line may announce several steps), else Hermes's own label of the
-/// running step. Null before it has done or said anything.
-String? botPhrase(NekodotClient c, List<ChatMessage> turn) {
-  for (final m in turn.reversed) {
-    final words = _said(m);
-    if (words != null) return words;
-  }
-  final running = turn
-      .where((m) => m.kind == 'tool' && m.status == 'streaming')
-      .lastOrNull;
-  if (running == null) return null;
-  final tool = '${running.content['tool']}';
-  final label = stepLabel(c, object(running.content));
-  return _verbs.containsKey(tool)
-      ? c.tr('正在$label', label)
-      : c.tr('正在使用 $tool', 'Using $tool');
-}
+String compactActivity(String title) =>
+    title.trim().replaceAll(RegExp(r'\s+'), ' ').characters.take(7).toString();
 
-/// The line above the composer while a Bot works: its name and what it says
-/// it is doing, e.g. "Lumi 正在查看推文" or "Lumi is checking the tweets".
-String workingLine(NekodotClient c, String name, List<ChatMessage> turn) {
-  final phrase = botPhrase(c, turn) ?? c.tr('正在思考', 'Thinking');
-  if (RegExp(r'^[A-Za-z]').hasMatch(phrase)) {
-    final verb = phrase.split(RegExp(r'\s')).first.toLowerCase();
-    return verb.endsWith('ing')
-        ? '$name is ${phrase[0].toLowerCase()}${phrase.substring(1)}'
-        : '$name: $phrase';
-  }
-  return phrase.startsWith('正在') ? '$name $phrase' : '$name：$phrase';
-}
+/// Execution activity uses task titles; the coordinator only indicates a reply.
+String workingLine(NekodotClient c, String name) =>
+    '$name · ${c.tr('回复中', 'Reply')}';
 
-/// Everything a Bot did between your message and its reply, folded under one
-/// line: while it works, what it is doing; afterwards, how many steps it took.
-class WorkBlock extends StatefulWidget {
-  final NekodotClient client;
-  final List<ChatMessage> steps;
-  final bool live;
-  const WorkBlock({
-    super.key,
-    required this.client,
-    required this.steps,
-    required this.live,
-  });
-  @override
-  State<WorkBlock> createState() => _WorkBlockState();
-}
-
-class _WorkBlockState extends State<WorkBlock> {
-  bool open = false;
-  @override
-  Widget build(BuildContext context) {
-    final c = widget.client, tone = context.tone;
-    final text = Theme.of(context).textTheme.bodySmall!;
-    final tools = widget.steps.where((m) => m.kind == 'tool').toList();
-    // An allowed command is the step its tool call runs; it shows only when no call came with it.
-    final hasTool = tools.isNotEmpty;
-    final failed = tools
-        .where((m) => m.status == 'failed' || m.content['error'] == true)
-        .length;
-    final seconds =
-        tools.fold<num>(
-          0,
-          (sum, m) => sum + ((m.content['durationMs'] as num?) ?? 0),
-        ) /
-        1000;
-    // What it is doing is said under the box, beside its avatar; the box
-    // only counts.
-    final status = [
-      c.tr('${tools.length} 个步骤', '${tools.length} steps'),
-      if (!widget.live) '${seconds.toStringAsFixed(1)}s',
-      if (failed > 0) c.tr('$failed 个失败', '$failed failed'),
-    ];
-    return StepFrame(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          StepLine(
-            key: const ValueKey('work-status'),
-            leading: widget.live
-                ? const Breathing(size: 8)
-                : Icon(
-                    failed > 0 ? Icons.error_outline : Icons.check,
-                    size: 14,
-                    color: failed > 0 ? tone.danger : tone.ink3,
-                  ),
-            label: status,
-            style: text.copyWith(
-              color: widget.live ? tone.ink : tone.ink2,
-              fontWeight: widget.live ? FontWeight.w600 : null,
-            ),
-            trailing: Icon(
-              open ? Icons.expand_less : Icons.expand_more,
-              size: 16,
-              color: tone.ink3,
-            ),
-            onTap: () => setState(() => open = !open),
-          ),
-          SizeMotion(
-            alignment: Alignment.topCenter,
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-            child: !open
-                ? const SizedBox(width: double.infinity)
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (final step in widget.steps)
-                        if (step.kind == 'tool')
-                          StepRow(
-                            key: ValueKey('step-${step.messageId}'),
-                            client: c,
-                            message: step,
-                          )
-                        else if (step.kind == 'approval' && !hasTool)
-                          ApprovalStep(
-                            key: ValueKey('step-${step.messageId}'),
-                            client: c,
-                            message: step,
-                          ),
-                      const SizedBox(height: 4),
-                    ],
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The frame every step sits in: the working box and an approval's command.
+/// The command frame used by approval cards.
 class StepFrame extends StatelessWidget {
   final Widget child;
   const StepFrame({super.key, required this.child});
@@ -348,23 +225,6 @@ class _StepRowState extends State<StepRow> {
             child: SelectableText(detail, style: mono),
           ),
       ],
-    );
-  }
-}
-
-/// A command you allowed: one line in the box, like any other step.
-class ApprovalStep extends StatelessWidget {
-  final NekodotClient client;
-  final ChatMessage message;
-  const ApprovalStep({super.key, required this.client, required this.message});
-  @override
-  Widget build(BuildContext context) {
-    final tone = context.tone;
-    final command = firstLine('${object(message.content)['command'] ?? ''}');
-    return StepLine(
-      leading: Icon(Icons.check, size: 14, color: tone.ink3),
-      label: [client.tr('运行命令 $command', 'Running $command')],
-      style: TextStyle(fontFamily: monoFont, fontSize: 12, color: tone.ink2),
     );
   }
 }

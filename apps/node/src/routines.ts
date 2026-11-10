@@ -16,6 +16,7 @@ import {
   type CronApprovalPolicy,
   type Message,
 } from '@nekodot/protocol';
+import type { NativePrompt } from './execution/types';
 import type { NodeDatabase } from './database';
 import type { HermesRuntime } from './hermes/runtime';
 import { runProfileCommand } from './hermes/session';
@@ -43,13 +44,20 @@ const nativeEvent = z.object({
   interrupted: z.boolean().optional(),
   failed: z.boolean().optional(),
   reason: z.string().optional(),
-  approval: z
-    .object({
-      promptId: z.string(),
-      generation: z.number(),
-      description: z.string(),
-      command: z.string(),
-    })
+  generation: z.number().optional(),
+  prompts: z
+    .array(
+      z.object({
+        kind: z.enum(['approval', 'clarify']),
+        prompt_id: z.string(),
+        execution_generation: z.number(),
+        description: z.string().optional(),
+        command: z.string().optional(),
+        question: z.string().optional(),
+        choices: z.array(z.string()).optional(),
+        multi_select: z.boolean().optional(),
+      }),
+    )
     .optional(),
 });
 const time = () => new Date().toISOString();
@@ -61,7 +69,16 @@ export class Routines {
   private draining?: Promise<void>;
   private publicUrl = '';
   onError: (message: string) => void = () => {};
+  scrub!: (botId: string, value: string) => string;
   onSecret?: (input: unknown) => Promise<unknown>;
+  onTask?: (input: unknown) => Promise<unknown>;
+  onExecution!: (
+    routine: Routine,
+    execution: RoutineExecution,
+    conversationId: string,
+    prompts: NativePrompt[],
+    generation?: number,
+  ) => Promise<void>;
   onRoutes: (routes: RoutineRoute[]) => Promise<void> = async () => {
     throw new NodeFault(
       'unavailable',
@@ -275,6 +292,7 @@ export class Routines {
     const row: StoredRoutine = {
       ...input,
       routineId: id,
+      conversationId,
       trigger: input.cronJobId ? 'both' : 'webhook',
       enabled: false,
       granted: false,
@@ -325,7 +343,7 @@ export class Routines {
       messageId: executionId
         ? 'routine-status:' + executionId
         : 'routine:' + row.routineId + ':' + randomUUID(),
-      conversationId: conversationId ?? conversation.conversationId,
+      conversationId: conversationId ?? row.conversationId ?? conversation.conversationId,
       seq: this.database.head(),
       author: { type: 'bot', id: row.botId },
       kind: 'routine',
@@ -493,6 +511,10 @@ export class Routines {
     }, 5000);
   }
   private async local(value: unknown) {
+    if (value && typeof value === 'object' && 'action' in value && value.action === 'task') {
+      if (!this.onTask) throw new NodeFault('unavailable', 'Task coordination is unavailable');
+      return this.onTask(value);
+    }
     if (value && typeof value === 'object' && 'action' in value && value.action === 'secret') {
       if (!this.onSecret)
         throw new NodeFault('unavailable', 'Confidential delivery is unavailable');
@@ -606,7 +628,7 @@ export class Routines {
       const ids = new Set(routines.map((r) => r.routineId));
       const settled = this.database.db
         .prepare(
-          `SELECT data FROM routine_executions WHERE json_extract(data,'$.state') NOT IN ('running','waiting_approval')`,
+          `SELECT data FROM routine_executions WHERE json_extract(data,'$.state') NOT IN ('running','waiting_approval','waiting_question')`,
         )
         .all()
         .map((r) => JSON.parse(String(r.data)) as RoutineExecution)
@@ -622,24 +644,13 @@ export class Routines {
       const events = z.array(nativeEvent).parse(JSON.parse(result.output));
       for (const event of events) {
         if (event.botId !== botId) throw new Error('Routine event has the wrong profile');
-        if (event.phase === 'started' && event.jobId) {
+        if (event.phase === 'started') {
           const snapshot = await this.hermes.gateway(botId).rpc<{
-            prompts?: {
-              kind: string;
-              prompt_id: string;
-              execution_generation: number;
-              description?: string;
-              command?: string;
-            }[];
-          }>('cron.status', { session_id: event.sessionId, admission_id: event.admissionId });
-          const prompt = snapshot.prompts?.find((item) => item.kind === 'approval');
-          if (prompt)
-            event.approval = {
-              promptId: prompt.prompt_id,
-              generation: prompt.execution_generation,
-              description: prompt.description ?? '',
-              command: prompt.command ?? '',
-            };
+            execution_generation: number;
+            prompts?: NativePrompt[];
+          }>(event.jobId ? 'cron.status' : 'session.resume', event.jobId ? { session_id: event.sessionId, admission_id: event.admissionId } : { session_id: event.sessionId, omit_messages: true, defer_history: true });
+          event.prompts = snapshot.prompts;
+          event.generation = snapshot.execution_generation;
         }
         const routine = routines.find(
           (r) =>
@@ -648,11 +659,11 @@ export class Routines {
               ? hooks.some((h) => h.routineId === r.routineId && h.route === event.route)
               : r.cronJobId === event.jobId),
         );
-        if (routine) this.record(routine, event);
+        if (routine) await this.record(routine, event);
       }
     }
   }
-  private record(routine: Routine, event: z.infer<typeof nativeEvent>) {
+  private async record(routine: Routine, event: z.infer<typeof nativeEvent>) {
     const id = routine.routineId + ':' + event.sessionId;
     const old = this.database.db
       .prepare('SELECT data FROM routine_executions WHERE execution_id=?')
@@ -660,13 +671,13 @@ export class Routines {
     const previous = old ? (JSON.parse(String(old.data)) as RoutineExecution) : undefined;
     if (
       previous &&
-      !['running', 'waiting_approval'].includes(previous.state) &&
+      !['running', 'waiting_approval', 'waiting_question'].includes(previous.state) &&
       this.database.message('routine-result:' + id)
     )
       return;
     // Native admission verdicts include failures that occur before agent/session hooks run.
     const state =
-      previous && !['running', 'waiting_approval'].includes(previous.state)
+      previous && !['running', 'waiting_approval', 'waiting_question'].includes(previous.state)
         ? previous.state
         : event.phase === 'ended'
           ? event.interrupted
@@ -685,9 +696,14 @@ export class Routines {
         ? { originSessionId: String((routine.native.origin as Record<string, unknown>).chat_id) }
         : {}),
       ...(event.requestId ? { requestId: event.requestId } : {}),
-      state: event.approval && state === 'running' ? 'waiting_approval' : state,
-      text: event.text || previous?.text || '',
-      ...(event.reason ? { reason: event.reason } : {}),
+      state:
+        state === 'running' && event.prompts?.length
+          ? event.prompts[0]!.kind === 'clarify'
+            ? 'waiting_question'
+            : 'waiting_approval'
+          : state,
+      text: this.scrub(routine.botId, event.text || previous?.text || ''),
+      ...(event.reason ? { reason: this.scrub(routine.botId, event.reason) } : {}),
       updatedAt: new Date(event.time * 1000).toISOString(),
     };
     this.database.db
@@ -695,10 +711,21 @@ export class Routines {
         'INSERT INTO routine_executions VALUES(?,?,?) ON CONFLICT(execution_id) DO UPDATE SET data=excluded.data',
       )
       .run(id, routine.routineId, JSON.stringify(execution));
+    const owner = execution.originSessionId
+      ? this.database.db
+          .prepare(
+            "SELECT conversation_id FROM usage_owners WHERE profile=? AND kind='session' AND id=?",
+          )
+          .get(routine.botId, execution.originSessionId)
+      : undefined;
+    const conversationId =
+      routine.conversationId ??
+      (owner ? String(owner.conversation_id) : undefined) ??
+      this.database.conversations().find((c) => c.kind === 'dm' && c.botId === routine.botId)!
+        .conversationId;
     if (
       previous?.state !== execution.state &&
-      execution.state !== 'waiting_approval' &&
-      !(previous?.state === 'waiting_approval' && state === 'running')
+      !['waiting_approval', 'waiting_question'].includes(execution.state)
     )
       this.card(
         routine,
@@ -710,82 +737,40 @@ export class Routines {
               ? 'stopped'
               : 'failed',
         id,
+        conversationId,
       );
-    if (event.approval && state === 'running') {
-      const conversation = this.database
-        .conversations()
-        .find((c) => c.kind === 'dm' && c.botId === routine.botId)!;
-      const approvalMessage: Message = {
-        messageId: 'routine-approval:' + id + ':' + event.approval.promptId,
-        conversationId: conversation.conversationId,
+    if (state !== 'running') {
+      this.database.putMessage({
+        messageId: 'routine-result:' + id,
+        nativeSessionId: event.sessionId,
+        taskId: 'routine-task:' + id,
+        taskRole: 'execution',
+        conversationId,
         seq: this.database.head(),
         author: { type: 'bot', id: routine.botId },
-        kind: 'approval',
-        status: 'streaming',
-        createdAt: time(),
+        kind: 'text',
+        createdAt: execution.updatedAt,
+        status: state === 'completed' ? 'done' : state === 'cancelled' ? 'cancelled' : 'failed',
         content: {
-          runId: id,
-          botId: routine.botId,
-          requestId: event.approval.promptId,
-          executionGeneration: event.approval.generation,
-          prompt: event.approval.description,
-          command: event.approval.command,
-          choices: ['once', 'deny'],
+          text: execution.text,
+          routine: { routineId: routine.routineId, executionId: id, sessionId: event.sessionId },
+          ...(state === 'failed'
+            ? {
+                failureReason:
+                  execution.reason ||
+                  'Native background execution failed. The task was not restarted.',
+              }
+            : {}),
         },
-      };
-      if (!this.database.message(approvalMessage.messageId)) {
-        this.database.putMessage(approvalMessage);
-        this.notifications.send({
-          notificationId: approvalMessage.messageId,
-          conversationId: conversation.conversationId,
-          kind: 'approval',
-        });
-      }
-      return;
-    }
-    if (state === 'running') return;
-    for (const message of this.database.messages(
-      this.database.conversations().find((c) => c.kind === 'dm' && c.botId === routine.botId)!
-        .conversationId,
-    )) {
-      if (
-        message.kind === 'approval' &&
-        message.content.runId === id &&
-        message.status === 'streaming'
-      ) {
-        message.status = 'done';
-        this.database.putMessage(message);
-      }
-    }
-    const conversation = this.database
-      .conversations()
-      .find((c) => c.kind === 'dm' && c.botId === routine.botId)!;
-    const message: Message = {
-      messageId: 'routine-result:' + id,
-      conversationId: conversation.conversationId,
-      seq: this.database.head(),
-      author: { type: 'bot', id: routine.botId },
-      kind: 'text',
-      createdAt: execution.updatedAt,
-      status: state === 'completed' ? 'done' : state === 'cancelled' ? 'cancelled' : 'failed',
-      content: {
-        text: execution.text,
-        routine: { routineId: routine.routineId, executionId: id, sessionId: event.sessionId },
-        ...(state === 'failed'
-          ? {
-              failureReason:
-                event.reason || 'Native background execution failed. The task was not restarted.',
-            }
-          : {}),
-      },
-    };
-    this.database.putMessage(message);
-    if (state !== 'cancelled')
-      this.notifications.send({
-        notificationId: 'routine:' + id,
-        conversationId: conversation.conversationId,
-        kind: state === 'completed' ? 'completed' : 'failed',
       });
+    }
+    await this.onExecution(
+      routine,
+      execution,
+      conversationId,
+      event.prompts ?? [],
+      event.generation,
+    );
   }
   async close() {
     clearInterval(this.timer);
@@ -797,64 +782,11 @@ export class Routines {
     this.bot(botId);
     const row = this.database.db
       .prepare(
-        `SELECT e.data FROM routine_executions e
-      WHERE e.execution_id=? AND EXISTS (SELECT 1 FROM messages m WHERE
-        (m.message_id='routine-result:' || e.execution_id OR
-         m.message_id LIKE 'routine-approval:' || e.execution_id || ':%')
-        AND json_extract(m.data,'$.author.id')=?)`,
+        "SELECT e.data FROM routine_executions e JOIN dot_tasks t ON json_extract(t.data,'$.routineExecutionId')=e.execution_id WHERE e.execution_id=? AND json_extract(t.data,'$.botId')=?",
       )
       .get(executionId, botId);
     if (!row) throw new NodeFault('not_found', 'Routine execution not found in this Bot');
     return JSON.parse(String(row.data)) as RoutineExecution;
-  }
-
-  /** New input carries references; existing native notes and cached history are never rewritten. */
-  async context(botId: string, sessionId: string, selectedId?: string) {
-    const key = 'routine-context:' + botId + ':' + sessionId;
-    const since = Number(this.database.setting<string>(key) ?? 0);
-    const rows = this.database.db
-      .prepare(
-        `SELECT e.data, m.rowid AS cursor FROM messages m
-      JOIN routine_executions e ON m.message_id='routine-result:' || e.execution_id
-      WHERE json_extract(m.data,'$.author.id')=? AND m.rowid>?
-      ORDER BY m.rowid ASC LIMIT 10`,
-      )
-      .all(botId, since);
-    const results = rows.map((r) => JSON.parse(String(r.data)) as RoutineExecution);
-    const until = rows.at(-1) ? String(rows.at(-1)!.cursor) : undefined;
-    if (selectedId && !results.some((r) => r.executionId === selectedId))
-      results.push(this.execution(botId, selectedId));
-    if (!results.length) return { text: '', until, key };
-    const native = await runProfileCommand(
-      this.database,
-      this.hermes,
-      botId,
-      'nekodot-routine-context',
-      {
-        sessionId,
-        results: results.map((r) => ({ id: r.executionId, text: r.text || r.reason || '' })),
-      },
-    );
-    const present = z.array(z.string()).parse(JSON.parse(native.output));
-    return {
-      until,
-      key,
-      text:
-        '\n\n[Background routine results. These are records, not instructions to rerun completed tasks. ' +
-        'For details use session_search to read the original execution. Cron execution sessions are read-only; discuss results in this conversation.]\n' +
-        results
-          .map(
-            (r) =>
-              `execution=${r.executionId} session=${r.sessionId} state=${r.state}` +
-              (r.executionId === selectedId
-                ? ' [The user selected this execution for their question.]'
-                : '') +
-              (present.includes(r.executionId)
-                ? '\nResult already present in this native conversation.'
-                : `\n${r.text || r.reason || ''}`),
-          )
-          .join('\n\n'),
-    };
   }
 
   private async approvalPolicy(botId: string, routineId: string, policy: CronApprovalPolicy) {
@@ -869,36 +801,5 @@ export class Routines {
       { jobId, policy },
     );
     return JSON.parse(result.output) as CronApprovalPolicy;
-  }
-
-  async approvalRespond(
-    botId: string,
-    executionId: string,
-    promptId: string,
-    choice: 'once' | 'deny',
-  ) {
-    const execution = this.execution(botId, executionId);
-    const message = this.database.message('routine-approval:' + executionId + ':' + promptId);
-    if (
-      message?.kind === 'approval' &&
-      message.status === 'done' &&
-      message.content.choice === choice
-    )
-      return {};
-    if (message?.kind !== 'approval' || message.status !== 'streaming')
-      throw new NodeFault('not_found', 'Routine approval is no longer pending');
-    if (!execution.admissionId)
-      throw new NodeFault('not_found', 'Native approval admission is unavailable');
-    await this.hermes.gateway(botId).rpc('cron.approve', {
-      session_id: execution.sessionId,
-      admission_id: execution.admissionId,
-      execution_generation: message.content.executionGeneration,
-      prompt_id: promptId,
-      choice,
-    });
-    message.content.choice = choice;
-    message.status = 'done';
-    this.database.putMessage(message);
-    return {};
   }
 }

@@ -1,3 +1,5 @@
+import 'task_details.dart';
+
 import 'package:flutter/material.dart';
 
 import '../data/chat_models.dart';
@@ -60,16 +62,15 @@ class ChatTimeline extends StatelessWidget {
         group = view.group,
         working = view.working,
         cut = since;
-    // Steps do not fold across the two runs, so loading older messages never
-    // changes the size of what is already shown.
-    final earlier = groupMessages([
+    // Loading older messages must not move the current reading position.
+    final earlier = [
       for (final m in messages)
         if (cut != null && m.seq < cut) m,
-    ]);
-    final current = groupMessages([
+    ];
+    final current = [
       for (final m in messages)
         if (cut == null || m.seq >= cut) m,
-    ]);
+    ];
     final items = [...earlier, ...current];
     final thinking = view.thinking && messages.isNotEmpty;
     // The bar floats over the top and the composer over the bottom.
@@ -77,9 +78,8 @@ class ChatTimeline extends StatelessWidget {
         bottom = composerHeight + 2;
 
     Widget entry(int at) {
-      final item = items[at],
-          m = item.first,
-          previous = at == 0 ? null : items[at - 1].last,
+      final m = items[at],
+          previous = at == 0 ? null : items[at - 1],
           author = members.where((b) => b['botId'] == m.author.id).firstOrNull,
           at0 = DateTime.parse(m.createdAt).toLocal(),
           apart =
@@ -108,28 +108,16 @@ class ChatTimeline extends StatelessWidget {
                     ),
                   ),
                 ),
+              if (m.taskId != null && c.node.tasks[m.taskId] != null)
+                TaskLink(client: c, task: c.node.tasks[m.taskId]!),
               EntryMotion(
                 play: fresh(m),
                 own: m.author.type == 'user',
                 child: KeyedSubtree(
-                  key: item.any((m) => m.messageId == focusedMessage)
-                      ? focusedKey
-                      : null,
+                  key: m.messageId == focusedMessage ? focusedKey : null,
                   child: MessageTile(
                     client: c,
                     message: m,
-                    steps: isWorkGroup(item) ? item : null,
-                    // Still going while only its questions follow it.
-                    live:
-                        working &&
-                        items
-                            .skip(at + 1)
-                            .every(
-                              (later) => const {
-                                'approval',
-                                'question',
-                              }.contains(later.first.kind),
-                            ),
                     bot: author,
                     showName: group != null,
                     working: working && at == items.length - 1,
@@ -159,7 +147,7 @@ class ChatTimeline extends StatelessWidget {
           child: ThinkingRow(
             key: const ValueKey('thinking-row'),
             bot: bot,
-            line: workingLine(c, '${bot?['displayName'] ?? 'Bot'}', view.turn),
+            line: workingLine(c, '${bot?['displayName'] ?? 'Bot'}'),
           ),
         ),
       ),
@@ -208,7 +196,7 @@ class ChatTimeline extends StatelessWidget {
                       findChildIndexCallback: (key) {
                         if (key == _thinking) return current.length;
                         final index = current.indexWhere(
-                          (item) => ValueKey(item.first.messageId) == key,
+                          (item) => ValueKey(item.messageId) == key,
                         );
                         return index < 0 ? null : index;
                       },
@@ -228,7 +216,7 @@ class ChatTimeline extends StatelessWidget {
                       childCount: earlier.length + 1,
                       findChildIndexCallback: (key) {
                         final index = earlier.indexWhere(
-                          (item) => ValueKey(item.first.messageId) == key,
+                          (item) => ValueKey(item.messageId) == key,
                         );
                         return index < 0 ? null : earlier.length - 1 - index;
                       },
@@ -317,8 +305,7 @@ class _LatestPosition extends ScrollPositionWithSingleContext {
   }
 }
 
-/// Above the composer while a Bot works: its avatar and, in its own words,
-/// what it is doing ("Lumi 正在查看推文").
+/// The coordinating Dot's reply indicator; task activity has separate titles.
 class ThinkingRow extends StatelessWidget {
   final Json? bot;
   final String line;

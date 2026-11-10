@@ -79,8 +79,8 @@ export function registerNotifications(
       // Match foreground/local and background/system notification identity per conversation.
       android: {
         priority: 'high' as const,
-        collapseKey: signal.conversationId,
-        notification: { channelId: 'nekodot_tasks', tag: signal.conversationId },
+        collapseKey: signal.taskId ?? signal.conversationId,
+        notification: { channelId: 'nekodot_tasks', tag: signal.taskId ?? signal.conversationId },
       },
     };
     const budget = Math.max(0, Math.floor((3800 - Buffer.byteLength(JSON.stringify(message))) / 2));

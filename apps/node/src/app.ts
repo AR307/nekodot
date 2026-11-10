@@ -87,9 +87,11 @@ export class NodeApplication {
     this.notifications = new Notifications(this.database);
     this.routines = new Routines(this.database, hermes, this.notifications);
     this.secrets = new BotSecrets(this.database, hermes);
+    this.routines.scrub = (botId, value) => this.secrets.scrub(botId, value);
     this.secrets.onRequestCard = (request) =>
       this.notifications.send({
         notificationId: 'secret:' + request.requestId,
+        ...(request.taskId ? { taskId: request.taskId } : {}),
         conversationId: request.conversationId,
         kind: 'question',
       });
@@ -98,6 +100,7 @@ export class NodeApplication {
         kind: 'activity',
         conversationId: run.conversationId,
         botId: run.botId,
+        taskId: run.taskId,
         state: waiting ? 'waiting_question' : 'thinking',
       });
     this.routines.onSecret = (input) => this.secrets.local(input);

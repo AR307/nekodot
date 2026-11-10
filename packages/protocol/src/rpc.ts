@@ -151,6 +151,7 @@ export const rpcContracts = {
   },
   'commands.execute': {
     params: z.strictObject({
+      taskId: z.string().optional(),
       sessionId: z.string().optional(),
       ...botTarget,
       conversationId: idSchema,
@@ -222,15 +223,6 @@ export const rpcContracts = {
   'routines.list': {
     params: z.strictObject(botTarget),
     result: z.strictObject({ routines: z.array(routineSchema) }),
-  },
-  'routines.approvalRespond': {
-    params: z.strictObject({
-      ...botTarget,
-      executionId: z.string(),
-      promptId: z.string(),
-      choice: z.enum(['once', 'deny']),
-    }),
-    result: empty,
   },
   'routines.get': {
     params: z.strictObject({ ...botTarget, routineId: idSchema }),
@@ -384,7 +376,7 @@ export const rpcContracts = {
   'files.backfill': { params: z.strictObject(botTarget), result: operationSchema },
   'imports.create': { params: empty, result: z.strictObject({ importId: z.uuid() }) },
   'flow.get': {
-    params: z.strictObject({ conversationId: idSchema }),
+    params: z.strictObject({ conversationId: idSchema, taskId: idSchema.optional() }),
     result: z.strictObject({ flow: flowSnapshotSchema.nullable() }),
   },
   'sync.snapshot': {
@@ -396,6 +388,7 @@ export const rpcContracts = {
       // Each conversation's newest words, so a list previews it before it is opened.
       latest: z.array(messageSchema),
       flows: z.array(flowSnapshotSchema),
+      tasks: z.array(dotTaskSchema),
       headSeq: seqSchema,
       node: nodeCapabilitiesSchema,
     }),
@@ -420,6 +413,7 @@ export const rpcContracts = {
   'messages.send': {
     params: z.strictObject({
       sessionId: z.string().optional(),
+      taskId: z.string().optional(),
       conversationId: idSchema,
       text: z.string(),
       files: z.array(z.uuid()).optional(),
@@ -431,6 +425,14 @@ export const rpcContracts = {
   'runs.stop': {
     params: z.strictObject({ conversationId: idSchema, runId: z.string().optional() }),
     result: empty,
+  },
+  'tasks.list': {
+    params: z.strictObject({ conversationId: idSchema }),
+    result: z.strictObject({ tasks: z.array(dotTaskSchema) }),
+  },
+  'tasks.get': {
+    params: z.strictObject({ conversationId: idSchema, taskId: idSchema }),
+    result: z.strictObject({ task: dotTaskSchema, messages: z.array(messageSchema) }),
   },
   'approvals.respond': {
     params: z.strictObject({ messageId: idSchema, choice: approvalChoiceSchema }),
@@ -589,3 +591,4 @@ export function rpcResponseSchema<M extends RpcMethod>(
     { ok: true; result: RpcResult<M> } | { ok: false; error: z.infer<typeof rpcErrorSchema> }
   >;
 }
+import { dotTaskSchema } from './tasks';

@@ -14,7 +14,6 @@ export class RunControls {
     private readonly hermes: HermesRuntime,
     private readonly flow: ExecutionFlows,
     private readonly notifications: Notifications,
-    private readonly active: (conversationId: string) => RunRecord | undefined,
     private readonly onActivity: (run: RunRecord) => void,
   ) {}
   async respondToApproval(params: RpcParams<'approvals.respond'>) {
@@ -28,17 +27,18 @@ export class RunControls {
       return {};
     if (!runId || message?.kind !== 'approval' || message.status !== 'streaming')
       throw new NodeFault('not_found', 'Approval is no longer pending');
-    const run =
-      this.active(message.conversationId) ??
-      this.database.runs().find((item) => item.runId === runId);
+    const run = this.database.runs().find((item) => item.runId === runId);
     if (!run) throw new NodeFault('not_found', 'Run is no longer active');
     if (!run.sessionId) throw new NodeFault('not_found', 'Hermes session is no longer active');
-    await this.hermes.gateway(run.botId).rpc('approval.respond', {
-      session_id: run.sessionId,
-      execution_generation: message.content.executionGeneration,
-      prompt_id: message.content.requestId,
-      choice: params.choice,
-    });
+    await this.hermes
+      .gateway(run.botId)
+      .rpc(run.background === 'cron' ? 'cron.approve' : 'approval.respond', {
+        ...(run.background === 'cron' ? { admission_id: run.runId } : {}),
+        session_id: run.sessionId,
+        execution_generation: message.content.executionGeneration,
+        prompt_id: message.content.requestId,
+        choice: params.choice,
+      });
     message.content = { ...message.content, choice: params.choice };
     message.status = 'done';
     run.state = 'thinking';
@@ -136,6 +136,7 @@ export class RunControls {
       this.notifications.send({
         notificationId: `question:${run.runId}:${pending.prompt_id}`,
         conversationId: run.conversationId,
+        ...(run.taskId ? { taskId: run.taskId } : {}),
         kind: 'question',
       });
     this.onActivity(run);
@@ -151,14 +152,13 @@ export class RunControls {
       return {};
     if (message?.kind !== 'question' || message.status !== 'streaming')
       throw new NodeFault('conflict', 'This question is no longer pending');
-    const run =
-      this.active(message.conversationId) ??
-      this.database.runs().find((item) => item.runId === message.content.runId);
+    const run = this.database.runs().find((item) => item.runId === message.content.runId);
     if (!run?.runId) throw new NodeFault('conflict', 'Run is no longer active');
     if (!run.sessionId) throw new NodeFault('not_found', 'Hermes session is no longer active');
     const response = await this.hermes
       .gateway(run.botId)
-      .rpc<{ status: string }>('clarify.respond', {
+      .rpc<{ status: string }>(run.background === 'cron' ? 'cron.clarify' : 'clarify.respond', {
+        ...(run.background === 'cron' ? { admission_id: run.runId } : {}),
         session_id: run.sessionId,
         execution_generation: message.content.executionGeneration,
         prompt_id: message.content.requestId,

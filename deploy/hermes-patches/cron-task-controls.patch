@@ -1,0 +1,230 @@
+--- a/gateway/session_cron.py
++++ b/gateway/session_cron.py
+@@ -215,9 +215,14 @@
+             _authorize_write=authority._admission_gate()), then=partial(authority._admitted, ref, None), ordered=True,
+             after=partial(authority._schedule_admitted, ref))
+         return {'session_id': ref.session_id, 'admission_id': receipt.admission_id}
+-    approval_response = name == 'approve'
+-    expected = {'session_id', 'admission_id', 'execution_generation', 'prompt_id', 'choice'} if approval_response else {'session_id', 'admission_id'}
+-    if set(params) != expected or name not in {'status', 'cancel', 'approve'}:
++    expected = {
++        'status': {'session_id', 'admission_id'},
++        'cancel': {'session_id', 'admission_id'},
++        'approve': {'session_id', 'admission_id', 'execution_generation', 'prompt_id', 'choice'},
++        'clarify': {'session_id', 'admission_id', 'execution_generation', 'prompt_id', 'answer'},
++        'steer': {'session_id', 'admission_id', 'execution_generation', 'text'},
++    }
++    if name not in expected or set(params) != expected[name]:
+         raise RuntimeStoreError('invalid_params')
+     ref = SessionRef(authority.profile_id, params['session_id'])
+     authority.authorize(actor, ref, 'session:submit')
+@@ -225,22 +230,38 @@
+     from gateway.owner_identity import same_owner
+     if row is None or row['target_session_id'] != ref.session_id or not same_owner(row['principal_id'], actor.subject):
+         raise RuntimeStoreError('permission_denied')
+-    if approval_response:
+-        authority.authorize(actor, ref, 'session:approve')
++    if name in {'approve', 'clarify', 'steer'}:
++        authority.authorize(actor, ref, {
++            'approve': 'session:approve', 'clarify': 'session:respond', 'steer': 'session:control'
++        }[name])
+         if row['status'] != 'started' or row['generation'] != params['execution_generation']:
+             raise RuntimeStoreError('stale_generation')
+         live = authority.sessions[ref.session_id]
+         with live.event_stream.lock:
+             authority.check_approval_generation(ref.session_id, params['execution_generation'])
++            if name == 'steer':
++                if not isinstance(params['text'], str) or not params['text'].strip():
++                    raise RuntimeStoreError('invalid_params')
++                generation, agent = authority.adopted.get(ref.session_id, (None, None))
++                if generation != row['generation'] or agent is None:
++                    raise RuntimeStoreError('execution_not_ready')
++                return {'status': 'queued' if agent.steer(params['text']) else 'rejected',
++                        'execution_generation': row['generation']}
++            kind, field = ('clarify', 'answer') if name == 'clarify' else ('approval', 'choice')
+             return live.controls.respond(ref.session_id, params['execution_generation'],
+-                                         params['prompt_id'], {'choice': params['choice']})
++                                         params['prompt_id'], {field: params[field]}, kind=kind)
+     if name == 'cancel':
+         if row['status'] == 'queued':
+             row = await authority.cancel_or_claimed(actor, ref, row['admission_id']) or {'status': 'terminal'}
+         if row['status'] == 'started':
+             # The claim commits before execute() registers its event; latching the
+             # cancellation on the admission here means that window cannot lose it.
++            from cron.cancellation import request_cancel
++            from gateway.run import _profile_runtime_scope
++            with _profile_runtime_scope(Path(authority.db.db_path).resolve().parent):
++                request_cancel(row['request_id'].rsplit(':', 1)[-1])
+             _cancellations(authority).setdefault(row['admission_id'], threading.Event()).set()
++            await authority.interrupt(actor, ref, row['generation'])
+         return {'ok': True}
+     result, flags = None, {}
+     if row['status'] == 'terminal':
+@@ -256,6 +277,7 @@
+         live = authority.sessions[ref.session_id]
+         prompts = list(live.controls.snapshot(ref.session_id, row['generation']))
+     return {'status': row['status'], 'result': result, 'job_flags': flags, 'prompts': prompts,
++            'execution_generation': row['generation'],
+             'progress_at': owner_progress.get(row['request_id'].rsplit(':', 1)[-1])}
+ 
+ 
+@@ -327,10 +349,12 @@
+         # run_job stamps run-side verdicts on ITS job copy (quota hold, unreachable model); the
+         # firing scheduler's bookkeeping reads them off its own dict, so they ride the result.
+         flags = {key: job[key] for key in RUN_JOB_FLAGS if key in job}
++        interrupted = stop.is_set()
+         authority.pending_results[row['admission_id']] = {
+             'result': {'final_response': result[2], 'cron_result': list(result), 'cron_job_flags': flags,
+-                       'failed': not result[0], 'completed': result[0]}, 'usage': {}}
+-        if not result[0]:
++                       'failed': not result[0] and not interrupted,
++                       'completed': result[0] and not interrupted, 'interrupted': interrupted}, 'usage': {}}
++        if not result[0] and not interrupted:
+             raise RuntimeError(result[3] or 'cron execution failed')
+         return result[2]
+     finally:
+--- a/gateway/session_cron_approvals.py
++++ b/gateway/session_cron_approvals.py
+@@ -21,3 +21,37 @@
+     finally:
+         unregister_gateway_notify(route)
+         reset_current_session_key(token)
++
++
++def bind_agent(agent):
++    # Only canonical cron fires have an owning control queue; other cron entry points stay headless.
++    from gateway.session_cron import current_execution
++    current = current_execution()
++    if current is None:
++        return agent
++    authority, session_id, _, _ = current
++    from hermes_state_runtime import list_session_admissions
++    row = next(row for row in list_session_admissions(authority.db, session_id=session_id,
++               pending_only=True) if row['status'] == 'started')
++    generation = row['generation']
++    authority.adopt_agent(session_id, generation, agent)
++
++    def clarify(questions):
++        from uuid import uuid4
++        from tools.clarify_gateway import register, wait_for_response, get_clarify_timeout, CANCELLED, SKIPPED
++        answers = {}
++        outcome = 'submitted'
++        for question in questions:
++            entry = register(uuid4().hex, session_id, question['question'],
++                             question.get('choices'), question.get('multi_select', False))
++            authority.register_clarify(session_id, generation, entry, timeout_s=get_clarify_timeout())
++            answer = wait_for_response(entry.clarify_id, get_clarify_timeout())
++            authority.sessions[session_id].controls.snapshot(session_id, generation)
++            if answer is None or answer == CANCELLED:
++                outcome = 'cancelled' if answer == CANCELLED else 'timed_out'
++                break
++            answers[question['qid']] = None if answer == SKIPPED else answer
++        return {'answers': answers, 'outcome': outcome}
++
++    agent.clarify_callback = clarify
++    return agent
+--- a/cron/scheduler.py
++++ b/cron/scheduler.py
+@@ -428,6 +428,9 @@
+     agent_cfg = (cfg or {}).get("agent") or {}
+     from agent.skill_utils import parse_config_string_list
+ 
++    from gateway.session_cron import current_execution
++    if current_execution() is not None:
++        disabled.remove("clarify")
+     user_disabled = parse_config_string_list(agent_cfg.get("disabled_toolsets"))
+     for name in user_disabled:
+         name = str(name).strip()
+@@ -2481,7 +2484,7 @@
+ def _construct_cron_agent(AIAgent, job: dict, _cfg: dict, setup: _CronAgentSetup, *, workdir, session_id, session_db):
+     runtime = setup.runtime
+     pr = _cfg.get("provider_routing") or {}
+-    return AIAgent(
++    agent = AIAgent(
+         model=setup.model,
+         api_key=runtime.get("api_key"),
+         base_url=runtime.get("base_url"),
+@@ -2513,6 +2516,8 @@
+         session_id=session_id,
+         session_db=session_db,
+     )
++    from gateway.session_cron_approvals import bind_agent
++    return bind_agent(agent)
+ 
+ 
+ class _FireAudit:
+--- a/gateway/session_controls.py
++++ b/gateway/session_controls.py
+@@ -228,6 +228,7 @@
+                     'cron.submit': self.cron_submit, 'cron.status': self.cron_status,
+                     'cron.cancel': self.cron_cancel, 'cron.recover': self.cron_recover,
+                     'cron.approve': self.cron_approve,
++                    'cron.steer': self.cron_steer, 'cron.clarify': self.cron_clarify,
+                     'worker.register': self.worker_register, 'worker.adopt': self.worker_adopt,
+                     'worker.persist': self.worker_persist,
+                     'setup.status': self.setup_status, 'setup.runtime_check': self.setup_runtime_check,
+@@ -405,6 +406,14 @@
+         from gateway.session_cron import rpc
+         return await rpc(self, 'approve', params)
+ 
++    async def cron_steer(self, ref, params):
++        from gateway.session_cron import rpc
++        return await rpc(self, 'steer', params)
++
++    async def cron_clarify(self, ref, params):
++        from gateway.session_cron import rpc
++        return await rpc(self, 'clarify', params)
++
+     async def bot_roster(self, ref, params):
+         from gateway.session_bot import relay_operation
+         return relay_operation(self, 'roster', params)
+--- a/tui_gateway/contracts/canonical.py
++++ b/tui_gateway/contracts/canonical.py
+@@ -441,6 +441,28 @@
+                  doc="Resolve one pending approval for the exact cron admission.")
+ 
+ 
++class CronSteerParams(CronAdmissionParams):
++    execution_generation: int
++    text: str
++
++
++class CronSteerResult(Result):
++    status: str
++    execution_generation: int
++
++
++class CronClarifyParams(CronAdmissionParams):
++    execution_generation: int
++    prompt_id: str
++    answer: str
++
++
++canonical_method("cron.steer", params=CronSteerParams, result=CronSteerResult,
++                 doc="Steer only the named active cron execution.")
++canonical_method("cron.clarify", params=CronClarifyParams, result=CronApprovalResult,
++                 doc="Answer a pending question in the named cron execution.")
++
++
+ class KanbanRunParams(Params):
+     board: str
+     task_id: str
+--- a/agent/system_prompt.py
++++ b/agent/system_prompt.py
+@@ -452,7 +452,15 @@
+     """Built-in/plugin platform hint + Telegram rich-messages opt-in + config
+     override + desktop TUI clarifier; cron agents also carry their delivery channel's hint."""
+     platform_key = (agent.platform or "").lower().strip()
+-    _effective_hint = _resolve_platform_hint(agent, platform_key, _default_platform_hint(platform_key))
++    default_hint = _default_platform_hint(platform_key)
++    if platform_key == "cron" and callable(getattr(agent, "clarify_callback", None)):
++        default_hint = (
++            "You are running a scheduled cron job with a connected user control channel. "
++            "Use clarify when the task needs user input; the channel can deliver a question "
++            "and wait for the answer. Approval requests, direction changes and cancellation "
++            "are handled by this same execution. Do not claim an unanswered question was answered."
++        )
++    _effective_hint = _resolve_platform_hint(agent, platform_key, default_hint)
+     if platform_key == "tui" and _effective_hint:
+         _effective_hint = _tui_embedded_pane_clarifier(_effective_hint)
+     if platform_key == "cron":
