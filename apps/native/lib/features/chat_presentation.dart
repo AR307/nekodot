@@ -1,5 +1,4 @@
 import '../data/chat_models.dart';
-import '../data/client.dart';
 import '../data/json.dart';
 import '../data/node_data.dart';
 import 'work.dart';
@@ -82,28 +81,6 @@ class ChatPresentation {
       const {'waiting_approval', 'waiting_question', 'unknown'}.contains(state);
   List<Json> get memberAvatars =>
       members.map((m) => object(m['avatar'])).toList();
-  bool get thinking {
-    final tail = messages.lastOrNull;
-    return (state == 'thinking' || state == 'tool') &&
-        (tail?.status != 'streaming' ||
-            tail?.kind == 'tool' ||
-            (tail != null && isProgressMessage(tail)));
-  }
-
-  String? status(NekodotClient c) => !c.online
-      ? c.tr('离线', 'Offline')
-      : activity.connection == 'reconnecting'
-      ? c.tr('重连中', 'Reconnecting')
-      : activity.stalled
-      ? c.tr('可能卡住', 'No recent progress')
-      : switch (state) {
-          'thinking' => c.tr('回复中', 'Replying'),
-          'tool' => c.tr('工具运行中', 'Using tools'),
-          'waiting_approval' => c.tr('等你确认', 'Needs your OK'),
-          'waiting_question' => c.tr('等你回答', 'Needs your answer'),
-          'unknown' => c.tr('执行中断，待确认', 'Execution interrupted'),
-          _ => null,
-        };
 }
 
 List<ChatMessage> visibleChatMessages(List<ChatMessage> messages) => messages

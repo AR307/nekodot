@@ -294,7 +294,6 @@ class _ChatPageState extends State<ChatPage>
           members = view.members,
           title = view.title,
           working = view.working,
-          status = view.status(c),
           chain = view.activity.chain,
           memberAvatars = view.memberAvatars,
           messages = view.messages,
@@ -369,17 +368,6 @@ class _ChatPageState extends State<ChatPage>
                   if (chain != null) ...[
                     const SizedBox(width: 8),
                     ChainDots(count: chain.count, max: chain.max),
-                  ],
-                  if (status != null) ...[
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        status,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.labelMedium,
-                      ),
-                    ),
                   ],
                 ],
               ),

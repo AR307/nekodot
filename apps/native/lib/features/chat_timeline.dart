@@ -4,9 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/chat_models.dart';
 import '../data/client.dart';
-import '../data/json.dart';
 import '../ui/design.dart';
-import 'work.dart';
 
 import 'chat_presentation.dart';
 import 'chat_message.dart';
@@ -50,15 +48,13 @@ class ChatTimeline extends StatelessWidget {
 
   /// A pause this long between two messages puts the time between them.
   static const pause = Duration(minutes: 30);
-  static const _earlier = ValueKey('chat-earlier'),
-      _thinking = ValueKey('chat-thinking');
+  static const _earlier = ValueKey('chat-earlier');
   @override
   Widget build(BuildContext context) {
     final c = client,
         id = conversationId,
         messages = view.messages,
         members = view.members,
-        bot = view.bot,
         group = view.group,
         working = view.working,
         cut = since;
@@ -72,7 +68,6 @@ class ChatTimeline extends StatelessWidget {
         if (cut == null || m.seq >= cut) m,
     ];
     final items = [...earlier, ...current];
-    final thinking = view.thinking && messages.isNotEmpty;
     // The bar floats over the top and the composer over the bottom.
     final head = MediaQuery.paddingOf(context).top + 6,
         bottom = composerHeight + 2;
@@ -108,8 +103,6 @@ class ChatTimeline extends StatelessWidget {
                     ),
                   ),
                 ),
-              if (m.taskId != null && c.node.tasks[m.taskId] != null)
-                TaskLink(client: c, task: c.node.tasks[m.taskId]!),
               EntryMotion(
                 play: fresh(m),
                 own: m.author.type == 'user',
@@ -131,27 +124,16 @@ class ChatTimeline extends StatelessWidget {
                   ),
                 ),
               ),
+              if (m.taskId != null &&
+                  c.node.tasks[m.taskId] != null &&
+                  (at == items.length - 1 || items[at + 1].taskId != m.taskId))
+                TaskLink(client: c, task: c.node.tasks[m.taskId]!),
             ],
           ),
         ),
       );
     }
 
-    final thinkingRow = Align(
-      key: _thinking,
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 720),
-        child: EntryMotion(
-          play: true,
-          child: ThinkingRow(
-            key: const ValueKey('thinking-row'),
-            bot: bot,
-            line: workingLine(c, '${bot?['displayName'] ?? 'Bot'}'),
-          ),
-        ),
-      ),
-    );
     final more = (c.node.messages[id]?.length ?? 0) < 50
         ? const SizedBox.shrink()
         : Center(
@@ -189,12 +171,9 @@ class ChatTimeline extends StatelessWidget {
                   padding: EdgeInsets.fromLTRB(14, 0, 14, bottom),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
-                      (context, index) => index < current.length
-                          ? entry(earlier.length + index)
-                          : thinkingRow,
-                      childCount: current.length + (thinking ? 1 : 0),
+                      (context, index) => entry(earlier.length + index),
+                      childCount: current.length,
                       findChildIndexCallback: (key) {
-                        if (key == _thinking) return current.length;
                         final index = current.indexWhere(
                           (item) => ValueKey(item.messageId) == key,
                         );
@@ -303,39 +282,4 @@ class _LatestPosition extends ScrollPositionWithSingleContext {
     super.applyContentDimensions(minScrollExtent, maxScrollExtent);
     return false;
   }
-}
-
-/// The coordinating Dot's reply indicator; task activity has separate titles.
-class ThinkingRow extends StatelessWidget {
-  final Json? bot;
-  final String line;
-  const ThinkingRow({super.key, this.bot, required this.line});
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 12),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        if (bot != null) CatAvatar.of(bot!, size: 24, working: true),
-        const SizedBox(width: 10),
-        Flexible(
-          child: AnimatedSwitcher(
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : const Duration(milliseconds: 200),
-            layoutBuilder: (current, previous) => Stack(
-              alignment: Alignment.centerLeft,
-              children: [...previous, ?current],
-            ),
-            child: ShiningText(
-              key: ValueKey(line),
-              text: line,
-              style: Theme.of(context).textTheme.bodyMedium
-                  ?.copyWith(color: context.tone.ink3),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
 }

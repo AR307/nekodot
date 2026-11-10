@@ -1,4 +1,4 @@
-import 'task_details.dart';
+import 'chat_activity.dart';
 import '../data/chat_models.dart';
 
 import 'dart:async';
@@ -402,8 +402,7 @@ class ChatComposerState extends State<ChatComposer> {
         bot = widget.view.bot,
         members = widget.view.members,
         running = widget.view.running,
-        waiting = widget.view.waiting,
-        status = widget.view.status(c);
+        waiting = widget.view.waiting;
     final hasText = input.text.trim().isNotEmpty || attached.isNotEmpty;
     final composerField = Focus(
       canRequestFocus: false,
@@ -568,26 +567,6 @@ class ChatComposerState extends State<ChatComposer> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (error.isNotEmpty) ErrorNotice(error),
-                      if (c.node.tasks.values.any(
-                        (task) =>
-                            task.conversationId == id &&
-                            (task.active || task.reportMessageId == null),
-                      ))
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 160),
-                          child: ListView(
-                            shrinkWrap: true,
-                            children: [
-                              for (final task in c.node.tasks.values.where(
-                                (task) =>
-                                    task.conversationId == id &&
-                                    (task.active ||
-                                        task.reportMessageId == null),
-                              ))
-                                TaskLink(client: c, task: task),
-                            ],
-                          ),
-                        ),
                       if (taskDraft != null)
                         QuoteChip(
                           text: '${taskDraft!['title']}',
@@ -791,6 +770,11 @@ class ChatComposerState extends State<ChatComposer> {
                     ],
                   ),
                 ),
+                ChatActivityDock(
+                  key: ValueKey('activity:${c.selectedNodeId}:$id'),
+                  client: c,
+                  conversationId: id,
+                ),
                 PromptCard(
                   key: const ValueKey('composer-card'),
                   field: composerField,
@@ -814,7 +798,9 @@ class ChatComposerState extends State<ChatComposer> {
                         if (c.prefs.chatDisplay['statusbar'] == true)
                           Expanded(
                             child: MetaText([
-                              status ?? c.tr('已连接', 'Connected'),
+                              c.online
+                                  ? c.tr('已连接', 'Connected')
+                                  : c.tr('离线', 'Offline'),
                               '${c.tr('Bot 配置', 'Bot config')}: ${bot?['model'] ?? ''}',
                             ], style: Theme.of(context).textTheme.labelSmall),
                           )
@@ -832,7 +818,17 @@ class ChatComposerState extends State<ChatComposer> {
       ),
     );
 
-    return composer;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [tone.base.withValues(alpha: 0), tone.base, tone.base],
+          stops: const [0, .12, 1],
+        ),
+      ),
+      child: composer,
+    );
   }
 }
 

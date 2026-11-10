@@ -7,18 +7,97 @@ import '../data/client.dart';
 import '../data/json.dart';
 import '../data/node_data.dart';
 import '../data/tasks.dart';
+import '../platform/desktop.dart';
 import '../ui/design.dart';
 import 'chat_message.dart';
 import 'chat_presentation.dart';
 import 'flowchart.dart';
-import 'work.dart';
 
-Color taskColor(DotTask task) => switch (task.state) {
-  'completed' => Colors.green,
-  'failed' => Colors.red,
-  'cancelled' || 'queued' || 'unknown' => Colors.grey,
-  _ => Colors.blue,
-};
+Future<void> openTaskDetails(
+  BuildContext context,
+  NekodotClient client,
+  DotTask task,
+) => Navigator.of(context).push<void>(
+  PageRouteBuilder<void>(
+    opaque: false,
+    barrierDismissible: true,
+    barrierLabel: client.tr('关闭', 'Close'),
+    barrierColor: Colors.black26,
+    transitionDuration: MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 240),
+    reverseTransitionDuration: MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 180),
+    pageBuilder: (context, _, secondary) {
+      final phone =
+          context.tone.glass || MediaQuery.sizeOf(context).width < 840;
+      return Align(
+        alignment: Alignment.centerRight,
+        child: SizedBox(
+          width: phone ? MediaQuery.sizeOf(context).width : 540,
+          child: DecoratedBox(
+            decoration: ShapeDecoration(
+              color: context.tone.base,
+              shape: RoundedSuperellipseBorder(
+                borderRadius: BorderRadius.horizontal(
+                  left: Radius.circular(phone ? 0 : 18),
+                ),
+              ),
+              shadows: context.tone.lift,
+            ),
+            child: ClipRSuperellipse(
+              borderRadius: BorderRadius.horizontal(
+                left: Radius.circular(phone ? 0 : 18),
+              ),
+              child: InSheet(
+                child: TaskDetailsPage(client: client, task: task),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+    transitionsBuilder: (context, animation, secondary, child) =>
+        SlideTransition(
+          position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(
+            CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+              reverseCurve: Curves.easeInCubic,
+            ),
+          ),
+          child: child,
+        ),
+  ),
+);
+
+class TaskMark extends StatelessWidget {
+  final DotTask task;
+  const TaskMark({super.key, required this.task});
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final color = switch (task.state) {
+      'completed' => dark ? const Color(0xff66c98c) : const Color(0xff21834a),
+      'failed' => context.tone.danger,
+      'cancelled' || 'queued' || 'unknown' => context.tone.ink3,
+      _ => dark ? const Color(0xff6aaeff) : const Color(0xff2375d4),
+    };
+    return Icon(
+      switch (task.state) {
+        'completed' => Icons.check_rounded,
+        'failed' => Icons.error_outline,
+        'waiting_approval' || 'waiting_question' => Icons.pause_rounded,
+        'cancelled' => Icons.stop_circle_outlined,
+        'queued' => Icons.schedule,
+        _ => Icons.circle_outlined,
+      },
+      color: color,
+      size: 14,
+    );
+  }
+}
 
 class TaskLink extends StatelessWidget {
   final NekodotClient client;
@@ -29,34 +108,37 @@ class TaskLink extends StatelessWidget {
     final bot = client.node.bots
         .where((b) => b['botId'] == task.botId)
         .firstOrNull;
-    return InkWell(
-      key: ValueKey('task-${task.taskId}'),
-      onTap: () =>
-          pushPage(context, TaskDetailsPage(client: client, task: task)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton(
+        key: ValueKey('task-${task.taskId}'),
+        onPressed: () => openTaskDetails(context, client, task),
+        style: TextButton.styleFrom(
+          foregroundColor: context.tone.ink2,
+          minimumSize: Size(0, context.tone.glass ? 48 : 32),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          shape: RoundedSuperellipseBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            if (bot != null) CatAvatar.of(bot, size: 22),
-            const SizedBox(width: 7),
-            Expanded(
+            if (bot != null) ...[
+              CatAvatar.of(bot, size: 18),
+              const SizedBox(width: 8),
+            ],
+            Flexible(
               child: Text(
-                '${bot?['displayName'] ?? ''} · ${compactActivity(task.title)}',
+                task.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Icon(
-              switch (task.state) {
-                'completed' => Icons.check,
-                'failed' => Icons.close,
-                'waiting_approval' || 'waiting_question' => Icons.pause,
-                'cancelled' => Icons.stop_circle_outlined,
-                _ => Icons.circle,
-              },
-              color: taskColor(task),
-              size: 14,
-            ),
+            const SizedBox(width: 8),
+            TaskMark(task: task),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, size: 16),
           ],
         ),
       ),
@@ -76,6 +158,7 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
   late final NodeData node = widget.client.node;
   late final String nodeId = widget.client.selectedNodeId!;
   String error = '';
+  bool loading = true;
   String? focusedMessage;
   final focusedKey = GlobalKey();
   @override
@@ -86,6 +169,10 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
   }
 
   Future<void> load() async {
+    setState(() {
+      loading = true;
+      error = '';
+    });
     try {
       final result = await widget.client.rpc('tasks.get', {
         'conversationId': widget.task.conversationId,
@@ -110,6 +197,8 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
       if (mounted && !widget.client.isConnectionFailure(e)) {
         setState(() => error = '$e');
       }
+    } finally {
+      if (mounted) setState(() => loading = false);
     }
   }
 
@@ -140,9 +229,32 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
           .where((m) => m.taskId == task.taskId)
           .toList();
       final items = visibleChatMessages(messages);
+      final bot = node.bots.where((b) => b['botId'] == task.botId).firstOrNull;
       return Scaffold(
         appBar: AppBar(
-          title: Text(task.title),
+          automaticallyImplyLeading: false,
+          titleSpacing: 16,
+          title: Row(
+            children: [
+              if (bot != null) ...[
+                CatAvatar.of(bot, size: 24),
+                const SizedBox(width: 8),
+              ],
+              Flexible(
+                child: Text(
+                  task.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TaskMark(task: task),
+            ],
+          ),
           actions: [
             if (task.source == 'chat' || task.source == 'group')
               IconButton(
@@ -170,42 +282,69 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
                 Navigator.of(context).pop();
               },
             ),
+            IconButton(
+              tooltip: widget.client.tr('关闭', 'Close'),
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.close),
+            ),
+            SizedBox(width: WindowChrome.reserved(context)),
           ],
         ),
-        body: ListView(
-          reverse: true,
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+        body: Column(
           children: [
-            if (error.isNotEmpty) Text(error),
-            for (final item in items.reversed)
-              Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 720),
-                  child: MessageTile(
-                    key: item.messageId == focusedMessage
-                        ? focusedKey
-                        : ValueKey(item.messageId),
-                    client: widget.client,
-                    message: item,
-                    bot: node.bots
-                        .where((b) => b['botId'] == item.author.id)
-                        .firstOrNull,
-                    showName: task.botIds.length > 1,
-                    onRetry: (_) {},
-                    onQuote: (_) {
-                      widget
-                          .client
-                          .workspace['taskQuote:$nodeId:${task.conversationId}'] = {
-                        'taskId': task.taskId,
-                        'title': task.title,
-                      };
-                      widget.client.saveContent();
-                      Navigator.of(context).pop();
-                    },
-                  ),
+            if (loading) const LinearProgressIndicator(minHeight: 2),
+            if (error.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Expanded(child: ErrorNotice(error)),
+                    IconButton(
+                      tooltip: widget.client.tr('重试', 'Retry'),
+                      onPressed: load,
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  ],
                 ),
               ),
+            Expanded(
+              child: ListView(
+                key: ValueKey('task-messages-${task.taskId}'),
+                reverse: true,
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                children: [
+                  for (final item in items.reversed)
+                    Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 720),
+                        child: MessageTile(
+                          key: item.messageId == focusedMessage
+                              ? focusedKey
+                              : ValueKey(item.messageId),
+                          client: widget.client,
+                          message: item,
+                          bot: node.bots
+                              .where((b) => b['botId'] == item.author.id)
+                              .firstOrNull,
+                          showName: task.botIds.length > 1,
+                          onRetry: (_) {},
+                          onQuote: (_) {
+                            widget
+                                .client
+                                .workspace['taskQuote:$nodeId:${task.conversationId}'] = {
+                              'taskId': task.taskId,
+                              'title': task.title,
+                            };
+                            widget.client.saveContent();
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
       );

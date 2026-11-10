@@ -1,4 +1,4 @@
-import 'package:nekodot_native/features/chat_timeline.dart';
+import 'package:nekodot_native/features/chat_activity.dart';
 import 'package:nekodot_native/data/chat_models.dart';
 
 import 'dart:async';
@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/delivery_queue.dart';
 import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/data/account.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
@@ -23,9 +24,11 @@ final bot = <String, dynamic>{
 };
 
 class JourneyClient extends NekodotClient {
+  late final journeyDeliveries = JourneyDeliveries(this);
+  @override
+  DeliveryQueue get deliveries => journeyDeliveries;
   final accepted = Completer<Json>();
   Json? update;
-  var stops = 0;
   var catalogs = 0;
   bool rejectFirstCatalog = false;
   JourneyClient() {
@@ -78,17 +81,26 @@ class JourneyClient extends NekodotClient {
         return {'messages': node.messages['dm'] ?? []};
       case 'messages.send':
         return accepted.future;
-      case 'runs.stop':
-        stops++;
-        node.activities['dm'] = ConversationActivity.fromJson({
-          'state': 'idle',
-        });
-        notifyListeners();
-        return {};
       default:
         throw StateError('Unexpected test request: $method');
     }
   }
+}
+
+// These component checks control acknowledgement timing. Real delivery,
+// persistence and task execution are exercised by the native journey.
+class JourneyDeliveries extends DeliveryQueue {
+  JourneyDeliveries(super.client);
+  @override
+  Future<Json> enqueue(
+    String method,
+    Json params,
+    String nodeId,
+    List<Json> attachments,
+  ) => client.rpc(method, params, nodeId);
+  @override
+  Future<Json> action(String method, Json params, String nodeId) =>
+      client.rpc(method, params, nodeId);
 }
 
 void main() {
@@ -118,43 +130,38 @@ void main() {
     },
   );
 
-  testWidgets(
-    'An interrupted execution keeps the draft and offers Stop before a new send',
-    (tester) async {
-      final client = JourneyClient();
-      client.node.activities['dm'] = ConversationActivity.fromJson({
-        'state': 'unknown',
-        'botId': bot['botId'],
-      });
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: appTheme(Brightness.light),
-          home: ChatPage(client: client, conversationId: 'dm'),
-        ),
-      );
-      await tester.pumpAndSettle();
-      final input = find.byKey(const ValueKey('chat-input'));
-      await tester.enterText(input, 'My next task stays drafted');
-      await tester.pump();
-      expect(find.textContaining('执行已中断'), findsOneWidget);
-      final send = find.ancestor(
-        of: find.byTooltip('发送'),
-        matching: find.byType(IconButton),
-      );
-      expect(tester.widget<IconButton>(send).onPressed, isNull);
-      await tester.tap(find.byTooltip('停止'));
-      await tester.pumpAndSettle();
-      expect(client.stops, 1);
-      expect(find.textContaining('执行已中断'), findsNothing);
-      expect(
-        tester.widget<TextField>(input).controller!.text,
-        'My next task stays drafted',
-      );
-      expect(tester.widget<IconButton>(send).onPressed, isNotNull);
-      await tester.pumpWidget(const SizedBox.shrink());
-      client.dispose();
-    },
-  );
+  testWidgets('Unknown activity is static and does not block the next draft', (
+    tester,
+  ) async {
+    final client = JourneyClient();
+    client.node.activities['dm'] = ConversationActivity.fromJson({
+      'state': 'unknown',
+      'botId': bot['botId'],
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: appTheme(Brightness.light),
+        home: ChatPage(client: client, conversationId: 'dm'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final input = find.byKey(const ValueKey('chat-input'));
+    await tester.enterText(input, 'My next task stays drafted');
+    await tester.pump();
+    expect(find.text('状态待确认'), findsOneWidget);
+    final send = find.ancestor(
+      of: find.byTooltip('发送'),
+      matching: find.byType(IconButton),
+    );
+    expect(find.byTooltip('停止'), findsNothing);
+    expect(
+      tester.widget<TextField>(input).controller!.text,
+      'My next task stays drafted',
+    );
+    expect(tester.widget<IconButton>(send).onPressed, isNotNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    client.dispose();
+  });
 
   testWidgets('A notice is centered and only as wide as its text', (
     tester,
@@ -227,7 +234,7 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('A thinking Bot shows its working cat until the reply streams', (
+  testWidgets('Activity stays above the input while the reply streams', (
     tester,
   ) async {
     final client = JourneyClient();
@@ -258,7 +265,10 @@ void main() {
       ),
     );
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.byType(ThinkingRow), findsOneWidget);
+    final dock = find.byKey(const ValueKey('chat-activity-dock'));
+    final input = find.byKey(const ValueKey('composer-card'));
+    expect(find.byType(ChatActivityDock), findsOneWidget);
+    expect(tester.getRect(dock).bottom, tester.getRect(input).top);
     client.node.messages['dm']!.add(
       ChatMessage.fromJson({
         'messageId': 'fixture',
@@ -277,7 +287,12 @@ void main() {
     );
     client.notifyListeners();
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.byType(ThinkingRow), findsNothing);
+    expect(dock, findsOneWidget);
+    expect(tester.getRect(dock).bottom, tester.getRect(input).top);
+    client.node.activities['dm'] = const ConversationActivity.idle();
+    client.notifyListeners();
+    await tester.pump();
+    expect(dock, findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     client.dispose();
   });
@@ -370,7 +385,7 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     client.accepted.complete({});
     await tester.pumpAndSettle();
-    expect(client.attachmentDrafts[key], isEmpty);
+    expect(client.attachmentDrafts[key] ?? [], isEmpty);
     expect(client.drafts[key], isEmpty);
     client.dispose();
   });

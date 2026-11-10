@@ -1,5 +1,3 @@
-import 'package:nekodot_native/features/chat_timeline.dart';
-
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -207,7 +205,6 @@ void main() {
                       ),
                     for (final color in avatarColors)
                       CatAvatar(color: color, size: 36),
-                    ThinkingRow(bot: bot, line: '${bot['displayName']} 正在工作'),
                   ],
                 ),
               ),

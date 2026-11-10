@@ -86,7 +86,7 @@ class _HomePageState extends State<HomePage> {
       unawaited(open(value, MediaQuery.sizeOf(context).width < 840));
       await WidgetsBinding.instance.endOfFrame;
       if (mounted) {
-        await pushPage(context, TaskDetailsPage(client: c, task: task));
+        await openTaskDetails(context, c, task);
       }
     } else {
       await open(value, MediaQuery.sizeOf(context).width < 840);
