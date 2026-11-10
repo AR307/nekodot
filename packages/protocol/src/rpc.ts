@@ -151,6 +151,7 @@ export const rpcContracts = {
   },
   'commands.execute': {
     params: z.strictObject({
+      taskId: z.string().optional(),
       sessionId: z.string().optional(),
       ...botTarget,
       conversationId: idSchema,
@@ -222,15 +223,6 @@ export const rpcContracts = {
   'routines.list': {
     params: z.strictObject(botTarget),
     result: z.strictObject({ routines: z.array(routineSchema) }),
-  },
-  'routines.approvalRespond': {
-    params: z.strictObject({
-      ...botTarget,
-      executionId: z.string(),
-      promptId: z.string(),
-      choice: z.enum(['once', 'deny']),
-    }),
-    result: empty,
   },
   'routines.get': {
     params: z.strictObject({ ...botTarget, routineId: idSchema }),
@@ -384,7 +376,7 @@ export const rpcContracts = {
   'files.backfill': { params: z.strictObject(botTarget), result: operationSchema },
   'imports.create': { params: empty, result: z.strictObject({ importId: z.uuid() }) },
   'flow.get': {
-    params: z.strictObject({ conversationId: idSchema }),
+    params: z.strictObject({ conversationId: idSchema, taskId: idSchema.optional() }),
     result: z.strictObject({ flow: flowSnapshotSchema.nullable() }),
   },
   'sync.snapshot': {

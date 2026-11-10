@@ -19,12 +19,11 @@ export class RunEvents {
     private readonly notifications: Notifications,
     private readonly files: FileLibrary,
     private readonly onActivity: (run: RunRecord) => void,
-    private readonly finishGroupRun: (
+    private readonly finishRun: (
       run: RunRecord,
       status: 'completed' | 'failed' | 'cancelled',
       output: string,
     ) => Promise<void>,
-    private readonly end: (run: RunRecord) => void,
   ) {}
   async accept(run: RunRecord, event: HermesEvent) {
     event = JSON.parse(this.secrets.scrub(run.botId, JSON.stringify(event))) as HermesEvent;
@@ -181,6 +180,7 @@ export class RunEvents {
       this.notifications.send({
         notificationId: `approval:${runId}:${event.prompt_id}`,
         conversationId: run.conversationId,
+        ...(run.taskId ? { taskId: run.taskId } : {}),
         kind: 'approval',
       });
       this.onActivity(run);
@@ -218,15 +218,7 @@ export class RunEvents {
       this.messages.persistText(run, reply, event.seq);
       if (reply.content.text) this.flow.phase(run, 'reply', event.seq, reply.messageId);
       this.flow.finish(run, 'done');
-      if (run.groupId) await this.finishGroupRun(run, 'completed', reply.content.text);
-      else {
-        this.notifications.send({
-          notificationId: `run:${runId}`,
-          conversationId: run.conversationId,
-          kind: 'completed',
-        });
-        this.end(run);
-      }
+      await this.finishRun(run, 'completed', reply.content.text);
       return;
     }
     if (
@@ -255,21 +247,11 @@ export class RunEvents {
       reply.status = event.event === 'run.cancelled' ? 'cancelled' : 'failed';
       this.messages.persistText(run, reply, event.seq);
       this.flow.finish(run, event.event === 'run.cancelled' ? 'cancelled' : 'failed');
-      if (run.groupId)
-        await this.finishGroupRun(
-          run,
-          event.event === 'run.cancelled' ? 'cancelled' : 'failed',
-          reply.content.text,
-        );
-      else {
-        if (event.event !== 'run.cancelled')
-          this.notifications.send({
-            notificationId: `run:${runId}`,
-            conversationId: run.conversationId,
-            kind: 'failed',
-          });
-        this.end(run);
-      }
+      await this.finishRun(
+        run,
+        event.event === 'run.cancelled' ? 'cancelled' : 'failed',
+        reply.content.text,
+      );
       return;
     }
     run.lastSeq = event.seq;

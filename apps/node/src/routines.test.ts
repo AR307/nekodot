@@ -6,6 +6,26 @@ import { expect, it } from 'vitest';
 import { NodeDatabase } from './database';
 import { Routines } from './routines';
 import { Notifications } from './notifications';
+import { DotTasks } from './execution/tasks';
+import { RunControls } from './execution/controls';
+import { ExecutionFlows } from './flow';
+
+function makeRoutines(db: NodeDatabase, hermes: HermesRuntime, notifications: Notifications) {
+  const routines = new Routines(db, hermes, notifications);
+  const tasks = new DotTasks(db, hermes, { start: async () => {}, stop: async () => {} });
+  const controls = new RunControls(db, hermes, new ExecutionFlows(db), notifications, () => {});
+  routines.scrub = (_, text) => text;
+  routines.onExecution = async (routine, execution, conversationId, prompts, generation) => {
+    const run = tasks.background(routine, execution, conversationId, generation);
+    if (['completed', 'failed', 'cancelled'].includes(execution.state)) {
+      run.textMessageId = 'routine-result:' + execution.executionId;
+      run.state = 'idle';
+      db.saveRun(run);
+      await tasks.finished(run, execution.state as 'completed' | 'failed' | 'cancelled');
+    } else controls.restoreNativePrompts(run, prompts);
+  };
+  return { routines, controls };
+}
 import type { HermesRuntime } from './hermes/runtime';
 import type { RoutineRoute, TaskNotification } from '@nekodot/protocol';
 
@@ -64,7 +84,7 @@ it('keeps credentials out of chat, requires a user grant and rotates the same sc
       },
     },
   } as unknown as HermesRuntime;
-  const routines = new Routines(db, hermes, new Notifications(db));
+  const { routines } = makeRoutines(db, hermes, new Notifications(db));
   let routes: RoutineRoute[] = [];
   routines.onRoutes = async (value) => {
     routes = value;
@@ -144,6 +164,7 @@ it('recovers a native admission failure after restart without rerunning it or du
     },
     gateway: () => ({
       rpc: async (method: string, params: { session_id: string; arg: string }) => {
+        if (method === 'session.resume') return { execution_generation: 1, prompts: [] };
         expect(method).toBe('command.dispatch');
         expect(params.session_id).toBe('native-dm');
         const { profile, settled } = JSON.parse(params.arg) as {
@@ -160,7 +181,7 @@ it('recovers a native admission failure after restart without rerunning it or du
   const signals: TaskNotification[] = [];
   const notifications = new Notifications(db);
   notifications.onSend = (value) => signals.push(value);
-  let routines = new Routines(db, hermes, notifications);
+  let { routines } = makeRoutines(db, hermes, notifications);
   routines.onRoutes = async () => {};
   const task = await routines.create({
     botId,
@@ -184,7 +205,7 @@ it('recovers a native admission failure after restart without rerunning it or du
   await routines.drain();
   expect(db.messages(conversationId).filter((m) => m.kind === 'text')).toHaveLength(0);
   await routines.close();
-  routines = new Routines(db, hermes, notifications);
+  routines = makeRoutines(db, hermes, notifications).routines;
   native = [
     {
       ...base,
@@ -207,7 +228,7 @@ it('recovers a native admission failure after restart without rerunning it or du
   });
   await routines.drain();
   expect(db.messages(conversationId).filter((m) => m.kind === 'text')).toHaveLength(1);
-  expect(signals.map((s) => s.kind)).toEqual(['failed']);
+  expect(signals).toEqual([]); // Only the coordinating Dot report sends completion notifications.
   expect(routines.execution(botId, task.routineId + ':native-session').sessionId).toBe(
     'native-session',
   );
@@ -246,12 +267,12 @@ it('shows a one-shot completion without reporting a user stop, while a pause sti
       request: async () => jobs,
     },
     gateway: () => ({
-      rpc: async (_method: string, params: { name: string }) => ({
-        output: params.name === 'nekodot-routine-context' ? '[]' : JSON.stringify(events),
+      rpc: async () => ({
+        output: JSON.stringify(events),
       }),
     }),
   } as unknown as HermesRuntime;
-  const routines = new Routines(db, hermes, new Notifications(db));
+  const { routines } = makeRoutines(db, hermes, new Notifications(db));
   await routines.drain();
   job.enabled = false;
   job.state = 'completed';
@@ -270,9 +291,11 @@ it('shows a one-shot completion without reporting a user stop, while a pause sti
     },
   ];
   await routines.drain();
-  const context = await routines.context(botId, 'ordinary-chat');
-  expect(context.text).toContain('Reminder completed');
-  expect(context.text).toContain('session=once-session');
+  expect(db.message('routine-result:cron:once:once-session')).toMatchObject({
+    taskRole: 'execution',
+    content: { text: 'Reminder completed' },
+  });
+  expect(db.tasks(conversationId)[0]?.routineExecutionId).toBe('cron:once:once-session');
   expect(
     db
       .messages(conversationId)
@@ -355,10 +378,10 @@ it('shows a cron approval in the Bot chat and answers that exact native admissio
       },
     }),
   } as unknown as HermesRuntime;
-  const routines = new Routines(db, hermes, new Notifications(db));
+  const { routines, controls } = makeRoutines(db, hermes, new Notifications(db));
   await routines.drain();
   const approval = db.messages(conversationId).find((m) => m.kind === 'approval');
-  expect(approval?.content).toMatchObject({ requestId: 'prompt-1', choices: ['once', 'deny'] });
+  expect(approval?.content).toMatchObject({ requestId: 'prompt-1' });
   expect(calls[0]).toEqual({
     method: 'cron.status',
     params: {
@@ -366,7 +389,7 @@ it('shows a cron approval in the Bot chat and answers that exact native admissio
       admission_id: 'admission-1',
     },
   });
-  await routines.approvalRespond(botId, 'cron:job:cron-session', 'prompt-1', 'once');
+  await controls.respondToApproval({ messageId: approval!.messageId, choice: 'once' });
   expect(calls[1]).toEqual({
     method: 'cron.approve',
     params: {
@@ -378,10 +401,10 @@ it('shows a cron approval in the Bot chat and answers that exact native admissio
     },
   });
   expect(db.message(approval!.messageId)?.status).toBe('done');
-  await routines.approvalRespond(botId, 'cron:job:cron-session', 'prompt-1', 'once');
+  await controls.respondToApproval({ messageId: approval!.messageId, choice: 'once' });
   expect(calls.filter((call) => call.method === 'cron.approve')).toHaveLength(1);
   await expect(
-    routines.approvalRespond(botId, 'cron:job:cron-session', 'prompt-1', 'deny'),
+    controls.respondToApproval({ messageId: approval!.messageId, choice: 'deny' }),
   ).rejects.toThrow('no longer pending');
   await routines.close();
   db.db.close();

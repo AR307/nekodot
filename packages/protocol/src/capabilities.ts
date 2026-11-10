@@ -43,6 +43,7 @@ export const extensionSchema = z.strictObject({
   native: nativeRecordSchema,
 });
 export const attachmentSchema = z.strictObject({
+  taskId: z.string().optional(),
   fileId: z.uuid(),
   botId: botSchema.shape.botId.optional(),
   conversationId: idSchema,

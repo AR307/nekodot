@@ -3,7 +3,6 @@ import { RunMessages } from '../execution/messages';
 import { BotSecrets } from '../secrets';
 import type { LiveEvent, Message, RpcParams } from '@nekodot/protocol';
 import { NodeDatabase, type GroupChainRecord, type RunRecord } from '../database';
-import type { HermesRuntime } from '../hermes/runtime';
 import { NodeFault } from '../fault';
 import { BotService } from '../bots';
 import { groupPrompt, MAX_CHAIN, mentionedBots } from '../group-routing';
@@ -24,7 +23,6 @@ export class GroupExecution {
   constructor(
     private readonly database: NodeDatabase,
     private readonly bots: BotService,
-    private readonly hermes: HermesRuntime,
     private readonly messages: RunMessages,
     private readonly files: FileLibrary,
     private readonly flow: ExecutionFlows,
@@ -42,9 +40,7 @@ export class GroupExecution {
     const group = this.database.group(conversation.groupId);
     if (!group || group.archived) throw new NodeFault('not_found', 'Group not found');
     const roster = group.botIds.map((botId) => this.bots.get(botId));
-    const active =
-      this.runs.current(conversation.conversationId) ??
-      this.database.runs().find((run) => run.conversationId === conversation.conversationId);
+    const target = params.taskId ? this.database.task(params.taskId) : undefined;
     const userMessage: Message = {
       messageId: randomUUID(),
       conversationId: conversation.conversationId,
@@ -55,66 +51,32 @@ export class GroupExecution {
       createdAt: now(),
       content: { text: params.text },
     };
-    if (active) {
-      if (active.state === 'unknown')
-        throw new NodeFault(
-          'conflict',
-          'The previous execution was interrupted. Click Stop to acknowledge it before sending a new task. Completed effects will be kept.',
-        );
-      if (active.state === 'waiting_approval' || active.state === 'waiting_question')
-        throw new NodeFault(
-          'conflict',
-          'Resolve the pending approval or stop this run before sending.',
-        );
-      if (!active.runId || !active.sessionId || active.executionGeneration === undefined)
-        throw new NodeFault('conflict', 'The current run is starting. Try again shortly.');
-      const steerKey = `steer:${params.clientMsgId}`;
-      if (this.database.setting(steerKey))
-        throw new NodeFault(
-          'conflict',
-          'The original instruction has an unconfirmed receipt; it was not repeated.',
-        );
-      this.database.setSetting(steerKey, { runId: active.runId });
-      const accepted = await this.hermes.gateway(active.botId).rpc<{
-        status: 'queued' | 'redirected' | 'rejected';
-        execution_generation: number;
-      }>('session.steer', {
-        session_id: active.sessionId,
-        execution_generation: active.executionGeneration,
-        text: params.text,
-      });
-      if (accepted.status === 'rejected')
-        throw new NodeFault(
-          'conflict',
-          'Hermes did not accept this instruction. You can send it again.',
-        );
-      active.executionGeneration = accepted.execution_generation;
-      const previousReply = this.messages.currentText(active);
-      if (previousReply) {
-        previousReply.status = 'done';
-        this.database.putMessage(previousReply, { runId: active.runId }, active);
-        this.messages.release(previousReply.messageId);
-      }
-      userMessage.seq = this.database.head();
-      this.database.putMessage(
-        userMessage,
-        { clientMsgId: params.clientMsgId, runId: active.runId },
-        active,
-      );
-      active.textMessageId = undefined;
-      active.state = 'thinking';
-      const chain = this.database.chain(conversation.conversationId);
-      if (chain) {
-        chain.queue = [];
-        this.database.saveChain(chain);
-      }
-      this.database.saveRun(active);
-      this.runs.publish(active);
+    if (target) {
+      userMessage.taskId = target.taskId;
+      userMessage.groupChainId = target.groupChainId;
+      if (params.files?.length) this.files.attach(userMessage, params.files);
+      const run: RunRecord = {
+        role: 'coordinator',
+        conversationId: conversation.conversationId,
+        botId: target.botId,
+        groupId: group.groupId,
+        groupChainId: target.groupChainId,
+        groupFollowup: true,
+        targetTaskId: target.taskId,
+        inputMessageId: userMessage.messageId,
+        submissionId: params.clientMsgId,
+        queue: 'queued',
+        lastSeq: -1,
+        state: 'thinking',
+      };
+      this.database.putMessage(userMessage, { clientMsgId: params.clientMsgId }, run);
+      void this.runs.start(run, params.text);
       return { messageId: userMessage.messageId };
     }
     const mentioned = mentionedBots(params.text, roster);
     const chain: GroupChainRecord = {
       notificationId: userMessage.messageId,
+      inputMessageId: userMessage.messageId,
       conversationId: conversation.conversationId,
       group,
       roster,
@@ -122,10 +84,11 @@ export class GroupExecution {
       commandInput: command?.input,
       commandModelOverride: command?.modelOverride,
       count: 0,
-      cursorByBot: this.database.groupHistory(conversation.conversationId)?.cursorByBot ?? {},
+      cursorByBot: {},
       requestId: userMessage.messageId,
       active: true,
     };
+    userMessage.groupChainId = chain.notificationId;
     userMessage.seq = this.database.head();
     if (params.files?.length) this.files.attach(userMessage, params.files);
     this.database.putMessage(userMessage, { clientMsgId: params.clientMsgId }, undefined, chain);
@@ -136,6 +99,7 @@ export class GroupExecution {
   async startNextGroupRun(chain: GroupChainRecord) {
     if (chain.count >= MAX_CHAIN || !chain.queue.length)
       this.notifications.send({
+        ...(chain.taskId ? { taskId: chain.taskId } : {}),
         notificationId: `chain:${chain.notificationId}`,
         conversationId: chain.conversationId,
         kind: chain.failed ? 'failed' : 'completed',
@@ -143,13 +107,13 @@ export class GroupExecution {
     if (chain.count >= MAX_CHAIN) {
       this.flow.group(chain, 'paused');
       this.groupNotice(chain, 'Relay paused after 6 turns. Mention a group member to continue.');
-      this.database.clearChain(chain.conversationId);
+      this.database.clearChain(chain.notificationId);
       this.publishGroupIdle(chain.conversationId);
       return;
     }
     if (!chain.queue.length) {
       this.flow.group(chain, chain.failed ? 'failed' : 'done');
-      this.database.clearChain(chain.conversationId);
+      this.database.clearChain(chain.notificationId);
       this.publishGroupIdle(chain.conversationId);
       return;
     }
@@ -171,6 +135,10 @@ export class GroupExecution {
     chain.commandModelOverride = undefined;
     this.database.saveChain(chain);
     const run: RunRecord = {
+      role: 'coordinator',
+      groupChainId: chain.notificationId,
+      targetTaskId: chain.taskId,
+      queue: 'queued',
       conversationId: chain.conversationId,
       botId,
       groupId: chain.group.groupId,
@@ -225,11 +193,31 @@ export class GroupExecution {
   ) {
     await this.secrets.finish(run);
     run.state = 'idle';
-    const chain = this.database.chain(run.conversationId);
+    const chain = run.groupChainId ? this.database.chain(run.groupChainId) : undefined;
     this.runs.release(run);
+    if (run.groupFollowup) {
+      this.database.saveRun(run);
+      this.runs.publish(run);
+      return;
+    }
+    if (
+      chain &&
+      run.role === 'coordinator' &&
+      this.database
+        .tasks(run.conversationId)
+        .some(
+          (task) =>
+            task.groupChainId === chain.notificationId &&
+            (!['completed', 'failed', 'cancelled'].includes(task.state) || !task.reportMessageId),
+        )
+    ) {
+      this.database.saveRun(run);
+      this.runs.publish(run);
+      return;
+    }
     if (!chain || status === 'cancelled') {
       if (chain) this.flow.group(chain, 'cancelled');
-      if (chain && status === 'cancelled') this.database.clearChain(run.conversationId);
+      if (chain && status === 'cancelled') this.database.clearChain(chain.notificationId);
       this.database.saveRun({ ...run, state: 'idle' });
       this.publishGroupIdle(run.conversationId);
       await this.userMemory.sync();

@@ -41,6 +41,9 @@ it('reads native wake requirements with the profile-scoped contract, not a sessi
   const database = {
     conversations: () => [{ kind: 'dm', botId: 'chosen-bot', conversationId: 'dm-qa' }],
     hermesSession: () => undefined,
+    setting: () => undefined,
+    setSetting: vi.fn(),
+    messages: () => [],
     saveHermesSession: vi.fn(),
   } as unknown as NodeDatabase;
   const result = await commandControl(database, runtime, 'chosen-bot', '/wake', 'status');

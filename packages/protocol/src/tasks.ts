@@ -5,6 +5,7 @@ export const dotTaskSchema = z.strictObject({
   taskId: z.string().min(1),
   conversationId: z.string().min(1),
   botId: z.string().min(1),
+  botIds: z.array(z.string()).optional(),
   title: z.string().min(1),
   source: z.enum(['chat', 'group', 'schedule', 'webhook']),
   inputMessageId: z.string(),

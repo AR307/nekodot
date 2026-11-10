@@ -163,9 +163,11 @@ export class BotSecrets {
     void originatingRunId;
     return view;
   }
-  /** A Bot hands the user one card at a time. */
-  private onlyCard(botId: string) {
-    if (this.requests().some((r) => r.botId === botId && actionable(r)))
+  /** Each native execution requests one card at a time, without blocking other tasks. */
+  private onlyCard(botId: string, sessionId: string) {
+    if (
+      this.requests().some((r) => r.botId === botId && r.sessionId === sessionId && actionable(r))
+    )
       throw new NodeFault(
         'conflict',
         'Another confidential card is still waiting for the user. Finish this turn; request the next card after it is delivered.',
@@ -180,6 +182,7 @@ export class BotSecrets {
       .run(request.requestId, request.botId, JSON.stringify(request));
     this.db.putMessage({
       messageId: 'secret:' + request.requestId,
+      ...(request.taskId ? { taskId: request.taskId, taskRole: 'execution' as const } : {}),
       conversationId: request.conversationId,
       seq: this.db.head(),
       author: { type: 'bot', id: request.botId },
@@ -238,17 +241,18 @@ export class BotSecrets {
   private create(
     botId: string,
     spec: SecretSpec,
-    run: Pick<RunRecord, 'conversationId' | 'sessionId' | 'storedSessionId' | 'runId'>,
+    run: Pick<RunRecord, 'conversationId' | 'sessionId' | 'storedSessionId' | 'runId' | 'taskId'>,
     nativeRequestId?: string,
     notify = true,
   ) {
     this.bot(botId);
-    this.onlyCard(botId);
+    this.onlyCard(botId, run.storedSessionId ?? run.sessionId!);
     const request: StoredRequest = {
       ...spec,
       requestId: randomUUID(),
       botId,
       conversationId: run.conversationId,
+      taskId: run.taskId,
       sessionId: run.storedSessionId ?? run.sessionId!,
       state: 'pending',
       saved: false,

@@ -11,6 +11,7 @@ export const routineInputSchema = z.strictObject({
 });
 export const routineSchema = routineInputSchema.extend({
   routineId: z.string(),
+  conversationId: z.string().optional(),
   trigger: z.enum(['schedule', 'webhook', 'both']),
   enabled: z.boolean(),
   granted: z.boolean(),
@@ -25,7 +26,14 @@ export const routineExecutionSchema = z.strictObject({
   sessionId: z.string(),
   admissionId: z.string().optional(),
   requestId: z.string().optional(),
-  state: z.enum(['running', 'waiting_approval', 'completed', 'failed', 'cancelled']),
+  state: z.enum([
+    'running',
+    'waiting_approval',
+    'waiting_question',
+    'completed',
+    'failed',
+    'cancelled',
+  ]),
   originSessionId: z.string().optional(),
   text: z.string(),
   reason: z.string().optional(),

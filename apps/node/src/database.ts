@@ -25,6 +25,11 @@ export interface RunRecord {
   /** Logical native session scope; never use the private chat for a group run. */
   sessionKey?: string;
   groupChainId?: string;
+  groupFollowup?: boolean;
+  pendingInput?: string;
+  targetTaskId?: string;
+  background?: 'cron' | 'webhook';
+  routineId?: string;
   runId?: string;
   conversationId: string;
   botId: string;
@@ -49,6 +54,7 @@ export interface RunRecord {
 }
 
 export interface HermesSessionRecord {
+  ownerConversationId?: string;
   conversationId: string;
   botId: string;
   storedSessionId: string;
@@ -58,6 +64,8 @@ export interface HermesSessionRecord {
 
 export interface GroupChainRecord {
   notificationId: string;
+  inputMessageId?: string;
+  taskId?: string;
   failed?: boolean;
   conversationId: string;
   group: Group;
@@ -222,6 +230,7 @@ export class NodeDatabase {
     const newest = this.db.prepare(
       `SELECT data FROM messages WHERE conversation_id=?
         AND json_extract(data,'$.kind') IN ('text','commentary')
+         AND coalesce(json_extract(data,'$.taskRole'),'') <> 'execution'
         AND trim(coalesce(json_extract(data,'$.content.text'),''))<>''
         ORDER BY created_seq DESC LIMIT 1`,
     );
@@ -376,6 +385,8 @@ export class NodeDatabase {
     const owner =
       run ??
       (metadata.runId ? this.runs().find((item) => item.runId === metadata.runId) : undefined);
+    if (owner?.storedSessionId) message.nativeSessionId = owner.storedSessionId;
+    if (owner?.groupChainId) message.groupChainId = owner.groupChainId;
     if (owner?.taskId) {
       message.taskId = owner.taskId;
       message.taskRole = owner.role === 'execution' ? 'execution' : 'report';
@@ -432,7 +443,7 @@ export class NodeDatabase {
     this.write('flow.changed', change, (seq) => {
       flow.seq = seq;
       change.seq = seq;
-      this.setSetting('flow:' + flow.conversationId, flow);
+      this.setSetting('flow:' + (flow.taskId ?? flow.conversationId), flow);
     });
   }
   updateMessage(message: Message, run?: RunRecord, metadata: { toolCallId?: string } = {}) {
@@ -442,6 +453,12 @@ export class NodeDatabase {
     this.db.prepare('UPDATE messages SET run_id=? WHERE message_id=?').run(runId, messageId);
   }
   saveRun(run: RunRecord) {
+    if (run.runId && run.taskId)
+      this.setSetting('usage-task:' + run.botId + ':admission:' + run.runId, run.taskId);
+    if (run.role === 'execution' && run.storedSessionId && run.taskId)
+      this.setSetting('usage-task-session:' + run.botId + ':' + run.storedSessionId, run.taskId);
+    if (run.runId && run.routineId)
+      this.setSetting('usage-routine:' + run.botId + ':' + 'admission:' + run.runId, run.routineId);
     if (run.runId)
       this.db
         .prepare('INSERT OR IGNORE INTO usage_owners VALUES(?,?,?,?)')
@@ -458,6 +475,21 @@ export class NodeDatabase {
         'INSERT INTO runs VALUES(?,?) ON CONFLICT(conversation_id) DO UPDATE SET data=excluded.data',
       )
       .run(run.conversationId, JSON.stringify(run));
+  }
+  hermesSessions(): HermesSessionRecord[] {
+    return this.db
+      .prepare(
+        "SELECT s.*, o.conversation_id owner_id FROM hermes_sessions s LEFT JOIN usage_owners o ON o.profile=s.bot_id AND o.kind='session' AND o.id=s.stored_session_id",
+      )
+      .all()
+      .map((row) => ({
+        conversationId: String(row.conversation_id),
+        ownerConversationId: String(row.owner_id),
+        botId: String(row.bot_id),
+        storedSessionId: String(row.stored_session_id),
+        replayEpoch: String(row.replay_epoch),
+        lastSequence: Number(row.last_sequence),
+      }));
   }
   hermesSession(conversationId: string) {
     const row = this.db
@@ -476,7 +508,12 @@ export class NodeDatabase {
   saveHermesSession(session: HermesSessionRecord) {
     this.db
       .prepare('INSERT OR IGNORE INTO usage_owners VALUES(?,?,?,?)')
-      .run(session.botId, 'session', session.storedSessionId, session.conversationId);
+      .run(
+        session.botId,
+        'session',
+        session.storedSessionId,
+        session.ownerConversationId ?? session.conversationId,
+      );
     this.db
       .prepare(
         'INSERT INTO hermes_sessions VALUES(?,?,?,?,?) ON CONFLICT(conversation_id) DO UPDATE SET bot_id=excluded.bot_id,stored_session_id=excluded.stored_session_id,replay_epoch=excluded.replay_epoch,last_sequence=excluded.last_sequence',
@@ -528,13 +565,15 @@ export class NodeDatabase {
     );
   }
   groupHistory(conversationId: string) {
-    return this.all<GroupChainRecord>(
-      'SELECT data FROM group_chains WHERE conversation_id=?',
-      conversationId,
-    )[0];
+    return this.all<GroupChainRecord>('SELECT data FROM group_chains')
+      .filter((chain) => chain.conversationId === conversationId)
+      .at(-1);
   }
-  chain(conversationId: string) {
-    const chain = this.groupHistory(conversationId);
+  chain(chainId: string) {
+    const chain = this.all<GroupChainRecord>(
+      'SELECT data FROM group_chains WHERE conversation_id=?',
+      chainId,
+    )[0];
     return chain?.active ? chain : undefined;
   }
   chains() {
@@ -547,10 +586,10 @@ export class NodeDatabase {
       .prepare(
         'INSERT INTO group_chains VALUES(?,?) ON CONFLICT(conversation_id) DO UPDATE SET data=excluded.data',
       )
-      .run(chain.conversationId, JSON.stringify(chain));
+      .run(chain.notificationId, JSON.stringify(chain));
   }
-  clearChain(conversationId: string) {
-    const chain = this.groupHistory(conversationId);
+  clearChain(chainId: string) {
+    const chain = this.chain(chainId);
     if (chain) this.saveChain({ ...chain, active: false, queue: [], currentBotId: undefined });
   }
 }

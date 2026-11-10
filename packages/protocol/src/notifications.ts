@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { idSchema } from './entities';
 
 export const notificationSchema = z.strictObject({
+  taskId: z.string().optional(),
   notificationId: z.string().min(1).max(240),
   conversationId: idSchema,
   kind: z.enum(['approval', 'question', 'completed', 'failed', 'stalled']),

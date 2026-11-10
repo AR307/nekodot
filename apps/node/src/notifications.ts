@@ -20,7 +20,11 @@ export class Notifications {
       .messages(signal.conversationId)
       .findLast(
         (message) =>
-          message.author.type === 'bot' && message.kind === 'text' && message.status === 'done',
+          message.author.type === 'bot' &&
+          message.kind === 'text' &&
+          message.status === 'done' &&
+          message.taskId === signal.taskId &&
+          message.taskRole !== 'execution',
       );
     const plain =
       signal.kind === 'completed' && final?.kind === 'text'
@@ -42,12 +46,12 @@ export class Notifications {
       displayName: name ?? 'nekodot',
       preview: plain.length > 800 ? plain.slice(0, 800) + '…' : plain,
     };
-    // Only a conversation's newest notification waits for delivery.
+    // Keep each independent task's most recent notification while disconnected.
     this.database.db
       .prepare(
-        "DELETE FROM notification_outbox WHERE json_extract(data,'$.conversationId')=? AND id<>?",
+        "DELETE FROM notification_outbox WHERE json_extract(data,'$.conversationId')=? AND COALESCE(json_extract(data,'$.taskId'),'')=? AND id<>?",
       )
-      .run(value.conversationId, value.notificationId);
+      .run(value.conversationId, value.taskId ?? '', value.notificationId);
     this.database.db
       .prepare('INSERT OR IGNORE INTO notification_outbox VALUES(?,?)')
       .run(value.notificationId, JSON.stringify(value));

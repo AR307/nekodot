@@ -29,7 +29,7 @@ it('shows the live session alongside stored sessions without duplicating it', as
   });
 });
 
-it('branches using the native receipt and saves the resumed branch for the next message', async () => {
+it('compresses the coordinator context without switching its native session', async () => {
   const snapshot = {
     session_id: 'parent-live',
     stored_session_id: 'parent-stored',
@@ -39,25 +39,26 @@ it('branches using the native receipt and saves the resumed branch for the next 
     execution_generation: 2,
     running: false,
   };
-  const rpc = vi.fn(async (method: string, params: Record<string, unknown>) => {
+  const rpc = vi.fn(async (method: string) => {
     if (method === 'session.create') return snapshot;
-    if (method === 'session.mutate') return { branched_session_id: 'native-branch' };
-    if (method === 'session.resume' && params.session_id === 'native-branch')
-      return { ...snapshot, session_id: 'branch-live', stored_session_id: 'native-branch' };
+    if (method === 'session.mutate') return { status: 'applied', lines: ['Compressed context'] };
     throw new Error('Unexpected session call');
   });
   const saveHermesSession = vi.fn();
   const database = {
     conversations: () => [{ kind: 'dm', botId: 'bot', conversationId: 'dm' }],
     hermesSession: () => undefined,
+    setting: () => undefined,
+    setSetting: vi.fn(),
+    messages: () => [],
     saveHermesSession,
     runs: () => [],
   } as unknown as NodeDatabase;
   const sessions = new BotSessions(database, {
     gateway: () => ({ rpc }),
   } as unknown as HermesRuntime);
-  const result = await sessions.execute('bot', '/branch', 'Keep the parent', 'request-id');
-  expect(result.output).toContain('Branched Hermes session: branch-live');
+  const result = await sessions.execute('bot', '/compress', 'Keep decisions', 'request-id');
+  expect(result.output).toContain('Compressed context');
   expect(rpc).toHaveBeenCalledWith(
     'session.mutate',
     {
@@ -65,16 +66,17 @@ it('branches using the native receipt and saves the resumed branch for the next 
       request_id: 'request-id',
       expected_revision: 3,
       expected_generation: 2,
-      operation: 'branch',
-      payload: { title: 'Keep the parent' },
+      operation: 'compress',
+      payload: { focus: 'Keep decisions' },
     },
     15 * 60_000,
   );
   expect(saveHermesSession).toHaveBeenLastCalledWith({
     conversationId: 'dm',
     botId: 'bot',
-    storedSessionId: 'native-branch',
+    storedSessionId: 'parent-stored',
     replayEpoch: 'epoch',
     lastSequence: 7,
   });
+  await expect(sessions.execute('bot', '/branch', '')).rejects.toThrow('Unknown session command');
 });

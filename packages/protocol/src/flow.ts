@@ -40,6 +40,7 @@ export const flowStepSchema = z.strictObject({
 const flowHeader = {
   flowId: z.string(),
   conversationId: z.string(),
+  taskId: z.string().optional(),
   sessionId: z.string().optional(),
   state: flowStateSchema,
   queuedBotIds: z.array(z.string()),

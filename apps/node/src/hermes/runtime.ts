@@ -12,6 +12,7 @@ import { runHermesCli, spawnHermesCli, type HermesLaunch } from './cli';
 import { installRoutinePlugin } from './routines-plugin';
 import { installSecretsPlugin } from './secrets-plugin';
 import { installUsagePlugin } from './usage-plugin';
+import { installTaskPlugin } from './tasks-plugin';
 
 export interface HermesRuntime {
   start(): Promise<void>;
@@ -51,7 +52,7 @@ export function managedRules(bot: Bot) {
   return `<!-- nekodot managed: do not edit below -->
 You are "${bot.displayName}", a member of the user's nekodot team. Your handle is @${bot.handle}.
 - Reply in the language the user writes in.
-- Before each tool call or command, write one short line in that language saying what you are doing now, without your name: in Chinese start it with 正在 (for example 正在查看推文), in English with a verb ending in -ing (for example Checking the tweets). The app shows this progress line only beside your name, not in chat. Keep a natural acknowledgement or substantive answer separate from progress; do not repeat your progress in user-facing replies. Keep it under twelve words and write it in the same message as the call.
+- Speak naturally as yourself. Do not narrate internal delegation or repeatedly announce tool progress; the app displays real task status separately. Give a short acknowledgement when useful, then substantive results.
 - For API keys, passwords, private keys and one-time codes: read the nekodot-secrets skill and request encrypted delivery cards. Never request values in chat or print them. Website logins use this profile's native vault and browser_vault. CAPTCHAs and other human verification require screen takeover. Payments are not supported by confidential delivery.
 - In group chats, keep replies short. To hand work to a teammate, write @their-handle and say exactly what you need.
 - When configuring a scheduled task, explain which actions need authorization and ask the user how to handle them, unless they already specified a rule. Support ask, auto-allow and auto-deny, optionally by timezone, weekday and time windows. Use the user's natural-language answer to configure the rule yourself through the nekodot-routines skill and hermes routine approvals; do not send them to a settings form or ask them to write JSON. New tasks wait paused for this answer; ask is the default. Never silently choose auto-allow or auto-deny. Resume the task after saving the confirmed rule unless the user asked to keep it paused.
@@ -80,6 +81,7 @@ export class ManagedHermes implements HermesRuntime {
   readonly webhookUrl: string;
   private secrets = new Set<string>();
   private gateways = new Map<string, HermesGateway>();
+  private taskProfiles = new Set<string>();
   readonly bridge: string;
   constructor(readonly options: RuntimeOptions) {
     this.bridge = options.bridge ?? join(options.home, '..', 'routines.sock');
@@ -209,16 +211,26 @@ export class ManagedHermes implements HermesRuntime {
     await installRoutinePlugin(directory);
     await installSecretsPlugin(directory);
     const usageChanged = await installUsagePlugin(directory);
+    const taskChanged = await installTaskPlugin(directory);
     const enabled = document.toJS().plugins?.enabled as string[] | undefined;
     document.setIn(
       ['plugins', 'enabled'],
-      [...new Set([...(enabled ?? []), 'nekodot-routines', 'nekodot-secrets', 'nekodot-usage'])],
+      [
+        ...new Set([
+          ...(enabled ?? []),
+          'nekodot-routines',
+          'nekodot-secrets',
+          'nekodot-usage',
+          'nekodot-tasks',
+        ]),
+      ],
     );
     document.setIn(['plugins', 'entries', 'nekodot-routines', 'socket'], this.bridge);
     document.setIn(['plugins', 'entries', 'nekodot-secrets', 'socket'], this.bridge);
+    document.setIn(['plugins', 'entries', 'nekodot-tasks', 'socket'], this.bridge);
     if (document.hasIn(['secrets', 'nekodot'])) document.deleteIn(['secrets', 'nekodot']);
     await writeFile(path, document.toString(), { mode: 0o600 });
-    return usageChanged;
+    return usageChanged || taskChanged;
   }
   async configureBot(
     bot: Bot,
@@ -247,6 +259,11 @@ export class ManagedHermes implements HermesRuntime {
     if (usageChanged) await this.gateway(bot.botId).reloadPlugins();
   }
   async syncRules(bot: Bot) {
+    if (!this.taskProfiles.has(bot.botId)) {
+      const changed = await this.config(bot.botId);
+      if (changed) await this.gateway(bot.botId).reloadPlugins();
+      this.taskProfiles.add(bot.botId);
+    }
     const path = join(this.profileHome(bot.botId), 'SOUL.md');
     const soul = await readFile(path, 'utf8');
     const next = withManagedRules(soul, managedRules(bot));

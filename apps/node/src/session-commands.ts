@@ -4,17 +4,7 @@ import type { HermesRuntime } from './hermes/runtime';
 import { openNativeSession, type NativeSessionSnapshot } from './hermes/session';
 import { NodeFault } from './fault';
 
-export const sessionCommandNames = new Set([
-  '/new',
-  '/clear',
-  '/resume',
-  '/sessions',
-  '/branch',
-  '/undo',
-  '/retry',
-  '/compress',
-  '/save',
-]);
+export const sessionCommandNames = new Set(['/undo', '/retry', '/compress', '/save']);
 
 export interface CommandResult {
   type?:
@@ -97,20 +87,9 @@ export class BotSessions {
     arg: string,
     requestId: string = randomUUID(),
   ): Promise<CommandResult> {
-    if (name === '/sessions' || (name === '/resume' && !arg))
-      return { type: 'navigate' as const, target: 'sessions' };
     const dm = this.conversation(botId),
       gateway = this.hermes.gateway(botId);
     const current = await openNativeSession(this.database, this.hermes, botId, dm.conversationId);
-    const persist = (session: NativeSessionSnapshot) => {
-      this.database.saveHermesSession({
-        conversationId: dm.conversationId,
-        botId,
-        storedSessionId: session.stored_session_id,
-        replayEpoch: session.replay_epoch,
-        lastSequence: session.last_sequence,
-      });
-    };
     const mutate = (operation: string, payload: Record<string, unknown>) =>
       gateway.rpc<{
         branched_session_id?: string;
@@ -131,67 +110,13 @@ export class BotSessions {
         15 * 60_000,
       );
     if (
-      ['/new', '/clear', '/resume', '/branch', '/undo', '/retry'].includes(name) &&
+      ['/undo', '/retry'].includes(name) &&
       (current.running || this.database.runs().some((run) => run.botId === botId))
     )
       throw new NodeFault(
         'conflict',
         'Finish or stop this Bot’s current task before changing its session.',
       );
-    if (name === '/new' || name === '/clear') {
-      const session = await gateway.rpc<NativeSessionSnapshot>('session.create', {
-        profile: botId,
-        source: 'gui',
-        follow_profile_config: true,
-        request_id: requestId,
-        ...(arg ? { title: arg } : {}),
-      });
-      persist(session);
-      return {
-        output: `New Hermes session: ${session.session_id}\nPrevious sessions and nekodot messages are retained. Future messages use the new context.`,
-      };
-    }
-    if (name === '/resume') {
-      const { sessions } = await this.list(botId);
-      const found = sessions.find((row) => row.session_id === arg || row.id === arg);
-      if (found?.source === 'cron')
-        throw new NodeFault(
-          'invalid_params',
-          'Cron executions are read-only. Continue from the routine result in a regular conversation.',
-        );
-      const session = await gateway.rpc<NativeSessionSnapshot>(
-        'session.resume',
-        found
-          ? {
-              session_id: String(found.session_id ?? found.id),
-              defer_history: true,
-              omit_messages: true,
-            }
-          : { title: arg, defer_history: true, omit_messages: true },
-      );
-      if (session.running)
-        throw new NodeFault(
-          'conflict',
-          'That Hermes session is running. Stop or finish it before switching.',
-        );
-      persist(session);
-      return {
-        output: `Resumed Hermes session: ${session.session_id}\nOpen /history to read its actual context. Existing nekodot messages are retained.`,
-      };
-    }
-    if (name === '/branch') {
-      const title = arg.replace(/^--here(?:\s+|$)/, '').trim();
-      const receipt = await mutate('branch', title ? { title } : {});
-      const session = await gateway.rpc<NativeSessionSnapshot>('session.resume', {
-        session_id: receipt.branched_session_id,
-        defer_history: true,
-        omit_messages: true,
-      });
-      persist(session);
-      return {
-        output: `Branched Hermes session: ${session.session_id}\nThe parent transcript is retained. Future messages use the branch.`,
-      };
-    }
     if (name === '/undo' || name === '/retry') {
       const count = arg ? Number(arg) : 1;
       if (!Number.isInteger(count) || count < 1 || (name === '/retry' && arg))

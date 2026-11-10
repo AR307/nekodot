@@ -39,6 +39,9 @@ async function commandJourney() {
   const database = {
     conversations: () => [{ kind: 'dm', botId: 'test-bot', conversationId: 'test-dm' }],
     hermesSession: () => undefined,
+    setting: () => undefined,
+    setSetting: vi.fn(),
+    messages: () => [],
     saveHermesSession,
   } as unknown as NodeDatabase;
   const runtime = {
@@ -58,7 +61,7 @@ it('lists usable commands honestly and reads history through the native history 
       expect.objectContaining({ name: '/history', availability: 'app' }),
       expect.objectContaining({ name: '/config', availability: 'app' }),
       expect.objectContaining({ name: '/model', availability: 'app' }),
-      expect.objectContaining({ name: '/new', availability: 'app' }),
+      expect.objectContaining({ name: '/stop', availability: 'app' }),
       expect.objectContaining({ name: '/handoff', availability: 'not-integrated' }),
       expect.objectContaining({ name: '/redraw', availability: 'app' }),
       expect.objectContaining({ name: '/toolsets', availability: 'available' }),
@@ -70,6 +73,9 @@ it('lists usable commands honestly and reads history through the native history 
   );
   expect(catalog.commands.find((row) => row.name === '/queue')?.description).toContain(
     'edit N <prompt>',
+  );
+  expect(catalog.commands.some((row) => ['/new', '/resume', '/branch'].includes(row.name))).toBe(
+    false,
   );
   const history = await commands.execute('test-bot', '/history');
   expect(history.output).toContain('Bot: I remember the harmless test label.');

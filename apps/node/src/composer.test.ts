@@ -140,6 +140,8 @@ it('uploads a user file, sends images natively, and executes a selected group me
       author: { type: 'bot', id: lead.bot.botId },
       kind: 'text',
       status: 'done',
+      nativeSessionId: app.database.hermesSession(lead.conversation.conversationId)!
+        .storedSessionId,
       createdAt: new Date().toISOString(),
       content: { text: 'MEDIA: /tmp/nekodot-canonical-report.txt' },
     };
@@ -161,7 +163,8 @@ it('uploads a user file, sends images natively, and executes a selected group me
     const commandCatalog = (await rpc('commands.list', { botId: writer.bot.botId })) as {
       commands: { name: string }[];
     };
-    expect(commandCatalog.commands.some((command) => command.name === '/new')).toBe(true);
+    expect(commandCatalog.commands.some((command) => command.name === '/new')).toBe(false);
+    expect(commandCatalog.commands.some((command) => command.name === '/stop')).toBe(true);
     expect(gatewayCalls).toContainEqual(
       expect.objectContaining({
         profile: writer.bot.botId,
@@ -191,7 +194,7 @@ it('uploads a user file, sends images natively, and executes a selected group me
       clientMsgId: randomUUID(),
     })) as Operation;
     await until(() => app.operations.get(newSession.operationId).status !== 'running');
-    expect(app.operations.get(newSession.operationId)).toMatchObject({ status: 'done' });
+    expect(app.operations.get(newSession.operationId)).toMatchObject({ status: 'failed' });
     expect(fake.inspectRuns()).toHaveLength(1);
     const plan = (await rpc('commands.execute', {
       ...command,
@@ -208,7 +211,7 @@ it('uploads a user file, sends images natively, and executes a selected group me
           call.profile === writer.bot.botId &&
           call.method === 'session.create' &&
           call.params.request_id ===
-            'nekodot:' + writer.bot.botId + ':' + writer.conversation.conversationId,
+            'nekodot:coordinator:' + writer.bot.botId + ':' + writer.conversation.conversationId,
       ),
     ).toBe(true);
     expect(
@@ -232,7 +235,7 @@ it('uploads a user file, sends images natively, and executes a selected group me
     const displayed = app.database
       .messages(conversation.conversationId)
       .find((message) => message.author.type === 'user');
-    expect(displayed?.content).toEqual({ text: '/plan Summarize the attached test file.' });
+    expect(displayed?.content).toMatchObject({ text: '/plan Summarize the attached test file.' });
   } finally {
     await app.close();
     runtime.management.close();

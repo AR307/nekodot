@@ -42,6 +42,7 @@ const adaptedCommands = new Set([
   '/help',
   '/heartbeat',
   '/moa',
+  '/stop',
 ]);
 const unavailableReasons: Record<string, string> = {
   '/handoff': 'Hermes v0.22.5 does not expose handoff on canonical gateway sessions.',
@@ -49,18 +50,15 @@ const unavailableReasons: Record<string, string> = {
   '/indicator': 'Terminal prompt indicator. App uses its own running-state display.',
 };
 const appDescriptions: Record<string, string> = {
-  '/clear': 'Start a fresh Hermes context; keep existing App messages and tool effects.',
   '/redraw': 'Refresh this App and synchronize messages without replaying tasks.',
   '/prompt': 'Prefill the App composer without sending (usage: /prompt [text]).',
-  '/branch': 'Branch this Bot’s native session and use the branch here (usage: /branch [name]).',
   '/rollback':
     'Read filesystem checkpoints (usage: /rollback [list | diff <checkpoint>]). Restore is not offered.',
   '/snapshot':
     'Create a private native backup (usage: /snapshot [create]). Restore/prune are not offered.',
   '/export': 'Export this Bot’s shareable profile to a file card (usage: /export).',
   '/import': 'Open the App form to import a profile archive as a new Bot (usage: /import).',
-  '/stop':
-    'Stop this session’s background processes and subagents. Use the chat Stop button for the main turn.',
+  '/stop': 'Stop a selected task; /stop all stops all work in this chat.',
   '/agents':
     'List native child/process IDs; tail, steer or stop a child, kill a process, pause/resume spawning.',
   '/journey': 'Browse or edit native learning entries (usage: /journey [list | edit <entry-id>]).',
@@ -94,6 +92,10 @@ export async function discoverCommands(hermes: HermesRuntime, botId: string) {
   );
   return {
     commands: catalog.pairs
+      .filter(
+        ([name]) =>
+          !['/new', '/resume', '/clear', '/reset', '/branch', '/fork', '/sessions'].includes(name),
+      )
       .filter(([name]) => adaptedCommands.has(name) || catalog.commands[name]?.desktop !== 'hidden')
       .map(([name, description]) => ({
         name,

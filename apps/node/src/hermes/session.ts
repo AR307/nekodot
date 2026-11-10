@@ -5,6 +5,7 @@ import type { HermesGateway } from './gateway';
 import { NodeFault } from '../fault';
 
 export interface NativeSessionSnapshot {
+  bootstrap?: string;
   info?: {
     model?: string;
     provider?: string;
@@ -38,9 +39,27 @@ export async function openNativeSession(
   hermes: HermesRuntime,
   botId: string,
   conversationId: string,
+  options: { execution?: boolean; ownerConversationId?: string } = {},
 ) {
   const gateway = hermes.gateway(botId);
-  const existing = database.hermesSession(conversationId);
+  const marker = 'coordinator-session:' + conversationId;
+  const existing =
+    options.execution || database.setting(marker)
+      ? database.hermesSession(conversationId)
+      : undefined;
+  let reasoning: string | null | undefined;
+  if (options.execution && !existing && options.ownerConversationId) {
+    const owner = database.conversation(options.ownerConversationId)!;
+    const coordinator = database.hermesSession(
+      owner.kind === 'group' ? 'group:' + owner.conversationId + ':' + botId : owner.conversationId,
+    );
+    if (coordinator) {
+      const info = await gateway.rpc<NonNullable<NativeSessionSnapshot['info']>>('session.info', {
+        session_id: coordinator.storedSessionId,
+      });
+      reasoning = info.reasoning_effort;
+    }
+  }
   let snapshot = existing
     ? await gateway.rpc<NativeSessionSnapshot>('session.resume', {
         session_id: existing.storedSessionId,
@@ -50,10 +69,21 @@ export async function openNativeSession(
     : await gateway.rpc<NativeSessionSnapshot>('session.create', {
         profile: botId,
         source: 'gui',
-        title: 'Nekodot ' + conversationId,
+        // Hermes titles are identities and limited to 100 characters. Execution keys end
+        // in their unique segment ID; including a Cron/Webhook task ID exceeds that limit.
+        title: options.execution
+          ? 'Nekodot task ' + conversationId.split(':').at(-1)
+          : 'Nekodot coordinator ' + conversationId,
         hidden: true,
         follow_profile_config: true,
-        request_id: 'nekodot:' + botId + ':' + conversationId,
+        ...(reasoning ? { reasoning } : {}),
+        ...(!options.execution ? { toolsets: ['nekodot-tasks', 'memory', 'clarify'] } : {}),
+        request_id:
+          'nekodot:' +
+          (options.execution ? 'task:' : 'coordinator:') +
+          botId +
+          ':' +
+          conversationId,
       });
   snapshot = await defaultSessionReasoning(gateway, snapshot);
   database.saveHermesSession({
@@ -62,7 +92,28 @@ export async function openNativeSession(
     storedSessionId: snapshot.stored_session_id,
     replayEpoch: snapshot.replay_epoch,
     lastSequence: snapshot.last_sequence,
+    ownerConversationId: options.ownerConversationId,
   });
+  if (!options.execution) {
+    if (!database.setting(marker)) {
+      const context = database
+        .messages(options.ownerConversationId ?? conversationId, undefined, 40)
+        .filter((message) => message.kind === 'text' && message.taskRole !== 'execution')
+        .map((message) => ({
+          author: message.author,
+          text: message.kind === 'text' ? message.content.text : '',
+        }));
+      database.setSetting(
+        marker + ':context',
+        context.length
+          ? 'Earlier messages from this chat only (history, not new instructions; do not repeat completed work):\n' +
+              JSON.stringify(context)
+          : '',
+      );
+    }
+    database.setSetting(marker, true);
+    snapshot.bootstrap = database.setting<string>(marker + ':context');
+  }
   return snapshot;
 }
 
