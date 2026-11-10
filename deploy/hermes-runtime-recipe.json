@@ -1,10 +1,22 @@
 {
   "schema": 1,
-  "version": "v0.22.6-r2",
+  "version": "v0.22.6-r3",
   "hermesVersion": "v0.22.6",
   "commit": "f0d94882e89ab8d4098b5bb2f166adfb9ee0a0ab",
-  "extras": ["all"],
-  "tools": ["python", "uv", "node", "npm", "ripgrep", "ffmpeg", "git", "chromium", "cua-driver"],
+  "extras": [
+    "all"
+  ],
+  "tools": [
+    "python",
+    "uv",
+    "node",
+    "npm",
+    "ripgrep",
+    "ffmpeg",
+    "git",
+    "chromium",
+    "cua-driver"
+  ],
   "toolArtifacts": {
     "python": {
       "win32-x64": {
@@ -43,6 +55,9 @@
     {
       "file": "cron-approval-decisions.patch",
       "commit": "8ac43a3e2a047413e8bb70be0b671c321b8b0c15"
+    },
+    {
+      "file": "cron-task-controls.patch"
     }
   ]
 }
