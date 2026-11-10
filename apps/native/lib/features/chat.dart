@@ -279,11 +279,7 @@ class _ChatPageState extends State<ChatPage>
           .where((x) => x['conversationId'] == id)
           .firstOrNull;
       if (conversation == null) return const SizedBox.shrink();
-      final view = ChatPresentation(
-        c.node,
-        conversation,
-        focus: c.prefs.chatDisplay['focus'] == true,
-      );
+      final view = ChatPresentation(c.node, conversation);
       final owner = conversation['kind'] == 'group' ? view.group : view.bot;
       if (owner == null || owner['archived'] == true) {
         return AppPage(

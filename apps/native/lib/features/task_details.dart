@@ -11,6 +11,7 @@ import '../ui/design.dart';
 import 'chat_message.dart';
 import 'chat_presentation.dart';
 import 'flowchart.dart';
+import 'work.dart';
 
 Color taskColor(DotTask task) => switch (task.state) {
   'completed' => Colors.green,
@@ -40,7 +41,7 @@ class TaskLink extends StatelessWidget {
             const SizedBox(width: 7),
             Expanded(
               child: Text(
-                '${bot?['displayName'] ?? ''} · ${task.title}',
+                '${bot?['displayName'] ?? ''} · ${compactActivity(task.title)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -138,7 +139,7 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
       final messages = (node.messages[task.conversationId] ?? [])
           .where((m) => m.taskId == task.taskId)
           .toList();
-      final items = groupMessages(messages);
+      final items = visibleChatMessages(messages);
       return Scaffold(
         appBar: AppBar(
           title: Text(task.title),
@@ -182,17 +183,15 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 720),
                   child: MessageTile(
-                    key: item.any((m) => m.messageId == focusedMessage)
+                    key: item.messageId == focusedMessage
                         ? focusedKey
-                        : ValueKey(item.first.messageId),
+                        : ValueKey(item.messageId),
                     client: widget.client,
-                    message: item.first,
-                    steps: isWorkGroup(item) ? item : null,
+                    message: item,
                     bot: node.bots
-                        .where((b) => b['botId'] == item.first.author.id)
+                        .where((b) => b['botId'] == item.author.id)
                         .firstOrNull,
                     showName: task.botIds.length > 1,
-                    live: item.any((m) => m.status == 'streaming'),
                     onRetry: (_) {},
                     onQuote: (_) {
                       widget

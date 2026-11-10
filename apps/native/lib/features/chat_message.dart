@@ -23,9 +23,6 @@ class MessageTile extends StatefulWidget {
   final NekodotClient client;
   final ChatMessage message;
 
-  /// The steps folded with this one, and whether the Bot is still on them.
-  final List<ChatMessage>? steps;
-  final bool live;
   final Json? bot;
   final bool continued, showName, working;
   final ValueChanged<String> onRetry;
@@ -36,8 +33,6 @@ class MessageTile extends StatefulWidget {
     super.key,
     required this.client,
     required this.message,
-    this.steps,
-    this.live = false,
     this.bot,
     this.continued = false,
     this.showName = false,
@@ -57,8 +52,6 @@ class _MessageTileState extends State<MessageTile> {
   Json? get bot => widget.bot;
   bool get showName => widget.showName;
   bool get continued => widget.continued;
-  List<ChatMessage>? get steps => widget.steps;
-  bool get live => widget.live;
   bool get working => widget.working;
   ValueChanged<String> get onRetry => widget.onRetry;
   @override
@@ -150,9 +143,12 @@ class _MessageTileState extends State<MessageTile> {
             ),
           ),
     ];
-    final card =
-        steps != null ||
-        const {'secret', 'routine', 'question', 'approval'}.contains(kind);
+    final card = const {
+      'secret',
+      'routine',
+      'question',
+      'approval',
+    }.contains(kind);
     Widget? content;
     if (kind == 'secret') {
       content = SecretCard(
@@ -162,13 +158,6 @@ class _MessageTileState extends State<MessageTile> {
       );
     } else if (kind == 'routine') {
       content = RoutineCard(client: c, content: body);
-    } else if (steps != null) {
-      content = WorkBlock(
-        key: ValueKey('work-${m.messageId}'),
-        client: c,
-        steps: steps!,
-        live: live,
-      );
     } else if (kind == 'question' || kind == 'approval') {
       content = ControlCard(key: ValueKey(m.messageId), client: c, message: m);
     } else if (text.trim().isNotEmpty ||
@@ -527,8 +516,7 @@ class _ControlCardState extends State<ControlCard> {
           );
 
     if (!question) {
-      // A command waiting for you sits in the same line as the steps do, with
-      // its choices under it; once it is allowed it joins the steps instead.
+      // Keep the original approval and its answer available in the chat.
       final command = firstLine(
         data['command'] == null ? '${data['prompt']}' : '${data['command']}',
       );
