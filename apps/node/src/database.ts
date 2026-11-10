@@ -10,6 +10,7 @@ import type {
   RpcResult,
   FlowSnapshot,
   FlowChange,
+  DotTask,
 } from '@nekodot/protocol';
 
 export interface NativeModelOverride {
@@ -18,6 +19,12 @@ export interface NativeModelOverride {
 }
 
 export interface RunRecord {
+  role?: 'coordinator' | 'execution' | 'report';
+  taskId?: string;
+  executionId?: string;
+  /** Logical native session scope; never use the private chat for a group run. */
+  sessionKey?: string;
+  groupChainId?: string;
   runId?: string;
   conversationId: string;
   botId: string;
@@ -127,6 +134,10 @@ export class NodeDatabase {
       reference TEXT NOT NULL,storage_path TEXT,data TEXT NOT NULL,
       UNIQUE(message_id,reference)
     ); CREATE INDEX IF NOT EXISTS attachments_bot ON attachments(bot_id);`);
+    this.db
+      .exec(`CREATE TABLE IF NOT EXISTS dot_tasks(task_id TEXT PRIMARY KEY,conversation_id TEXT NOT NULL,data TEXT NOT NULL);
+      CREATE INDEX IF NOT EXISTS dot_tasks_conversation ON dot_tasks(conversation_id);
+      CREATE TABLE IF NOT EXISTS task_executions(execution_id TEXT PRIMARY KEY,task_id TEXT NOT NULL,data TEXT NOT NULL);`);
   }
   private all<T>(sql: string, ...params: string[]): T[] {
     return this.db
@@ -362,6 +373,13 @@ export class NodeDatabase {
     run?: RunRecord,
     chain?: GroupChainRecord,
   ) {
+    const owner =
+      run ??
+      (metadata.runId ? this.runs().find((item) => item.runId === metadata.runId) : undefined);
+    if (owner?.taskId) {
+      message.taskId = owner.taskId;
+      message.taskRole = owner.role === 'execution' ? 'execution' : 'report';
+    }
     if (metadata.clientMsgId) message.clientMsgId = metadata.clientMsgId;
     const event = this.write(
       'message.upserted',
@@ -428,9 +446,9 @@ export class NodeDatabase {
       this.db
         .prepare('INSERT OR IGNORE INTO usage_owners VALUES(?,?,?,?)')
         .run(run.botId, 'execution', 'admission:' + run.runId, run.conversationId);
-    if (run.queue || run.native) {
+    if (run.queue || run.native || run.role) {
       this.setSetting(
-        (run.native ? 'native-admission:' : 'native-queue:') + run.inputMessageId,
+        (run.native || run.role ? 'native-admission:' : 'native-queue:') + run.inputMessageId,
         run,
       );
       return;
@@ -482,6 +500,32 @@ export class NodeDatabase {
         "SELECT value AS data FROM settings WHERE key LIKE 'native-queue:%' OR key LIKE 'native-admission:%' ORDER BY rowid",
       ),
     ].filter((r) => r.state !== 'idle');
+  }
+  tasks(conversationId?: string) {
+    return conversationId
+      ? this.all<DotTask>(
+          'SELECT data FROM dot_tasks WHERE conversation_id=? ORDER BY rowid',
+          conversationId,
+        )
+      : this.all<DotTask>('SELECT data FROM dot_tasks ORDER BY rowid');
+  }
+  task(taskId: string) {
+    return this.all<DotTask>('SELECT data FROM dot_tasks WHERE task_id=?', taskId)[0];
+  }
+  saveTask(task: DotTask) {
+    this.write('task.upserted', task, () => {
+      this.db
+        .prepare(
+          'INSERT INTO dot_tasks VALUES(?,?,?) ON CONFLICT(task_id) DO UPDATE SET data=excluded.data',
+        )
+        .run(task.taskId, task.conversationId, JSON.stringify(task));
+    });
+  }
+  taskMessages(taskId: string) {
+    return this.all<Message>(
+      "SELECT data FROM messages WHERE json_extract(data,'$.taskId')=? ORDER BY created_seq",
+      taskId,
+    );
   }
   groupHistory(conversationId: string) {
     return this.all<GroupChainRecord>(

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { screenStatusSchema } from './screen';
 import { flowChangeSchema } from './flow';
+import { dotTaskSchema } from './tasks';
 import {
   botSchema,
   conversationSchema,
@@ -11,6 +12,7 @@ import {
 } from './entities';
 const eventBase = { seq: seqSchema };
 export const eventSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ ...eventBase, kind: z.literal('task.upserted'), data: dotTaskSchema }),
   z.strictObject({ ...eventBase, kind: z.literal('flow.changed'), data: flowChangeSchema }),
   z.strictObject({ ...eventBase, kind: z.literal('bot.upserted'), data: botSchema }),
   z.strictObject({
@@ -42,6 +44,7 @@ export const liveSchema = z.discriminatedUnion('kind', [
   }),
   z.strictObject({
     kind: z.literal('activity'),
+    taskId: z.string().optional(),
     runId: z.string().optional(),
     conversationId: idSchema,
     botId: botSchema.shape.botId,

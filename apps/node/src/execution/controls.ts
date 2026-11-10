@@ -14,7 +14,6 @@ export class RunControls {
     private readonly hermes: HermesRuntime,
     private readonly flow: ExecutionFlows,
     private readonly notifications: Notifications,
-    private readonly active: (conversationId: string) => RunRecord | undefined,
     private readonly onActivity: (run: RunRecord) => void,
   ) {}
   async respondToApproval(params: RpcParams<'approvals.respond'>) {
@@ -28,9 +27,7 @@ export class RunControls {
       return {};
     if (!runId || message?.kind !== 'approval' || message.status !== 'streaming')
       throw new NodeFault('not_found', 'Approval is no longer pending');
-    const run =
-      this.active(message.conversationId) ??
-      this.database.runs().find((item) => item.runId === runId);
+    const run = this.database.runs().find((item) => item.runId === runId);
     if (!run) throw new NodeFault('not_found', 'Run is no longer active');
     if (!run.sessionId) throw new NodeFault('not_found', 'Hermes session is no longer active');
     await this.hermes.gateway(run.botId).rpc('approval.respond', {
@@ -151,9 +148,7 @@ export class RunControls {
       return {};
     if (message?.kind !== 'question' || message.status !== 'streaming')
       throw new NodeFault('conflict', 'This question is no longer pending');
-    const run =
-      this.active(message.conversationId) ??
-      this.database.runs().find((item) => item.runId === message.content.runId);
+    const run = this.database.runs().find((item) => item.runId === message.content.runId);
     if (!run?.runId) throw new NodeFault('conflict', 'Run is no longer active');
     if (!run.sessionId) throw new NodeFault('not_found', 'Hermes session is no longer active');
     const response = await this.hermes

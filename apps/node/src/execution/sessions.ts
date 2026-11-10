@@ -150,17 +150,12 @@ export class ConversationExecution {
           state: 'thinking',
         };
         this.database.saveRun(run);
-        this.activeRuns.set(run.conversationId, run);
+        this.activeRuns.set(run.inputMessageId, run);
         this.consume(run, hermes.gateway(run.botId));
       },
     );
-    this.controls = new RunControls(
-      this.database,
-      hermes,
-      this.flow,
-      this.notifications,
-      (id) => this.activeRuns.get(id),
-      (run) => this.publishActivity(run),
+    this.controls = new RunControls(this.database, hermes, this.flow, this.notifications, (run) =>
+      this.publishActivity(run),
     );
     this.groupExecution = new GroupExecution(
       this.database,
@@ -173,13 +168,13 @@ export class ConversationExecution {
       this.secrets,
       this.userMemory,
       {
-        current: (id) => this.activeRuns.get(id),
+        current: (id) => this.current(id),
         activate: (run) => {
-          this.activeRuns.set(run.conversationId, run);
+          this.activeRuns.set(run.inputMessageId, run);
         },
         release: (run) => {
           this.messages.release(run.textMessageId);
-          this.activeRuns.delete(run.conversationId);
+          this.activeRuns.delete(run.inputMessageId);
           if (run.runId) {
             this.appliedSeq.delete(run.runId);
             this.lastFrameAt.delete(run.runId);
@@ -207,12 +202,22 @@ export class ConversationExecution {
       (run) => this.end(run),
     );
   }
+  private current(conversationId: string) {
+    return [...this.activeRuns.values()].find(
+      (run) =>
+        run.conversationId === conversationId &&
+        run.role !== 'execution' &&
+        run.queue !== 'queued' &&
+        run.state !== 'idle',
+    );
+  }
+
   activities() {
     const runs = this.database.runs();
     for (const conversation of this.database.conversations()) {
       if (conversation.kind === 'group') {
         const run =
-          this.activeRuns.get(conversation.conversationId) ??
+          this.current(conversation.conversationId) ??
           runs.find((item) => item.conversationId === conversation.conversationId);
         const chain = this.database.chain(conversation.conversationId);
         this.onLive({
@@ -231,7 +236,7 @@ export class ConversationExecution {
         continue;
       }
       const run =
-        this.activeRuns.get(conversation.conversationId) ??
+        this.current(conversation.conversationId) ??
         runs.find((item) => item.conversationId === conversation.conversationId);
       this.onLive({
         kind: 'activity',
@@ -294,7 +299,7 @@ export class ConversationExecution {
         if (!run.runId) {
           const input = this.database.message(run.inputMessageId);
           const chain = run.groupId ? this.database.chain(run.conversationId) : undefined;
-          if (run.queue !== 'queued') this.activeRuns.set(run.conversationId, run);
+          if (run.queue !== 'queued') this.activeRuns.set(run.inputMessageId, run);
           void this.startRun(
             run,
             chain?.currentInput ?? (input?.kind === 'text' ? input.content.text : ''),
@@ -318,7 +323,7 @@ export class ConversationExecution {
             run.queue = 'started';
             this.queueMessage(run, 'running');
           }
-          if (run.queue !== 'queued') this.activeRuns.set(run.conversationId, run);
+          if (run.queue !== 'queued') this.activeRuns.set(run.inputMessageId, run);
           if (run.queue !== 'queued')
             this.controls.restoreNativePrompts(run, snapshot.prompts ?? []);
           if (receipt.status === 'started') this.flow.start(run);
@@ -347,7 +352,7 @@ export class ConversationExecution {
             'Hermes no longer has this execution. It was not restarted.',
           );
         else {
-          if (run.queue !== 'queued') this.activeRuns.set(run.conversationId, run);
+          if (run.queue !== 'queued') this.activeRuns.set(run.inputMessageId, run);
           this.publishActivity(run);
           this.consume(run, gateway);
         }
@@ -376,7 +381,7 @@ export class ConversationExecution {
     const message = this.messages.newText(run, '', 'streaming');
     run.inputMessageId = message.messageId;
     run.textMessageId = message.messageId;
-    this.activeRuns.set(conversationId, run);
+    this.activeRuns.set(run.inputMessageId, run);
     this.database.putMessage(message, {}, run);
     this.publishActivity(run);
     const admission = this.startRun(
@@ -504,7 +509,7 @@ export class ConversationExecution {
     }
     const bot = this.bots.get(conversation.botId);
     const active =
-      this.activeRuns.get(conversation.conversationId) ??
+      this.current(conversation.conversationId) ??
       this.database.runs().find((run) => run.conversationId === conversation.conversationId);
     const routine = params.routineExecutionId
       ? this.routines.execution(bot.botId, params.routineExecutionId)
@@ -548,7 +553,7 @@ export class ConversationExecution {
         this.welcomeSends.set(params.clientMsgId, waiting);
         return waiting;
       }
-      this.activeRuns.set(active.conversationId, active);
+      this.activeRuns.set(active.inputMessageId, active);
       if (active.state === 'unknown')
         throw new NodeFault(
           'conflict',
@@ -612,7 +617,7 @@ export class ConversationExecution {
       ...(command?.modelOverride ? { modelOverride: command.modelOverride } : {}),
     };
     if (params.files?.length) this.files.attach(userMessage, params.files);
-    if (run.queue !== 'queued') this.activeRuns.set(run.conversationId, run);
+    if (run.queue !== 'queued') this.activeRuns.set(run.inputMessageId, run);
     userMessage.seq = this.database.head();
     this.database.putMessage(userMessage, { clientMsgId: params.clientMsgId }, run);
     this.publishActivity(run);
@@ -844,7 +849,7 @@ export class ConversationExecution {
             if (event && !(run.queue === 'queued' && event.event.startsWith('run.'))) {
               if (run.queue === 'queued' && event.event !== 'run.cancelled') {
                 run.queue = 'started';
-                this.activeRuns.set(run.conversationId, run);
+                this.activeRuns.set(run.inputMessageId, run);
                 this.queueMessage(run, 'running');
                 this.publishActivity(run);
               }
@@ -889,7 +894,7 @@ export class ConversationExecution {
             if (!snapshot.pending?.some((row) => row.admission_id === run.runId && row.steering)) {
               run.queue = 'started';
               run.executionGeneration = receipt.execution_generation ?? run.executionGeneration;
-              this.activeRuns.set(run.conversationId, run);
+              this.activeRuns.set(run.inputMessageId, run);
               this.flow.start(run);
               this.queueMessage(run, 'running');
               this.controls.restoreNativePrompts(run, snapshot.prompts ?? []);
@@ -961,8 +966,8 @@ export class ConversationExecution {
       .catch(() => console.warn('Temporary profile vault cleanup needs retry'));
     run.state = 'idle';
     this.database.saveRun(run);
-    if (this.activeRuns.get(run.conversationId)?.runId === run.runId)
-      this.activeRuns.delete(run.conversationId);
+    if (this.current(run.conversationId)?.runId === run.runId)
+      this.activeRuns.delete(run.inputMessageId);
     if (run.runId) {
       this.appliedSeq.delete(run.runId);
       this.lastFrameAt.delete(run.runId);
@@ -1005,7 +1010,7 @@ export class ConversationExecution {
 
   private publishActivity(run: RunRecord) {
     if (run.queue === 'queued') return;
-    const current = this.activeRuns.get(run.conversationId);
+    const current = this.current(run.conversationId);
     if (run.state === 'idle' && current && current.runId !== run.runId) return;
     const chain = run.groupId ? this.database.chain(run.conversationId) : undefined;
     if (chain) this.flow.group(chain);
@@ -1029,10 +1034,12 @@ export class ConversationExecution {
   }
 
   async stop(conversationId: string, runId?: string) {
-    const run =
-      this.activeRuns.get(conversationId) ??
-      this.database.runs().find((item) => item.conversationId === conversationId);
-    if (runId && run?.runId !== runId) return {};
+    const run = runId
+      ? [...this.activeRuns.values(), ...this.database.runs()].find(
+          (item) => item.conversationId === conversationId && item.runId === runId,
+        )
+      : this.current(conversationId);
+    if (runId && !run) return {};
     if (!run?.runId || !run.sessionId || run.executionGeneration === undefined)
       throw new NodeFault('not_found', 'No active run');
     run.stopRequested = true;
@@ -1099,7 +1106,7 @@ export class ConversationExecution {
       'Hermes lost the execution during a restart. Click Stop to acknowledge the interrupted task, then send a new message. Completed effects are kept; this task will not be replayed.';
     run.textMessageId = reply.messageId;
     run.state = 'unknown';
-    this.activeRuns.set(run.conversationId, run);
+    this.activeRuns.set(run.inputMessageId, run);
     this.messages.persistText(run, reply, run.lastSeq);
     this.publishActivity(run);
   }
@@ -1199,7 +1206,7 @@ export class ConversationExecution {
       await this.groupExecution.finishGroupRun(run, 'failed', text);
       return;
     }
-    this.activeRuns.delete(run.conversationId);
+    this.activeRuns.delete(run.inputMessageId);
     this.publishActivity(this.idleRun(run));
     await this.userMemory.sync();
     this.notifications.send({

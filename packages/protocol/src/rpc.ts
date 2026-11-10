@@ -396,6 +396,7 @@ export const rpcContracts = {
       // Each conversation's newest words, so a list previews it before it is opened.
       latest: z.array(messageSchema),
       flows: z.array(flowSnapshotSchema),
+      tasks: z.array(dotTaskSchema),
       headSeq: seqSchema,
       node: nodeCapabilitiesSchema,
     }),
@@ -420,6 +421,7 @@ export const rpcContracts = {
   'messages.send': {
     params: z.strictObject({
       sessionId: z.string().optional(),
+      taskId: z.string().optional(),
       conversationId: idSchema,
       text: z.string(),
       files: z.array(z.uuid()).optional(),
@@ -431,6 +433,14 @@ export const rpcContracts = {
   'runs.stop': {
     params: z.strictObject({ conversationId: idSchema, runId: z.string().optional() }),
     result: empty,
+  },
+  'tasks.list': {
+    params: z.strictObject({ conversationId: idSchema }),
+    result: z.strictObject({ tasks: z.array(dotTaskSchema) }),
+  },
+  'tasks.get': {
+    params: z.strictObject({ conversationId: idSchema, taskId: idSchema }),
+    result: z.strictObject({ task: dotTaskSchema, messages: z.array(messageSchema) }),
   },
   'approvals.respond': {
     params: z.strictObject({ messageId: idSchema, choice: approvalChoiceSchema }),
@@ -589,3 +599,4 @@ export function rpcResponseSchema<M extends RpcMethod>(
     { ok: true; result: RpcResult<M> } | { ok: false; error: z.infer<typeof rpcErrorSchema> }
   >;
 }
+import { dotTaskSchema } from './tasks';

@@ -73,6 +73,8 @@ export const conversationSchema = z.discriminatedUnion('kind', [
   z.strictObject({ ...conversationBase, kind: z.literal('group'), groupId: idSchema }),
 ]);
 const messageBase = {
+  taskId: z.string().optional(),
+  taskRole: z.enum(['execution', 'report']).optional(),
   clientMsgId: z.string().optional(),
   messageId: idSchema,
   conversationId: idSchema,
