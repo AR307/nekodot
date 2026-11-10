@@ -1,3 +1,5 @@
+import 'task_details.dart';
+
 import 'package:flutter/material.dart';
 
 import '../data/chat_models.dart';
@@ -108,6 +110,8 @@ class ChatTimeline extends StatelessWidget {
                     ),
                   ),
                 ),
+              if (m.taskId != null && c.node.tasks[m.taskId] != null)
+                TaskLink(client: c, task: c.node.tasks[m.taskId]!),
               EntryMotion(
                 play: fresh(m),
                 own: m.author.type == 'user',

@@ -1,3 +1,4 @@
+import 'task_details.dart';
 import '../data/chat_models.dart';
 
 import 'dart:async';
@@ -41,6 +42,7 @@ class ChatComposer extends StatefulWidget {
 
 class ChatComposerState extends State<ChatComposer> {
   final input = TextEditingController();
+  final inputScroll = ScrollController();
   bool sending = false;
   bool savingReasoning = false;
   int reasoningRevision = 0;
@@ -55,9 +57,6 @@ class ChatComposerState extends State<ChatComposer> {
   CommandOperation? commandOperation;
   String? submittedCommand;
   String? commandNodeId;
-  bool get sideCommand =>
-      submittedCommand != null &&
-      RegExp(r'^/(bg|btw)(\s|$)').hasMatch(submittedCommand!);
   bool uploading = false;
   String uploadProgress = '';
   List<Json> get attached => c.attachmentDrafts[draftKey] ?? [];
@@ -65,6 +64,9 @@ class ChatComposerState extends State<ChatComposer> {
   String get id => widget.conversationId;
   String get draftKey => '${c.selectedNodeId}:$id';
   Json? get routineDraft => c.routineDrafts[draftKey];
+  Json? get taskDraft => c.workspace['taskQuote:$draftKey'] is Map
+      ? object(c.workspace['taskQuote:$draftKey'])
+      : null;
 
   @override
   void initState() {
@@ -74,6 +76,8 @@ class ChatComposerState extends State<ChatComposer> {
     c.deliveries.addListener(deliveriesChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => deliveriesChanged());
     void changed() {
+      // A cleared long message must not scroll its old offset into the next draft.
+      if (input.text.isEmpty && inputScroll.hasClients) inputScroll.jumpTo(0);
       c.drafts[draftKey] = input.text;
       c.saveContent();
       // Moving the caret can enter or leave an @ token without editing text.
@@ -102,6 +106,7 @@ class ChatComposerState extends State<ChatComposer> {
   void dispose() {
     c.deliveries.removeListener(deliveriesChanged);
     input.dispose();
+    inputScroll.dispose();
     field.dispose();
     super.dispose();
   }
@@ -139,7 +144,8 @@ class ChatComposerState extends State<ChatComposer> {
         savingReasoning ||
         uploading ||
         (commandOperation?.status == 'running' &&
-            !(sideCommand && !text.startsWith('/')))) {
+            !(!text.startsWith('/') ||
+                RegExp(r'^/stop(?:\s|$)').hasMatch(text)))) {
       return;
     }
     if (text.startsWith('/') && commandBotId == null) {
@@ -151,6 +157,7 @@ class ChatComposerState extends State<ChatComposer> {
         .map((file) => Map<String, dynamic>.from(file))
         .toList();
     final routineId = routineDraft?['executionId'];
+    final taskId = taskDraft?['taskId'];
     setState(() {
       sending = true;
       error = '';
@@ -168,6 +175,7 @@ class ChatComposerState extends State<ChatComposer> {
           if (command) 'botId': commandBotId,
           command ? 'command' : 'text': messageText,
           'clientMsgId': uid(),
+          'taskId': ?taskId,
           if (!command && routineId != null) 'routineExecutionId': routineId,
         },
         nodeId!,
@@ -181,6 +189,7 @@ class ChatComposerState extends State<ChatComposer> {
       }
       if (c.drafts[key]?.trim() == text) c.drafts[key] = '';
       c.quotes.remove(key);
+      if (taskDraft?['taskId'] == taskId) c.workspace.remove('taskQuote:$key');
       c.saveContent();
       if (!mounted) return;
       if (!command && quoted == sentQuote) setState(() => quoted = null);
@@ -386,31 +395,16 @@ class ChatComposerState extends State<ChatComposer> {
     }
   }
 
-  Future<void> stop() async {
-    try {
-      await c.continueAction('runs.stop', {
-        'conversationId': id,
-        'runId': c.node.activities[id]?.runId,
-      });
-      if (mounted) setState(() => error = '');
-    } catch (e) {
-      if (mounted) setState(() => error = '$e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final tone = context.tone,
         group = widget.view.group,
         bot = widget.view.bot,
         members = widget.view.members,
-        state = widget.view.state,
         running = widget.view.running,
         waiting = widget.view.waiting,
         status = widget.view.status(c);
     final hasText = input.text.trim().isNotEmpty || attached.isNotEmpty;
-    final queueCommand =
-        state != 'unknown' && RegExp(r'^/queue(?:\s|$)').hasMatch(input.text);
     final composerField = Focus(
       canRequestFocus: false,
       skipTraversal: true,
@@ -433,12 +427,13 @@ class ChatComposerState extends State<ChatComposer> {
           input.value = value.replaced(at, '\n');
           return KeyEventResult.handled;
         }
-        if (!waiting || queueCommand) send();
+        send();
         return KeyEventResult.handled;
       },
       child: TextField(
         key: const ValueKey('chat-input'),
         controller: input,
+        scrollController: inputScroll,
         focusNode: field,
         minLines: 1,
         maxLines: 7,
@@ -483,12 +478,12 @@ class ChatComposerState extends State<ChatComposer> {
       ],
     );
     final canSend =
-        (!waiting || queueCommand) &&
         !sending &&
         !savingReasoning &&
         !uploading &&
         !(commandOperation?.status == 'running' &&
-            !(sideCommand && !input.text.startsWith('/'))) &&
+            !(!input.text.startsWith('/') ||
+                RegExp(r'^/stop(?:\s|$)').hasMatch(input.text))) &&
         hasText;
     final composerAction = Row(
       mainAxisSize: MainAxisSize.min,
@@ -534,18 +529,6 @@ class ChatComposerState extends State<ChatComposer> {
                   ),
             icon: const Icon(Icons.mic_none),
           ),
-        if (running)
-          IconButton.filled(
-            tooltip: c.tr('停止', 'Stop'),
-            style: hasText
-                ? roundAction.copyWith(
-                    backgroundColor: WidgetStatePropertyAll(tone.raised),
-                    foregroundColor: WidgetStatePropertyAll(tone.ink),
-                  )
-                : roundAction,
-            onPressed: stop,
-            icon: const Icon(Icons.stop),
-          ),
         if (hasText || (!running && (group != null || bot == null))) ...[
           const SizedBox(width: 4),
           IconButton.filled(
@@ -585,6 +568,38 @@ class ChatComposerState extends State<ChatComposer> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (error.isNotEmpty) ErrorNotice(error),
+                      if (c.node.tasks.values.any(
+                        (task) =>
+                            task.conversationId == id &&
+                            (task.active || task.reportMessageId == null),
+                      ))
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 160),
+                          child: ListView(
+                            shrinkWrap: true,
+                            children: [
+                              for (final task in c.node.tasks.values.where(
+                                (task) =>
+                                    task.conversationId == id &&
+                                    (task.active ||
+                                        task.reportMessageId == null),
+                              ))
+                                TaskLink(client: c, task: task),
+                            ],
+                          ),
+                        ),
+                      if (taskDraft != null)
+                        QuoteChip(
+                          text: '${taskDraft!['title']}',
+                          tooltip: c.tr('取消', 'Cancel'),
+                          onClear: () {
+                            setState(
+                              () => c.workspace.remove('taskQuote:$draftKey'),
+                            );
+                            c.saveContent();
+                          },
+                        ),
+
                       for (final item in c.deliveries.items.where(
                         (i) =>
                             i['action'] != true &&
@@ -745,13 +760,6 @@ class ChatComposerState extends State<ChatComposer> {
                             );
                             setState(() {});
                           },
-                        ),
-                      if (state == 'unknown')
-                        ErrorNotice(
-                          c.tr(
-                            '执行已中断。请先点击停止确认，再发送新任务；已完成的操作会保留。',
-                            'Click Stop to acknowledge the interrupted execution before sending a new task. Completed effects are kept.',
-                          ),
                         ),
                       if (quoted != null)
                         QuoteChip(

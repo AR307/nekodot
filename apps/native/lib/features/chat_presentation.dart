@@ -47,6 +47,13 @@ class ChatPresentation {
     final messages = (node.messages[conversation['conversationId']] ?? [])
         .where(
           (row) =>
+              (row.taskRole != 'execution' ||
+                  const {
+                    'approval',
+                    'question',
+                    'secret',
+                  }.contains(row.kind)) &&
+              !(row.kind == 'tool' && row.content['tool'] == 'nekodot_task') &&
               (!focus || row.kind != 'tool') &&
               // A text segment that ended empty when a tool started has nothing to show.
               !(row.kind == 'commentary' &&
@@ -81,6 +88,8 @@ class ChatPresentation {
         .where(
           (m) =>
               m.author.type == 'bot' &&
+              m.taskRole != 'execution' &&
+              !(m.kind == 'tool' && m.content['tool'] == 'nekodot_task') &&
               (bot == null || m.author.id == bot['botId']),
         )
         .toList();
@@ -150,6 +159,7 @@ List<List<ChatMessage>> groupMessages(List<ChatMessage> messages) {
     if (step(m) &&
         last != null &&
         step(last.first) &&
+        last.first.taskId == m.taskId &&
         last.first.author.id == m.author.id) {
       last.add(m);
     } else {

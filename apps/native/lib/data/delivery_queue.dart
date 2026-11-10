@@ -304,23 +304,6 @@ class DeliveryQueue extends ChangeNotifier {
               await save();
               break;
             }
-            // An explicit /new or /resume changes the target of later messages
-            // in this user's ordered queue, never of unrelated sessions.
-            if (RegExp(r'^/(new|resume)(\s|$)')
-                .hasMatch('${params['command']}')) {
-              final sessions = await client.connection.rpc('sessions.list', {
-                'botId': params['botId'],
-              }, item['nodeId'] as String);
-              for (final later in items.skip(items.indexOf(item) + 1)) {
-                final p = object(later['params']);
-                if (later['nodeId'] == item['nodeId'] &&
-                    p['conversationId'] == params['conversationId'] &&
-                    p['sessionId'] == params['sessionId']) {
-                  p['sessionId'] = sessions['currentSessionId'];
-                  later['params'] = p;
-                }
-              }
-            }
             item['state'] = 'completed';
             result = operation;
             if (_responses.containsKey(item['id'])) items.remove(item);

@@ -88,6 +88,8 @@ class _MessageTileState extends State<MessageTile> {
         '/branch' => c.tr('已创建会话分支', 'Session branched'),
         '/compress' => c.tr('压缩结果', 'Compression result'),
         '/undo' => c.tr('已撤回上一轮', 'Last turn undone'),
+        '/stop' =>
+          raw == 'Stop requested' ? c.tr('已请求停止', 'Stop requested') : raw,
         '/save' => c.tr('已保存会话', 'Session saved'),
         '' => raw,
         _ => c.tr('已执行 $command', 'Executed $command'),
@@ -469,25 +471,13 @@ class _ControlCardState extends State<ControlCard> {
       error = '';
     });
     final question = widget.message.kind == 'question';
-    final routine = widget.message.messageId.startsWith('routine-approval:');
     try {
       await widget.client.continueAction(
-        routine
-            ? 'routines.approvalRespond'
-            : question
-            ? 'questions.respond'
-            : 'approvals.respond',
-        routine
-            ? {
-                'botId': object(widget.message.content)['botId'],
-                'executionId': object(widget.message.content)['runId'],
-                'promptId': object(widget.message.content)['requestId'],
-                'choice': value,
-              }
-            : {
-                'messageId': widget.message.messageId,
-                question ? 'answer' : 'choice': value,
-              },
+        question ? 'questions.respond' : 'approvals.respond',
+        {
+          'messageId': widget.message.messageId,
+          question ? 'answer' : 'choice': value,
+        },
       );
       if (mounted) setState(() => sent = value);
     } catch (e) {

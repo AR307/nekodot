@@ -10,6 +10,7 @@ import '../platform/desktop.dart';
 import '../ui/design.dart';
 import 'bot_details.dart';
 import 'chat.dart';
+import 'task_details.dart';
 import 'bot_editor.dart';
 import 'extensions.dart';
 import 'files.dart';
@@ -80,7 +81,16 @@ class _HomePageState extends State<HomePage> {
         .firstOrNull;
     if (value == null || !mounted) return;
     Navigator.of(context).popUntil((r) => r.isFirst);
-    await open(value, MediaQuery.sizeOf(context).width < 840);
+    final task = c.node.tasks[target['taskId']];
+    if (task != null) {
+      unawaited(open(value, MediaQuery.sizeOf(context).width < 840));
+      await WidgetsBinding.instance.endOfFrame;
+      if (mounted) {
+        await pushPage(context, TaskDetailsPage(client: c, task: task));
+      }
+    } else {
+      await open(value, MediaQuery.sizeOf(context).width < 840);
+    }
   }
 
   @override
