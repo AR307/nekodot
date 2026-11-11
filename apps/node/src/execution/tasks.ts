@@ -444,6 +444,7 @@ export class DotTasks {
     if (this.database.setting(marker)) return;
     const task = this.database.task(worker.taskId!)!;
     const execution = this.execution(worker.executionId!)!;
+    const conversation = this.database.conversation(task.conversationId)!;
     const run: RunRecord = {
       role: 'consultation',
       questionMessageId: question.messageId,
@@ -452,7 +453,7 @@ export class DotTasks {
       executionId: execution.executionId,
       conversationId: task.conversationId,
       botId: worker.botId,
-      groupId: worker.groupId,
+      groupId: conversation.kind === 'group' ? conversation.groupId : undefined,
       inputMessageId: marker,
       submissionId: marker,
       native: true,
