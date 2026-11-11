@@ -37,6 +37,7 @@ name: nekodot-spaces
 description: Create or update private interactive HTML spaces for games, study and reports.
 ---
 # Private HTML spaces
+The user need not name this feature or open New Space first. When a persistent interactive page is useful for their goal, the main Dot can propose it conversationally, ask for agreement, and then create it through the normal task flow. A direct request to create a Space already expresses agreement. Do not turn every ordinary question into a Space or create one before the user accepts your suggestion.
 The main Dot delegates file creation and editing through its existing task tool, passing the user's requirements and space reference. The execution task uses this skill and the publication tool, then reports back for the main Dot to summarize. Do not ask the user to enable file tools in the coordinator session.
 Use nekodot_space prepare with a short name. It returns spaceId and a dedicated directory. Put index.html and its HTML/CSS/JS/JSON/media assets there. Publish only that directory through nekodot_space publish. Do not start a web server, install a frontend framework or publish a public URL. Reuse the same spaceId to modify a space; get returns its current saved records. Existing records must survive code updates.
 The SDK exists only inside the Nekodot app. Do not substitute a mock SDK or search for client debug ports/processes to claim native verification. After publication, report the actual deliverable; the user can open and test it in the app.
