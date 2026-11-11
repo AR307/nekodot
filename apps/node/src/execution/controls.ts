@@ -15,7 +15,7 @@ export class RunControls {
     private readonly flow: ExecutionFlows,
     private readonly notifications: Notifications,
     private readonly onActivity: (run: RunRecord) => void,
-    private readonly onTaskQuestion?: (
+    private readonly onTaskQuestion: (
       run: RunRecord,
       question: Extract<Message, { kind: 'question' }>,
     ) => Promise<void>,
@@ -160,7 +160,7 @@ export class RunControls {
         kind: 'question',
       });
     this.onActivity(run);
-    if (privateQuestion) await this.onTaskQuestion?.(run, message);
+    if (privateQuestion) await this.onTaskQuestion(run, message);
   }
 
   async respondToQuestion(params: RpcParams<'questions.respond'>) {

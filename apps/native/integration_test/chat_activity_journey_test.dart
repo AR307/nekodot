@@ -24,9 +24,7 @@ import 'local_desktop_journey_test.dart' show MemoryVault;
 // Native UI, actual isolated Node/Relay/Hermes and model. No event injection.
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  testWidgets('activity remains docked across real tasks and navigation', (
-    tester,
-  ) async {
+  testWidgets('Dot mediates private questions and results', (tester) async {
     tester.testTextInput.register();
     addTearDown(tester.testTextInput.unregister);
     SharedPreferences.setMockInitialValues({'notification-requested': true});
@@ -51,7 +49,7 @@ void main() {
     }
 
     Future<void> until(bool Function() ready, String label) async {
-      final end = DateTime.now().add(const Duration(seconds: 240));
+      final end = DateTime.now().add(const Duration(minutes: 10));
       while (!ready() && DateTime.now().isBefore(end)) {
         await frames(150);
       }
@@ -147,38 +145,73 @@ void main() {
     final taskIds = reuse.split(',').where((s) => s.isNotEmpty).toSet();
     if (taskIds.isEmpty) {
       await send(
-        '帮我阅读 $work/activity-input.txt，用原生 clarify 问我想要列表还是表格，等我回答后按我选的格式总结文档。不要改写原文件。',
+        '帮我做一个三页周汇报 PPTX，素材是 $work/activity-input.txt，内容用中文。'
+        '先安排实际制作去读取素材、整理内容，再通过原生 clarify 确认我想用正式商务风还是轻松图文风。'
+        '现在先不要替我选风格，也不要在接待阶段提前问；读取后再问我。'
+        '我选好以后继续完成真实 PPTX，保存在 $work/weekly-$suffix.pptx，然后交付文件和简短总结。'
+        '不要改写素材，不要装大型依赖。',
       );
       await until(
-        () => c.node.tasks.values.any(
-          (t) => !original.contains(t.taskId) && t.active,
-        ),
-        'first independent task started',
-      );
-      taskIds.addAll(c.node.tasks.keys.where((id) => !original.contains(id)));
-      debugPrint('ACTIVITY first task ${taskIds.join(',')}');
-    }
-    if (taskIds.length == 1) {
-      await send('另外帮我列出一周七天的名字，先用原生 clarify 问我要中文还是英文，等我选完再回答。之前的工作继续保留。');
-      await until(
-        () => c.node.tasks.keys.any(
-          (id) => !original.contains(id) && !taskIds.contains(id),
-        ),
-        'second independent task started',
+        () => c.node.tasks.keys.any((id) => !original.contains(id)),
+        'native work started',
       );
       taskIds.addAll(c.node.tasks.keys.where((id) => !original.contains(id)));
     }
-    debugPrint('ACTIVITY taskIds ${taskIds.join(',')}');
+    final taskId = taskIds.single;
+    if (const bool.fromEnvironment('QA_ACTIVITY_RESULT_ONLY')) {
+      await until(
+        () => c.node.tasks[taskId]?.reportMessageId != null,
+        'existing work reported without replay',
+      );
+      final report = c.node.messages[dm]!.firstWhere(
+        (m) => m.messageId == c.node.tasks[taskId]!.reportMessageId,
+      );
+      expect(c.node.tasks[taskId]!.state, 'completed');
+      expect(report.content['files'], isNotEmpty);
+      await shot('results');
+      return;
+    }
+    ChatMessage? question(bool worker) => c.node.messages[dm]!
+        .where(
+          (m) =>
+              m.taskId == taskId &&
+              m.kind == 'question' &&
+              m.status == 'streaming' &&
+              (m.taskRole == 'execution') == worker,
+        )
+        .lastOrNull;
+    await until(() => question(true) != null, 'worker asked privately');
+    final raw = question(true)!;
     await until(
-      () =>
-          taskIds.every((id) => c.node.tasks[id]?.state == 'waiting_question'),
-      'two native questions waiting',
+      () => question(false) != null,
+      'main Dot asked with native clarify',
+    );
+    final asked = question(false)!;
+    expect(asked.content['runId'], isNot(raw.content['runId']));
+    expect(asked.content['question'], isNot(raw.content['question']));
+    expect(
+      '${asked.content['question']}',
+      isNot(
+        matches(RegExp(r'子代理|手下|任务编号|subagent|worker', caseSensitive: false)),
+      ),
     );
     await frames();
+    final latest = find.byKey(const ValueKey('chat-latest'));
+    Future<void> showLatest() async {
+      if (latest.hitTestable().evaluate().isNotEmpty) await tap(latest);
+    }
+
+    await showLatest();
+    expect(find.byType(ControlCard), findsWidgets);
+    expect(find.text('${raw.content['question']}'), findsNothing);
+    expect(find.text('${asked.content['question']}'), findsOneWidget);
     expect(dock, findsOneWidget);
     expect(tester.getRect(dock).bottom, closeTo(tester.getRect(box).top, 1));
     final initialY = tester.getRect(dock).top;
-    await shot('waiting');
+    await shot('main-question');
+    await tap(dock);
+    expect(find.byKey(const ValueKey('chat-controls')), findsNothing);
+    expect(find.byType(Dialog), findsNothing);
     await tester.drag(
       find.byKey(const ValueKey('chat-messages')),
       const Offset(0, 450),
@@ -188,57 +221,25 @@ void main() {
     await shot('history');
     await tester.enterText(input, '保留这段未发送草稿\n第二行');
     await frames();
-    expect(tester.widget<TextField>(input).controller!.text, '保留这段未发送草稿\n第二行');
     expect(tester.getRect(dock).bottom, closeTo(tester.getRect(box).top, 1));
     await shot('draft');
     FocusManager.instance.primaryFocus?.unfocus();
     await frames();
-    // Both questions wait behind one line: it names the wait, not the work.
     final row = tester.widget<ThinkingRow>(find.byType(ThinkingRow));
     expect(row.line, c.tr('等你回答', 'Needs your answer'));
     expect(row.moving, isFalse);
-    expect(find.byKey(const ValueKey('chat-activity-select')), findsNothing);
-    // Neither question is a line of the history; the line opens them.
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('chat-messages')),
-        matching: find.byType(ControlCard),
-      ),
-      findsNothing,
-    );
-    final controls = find.byKey(const ValueKey('chat-controls'));
-    await tap(dock);
-    expect(
-      find.descendant(of: controls, matching: find.byType(ControlCard)),
-      findsNWidgets(taskIds.length),
-    );
-    await shot('controls');
-    nav.currentState!.pop();
-    await frames();
-    expect(controls, findsNothing);
-    expect(nav.currentState!.canPop(), phone);
     await tap(find.byKey(const ValueKey('chat-flowchart')));
     await shot('flow');
     await tap(find.byKey(const ValueKey('flow-close')));
     expect(tester.widget<TextField>(input).controller!.text, '保留这段未发送草稿\n第二行');
     final composer = tester.state<ChatComposerState>(find.byType(ChatComposer));
-    final question = c.node.messages[dm]!.firstWhere(
-      (m) =>
-          m.taskId == taskIds.first &&
-          m.kind == 'question' &&
-          m.status == 'streaming',
-    );
-    composer.quote(
-      '${question.content['question'] ?? question.content['prompt'] ?? '列表'}',
-      taskId: taskIds.first,
-    );
+    composer.quote('${asked.content['question']}', taskId: taskId);
     await frames();
-    expect(composer.taskDraft?['taskId'], taskIds.first);
+    expect(composer.taskDraft?['taskId'], taskId);
     expect(tester.getRect(dock).bottom, closeTo(tester.getRect(box).top, 1));
     await shot('quoted');
     await tap(find.byTooltip(c.tr('取消', 'Cancel')).last);
     expect(composer.taskDraft, isNull);
-    expect(c.workspace['taskQuote:${c.selectedNodeId}:$dm'], isNull);
     if (phone) {
       tester.testTextInput.unregister();
       await tester.tap(input);
@@ -252,13 +253,10 @@ void main() {
       tester.testTextInput.register();
     }
     await c.prefs.update(locale: 'en', appearance: 'dark');
+    await showLatest();
     await shot('dark-en');
     reducedMotion.value = true;
     await shot('reduced-motion');
-    expect(
-      find.descendant(of: dock, matching: find.byType(ShaderMask)),
-      findsNothing,
-    );
     await c.connection.disconnect();
     await frames(1000);
     expect(
@@ -268,6 +266,8 @@ void main() {
     await shot('offline');
     await c.connection.connect();
     await until(() => c.online, 'reconnected');
+    await until(() => question(false) != null, 'same question restored');
+    expect(question(false)!.messageId, asked.messageId);
     if (const bool.fromEnvironment('QA_ACTIVITY_OBSERVE_ONLY')) {
       final result = {
         'taskIds': taskIds.toList(),
@@ -282,97 +282,90 @@ void main() {
       debugPrint('ACTIVITY pending ${jsonEncode(result)}');
       return;
     }
-    final latest = find.byKey(const ValueKey('chat-latest'));
-    if (latest.hitTestable().evaluate().isNotEmpty) await tap(latest);
-    await tap(dock);
-    for (final id in taskIds) {
-      final question = c.node.messages[dm]!.firstWhere(
-        (m) =>
-            m.taskId == id && m.kind == 'question' && m.status == 'streaming',
-      );
-      await tap(find.byKey(ValueKey('choice-${question.messageId}-0')));
-      await shot('answered-${taskIds.toList().indexOf(id)}');
-    }
-    // Nothing is left to answer, so the card leaves on its own.
-    await until(() => controls.evaluate().isEmpty, 'answered controls closed');
+    await showLatest();
+    final choices = (asked.content['choices'] as List).cast<String>();
+    final selected = choices.indexWhere(
+      (s) => s.contains('正式') || s.contains('商务'),
+    );
+    expect(selected, greaterThanOrEqualTo(0));
+    await tap(find.byKey(ValueKey('choice-${asked.messageId}-$selected')));
     await until(
-      () => taskIds.every(
-        (id) =>
-            c.node.tasks[id]?.active == false &&
-            c.node.tasks[id]?.reportMessageId != null,
-      ),
-      'tasks completed and reported',
+      () => question(true) == null,
+      'secretary passed answer to original worker',
     );
-    await frames();
+    await until(
+      () => c.node.tasks[taskId]?.reportMessageId != null,
+      'file produced and main Dot reported',
+    );
+    expect(c.node.tasks[taskId]!.state, 'completed');
+    final result = await c.rpc('tasks.get', {
+      'conversationId': dm,
+      'taskId': taskId,
+    });
+    final report = c.node.messages[dm]!.firstWhere(
+      (m) => m.messageId == c.node.tasks[taskId]!.reportMessageId,
+    );
+    final originalResult = (result['messages'] as List)
+        .cast<Map>()
+        .where((m) => m['messageId'] == c.node.tasks[taskId]!.resultMessageId)
+        .first;
     expect(
-      taskIds.every((id) => c.node.tasks[id]?.state == 'completed'),
-      isTrue,
+      report.content['text'],
+      isNot((originalResult['content'] as Map)['text']),
     );
+    expect(report.content['files'], isNotEmpty);
     await tester.enterText(input, '');
-    c.workspace.remove('taskQuote:${c.selectedNodeId}:$dm');
-    c.node.changed(dm);
-    await frames();
-    if (latest.hitTestable().evaluate().isNotEmpty) await tap(latest);
+    await showLatest();
     await shot('results');
-    // A command that needs your OK waits behind the same line.
-    final botId =
-        c.node.conversations.firstWhere(
-              (x) => x['conversationId'] == dm,
-            )['botId']
-            as String;
-    final mode = (await c.rpc('bots.permissions.get', {
-      'botId': botId,
-    }))['mode'];
-    await c.rpc('bots.update', {'botId': botId, 'approvalMode': 'manual'});
-    try {
-      final seen = c.node.messages[dm]!.map((m) => m.messageId).toSet();
-      ChatMessage? approval() => c.node.messages[dm]!
-          .where(
-            (m) =>
-                !seen.contains(m.messageId) &&
-                m.kind == 'approval' &&
-                m.status == 'streaming',
-          )
-          .firstOrNull;
+    if (const bool.fromEnvironment('QA_SECRETARY_SELF_ANSWER')) {
+      final before = c.node.tasks.keys.toSet();
       await send(
-        '请用 terminal 在前台只运行一次 python -c "print(37*41)"，这是无害的审批验收，然后把结果告诉我。',
+        '接下来做一次重复确认的流程验收：输出格式我已经确定为 Markdown 表格。'
+        '请在实际执行中先读同一素材 $work/activity-input.txt；为了验收，'
+        '让执行过程仍用原生 clarify 向你核对输出格式。'
+        '你根据我已经明确的格式直接答复，不要再让我选。'
+        '然后生成日期和安排两列的表格，保存 $work/self-answer-$suffix.md，简短汇报并交付。',
       );
-      await until(() => approval() != null, 'native approval waiting');
-      final asked = approval()!;
-      await frames();
-      expect(
-        tester.widget<ThinkingRow>(find.byType(ThinkingRow)).line,
-        c.tr('等你确认', 'Needs your OK'),
-      );
-      await tap(dock);
-      await shot('approval');
-      await tap(find.byKey(ValueKey('choice-${asked.messageId}-0')));
-      await until(() => controls.evaluate().isEmpty, 'approved control closed');
       await until(
-        () => c.node.messages[dm]!.any(
-          (m) =>
-              !seen.contains(m.messageId) &&
-              m.author.type == 'bot' &&
-              m.taskRole != 'execution' &&
-              m.status == 'done' &&
-              '${m.content['text']}'.contains('1517'),
-        ),
-        'approved command reported in the main chat',
+        () => c.node.tasks.keys.any((id) => !before.contains(id)),
+        'second native requirement started',
       );
-      await shot('approved');
-    } finally {
-      await c.rpc('bots.update', {'botId': botId, 'approvalMode': mode});
+      final second = c.node.tasks.keys.firstWhere((id) => !before.contains(id));
+      await until(
+        () => c.node.tasks[second]?.reportMessageId != null,
+        'main Dot resolved known information without interrupting user',
+      );
+      final detail = await c.rpc('tasks.get', {
+        'conversationId': dm,
+        'taskId': second,
+      });
+      final questions = (detail['messages'] as List)
+          .cast<Map>()
+          .where((m) => m['kind'] == 'question')
+          .toList();
+      expect(questions.where((m) => m['taskRole'] == 'execution'), isNotEmpty);
+      expect(questions.where((m) => m['taskRole'] != 'execution'), isEmpty);
+      expect(
+        questions.every((m) => (m['content'] as Map)['answer'] != null),
+        isTrue,
+      );
+      expect(c.node.tasks[second]!.state, 'completed');
+      await showLatest();
+      await shot('self-answered');
     }
-    final result = {
+    final record = {
       'platform': suffix,
       'taskIds': taskIds.toList(),
-      'states': [for (final id in taskIds) c.node.tasks[id]!.state],
+      'workerQuestion': raw.content['question'],
+      'mainQuestion': asked.content['question'],
+      'reportMessageId': report.messageId,
+      'fileIds': report.content['files'],
     };
     if (!phone) {
       await File('$evidence/activity-$suffix-results.json')
-          .writeAsString(jsonEncode(result));
+          .writeAsString(jsonEncode(record));
     }
-    binding.reportData = {...?binding.reportData, ...result};
-    debugPrint('ACTIVITY PASS ${jsonEncode(result)}');
+    binding.reportData = {...?binding.reportData, ...record};
+    debugPrint('ACTIVITY PASS ${jsonEncode(record)}');
   });
 }

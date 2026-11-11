@@ -2,13 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../data/client.dart';
 import 'chat_activity.dart';
-import 'chat_controls.dart';
 import 'chat_presentation.dart';
 import 'work.dart';
 
 /// Internal work contributes to one fixed Dot status, never a task navigator.
-/// While the Dot waits for an approval or an answer, the line says so and
-/// opens it.
 class DotActivity extends StatelessWidget {
   final NekodotClient client;
   final ChatPresentation view;
@@ -33,7 +30,6 @@ class DotActivity extends StatelessWidget {
             ? client.tr('等你确认', 'Needs your OK')
             : client.tr('等你回答', 'Needs your answer'),
         moving: false,
-        onTap: () => openControls(context, client, id),
       );
     }
     if (tasks.isEmpty && !view.running) return const SizedBox.shrink();

@@ -188,14 +188,19 @@ void main() {
       );
       await until(
         () => recent().any(
-          (m) => m.kind == 'question' && m.status == 'streaming',
+          (m) =>
+              m.taskRole != 'execution' &&
+              m.kind == 'question' &&
+              m.status == 'streaming',
         ),
       );
       final question = recent().firstWhere(
-        (m) => m.kind == 'question' && m.status == 'streaming',
+        (m) =>
+            m.taskRole != 'execution' &&
+            m.kind == 'question' &&
+            m.status == 'streaming',
       );
       await shot('question-waiting');
-      await tap(find.byKey(const ValueKey('dot-activity')));
       await fault(true);
       await tap(find.byKey(ValueKey('choice-${question.messageId}-0')));
       await fault(false);
@@ -223,7 +228,6 @@ void main() {
       await until(() => c.connection.ready);
       await tester.runAsync(() => c.loadMessages(dm));
       expect(messages().map((m) => m.messageId).toSet(), containsAll(ids));
-      await tap(find.byKey(const ValueKey('dot-activity')));
       await fault(true);
       await tap(find.byKey(ValueKey('choice-${approval.messageId}-0')));
       await fault(false);

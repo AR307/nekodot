@@ -303,10 +303,6 @@ void main() {
     Finder tile(ChatMessage m) => find.byWidgetPredicate(
       (w) => w is MessageTile && w.message.messageId == m.messageId,
     );
-    // An approval or a question opens over the chat from the Dot's line.
-    Finder control(ChatMessage m) => find.byWidgetPredicate(
-      (w) => w is ControlCard && w.message.messageId == m.messageId,
-    );
 
     // Waits for the Bot, allowing once whatever it asks to run on the way,
     // through the approval card's first choice.
@@ -324,18 +320,12 @@ void main() {
         final allow = pending == null
             ? null
             : find.byKey(ValueKey('choice-${pending.messageId}-0'));
-        final dot = find.byKey(const ValueKey('dot-activity'));
-        if (allow != null &&
-            allow.evaluate().isEmpty &&
-            dot.evaluate().isNotEmpty) {
-          await tap(dot);
-        }
         if (allow != null && allow.evaluate().isNotEmpty) {
           final choices = object(pending!.content)['choices'] as List?;
           expect(
             find.descendant(
-              of: control(pending),
-              matching: find.byType(OutlinedButton),
+              of: tile(pending),
+              matching: find.byType(ChoiceRow),
             ),
             findsNWidgets(choices?.length ?? 2),
           );
@@ -344,6 +334,7 @@ void main() {
             findsOneWidget,
           );
           if (approvals++ == 0) {
+            await reveal(tile(pending));
             await shot('approval');
             note('approval', object(pending.content));
           }
@@ -406,26 +397,34 @@ void main() {
     );
     await until(
       () =>
-          fresh(seen, (m) => m.kind == 'question' && m.status == 'streaming') !=
+          fresh(
+            seen,
+            (m) =>
+                m.taskRole != 'execution' &&
+                m.kind == 'question' &&
+                m.status == 'streaming',
+          ) !=
           null,
       seconds: 300,
       what: 'a native question',
     );
-    final question = fresh(seen, (m) => m.kind == 'question')!;
+    final question = fresh(
+      seen,
+      (m) => m.taskRole != 'execution' && m.kind == 'question',
+    )!;
     final choices = object(question.content)['choices'] as List;
     note('question', object(question.content));
     final first = find.byKey(ValueKey('choice-${question.messageId}-0'));
-    expect(tile(question), findsNothing);
-    await tap(find.byKey(const ValueKey('dot-activity')));
     await until(() => first.evaluate().isNotEmpty, what: 'choices shown');
     expect(
-      find.descendant(of: control(question), matching: find.byType(ChoiceRow)),
+      find.descendant(of: tile(question), matching: find.byType(ChoiceRow)),
       findsNWidgets(choices.length),
     );
     expect(
       find.descendant(of: first, matching: find.text('A')),
       findsOneWidget,
     );
+    await reveal(tile(question));
     await shot('question');
     await tap(first);
     await until(
@@ -436,7 +435,7 @@ void main() {
       what: 'question answered',
     );
     await working(idle, what: 'reply after the answer');
-    expect(control(question), findsNothing);
+    await reveal(tile(question));
     await shot('question-answered');
     note('questionAnswered', '${choices.first}');
 

@@ -182,7 +182,7 @@ void main() {
             .firstOrNull;
         if (pending != null) {
           await shot('waiting-${pending.kind}');
-          // The graph step opens the same card the Dot's line opens.
+          // Locate the original card through the graph, not a second approval surface.
           await tap(find.byKey(ValueKey('flow-step-${pending.stepId}')));
           if (pending.kind == 'approval') {
             await tap(find.text('允许一次'));

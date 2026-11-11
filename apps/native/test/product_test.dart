@@ -303,9 +303,7 @@ void main() {
     client.dispose();
   });
 
-  testWidgets('A waiting question opens from the Dot line, not the history', (
-    tester,
-  ) async {
+  testWidgets('Questions stay in chat; activity is read-only', (tester) async {
     final client = JourneyClient();
     Json question(String status) => {
       'messageId': 'q1',
@@ -346,25 +344,22 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     final line = find.byKey(const ValueKey('dot-activity'));
     final controls = find.byKey(const ValueKey('chat-controls'));
-    expect(find.text('List or table?'), findsNothing);
+    expect(find.text('List or table?'), findsOneWidget);
     expect(
       find.descendant(of: line, matching: find.text('等你回答')),
       findsOneWidget,
     );
-    // The waiting Dot's avatar keeps moving, so frames are pumped by time.
     await tester.tap(line);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
-    expect(
-      find.descendant(of: controls, matching: find.text('List or table?')),
-      findsOneWidget,
-    );
+    expect(controls, findsNothing);
+    expect(find.byType(Dialog), findsNothing);
     await tester.tap(find.byKey(const ValueKey('choice-q1-0')));
     await tester.pump();
     expect(client.answers, [
       {'messageId': 'q1', 'answer': 'List'},
     ]);
-    // The Node settles the question; the card leaves and the chat stays.
+    // The answered card remains a record in the same conversation.
     client.node.messages['dm']![1] = ChatMessage.fromJson(question('done'));
     client.node.activities['dm'] = const ConversationActivity.idle();
     client.notifyListeners();

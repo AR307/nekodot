@@ -217,13 +217,13 @@ void main() {
             .where(
               (m) =>
                   !creationSeen.contains(m.messageId) &&
+                  m.taskRole != 'execution' &&
                   m.kind == 'question' &&
                   m.status == 'streaming',
             )
             .firstOrNull;
         if (question != null && !answeredBeforeCreation) {
           await shot('question');
-          await tap(find.byKey(const ValueKey('dot-activity')));
           final field = find.byKey(ValueKey('answer-${question.messageId}'));
           await tap(field);
           await tester.enterText(field, timeRule);
@@ -297,7 +297,6 @@ void main() {
             )
             .firstOrNull;
         if (readback != null) {
-          await tap(find.byKey(const ValueKey('dot-activity')));
           await tap(find.byKey(ValueKey('choice-${readback.messageId}-0')));
           note('readbackApprovedOnce', true);
         }
@@ -362,7 +361,6 @@ void main() {
       note('executionId', executionId);
       expect(approval!.content['choices'], ['once', 'deny']);
       await shot('waiting-approval');
-      await tap(find.byKey(const ValueKey('dot-activity')));
       await tap(find.byKey(ValueKey('choice-${approval!.messageId}-0')));
       await shot('approved');
     }

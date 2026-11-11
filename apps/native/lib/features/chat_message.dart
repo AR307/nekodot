@@ -143,9 +143,16 @@ class _MessageTileState extends State<MessageTile> {
             ),
           ),
     ];
-    final card = const {'secret', 'routine'}.contains(kind);
+    final card = const {
+      'secret',
+      'routine',
+      'approval',
+      'question',
+    }.contains(kind);
     Widget? content;
-    if (kind == 'secret') {
+    if (kind == 'approval' || kind == 'question') {
+      content = ControlCard(client: c, message: m);
+    } else if (kind == 'secret') {
       content = SecretCard(
         key: ValueKey(m.messageId),
         client: c,

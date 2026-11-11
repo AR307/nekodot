@@ -11,8 +11,7 @@ class ChatPresentation {
   final ConversationActivity activity;
   final List<ChatMessage> messages;
 
-  /// Approvals and questions still waiting for you. They are answered from
-  /// the status line above the composer, never in the history.
+  /// User-facing controls remain in the conversation, not the activity line.
   final List<ChatMessage> controls;
   final String title;
   ChatPresentation._(
@@ -45,8 +44,9 @@ class ChatPresentation {
     final messages = visibleChatMessages(loaded)
         .where(
           (row) =>
-              !isControl(row) &&
-              (row.taskRole != 'execution' || row.kind == 'secret'),
+              row.taskRole != 'execution' ||
+              row.kind == 'secret' ||
+              row.kind == 'approval',
         )
         .toList();
     final lastBot = messages
@@ -76,7 +76,7 @@ class ChatPresentation {
       members,
       activity,
       messages,
-      pendingControls(loaded),
+      pendingControls(messages),
       title,
     );
   }

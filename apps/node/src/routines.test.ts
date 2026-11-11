@@ -17,7 +17,14 @@ function makeRoutines(db: NodeDatabase, hermes: HermesRuntime, notifications: No
     stop: async () => {},
     answer: async (messageId, answer) => controls.respondToQuestion({ messageId, answer }),
   });
-  const controls = new RunControls(db, hermes, new ExecutionFlows(db), notifications, () => {});
+  const controls: RunControls = new RunControls(
+    db,
+    hermes,
+    new ExecutionFlows(db),
+    notifications,
+    () => {},
+    (run, question) => tasks.consult(run, question),
+  );
   routines.scrub = (_, text) => text;
   routines.onExecution = async (routine, execution, conversationId, prompts, generation) => {
     const run = tasks.background(routine, execution, conversationId, generation);
