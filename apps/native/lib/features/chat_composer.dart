@@ -105,6 +105,12 @@ class ChatComposerState extends State<ChatComposer> {
   }
 
   @override
+  void didUpdateWidget(covariant ChatComposer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.view.running && !widget.view.running) reasoningRevision++;
+  }
+
+  @override
   void dispose() {
     c.deliveries.removeListener(deliveriesChanged);
     input.dispose();
@@ -512,7 +518,7 @@ class ChatComposerState extends State<ChatComposer> {
               key: ValueKey('${c.selectedNodeId}:$id:${bot['model']}'),
               client: c,
               botId: '${bot['botId']}',
-              enabled: !running && !sending,
+              enabled: !sending,
               revision: reasoningRevision,
               onSaving: (value) {
                 if (mounted) setState(() => savingReasoning = value);

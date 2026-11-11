@@ -4,6 +4,7 @@ export const providerApiModeSchema = z.enum([
   'chat_completions',
   'codex_responses',
   'anthropic_messages',
+  'gemini_generate_content',
 ]);
 export const reasoningLevelSchema = z.enum([
   'none',
