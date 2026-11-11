@@ -25,3 +25,6 @@ plugins {
 }
 
 include(":app")
+val spaceWebView = project(":flutter_inappwebview_android")
+gradle.extra["spaceWebViewSource"] = spaceWebView.projectDir
+spaceWebView.projectDir = file("space_webview")

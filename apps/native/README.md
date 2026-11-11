@@ -1,19 +1,22 @@
 # nekodot native
 
 Windows / Android 的 Flutter 客户端。界面由 Flutter 绘制，屏幕通过
-`vnc-rs → flutter_rust_bridge → ui.Image` 解码与显示，不包含 WebView。
-Hermes 和 Node 仍在服务器运行，客户端不安装或运行本地 agent。
+`vnc-rs → flutter_rust_bridge → ui.Image` 解码与显示。
+Space HTML 使用系统 WebView2 / Android WebView；其他页面仍为 Flutter 原生。
+Hermes 和 Node 在用户本机或 VPS 运行，客户端不增加 Agent 执行循环。
 
 ## 结构
 
 - `lib/data/client.dart`：HTTPS、业务 WSS、RPC、snapshot/since/seq/offset、草稿及安全登录存储。
 - `lib/features/`：账号、节点、Bot、聊天、记忆、文件、扩展与设置。
+- `lib/data/spaces.dart`：按账号、Node、空间隔离的记录与离线修改队列。
+- `lib/features/spaces.dart`、`space_webview.dart`：空间入口、缓存资源拦截及受限记录桥。
 - `lib/screen/`、`rust/`：认证 WSS、RFB 解码、原生控制权与输入。
 - `lib/platform/`：Windows 托盘/窗口、Android FCM 和系统通知。
 - `lib/ui/design.dart`：黑白 tokens（Windows 实色、Android 毛玻璃）、圆形猫头像与页面转场；`lib/ui/parts.dart`：共用组件。
 - `integration_test/`：显式启用的真实远程旅程；日常测试不调用模型。
 
-只持久保存登录态、语言、选择项与系统设置。聊天正文来自服务器，草稿只在当前进程保留。
+本端保存登录态、偏好、草稿、已缓存聊天与空间；空间内容和使用记录的服务端副本仅在所属 Node。
 一个 Bot 仍对应一个 Hermes profile，不实现另一套 agent 或打断状态机。
 
 ## 开发与构建
@@ -32,7 +35,11 @@ node scripts/build-native.mjs android --firebase <private-google-services.json> 
 Android applicationId 为 `app.nekodot.client`，最低 Android 10，版本 `0.2.0+3`。
 默认构建 arm64；模拟器使用 `--target-platform android-x64 --debug`。
 正式包沿用原有私有签名；Firebase、签名及真实测试 defines 不得提交或随测试包分发。
-Windows 要求 VS 2022 Desktop C++ 工具链及 Windows SDK。编译通过不代替安装与通知验收。
+Windows 要求 VS 2022 Desktop C++ 工具链、Windows SDK 和 NuGet CLI。
+NuGet 用于 WebView 插件的构建依赖，可放在 PATH 或仓库 `.runtime/tools/nuget.exe`，不随客户端分发。
+运行 Space 需要系统 WebView2 Runtime。编译通过不代替安装与通知验收。
+`android/space_webview/build.gradle` 仅替换固定 WebView 插件的旧 Gradle 配置以使用本项目 AGP 9；不修改共享 Pub 缓存、Java 实现或依赖版本。
+Windows 0.6.0 插件的 environment 工厂使用了错误的 MethodChannel ID；Space 适配层将它绑定回实际实例 ID，正常释放 WebView2，不吞掉销毁异常。
 服务地址只在构建时使用 `--relay <https-url>` 设置，不提供明文公网模式。
 
 桥接 API 变化后通过 `node scripts/flutter.mjs bridge generate` 重新生成代码。

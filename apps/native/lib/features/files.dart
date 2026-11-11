@@ -20,8 +20,12 @@ import '../ui/message_markdown.dart';
 import 'bot_editor.dart';
 import 'office_preview.dart';
 
-Future<Uint8List> downloadFile(NekodotClient c, String id) async {
-  final nodeId = c.selectedNodeId, token = c.account.token;
+Future<Uint8List> downloadFile(
+  NekodotClient c,
+  String id, {
+  String? targetNode,
+}) async {
+  final nodeId = targetNode ?? c.selectedNodeId, token = c.account.token;
   final cached = c.store?.file('files/$nodeId/$id');
   if (cached != null && await cached.exists()) return cached.readAsBytes();
   final response = await http

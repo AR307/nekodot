@@ -64,6 +64,7 @@ class ChatComposerState extends State<ChatComposer> {
   String get id => widget.conversationId;
   String get draftKey => '${c.selectedNodeId}:$id';
   Json? get routineDraft => c.routineDrafts[draftKey];
+  Json? get spaceDraft => c.spaceDrafts[draftKey];
   Json? get taskDraft =>
       quoted != null && c.workspace['taskQuote:$draftKey'] is Map
       ? object(c.workspace['taskQuote:$draftKey'])
@@ -163,6 +164,7 @@ class ChatComposerState extends State<ChatComposer> {
         .map((file) => Map<String, dynamic>.from(file))
         .toList();
     final routineId = routineDraft?['executionId'];
+    final spaceId = spaceDraft?['spaceId'];
     final taskId = taskDraft?['taskId'];
     setState(() {
       sending = true;
@@ -183,11 +185,15 @@ class ChatComposerState extends State<ChatComposer> {
           'clientMsgId': uid(),
           'taskId': ?taskId,
           if (!command && routineId != null) 'routineExecutionId': routineId,
+          if (!command && spaceId != null) 'spaceId': spaceId,
         },
         nodeId!,
         command ? [] : files,
       );
       if (!command) {
+        if (c.spaceDrafts[key]?['spaceId'] == spaceId) {
+          c.spaceDrafts.remove(key);
+        }
         if (c.routineDrafts[key]?['executionId'] == routineId) {
           c.routineDrafts.remove(key);
         }
@@ -629,6 +635,26 @@ class ChatComposerState extends State<ChatComposer> {
                               : () {
                                   setState(
                                     () => c.routineDrafts.remove(draftKey),
+                                  );
+                                  c.saveContent();
+                                },
+                        ),
+                      if (spaceDraft != null)
+                        InputChip(
+                          avatar: const Icon(
+                            Icons.web_asset_outlined,
+                            size: 16,
+                          ),
+                          label: Text(
+                            '${spaceDraft!['name']}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onDeleted: sending
+                              ? null
+                              : () {
+                                  setState(
+                                    () => c.spaceDrafts.remove(draftKey),
                                   );
                                   c.saveContent();
                                 },

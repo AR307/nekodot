@@ -15,6 +15,7 @@ import 'files.dart';
 import 'routines.dart';
 import 'secrets.dart';
 import 'work.dart';
+import 'spaces.dart';
 
 /// One line of a bubble is a pill; longer bubbles keep the same round corners.
 const _bubbleRadius = 18.0;
@@ -131,6 +132,11 @@ class _MessageTileState extends State<MessageTile> {
         stopped = m.status == 'failed' || m.status == 'cancelled';
     // Files stand on their own under the words, never inside the bubble.
     final attachments = [
+      for (final spaceId in body['spaces'] as List? ?? [])
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: SpaceCard(client: c, spaceId: '$spaceId'),
+        ),
       if (body['files'] is List)
         for (final fileId in body['files'] as List)
           Padding(

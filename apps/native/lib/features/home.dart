@@ -21,6 +21,8 @@ import 'node_update.dart';
 import 'flowchart.dart';
 import 'search_palette.dart';
 import 'time_labels.dart';
+import '../data/spaces.dart';
+import 'spaces.dart';
 
 class HomePage extends StatefulWidget {
   final NekodotClient client;
@@ -40,7 +42,10 @@ class _HomePageState extends State<HomePage> {
   String? hovered;
   Json? creatingBot;
   final searchField = TextEditingController();
-  final folded = <String>{};
+  String get category =>
+      c.workspace['category:${c.selectedNodeId}'] as String? ?? 'dot';
+  String? selectedSpace;
+  bool expandedSpace = false;
 
   /// The sidebar's width while it is being dragged; saved when let go.
   double? dragging;
@@ -48,7 +53,9 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    conversation = c.workspace['conversation:${c.selectedNodeId}'] as String?;
+    conversation =
+        c.workspace['conversation:$category:${c.selectedNodeId}'] as String?;
+    selectedSpace = c.workspace['space:${c.selectedNodeId}'] as String?;
     final savedDetails = c.workspace['details:${c.selectedNodeId}'];
     if (savedDetails is Map) details = object(savedDetails);
     destinations = c.destinations.stream.listen(openDestination);
@@ -56,7 +63,22 @@ class _HomePageState extends State<HomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (c.pendingDestination != null) {
         openDestination(c.pendingDestination!);
-      } else if (conversation != null &&
+      } else if (category == 'space' &&
+          selectedSpace != null &&
+          c.node.spaces.containsKey(selectedSpace) &&
+          MediaQuery.sizeOf(context).width < 840) {
+        unawaited(
+          pushPage(
+            context,
+            SpacePage(
+              client: c,
+              nodeId: c.selectedNodeId!,
+              spaceId: selectedSpace!,
+            ),
+          ),
+        );
+      } else if (category != 'space' &&
+          conversation != null &&
           MediaQuery.sizeOf(context).width < 840 &&
           c.node.conversations.any(
             (v) => v['conversationId'] == conversation,
@@ -163,9 +185,16 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> open(Json value, bool narrow) async {
     final id = value['conversationId'] as String;
+    final kind = value['kind'] == 'group' ? 'group' : 'dot';
+    c.workspace['category:${c.selectedNodeId}'] = kind;
+    c.workspace['conversation:$kind:${c.selectedNodeId}'] = id;
     c.workspace['conversation:${c.selectedNodeId}'] = id;
     c.workspace.remove('details:${c.selectedNodeId}');
     c.saveContent();
+    setState(() {
+      conversation = id;
+      expandedSpace = false;
+    });
     if (narrow) {
       await pushPage(context, ChatPage(client: c, conversationId: id));
     } else {
@@ -197,7 +226,10 @@ class _HomePageState extends State<HomePage> {
           openPage(context, _addComputer());
         } else {
           setState(() {
-            conversation = null;
+            final kind = c.workspace['category:$id'] as String? ?? 'dot';
+            conversation = c.workspace['conversation:$kind:$id'] as String?;
+            selectedSpace = c.workspace['space:$id'] as String?;
+            expandedSpace = false;
             details = null;
             flowFocus = null;
             previewFile = null;
@@ -287,17 +319,29 @@ class _HomePageState extends State<HomePage> {
     ],
   );
 
-  Widget createMenu() => PopupMenuButton<String>(
-    tooltip: c.tr('新建', 'Create'),
-    position: PopupMenuPosition.under,
-    constraints: menuConstraints,
-    icon: const Icon(Icons.add),
-    onSelected: create,
-    itemBuilder: createItems,
-  );
+  Widget createMenu() => category == 'space'
+      ? IconButton(
+          tooltip: c.tr('新建空间', 'New space'),
+          icon: const Icon(Icons.add),
+          onPressed: () => create('space'),
+        )
+      : PopupMenuButton<String>(
+          tooltip: c.tr('新建', 'Create'),
+          position: PopupMenuPosition.under,
+          constraints: menuConstraints,
+          icon: const Icon(Icons.add),
+          onSelected: create,
+          itemBuilder: createItems,
+        );
 
   /// New Bot, new group, and the skills and plugins a Bot can be given.
   List<PopupMenuEntry<String>> createItems(BuildContext context) => [
+    menuItem(
+      context,
+      value: 'space',
+      icon: Icons.web_asset_outlined,
+      label: c.tr('新建空间', 'New space'),
+    ),
     menuItem(
       context,
       value: 'bot',
@@ -320,6 +364,17 @@ class _HomePageState extends State<HomePage> {
   ];
 
   Future<void> create(String value) async {
+    if (value == 'space') {
+      final created = await openPage<Json>(
+        context,
+        CreateSpacePage(client: c),
+        form: true,
+      );
+      if (created != null && mounted) {
+        await open(created, MediaQuery.sizeOf(context).width < 840);
+      }
+      return;
+    }
     if (value != 'plugins') {
       final nodeId = c.selectedNodeId;
       final created = await openPage<Json>(
@@ -386,16 +441,7 @@ class _HomePageState extends State<HomePage> {
           icon: accountMark(34),
         ),
         Expanded(child: Center(child: nodePicker())),
-        floatingRound(
-          child: PopupMenuButton<String>(
-            tooltip: c.tr('新建', 'Create'),
-            position: PopupMenuPosition.under,
-            constraints: menuConstraints,
-            icon: const Icon(Icons.add),
-            onSelected: create,
-            itemBuilder: createItems,
-          ),
-        ),
+        floatingRound(child: createMenu()),
       ],
     ),
   );
@@ -712,70 +758,53 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// A titled, foldable run of rows. Searching opens every section.
-  List<Widget> section(
-    String key,
-    String label,
-    List<Json> items,
-    bool narrow,
-  ) {
-    if (items.isEmpty) return const [];
-    final tone = context.tone;
-    final text = Theme.of(context).textTheme;
-    final still = MediaQuery.disableAnimationsOf(context);
-    final open = !folded.contains(key) || search.isNotEmpty;
-    return [
-      InkWell(
-        key: ValueKey('section-$key'),
-        customBorder: RoundedSuperellipseBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        onTap: () => setState(() {
-          if (!folded.remove(key)) folded.add(key);
-        }),
-        child: SizedBox(
-          height: tone.glass ? 48 : 40,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 10, 0),
-            child: Row(
-              children: [
-                Text(
-                  label,
-                  style: text.titleMedium?.copyWith(
-                    fontSize: tone.glass ? 15 : 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${items.length}',
-                  style: text.bodySmall?.copyWith(
-                    fontSize: 13,
-                    color: tone.ink3,
-                  ),
-                ),
-                const Spacer(),
-                AnimatedRotation(
-                  turns: open ? 0 : .5,
-                  duration: still
-                      ? Duration.zero
-                      : const Duration(milliseconds: 180),
-                  child: Icon(Icons.expand_less, size: 16, color: tone.ink3),
-                ),
-              ],
-            ),
-          ),
-        ),
+  void selectCategory(String value) {
+    setState(() {
+      c.workspace['category:${c.selectedNodeId}'] = value;
+      conversation =
+          c.workspace['conversation:$value:${c.selectedNodeId}'] as String?;
+      details = null;
+      flowFocus = null;
+      previewFile = null;
+      expandedSpace = false;
+    });
+    c.saveContent();
+  }
+
+  void showSpace(Space space) {
+    c.workspace['category:${c.selectedNodeId}'] = 'space';
+    c.workspace['space:${c.selectedNodeId}'] = space.spaceId;
+    c.saveContent();
+    setState(() {
+      selectedSpace = space.spaceId;
+      expandedSpace = false;
+      details = null;
+      flowFocus = null;
+      previewFile = null;
+    });
+    if (MediaQuery.sizeOf(context).width < 840) {
+      pushPage(
+        context,
+        SpacePage(client: c, nodeId: c.selectedNodeId!, spaceId: space.spaceId),
+      );
+    }
+  }
+
+  Widget spaceRow(Space space, bool narrow) {
+    final bot = c.node.bots.where((b) => b['botId'] == space.botId).firstOrNull;
+    return ListTile(
+      shape: RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(12)),
+      selected: !narrow && selectedSpace == space.spaceId,
+      selectedTileColor: context.tone.raised,
+      leading: CatAvatar.of(bot ?? {}, size: context.tone.glass ? 44 : 40),
+      title: Text(space.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        '${bot?['displayName'] ?? ''}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
-      SizeMotion(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        alignment: Alignment.topCenter,
-        child: open
-            ? Column(children: [for (final value in items) row(value, narrow)])
-            : const SizedBox(width: double.infinity),
-      ),
-    ];
+      onTap: () => showSpace(space),
+    );
   }
 
   Future<void> signOut() async {
@@ -895,6 +924,9 @@ class _HomePageState extends State<HomePage> {
                 ),
         );
         final shown = active.where((value) {
+          if ((value['kind'] == 'group' ? 'group' : 'dot') != category) {
+            return false;
+          }
           final entity = value['kind'] == 'group'
               ? c.node.groups.firstWhere(
                   (x) => x['groupId'] == value['groupId'],
@@ -906,7 +938,8 @@ class _HomePageState extends State<HomePage> {
         }).toList();
         final conversations = ListenableBuilder(
           listenable: c.node.summaries,
-          builder: (context, _) => active.isEmpty && creatingBot == null
+          builder: (context, _) =>
+              active.isEmpty && creatingBot == null && category != 'space'
               ? Center(
                   child: IconButton(
                     tooltip: c.selectedNodeId == null
@@ -919,9 +952,13 @@ class _HomePageState extends State<HomePage> {
                   ),
                 )
               : ListView(
+                  key: PageStorageKey(
+                    '${c.account.me?['user']?['userId']}:${c.selectedNodeId}:$category',
+                  ),
                   padding: EdgeInsets.fromLTRB(8, 0, 8, tone.glass ? 92 : 8),
                   children: [
-                    if (creatingBot?['nodeId'] == c.selectedNodeId &&
+                    if (category == 'dot' &&
+                        creatingBot?['nodeId'] == c.selectedNodeId &&
                         creatingBot != null)
                       ListTile(
                         key: const ValueKey('bot-creating'),
@@ -933,21 +970,39 @@ class _HomePageState extends State<HomePage> {
                         ),
                         subtitle: ShiningText(text: c.tr('创建中…', 'Creating…')),
                       ),
-                    ...section('groups', c.tr('群聊', 'Groups'), [
-                      for (final x in shown)
-                        if (x['kind'] == 'group') x,
-                    ], narrow),
-                    const SizedBox(height: 16),
-                    ...section('bots', 'Bot', [
-                      for (final x in shown)
-                        if (x['kind'] == 'dm') x,
-                    ], narrow),
+                    for (final x in shown) row(x, narrow),
+                    if (category == 'space')
+                      for (final space in c.node.spaces.values.where(
+                        (s) =>
+                            s.version > 0 &&
+                            !s.archived &&
+                            s.name.toLowerCase().contains(search),
+                      ))
+                        spaceRow(space, narrow),
                   ],
                 ),
         );
         final list = Column(
           children: [
             tone.glass ? glassTop() : top(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Segment<String>(
+                      value: category,
+                      options: {
+                        'dot': const Text('Dot'),
+                        'group': Text(c.tr('群聊', 'Groups')),
+                        'space': Text(c.tr('空间', 'Spaces')),
+                      },
+                      onChanged: selectCategory,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             if (c.online && updateCommand != null)
               NodeUpdateNotice(
                 key: ValueKey('${c.selectedNodeId}:$updateCommand'),
@@ -982,14 +1037,14 @@ class _HomePageState extends State<HomePage> {
           ],
         );
         final hasChat =
+            category != 'space' &&
             conversation != null &&
             active.any((x) => x['conversationId'] == conversation);
         final panel = hasChat ? details : null;
         final widest = (constraints.maxWidth - 420).clamp(240.0, 560.0);
-        final sidebar = (dragging ?? c.prefs.sidebarWidth ?? 280.0).clamp(
-          240.0,
-          widest,
-        );
+        final sidebar = expandedSpace && category == 'space'
+            ? 0.0
+            : (dragging ?? c.prefs.sidebarWidth ?? 280.0).clamp(240.0, widest);
         final flowShown = hasChat && flowFocus != null;
         final fileShown = hasChat && previewFile != null;
         final panelShown = fileShown || flowShown || panel != null;
@@ -1032,149 +1087,181 @@ class _HomePageState extends State<HomePage> {
               }
             }
           },
-          child: Scaffold(
-            body: narrow
-                ? SafeArea(child: list)
-                : FilePreviewScope(
-                    open: (file) => setState(() {
-                      previewFile = file;
-                      expandedFile = false;
-                      details = null;
-                      c.workspace.remove('details:${c.selectedNodeId}');
-                      c.saveContent();
-                      flowFocus = null;
-                    }),
-                    child: Stack(
-                      children: [
-                        Row(
-                          children: [
-                            SizedBox(
-                              width: sidebar,
-                              child: Material(color: tone.sidebar, child: list),
-                            ),
-                            const VerticalDivider(width: 1),
-                            Expanded(
-                              child: AnimatedPadding(
-                                duration:
-                                    MediaQuery.disableAnimationsOf(context)
-                                    ? Duration.zero
-                                    : Duration(
-                                        milliseconds: panelShown ? 240 : 180,
-                                      ),
-                                curve: Curves.easeOutCubic,
-                                padding: EdgeInsets.only(
-                                  right: inlinePanel ? panelWidth : 0,
+          child: SpaceScope(
+            open: showSpace,
+            child: Scaffold(
+              body: narrow
+                  ? SafeArea(child: list)
+                  : FilePreviewScope(
+                      open: (file) => setState(() {
+                        previewFile = file;
+                        expandedFile = false;
+                        details = null;
+                        c.workspace.remove('details:${c.selectedNodeId}');
+                        c.saveContent();
+                        flowFocus = null;
+                      }),
+                      child: Stack(
+                        children: [
+                          Row(
+                            children: [
+                              if (sidebar > 0)
+                                SizedBox(
+                                  width: sidebar,
+                                  child: Material(
+                                    color: tone.sidebar,
+                                    child: list,
+                                  ),
                                 ),
-                                child: hasChat
-                                    ? ChatPage(
+                              if (sidebar > 0) const VerticalDivider(width: 1),
+                              Expanded(
+                                child: AnimatedPadding(
+                                  duration:
+                                      MediaQuery.disableAnimationsOf(context)
+                                      ? Duration.zero
+                                      : Duration(
+                                          milliseconds: panelShown ? 240 : 180,
+                                        ),
+                                  curve: Curves.easeOutCubic,
+                                  padding: EdgeInsets.only(
+                                    right: inlinePanel ? panelWidth : 0,
+                                  ),
+                                  child:
+                                      category == 'space' &&
+                                          selectedSpace != null &&
+                                          c.node.spaces.containsKey(
+                                            selectedSpace,
+                                          )
+                                      ? SpacePage(
+                                          key: ValueKey(
+                                            '${c.selectedNodeId}:$selectedSpace',
+                                          ),
+                                          client: c,
+                                          nodeId: c.selectedNodeId!,
+                                          spaceId: selectedSpace!,
+                                          embedded: true,
+                                          expanded: expandedSpace,
+                                          onExpand: () => setState(
+                                            () =>
+                                                expandedSpace = !expandedSpace,
+                                          ),
+                                        )
+                                      : hasChat
+                                      ? ChatPage(
+                                          key: ValueKey(
+                                            '${c.selectedNodeId}:$conversation',
+                                          ),
+                                          client: c,
+                                          conversationId: conversation!,
+                                          embedded: true,
+                                          readingVisible:
+                                              !panelShown || inlinePanel,
+                                          reserveControls: !panelShown,
+                                          onDetails: (bot) => setState(() {
+                                            details = bot;
+                                            c.workspace['details:${c.selectedNodeId}'] =
+                                                bot;
+                                            c.saveContent();
+                                            flowFocus = null;
+                                            previewFile = null;
+                                          }),
+                                          flowOpen: flowShown,
+                                          onFlow: (focus) => setState(() {
+                                            details = null;
+                                            c.workspace.remove(
+                                              'details:${c.selectedNodeId}',
+                                            );
+                                            c.saveContent();
+                                            previewFile = null;
+                                            flowFocus = flowFocus == null
+                                                ? focus
+                                                : null;
+                                          }),
+                                        )
+                                      : Stack(
+                                          children: const [
+                                            Positioned.fill(
+                                              child: WindowDrag(),
+                                            ),
+                                            Center(
+                                              child: Opacity(
+                                                opacity: .08,
+                                                child: CatAvatar(size: 72),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (panelShown && !inlinePanel)
+                            Positioned.fill(
+                              child: GestureDetector(
+                                onTap: closePanel,
+                                child: const ColoredBox(color: Colors.black26),
+                              ),
+                            ),
+                          Positioned(
+                            key: const ValueKey('workspace-side-panel'),
+                            top: 0,
+                            bottom: 0,
+                            right: 0,
+                            child: SidePanel(
+                              width: panelWidth,
+                              child: fileShown
+                                  ? SafeArea(
+                                      child: FileViewer(
                                         key: ValueKey(
-                                          '${c.selectedNodeId}:$conversation',
+                                          '${c.selectedNodeId}:${previewFile!['fileId']}',
                                         ),
                                         client: c,
-                                        conversationId: conversation!,
-                                        embedded: true,
-                                        readingVisible:
-                                            !panelShown || inlinePanel,
-                                        reserveControls: !panelShown,
-                                        onDetails: (bot) => setState(() {
-                                          details = bot;
-                                          c.workspace['details:${c.selectedNodeId}'] =
-                                              bot;
-                                          c.saveContent();
-                                          flowFocus = null;
-                                          previewFile = null;
-                                        }),
-                                        flowOpen: flowShown,
-                                        onFlow: (focus) => setState(() {
-                                          details = null;
-                                          c.workspace.remove(
-                                            'details:${c.selectedNodeId}',
-                                          );
-                                          c.saveContent();
-                                          previewFile = null;
-                                          flowFocus = flowFocus == null
-                                              ? focus
-                                              : null;
-                                        }),
-                                      )
-                                    : Stack(
-                                        children: const [
-                                          Positioned.fill(child: WindowDrag()),
-                                          Center(
-                                            child: Opacity(
-                                              opacity: .08,
-                                              child: CatAvatar(size: 72),
-                                            ),
-                                          ),
-                                        ],
+                                        file: previewFile!,
+                                        onClose: closePanel,
+                                        expanded: expandedFile,
+                                        onExpand: () => setState(
+                                          () => expandedFile = !expandedFile,
+                                        ),
                                       ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (panelShown && !inlinePanel)
-                          Positioned.fill(
-                            child: GestureDetector(
-                              onTap: closePanel,
-                              child: const ColoredBox(color: Colors.black26),
-                            ),
-                          ),
-                        Positioned(
-                          key: const ValueKey('workspace-side-panel'),
-                          top: 0,
-                          bottom: 0,
-                          right: 0,
-                          child: SidePanel(
-                            width: panelWidth,
-                            child: fileShown
-                                ? SafeArea(
-                                    child: FileViewer(
-                                      key: ValueKey(
-                                        '${c.selectedNodeId}:${previewFile!['fileId']}',
-                                      ),
+                                    )
+                                  : flowShown
+                                  ? flowPanel()
+                                  : panel == null
+                                  ? null
+                                  : BotDetails(
+                                      key: ValueKey(panel['botId']),
                                       client: c,
-                                      file: previewFile!,
+                                      bot: panel,
                                       onClose: closePanel,
-                                      expanded: expandedFile,
-                                      onExpand: () => setState(
-                                        () => expandedFile = !expandedFile,
-                                      ),
                                     ),
-                                  )
-                                : flowShown
-                                ? flowPanel()
-                                : panel == null
-                                ? null
-                                : BotDetails(
-                                    key: ValueKey(panel['botId']),
-                                    client: c,
-                                    bot: panel,
-                                    onClose: closePanel,
-                                  ),
+                            ),
                           ),
-                        ),
-                        Positioned(
-                          left: sidebar - 4,
-                          top: 0,
-                          bottom: 0,
-                          width: 9,
-                          child: SplitHandle(
-                            onDrag: (dx) => setState(
-                              () => dragging = (sidebar + dx).clamp(
-                                240.0,
-                                widest,
+                          if (sidebar > 0)
+                            Positioned(
+                              left: sidebar - 4,
+                              top: 0,
+                              bottom: 0,
+                              width: 9,
+                              child: SplitHandle(
+                                onDrag: (dx) => setState(
+                                  () => dragging = (sidebar + dx).clamp(
+                                    240.0,
+                                    widest,
+                                  ),
+                                ),
+                                onEnd: () {
+                                  final width = dragging;
+                                  setState(() => dragging = null);
+                                  if (width != null) {
+                                    c.prefs.setSidebarWidth(width);
+                                  }
+                                },
                               ),
                             ),
-                            onEnd: () {
-                              final width = dragging;
-                              setState(() => dragging = null);
-                              if (width != null) c.prefs.setSidebarWidth(width);
-                            },
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
+            ),
           ),
         );
       },

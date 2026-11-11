@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'json.dart';
 import 'flow.dart';
 import 'tasks.dart';
+import 'spaces.dart';
 
 class NodeData extends ChangeNotifier {
   final summaries = ValueNotifier<int>(0);
@@ -17,6 +18,7 @@ class NodeData extends ChangeNotifier {
   }
 
   List<Json> bots = [], groups = [], conversations = [];
+  final spaces = <String, Space>{};
 
   /// What the node can do: host (server/desktop), Bot screens and desktop control.
   Json capabilities = {};
@@ -74,6 +76,11 @@ class NodeData extends ChangeNotifier {
     bots = objects(data['bots']);
     groups = objects(data['groups']);
     conversations = objects(data['conversations']);
+    spaces.clear();
+    for (final value in objects(data['spaces'])) {
+      final space = Space.fromJson(value);
+      spaces[space.spaceId] = space;
+    }
     latest = {
       for (final message in objects(data['latest']))
         message['conversationId'] as String: ChatMessage.fromJson(message),
@@ -105,6 +112,10 @@ class NodeData extends ChangeNotifier {
       seq = p['seq'] as int;
       final data = object(p['data']);
       switch (p['kind']) {
+        case 'space.upserted':
+          final space = Space.fromJson(data);
+          spaces[space.spaceId] = space;
+          notifyListeners();
         case 'task.upserted':
           final task = DotTask.fromJson(data);
           tasks[task.taskId] = task;

@@ -91,6 +91,10 @@ extension ClientContent on NekodotClient {
         object(saved['routineDrafts'] ?? {})
             .map((k, v) => MapEntry(k, object(v))),
       );
+      spaceDrafts.addAll(
+        object(saved['spaceDrafts'] ?? {})
+            .map((k, v) => MapEntry(k, object(v))),
+      );
       attachmentDrafts.addAll(
         object(saved['attachments'] ?? {})
             .map((k, v) => MapEntry(k, objects(v))),
@@ -100,6 +104,7 @@ extension ClientContent on NekodotClient {
       object(cached?['values'] ?? {}).map((k, v) => MapEntry(k, object(v))),
     );
     await deliveries.restore();
+    await spaces.restore();
   }
 
   void saveContent([String? nodeId, String? conversation]) {
@@ -137,6 +142,7 @@ extension ClientContent on NekodotClient {
         'drafts': drafts,
         'quotes': quotes,
         'routineDrafts': routineDrafts,
+        'spaceDrafts': spaceDrafts,
         'attachments': attachmentDrafts,
       }),
     );
@@ -147,6 +153,7 @@ extension ClientContent on NekodotClient {
           'bots': n.bots,
           'groups': n.groups,
           'conversations': n.conversations,
+          'spaces': n.spaces.values.map((space) => space.toJson()).toList(),
           'latest': n.latest.values.map((m) => m.toJson()).toList(),
           'headSeq': n.seq,
           'node': n.capabilities,
