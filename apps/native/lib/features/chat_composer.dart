@@ -64,7 +64,8 @@ class ChatComposerState extends State<ChatComposer> {
   String get id => widget.conversationId;
   String get draftKey => '${c.selectedNodeId}:$id';
   Json? get routineDraft => c.routineDrafts[draftKey];
-  Json? get taskDraft => c.workspace['taskQuote:$draftKey'] is Map
+  Json? get taskDraft =>
+      quoted != null && c.workspace['taskQuote:$draftKey'] is Map
       ? object(c.workspace['taskQuote:$draftKey'])
       : null;
 
@@ -124,9 +125,14 @@ class ChatComposerState extends State<ChatComposer> {
   String? quoted;
   final field = FocusNode();
 
-  void quote(String words) {
+  void quote(String words, {String? taskId}) {
     setState(() => quoted = words.trim());
     c.quotes[draftKey] = words.trim();
+    if (taskId == null) {
+      c.workspace.remove('taskQuote:$draftKey');
+    } else {
+      c.workspace['taskQuote:$draftKey'] = {'taskId': taskId};
+    }
     c.saveContent();
     field.requestFocus();
   }
@@ -402,8 +408,7 @@ class ChatComposerState extends State<ChatComposer> {
         bot = widget.view.bot,
         members = widget.view.members,
         running = widget.view.running,
-        waiting = widget.view.waiting,
-        status = widget.view.status(c);
+        waiting = widget.view.waiting;
     final hasText = input.text.trim().isNotEmpty || attached.isNotEmpty;
     final composerField = Focus(
       canRequestFocus: false,
@@ -568,37 +573,6 @@ class ChatComposerState extends State<ChatComposer> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (error.isNotEmpty) ErrorNotice(error),
-                      if (c.node.tasks.values.any(
-                        (task) =>
-                            task.conversationId == id &&
-                            (task.active || task.reportMessageId == null),
-                      ))
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 160),
-                          child: ListView(
-                            shrinkWrap: true,
-                            children: [
-                              for (final task in c.node.tasks.values.where(
-                                (task) =>
-                                    task.conversationId == id &&
-                                    (task.active ||
-                                        task.reportMessageId == null),
-                              ))
-                                TaskLink(client: c, task: task),
-                            ],
-                          ),
-                        ),
-                      if (taskDraft != null)
-                        QuoteChip(
-                          text: '${taskDraft!['title']}',
-                          tooltip: c.tr('取消', 'Cancel'),
-                          onClear: () {
-                            setState(
-                              () => c.workspace.remove('taskQuote:$draftKey'),
-                            );
-                            c.saveContent();
-                          },
-                        ),
 
                       for (final item in c.deliveries.items.where(
                         (i) =>
@@ -768,6 +742,7 @@ class ChatComposerState extends State<ChatComposer> {
                           onClear: () {
                             setState(() => quoted = null);
                             c.quotes.remove(draftKey);
+                            c.workspace.remove('taskQuote:$draftKey');
                             c.saveContent();
                           },
                         ),
@@ -791,6 +766,7 @@ class ChatComposerState extends State<ChatComposer> {
                     ],
                   ),
                 ),
+                DotActivity(client: c, view: widget.view),
                 PromptCard(
                   key: const ValueKey('composer-card'),
                   field: composerField,
@@ -814,7 +790,9 @@ class ChatComposerState extends State<ChatComposer> {
                         if (c.prefs.chatDisplay['statusbar'] == true)
                           Expanded(
                             child: MetaText([
-                              status ?? c.tr('已连接', 'Connected'),
+                              c.online
+                                  ? c.tr('已连接', 'Connected')
+                                  : c.tr('离线', 'Offline'),
                               '${c.tr('Bot 配置', 'Bot config')}: ${bot?['model'] ?? ''}',
                             ], style: Theme.of(context).textTheme.labelSmall),
                           )

@@ -1,214 +1,80 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
-import '../data/chat_models.dart';
 import '../data/client.dart';
-import '../data/json.dart';
-import '../data/node_data.dart';
-import '../data/tasks.dart';
-import '../ui/design.dart';
-import 'chat_message.dart';
+import 'chat_activity.dart';
 import 'chat_presentation.dart';
-import 'flowchart.dart';
 import 'work.dart';
 
-Color taskColor(DotTask task) => switch (task.state) {
-  'completed' => Colors.green,
-  'failed' => Colors.red,
-  'cancelled' || 'queued' || 'unknown' => Colors.grey,
-  _ => Colors.blue,
-};
-
-class TaskLink extends StatelessWidget {
+/// Internal work contributes to one fixed Dot status, never a task navigator.
+class DotActivity extends StatelessWidget {
   final NekodotClient client;
-  final DotTask task;
-  const TaskLink({super.key, required this.client, required this.task});
+  final ChatPresentation view;
+  const DotActivity({super.key, required this.client, required this.view});
+
   @override
   Widget build(BuildContext context) {
-    final bot = client.node.bots
-        .where((b) => b['botId'] == task.botId)
-        .firstOrNull;
-    return InkWell(
-      key: ValueKey('task-${task.taskId}'),
-      onTap: () =>
-          pushPage(context, TaskDetailsPage(client: client, task: task)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Row(
-          children: [
-            if (bot != null) CatAvatar.of(bot, size: 22),
-            const SizedBox(width: 7),
-            Expanded(
-              child: Text(
-                '${bot?['displayName'] ?? ''} · ${compactActivity(task.title)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            Icon(
-              switch (task.state) {
-                'completed' => Icons.check,
-                'failed' => Icons.close,
-                'waiting_approval' || 'waiting_question' => Icons.pause,
-                'cancelled' => Icons.stop_circle_outlined,
-                _ => Icons.circle,
-              },
-              color: taskColor(task),
-              size: 14,
-            ),
-          ],
-        ),
-      ),
+    final id = view.conversation['conversationId'] as String;
+    final tasks = client.node.tasks.values
+        .where(
+          (task) =>
+              task.conversationId == id &&
+              (task.active || task.reportMessageId == null),
+        )
+        .toList();
+    final controls = view.controls;
+    if (controls.isNotEmpty) {
+      return ThinkingRow(
+        key: const ValueKey('dot-activity'),
+        bot: view.bot,
+        line: controls.any((m) => m.kind == 'approval')
+            ? client.tr('等你确认', 'Needs your OK')
+            : client.tr('等你回答', 'Needs your answer'),
+        moving: false,
+      );
+    }
+    if (tasks.isEmpty && !view.running) return const SizedBox.shrink();
+    final names = tasks
+        .map((task) => compactActivity(task.title))
+        .where((name) => name.isNotEmpty)
+        .toSet();
+    final line = names.isNotEmpty
+        ? names.join(client.tr('、', ', '))
+        : !client.online
+        ? client.tr('离线', 'Offline')
+        : view.activity.connection == 'reconnecting'
+        ? client.tr('重连中', 'Reconnecting')
+        : view.activity.stalled
+        ? client.tr('可能卡住', 'No recent progress')
+        : switch (view.state) {
+            'waiting_approval' => client.tr('等你确认', 'Needs your OK'),
+            'waiting_question' => client.tr('等你回答', 'Needs your answer'),
+            'unknown' => client.tr('状态待确认', 'Status unknown'),
+            'tool' => client.tr('工具运行中', 'Using tools'),
+            _ => client.tr('回复中', 'Replying'),
+          };
+    final moving =
+        client.online &&
+        !client.node.syncing &&
+        view.activity.connection != 'reconnecting' &&
+        !view.activity.stalled &&
+        view.state != 'unknown' &&
+        tasks.every(
+          (task) =>
+              task.state != 'unknown' &&
+              client.node.taskActivities[task.taskId]?.connection !=
+                  'reconnecting',
+        ) &&
+        ((view.working && !view.waiting) ||
+            tasks.any(
+              (task) =>
+                  task.state == 'running' &&
+                  client.node.taskActivities[task.taskId]?.stalled != true,
+            ));
+    return ThinkingRow(
+      key: const ValueKey('dot-activity'),
+      bot: view.bot,
+      line: line,
+      moving: moving,
     );
   }
-}
-
-class TaskDetailsPage extends StatefulWidget {
-  final NekodotClient client;
-  final DotTask task;
-  const TaskDetailsPage({super.key, required this.client, required this.task});
-  @override
-  State<TaskDetailsPage> createState() => _TaskDetailsPageState();
-}
-
-class _TaskDetailsPageState extends State<TaskDetailsPage> {
-  late final NodeData node = widget.client.node;
-  late final String nodeId = widget.client.selectedNodeId!;
-  String error = '';
-  String? focusedMessage;
-  final focusedKey = GlobalKey();
-  @override
-  void initState() {
-    super.initState();
-    node.retainMessages(widget.task.conversationId);
-    unawaited(load());
-  }
-
-  Future<void> load() async {
-    try {
-      final result = await widget.client.rpc('tasks.get', {
-        'conversationId': widget.task.conversationId,
-        'taskId': widget.task.taskId,
-      }, nodeId);
-      if (!mounted) return;
-      final messages = node.messages[widget.task.conversationId]!;
-      for (final value in objects(result['messages'])) {
-        final message = ChatMessage.fromJson(value);
-        final at = messages.indexWhere((m) => m.messageId == message.messageId);
-        if (at < 0) {
-          messages.add(message);
-        } else {
-          messages[at] = message;
-        }
-      }
-      messages.sort((a, b) => a.seq.compareTo(b.seq));
-      node.tasks[widget.task.taskId] = DotTask.fromJson(object(result['task']));
-      node.changed(widget.task.conversationId);
-      widget.client.saveContent(nodeId, widget.task.conversationId);
-    } catch (e) {
-      if (mounted && !widget.client.isConnectionFailure(e)) {
-        setState(() => error = '$e');
-      }
-    }
-  }
-
-  Future<void> focusMessage(String id) async {
-    setState(() => focusedMessage = id);
-    await WidgetsBinding.instance.endOfFrame;
-    final target = focusedKey.currentContext;
-    if (target != null && target.mounted) {
-      await Scrollable.ensureVisible(target, alignment: .35);
-    }
-  }
-
-  @override
-  void dispose() {
-    node.releaseMessages(widget.task.conversationId);
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: Listenable.merge([
-      node.conversation(widget.task.conversationId),
-      widget.client.prefs,
-    ]),
-    builder: (context, child) {
-      final task = node.tasks[widget.task.taskId] ?? widget.task;
-      final messages = (node.messages[task.conversationId] ?? [])
-          .where((m) => m.taskId == task.taskId)
-          .toList();
-      final items = visibleChatMessages(messages);
-      return Scaffold(
-        appBar: AppBar(
-          title: Text(task.title),
-          actions: [
-            if (task.source == 'chat' || task.source == 'group')
-              IconButton(
-                icon: const Icon(Icons.account_tree_outlined),
-                tooltip: 'Flow',
-                onPressed: () => openFlowchart(
-                  context,
-                  widget.client,
-                  task.conversationId,
-                  focusMessage,
-                  taskId: task.taskId,
-                ),
-              ),
-            IconButton(
-              icon: const Icon(Icons.reply_outlined),
-              tooltip: widget.client.tr('引用', 'Quote'),
-              onPressed: () {
-                widget
-                    .client
-                    .workspace['taskQuote:$nodeId:${task.conversationId}'] = {
-                  'taskId': task.taskId,
-                  'title': task.title,
-                };
-                widget.client.saveContent();
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        ),
-        body: ListView(
-          reverse: true,
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-          children: [
-            if (error.isNotEmpty) Text(error),
-            for (final item in items.reversed)
-              Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 720),
-                  child: MessageTile(
-                    key: item.messageId == focusedMessage
-                        ? focusedKey
-                        : ValueKey(item.messageId),
-                    client: widget.client,
-                    message: item,
-                    bot: node.bots
-                        .where((b) => b['botId'] == item.author.id)
-                        .firstOrNull,
-                    showName: task.botIds.length > 1,
-                    onRetry: (_) {},
-                    onQuote: (_) {
-                      widget
-                          .client
-                          .workspace['taskQuote:$nodeId:${task.conversationId}'] = {
-                        'taskId': task.taskId,
-                        'title': task.title,
-                      };
-                      widget.client.saveContent();
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                ),
-              ),
-          ],
-        ),
-      );
-    },
-  );
 }

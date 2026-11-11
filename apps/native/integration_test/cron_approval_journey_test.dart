@@ -217,6 +217,7 @@ void main() {
             .where(
               (m) =>
                   !creationSeen.contains(m.messageId) &&
+                  m.taskRole != 'execution' &&
                   m.kind == 'question' &&
                   m.status == 'streaming',
             )

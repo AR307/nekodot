@@ -19,7 +19,9 @@ export interface NativeModelOverride {
 }
 
 export interface RunRecord {
-  role?: 'coordinator' | 'execution' | 'report';
+  role?: 'coordinator' | 'execution' | 'report' | 'consultation';
+  /** The worker's private native question being considered by the main Dot. */
+  questionMessageId?: string;
   taskId?: string;
   executionId?: string;
   /** Logical native session scope; never use the private chat for a group run. */

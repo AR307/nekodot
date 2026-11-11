@@ -38,7 +38,7 @@ export class RunEvents {
     if (event.event === 'tool.generating') this.flow.phase(run, 'thinking', event.seq);
     if (event.event === 'clarify.request') {
       this.messages.persistText(run, this.messages.currentText(run), event.seq);
-      this.controls.restoreQuestion(run, {
+      await this.controls.restoreQuestion(run, {
         kind: 'clarify',
         prompt_id: event.prompt_id ?? '',
         execution_generation: event.execution_generation ?? run.executionGeneration ?? 0,

@@ -32,6 +32,7 @@ it('answers a task A approval while task B is also working in the same chat, and
     new ExecutionFlows(db),
     new Notifications(db),
     () => {},
+    async () => {},
   );
   controls.restoreNativePrompts(runs[0]!, [
     { kind: 'approval', prompt_id: 'approve-A', execution_generation: 1 },

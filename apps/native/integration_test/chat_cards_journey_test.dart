@@ -397,12 +397,21 @@ void main() {
     );
     await until(
       () =>
-          fresh(seen, (m) => m.kind == 'question' && m.status == 'streaming') !=
+          fresh(
+            seen,
+            (m) =>
+                m.taskRole != 'execution' &&
+                m.kind == 'question' &&
+                m.status == 'streaming',
+          ) !=
           null,
       seconds: 300,
       what: 'a native question',
     );
-    final question = fresh(seen, (m) => m.kind == 'question')!;
+    final question = fresh(
+      seen,
+      (m) => m.taskRole != 'execution' && m.kind == 'question',
+    )!;
     final choices = object(question.content)['choices'] as List;
     note('question', object(question.content));
     final first = find.byKey(ValueKey('choice-${question.messageId}-0'));

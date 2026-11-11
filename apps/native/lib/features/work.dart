@@ -96,10 +96,6 @@ bool isProgressMessage(ChatMessage message) =>
 String compactActivity(String title) =>
     title.trim().replaceAll(RegExp(r'\s+'), ' ').characters.take(7).toString();
 
-/// Execution activity uses task titles; the coordinator only indicates a reply.
-String workingLine(NekodotClient c, String name) =>
-    '$name · ${c.tr('回复中', 'Reply')}';
-
 /// The command frame used by approval cards.
 class StepFrame extends StatelessWidget {
   final Widget child;

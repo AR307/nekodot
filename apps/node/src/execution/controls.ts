@@ -15,6 +15,10 @@ export class RunControls {
     private readonly flow: ExecutionFlows,
     private readonly notifications: Notifications,
     private readonly onActivity: (run: RunRecord) => void,
+    private readonly onTaskQuestion: (
+      run: RunRecord,
+      question: Extract<Message, { kind: 'question' }>,
+    ) => Promise<void>,
   ) {}
   async respondToApproval(params: RpcParams<'approvals.respond'>) {
     const runId = this.database.messageRun(params.messageId);
@@ -53,10 +57,10 @@ export class RunControls {
     return {};
   }
 
-  restoreNativePrompts(run: RunRecord, prompts: NativePrompt[]) {
+  async restoreNativePrompts(run: RunRecord, prompts: NativePrompt[]) {
     for (const pending of prompts) {
       if (pending.kind === 'clarify') {
-        this.restoreQuestion(run, pending);
+        await this.restoreQuestion(run, pending);
         continue;
       }
       if (!run.runId) continue;
@@ -94,7 +98,7 @@ export class RunControls {
     }
   }
 
-  restoreQuestion(run: RunRecord, pending: NativePrompt) {
+  async restoreQuestion(run: RunRecord, pending: NativePrompt) {
     if (pending.kind !== 'clarify' || !run.runId) return;
     const existing = this.database
       .messagesForRun(run.runId)
@@ -131,8 +135,24 @@ export class RunControls {
       this.database
         .messagesForRun(run.runId)
         .find((m) => m.kind === 'question' && m.content.requestId === pending.prompt_id);
-    if (message) this.flow.prompt(run, 'question', pending.prompt_id, message.messageId);
-    if (!existing)
+    if (message?.kind !== 'question') return;
+    const privateQuestion = run.role === 'execution' && !!run.taskId;
+    this.flow.prompt(
+      run,
+      'question',
+      pending.prompt_id,
+      privateQuestion ? undefined : message.messageId,
+    );
+    if (run.questionMessageId) {
+      const original = this.database.message(run.questionMessageId);
+      const worker =
+        original?.kind === 'question'
+          ? this.database.runs().find((r) => r.runId === original.content.runId)
+          : undefined;
+      if (worker && original?.kind === 'question')
+        this.flow.prompt(worker, 'question', original.content.requestId, message.messageId);
+    }
+    if (!existing && !privateQuestion)
       this.notifications.send({
         notificationId: `question:${run.runId}:${pending.prompt_id}`,
         conversationId: run.conversationId,
@@ -140,6 +160,7 @@ export class RunControls {
         kind: 'question',
       });
     this.onActivity(run);
+    if (privateQuestion) await this.onTaskQuestion(run, message);
   }
 
   async respondToQuestion(params: RpcParams<'questions.respond'>) {

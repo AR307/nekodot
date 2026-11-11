@@ -294,7 +294,6 @@ class _ChatPageState extends State<ChatPage>
           members = view.members,
           title = view.title,
           working = view.working,
-          status = view.status(c),
           chain = view.activity.chain,
           memberAvatars = view.memberAvatars,
           messages = view.messages,
@@ -369,17 +368,6 @@ class _ChatPageState extends State<ChatPage>
                   if (chain != null) ...[
                     const SizedBox(width: 8),
                     ChainDots(count: chain.count, max: chain.max),
-                  ],
-                  if (status != null) ...[
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        status,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.labelMedium,
-                      ),
-                    ),
                   ],
                 ],
               ),
@@ -507,7 +495,8 @@ class _ChatPageState extends State<ChatPage>
                   focusedKey: focusedKey,
                   onRetry: (text) => composer.currentState?.editDraft(text),
                   onError: (value) => composer.currentState?.showError(value),
-                  onQuote: (words) => composer.currentState?.quote(words),
+                  onQuote: (words, taskId) =>
+                      composer.currentState?.quote(words, taskId: taskId),
                   fresh: fresh,
                   since: since,
                 ),

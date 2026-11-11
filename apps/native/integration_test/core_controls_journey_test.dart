@@ -188,11 +188,17 @@ void main() {
       );
       await until(
         () => recent().any(
-          (m) => m.kind == 'question' && m.status == 'streaming',
+          (m) =>
+              m.taskRole != 'execution' &&
+              m.kind == 'question' &&
+              m.status == 'streaming',
         ),
       );
       final question = recent().firstWhere(
-        (m) => m.kind == 'question' && m.status == 'streaming',
+        (m) =>
+            m.taskRole != 'execution' &&
+            m.kind == 'question' &&
+            m.status == 'streaming',
       );
       await shot('question-waiting');
       await fault(true);
