@@ -340,23 +340,21 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
       );
       await waitFor(() => app.database.runs().some((run) => run.native && run.state === 'tool'));
       const continuation = app.database.runs().find((run) => run.native)!;
+      expect(continuation.inputMessageId).toBe(submissionId);
       await runtime.gateway(bot.botId).rpc('session.steer', {
         session_id: continuation.sessionId,
         execution_generation: continuation.executionGeneration,
         text: 'Please keep the same run and explain what you found.',
       });
       await waitFor(() => !app.database.runs().some((run) => run.runId === continuation.runId));
-      const records = app.database.db
-        .prepare(
-          "SELECT key,value FROM settings WHERE key LIKE 'native-admission:%' AND json_extract(value,'$.runId')=?",
-        )
-        .all(continuation.runId!);
-      expect(records).toHaveLength(1);
-      expect(records[0]?.key).toBe('native-admission:' + submissionId);
-      expect(JSON.parse(String(records[0]?.value))).toMatchObject({
-        inputMessageId: submissionId,
-        state: 'idle',
-      });
+      // Every turn above has finished, so no run record is left behind to be scanned later.
+      expect(
+        app.database.db
+          .prepare(
+            "SELECT key FROM settings WHERE key LIKE 'native-admission:%' OR key LIKE 'native-queue:%'",
+          )
+          .all(),
+      ).toEqual([]);
       expect(app.database.hermesSession(conversation.conversationId)?.storedSessionId).toBe(
         nativeSession.storedSessionId,
       );

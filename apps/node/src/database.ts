@@ -155,6 +155,10 @@ export class NodeDatabase {
       .exec(`CREATE TABLE IF NOT EXISTS dot_tasks(task_id TEXT PRIMARY KEY,conversation_id TEXT NOT NULL,data TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS dot_tasks_conversation ON dot_tasks(conversation_id);
       CREATE TABLE IF NOT EXISTS task_executions(execution_id TEXT PRIMARY KEY,task_id TEXT NOT NULL,data TEXT NOT NULL);`);
+    // Earlier versions kept every finished run as an idle record.
+    this.db.exec(
+      "DELETE FROM settings WHERE (key LIKE 'native-admission:%' OR key LIKE 'native-queue:%') AND json_extract(value,'$.state')='idle'",
+    );
   }
   private all<T>(sql: string, ...params: string[]): T[] {
     return this.db
@@ -538,10 +542,11 @@ export class NodeDatabase {
         .prepare('INSERT OR IGNORE INTO usage_owners VALUES(?,?,?,?)')
         .run(run.botId, 'execution', 'admission:' + run.runId, run.conversationId);
     if (run.queue || run.native || run.role) {
-      this.setSetting(
-        (run.native || run.role ? 'native-admission:' : 'native-queue:') + run.inputMessageId,
-        run,
-      );
+      const key =
+        (run.native || run.role ? 'native-admission:' : 'native-queue:') + run.inputMessageId;
+      // Only active runs are ever read back, so a finished one is dropped.
+      if (run.state === 'idle') this.db.prepare('DELETE FROM settings WHERE key=?').run(key);
+      else this.setSetting(key, run);
       return;
     }
     this.db
