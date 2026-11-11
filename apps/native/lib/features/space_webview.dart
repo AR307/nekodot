@@ -14,7 +14,6 @@ import 'package:window_manager/window_manager.dart';
 import '../data/client.dart';
 import '../data/json.dart';
 import '../data/spaces.dart';
-import '../ui/design.dart';
 
 Future<WebViewEnvironment> createSpaceEnvironment(String folder) async {
   final environment = await WebViewEnvironment.create(
@@ -109,12 +108,13 @@ class SpaceWebView extends StatefulWidget {
 }
 
 class _SpaceWebViewState extends State<SpaceWebView>
-    with WidgetsBindingObserver, RouteAware, WindowListener {
+    with WidgetsBindingObserver, WindowListener {
   InAppWebViewController? controller;
   late final owner = widget.client.store;
-  ModalRoute<void>? route;
   bool visible = true;
   bool desktopVisible = true;
+  bool pageVisible = true;
+  bool appActive = true;
   String get origin => 'https://s-${widget.space.spaceId}.nekodot.invalid';
   // Opaque sandbox origins have no persistent web storage. Only our SDK can
   // persist data. Explicit resource origins keep local modules/fetch working.
@@ -147,11 +147,13 @@ class _SpaceWebViewState extends State<SpaceWebView>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final next = ModalRoute.of(context);
-    if (route == next) return;
-    nativeRoutes.unsubscribe(this);
-    route = next;
-    if (next != null) nativeRoutes.subscribe(this, next);
+    // Navigator disables tickers for routes covered by an opaque page, but
+    // keeps them enabled under a menu/dialog. WebView2.pause also hides the
+    // surface, so merely losing route.isCurrent must not pause a visible site.
+    final next = TickerMode.valuesOf(context).enabled;
+    if (pageVisible == next) return;
+    pageVisible = next;
+    updateActivity();
   }
 
   Future<void> activity(bool active) async {
@@ -169,7 +171,7 @@ class _SpaceWebViewState extends State<SpaceWebView>
   }
 
   void updateActivity() =>
-      unawaited(activity((route?.isCurrent ?? true) && desktopVisible));
+      unawaited(activity(pageVisible && desktopVisible && appActive));
 
   @override
   void onWindowEvent(String eventName) {
@@ -184,21 +186,19 @@ class _SpaceWebViewState extends State<SpaceWebView>
   }
 
   @override
-  void didPushNext() => unawaited(activity(false));
-  @override
-  void didPopNext() => updateActivity();
-  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      updateActivity();
+      appActive = true;
     } else if (state != AppLifecycleState.inactive) {
-      unawaited(activity(false));
+      appActive = false;
+    } else {
+      return;
     }
+    updateActivity();
   }
 
   @override
   void dispose() {
-    nativeRoutes.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     widget.client.spaces.removeListener(recordsChanged);
     if (Platform.isWindows) windowManager.removeListener(this);
@@ -319,7 +319,7 @@ class _SpaceWebViewState extends State<SpaceWebView>
             !await windowManager.isMinimized();
       }
       if (!mounted) return;
-      if (!visible || !desktopVisible) unawaited(activity(false));
+      updateActivity();
     },
     shouldInterceptRequest: (_, request) => resource(request),
     shouldOverrideUrlLoading: (_, action) async {
