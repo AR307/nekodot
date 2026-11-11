@@ -89,6 +89,7 @@ it('recovers a stalled Relay handshake and serves paired, persisted state', asyn
       latest: [],
       flows: [],
       tasks: [],
+      spaces: [],
       headSeq: database.head(),
       node: { platform: 'linux', computerUse: false, host: 'server', desktopControl: null },
     }),
