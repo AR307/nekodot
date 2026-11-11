@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:nekodot_native/data/chat_models.dart';
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/features/chat_activity.dart';
 import 'package:nekodot_native/features/chat_message.dart';
@@ -313,6 +314,55 @@ void main() {
     await frames();
     if (latest.hitTestable().evaluate().isNotEmpty) await tap(latest);
     await shot('results');
+    // A command that needs your OK waits behind the same line.
+    final botId =
+        c.node.conversations.firstWhere(
+              (x) => x['conversationId'] == dm,
+            )['botId']
+            as String;
+    final mode = (await c.rpc('bots.permissions.get', {
+      'botId': botId,
+    }))['mode'];
+    await c.rpc('bots.update', {'botId': botId, 'approvalMode': 'manual'});
+    try {
+      final seen = c.node.messages[dm]!.map((m) => m.messageId).toSet();
+      ChatMessage? approval() => c.node.messages[dm]!
+          .where(
+            (m) =>
+                !seen.contains(m.messageId) &&
+                m.kind == 'approval' &&
+                m.status == 'streaming',
+          )
+          .firstOrNull;
+      await send(
+        '请用 terminal 在前台只运行一次 python -c "print(37*41)"，这是无害的审批验收，然后把结果告诉我。',
+      );
+      await until(() => approval() != null, 'native approval waiting');
+      final asked = approval()!;
+      await frames();
+      expect(
+        tester.widget<ThinkingRow>(find.byType(ThinkingRow)).line,
+        c.tr('等你确认', 'Needs your OK'),
+      );
+      await tap(dock);
+      await shot('approval');
+      await tap(find.byKey(ValueKey('choice-${asked.messageId}-0')));
+      await until(() => controls.evaluate().isEmpty, 'approved control closed');
+      await until(
+        () => c.node.messages[dm]!.any(
+          (m) =>
+              !seen.contains(m.messageId) &&
+              m.author.type == 'bot' &&
+              m.taskRole != 'execution' &&
+              m.status == 'done' &&
+              '${m.content['text']}'.contains('1517'),
+        ),
+        'approved command reported in the main chat',
+      );
+      await shot('approved');
+    } finally {
+      await c.rpc('bots.update', {'botId': botId, 'approvalMode': mode});
+    }
     final result = {
       'platform': suffix,
       'taskIds': taskIds.toList(),
