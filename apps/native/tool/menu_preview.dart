@@ -1,19 +1,20 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'package:nekodot_native/ui/design.dart';
 
 // An isolated, native design review. No account, Node, preferences or API calls.
-// A/B/C are review identifiers, not new product copy or user preferences.
+// A1/A2/A3 are motion review identifiers, not product settings or new copy.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (Platform.isWindows) {
     await windowManager.ensureInitialized();
     await windowManager.waitUntilReadyToShow(
       const WindowOptions(
-        title: 'nekodot A / B / C',
+        title: 'nekodot A1 / A2 / A3',
         size: Size(1280, 920),
         minimumSize: Size(920, 700),
       ),
@@ -27,29 +28,23 @@ const _models = ['gpt-6.1-sol', 'gpt-6-astra', 'gpt-6-sol', 'gpt-6-luna'];
 
 class _Variant {
   final String id;
-  final double radius, inset, rowHeight, elevation;
-  const _Variant(
-    this.id,
-    this.radius,
-    this.inset,
-    this.rowHeight,
-    this.elevation,
-  );
+  final int enterMs, exitMs;
+  final Curve curve;
+  const _Variant(this.id, this.enterMs, this.exitMs, this.curve);
 
-  OutlinedBorder get shape =>
-      RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(radius));
-
-  Color selection(Tone tone) => switch (id) {
-    'A' => tone.hover,
-    'B' => tone.ink,
-    _ => Colors.transparent,
-  };
+  // Appearance A is fixed; only motion differs between columns.
+  double get radius => 16;
+  double get inset => 6;
+  double get rowHeight => 36;
+  double get elevation => 6;
+  Duration get enter => Duration(milliseconds: enterMs);
+  Duration get exit => Duration(milliseconds: exitMs);
 }
 
 const _variants = [
-  _Variant('A', 16, 6, 36, 6),
-  _Variant('B', 24, 8, 40, 10),
-  _Variant('C', 12, 4, 32, 2),
+  _Variant('A1', 160, 120, Curves.easeOutCubic),
+  _Variant('A2', 220, 160, Curves.easeOutQuint),
+  _Variant('A3', 300, 180, Curves.easeOutBack),
 ];
 
 class MenuPreviewApp extends StatefulWidget {
@@ -61,118 +56,144 @@ class MenuPreviewApp extends StatefulWidget {
 
 class _MenuPreviewAppState extends State<MenuPreviewApp> {
   bool dark = false, mobile = false, english = false;
+  final menus = List.generate(3, (_) => MenuController());
+  bool replaying = false;
+
+  Future<void> replay() async {
+    setState(() => replaying = true);
+    for (final menu in menus) {
+      menu.close();
+    }
+    // A single preview cycle, not a product interaction delay or idle loop.
+    await Future<void>.delayed(const Duration(milliseconds: 320));
+    if (!mounted) return;
+    if (!mobile) {
+      for (final menu in menus) {
+        menu.open();
+      }
+    }
+    setState(() => replaying = false);
+  }
 
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
     theme: appTheme(dark ? Brightness.dark : Brightness.light),
+    builder: (_, child) => RepaintBoundary(
+      key: const ValueKey('menu-preview-canvas'),
+      child: child!,
+    ),
     home: Builder(
-      builder: (context) => RepaintBoundary(
-        key: const ValueKey('menu-preview-canvas'),
-        child: Scaffold(
-          backgroundColor: context.tone.ground,
-          body: SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(32, 20, 32, 16),
-                  child: Row(
-                    children: [
-                      const _ReviewAvatar(size: 28),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'nekodot',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                        ),
+      builder: (context) => Scaffold(
+        backgroundColor: context.tone.ground,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(32, 20, 32, 16),
+                child: Row(
+                  children: [
+                    const _ReviewAvatar(size: 28),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'nekodot',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const Spacer(),
+                    ),
+                    const Spacer(),
+                    if (!mobile) ...[
                       IconButton(
-                        key: const ValueKey('menu-preview-device'),
-                        tooltip: mobile ? 'Windows' : 'Android',
-                        onPressed: () => setState(() => mobile = !mobile),
-                        icon: Icon(
-                          mobile
-                              ? Icons.desktop_windows_outlined
-                              : Icons.smartphone_outlined,
-                        ),
+                        key: const ValueKey('menu-preview-play'),
+                        tooltip: 'A1 / A2 / A3',
+                        onPressed: replaying ? null : replay,
+                        icon: const Icon(Icons.replay_rounded),
                       ),
                       const SizedBox(width: 12),
-                      IconButton(
-                        key: const ValueKey('menu-preview-theme'),
-                        tooltip: dark ? '浅色' : '深色',
-                        onPressed: () => setState(() => dark = !dark),
-                        icon: Icon(
-                          dark
-                              ? Icons.light_mode_outlined
-                              : Icons.dark_mode_outlined,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      TextButton(
-                        key: const ValueKey('menu-preview-language'),
-                        onPressed: () => setState(() => english = !english),
-                        child: Text(english ? 'EN' : '中'),
-                      ),
                     ],
-                  ),
+                    IconButton(
+                      key: const ValueKey('menu-preview-device'),
+                      tooltip: mobile ? 'Windows' : 'Android',
+                      onPressed: () => setState(() => mobile = !mobile),
+                      icon: Icon(
+                        mobile
+                            ? Icons.desktop_windows_outlined
+                            : Icons.smartphone_outlined,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    IconButton(
+                      key: const ValueKey('menu-preview-theme'),
+                      tooltip: dark ? '浅色' : '深色',
+                      onPressed: () => setState(() => dark = !dark),
+                      icon: Icon(
+                        dark
+                            ? Icons.light_mode_outlined
+                            : Icons.dark_mode_outlined,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      key: const ValueKey('menu-preview-language'),
+                      onPressed: () => setState(() => english = !english),
+                      child: Text(english ? 'EN' : '中'),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(32, 8, 32, 32),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1136),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            for (var i = 0; i < _variants.length; i++) ...[
-                              if (i > 0) const SizedBox(width: 40),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 20,
-                                      ),
-                                      child: Text(
-                                        _variants[i].id,
-                                        style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w500,
-                                          color: context.tone.ink2,
-                                        ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(32, 8, 32, 32),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1136),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (var i = 0; i < _variants.length; i++) ...[
+                            if (i > 0) const SizedBox(width: 40),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 20),
+                                    child: Text(
+                                      _variants[i].id,
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w500,
+                                        color: context.tone.ink2,
                                       ),
                                     ),
-                                    if (mobile)
-                                      _PhoneReview(
-                                        key: ValueKey(
-                                          'phone-${_variants[i].id}-$dark-$english',
-                                        ),
-                                        variant: _variants[i],
-                                        dark: dark,
-                                        english: english,
-                                      )
-                                    else
-                                      _DesktopReview(
-                                        variant: _variants[i],
-                                        english: english,
+                                  ),
+                                  if (mobile)
+                                    _PhoneReview(
+                                      key: ValueKey(
+                                        'phone-${_variants[i].id}-$dark-$english',
                                       ),
-                                  ],
-                                ),
+                                      variant: _variants[i],
+                                      dark: dark,
+                                      english: english,
+                                    )
+                                  else
+                                    _DesktopReview(
+                                      variant: _variants[i],
+                                      english: english,
+                                      controller: menus[i],
+                                    ),
+                                ],
                               ),
-                            ],
+                            ),
                           ],
-                        ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -183,7 +204,12 @@ class _MenuPreviewAppState extends State<MenuPreviewApp> {
 class _DesktopReview extends StatefulWidget {
   final _Variant variant;
   final bool english;
-  const _DesktopReview({required this.variant, required this.english});
+  final MenuController controller;
+  const _DesktopReview({
+    required this.variant,
+    required this.english,
+    required this.controller,
+  });
 
   @override
   State<_DesktopReview> createState() => _DesktopReviewState();
@@ -205,56 +231,34 @@ class _DesktopReviewState extends State<_DesktopReview> {
           key: ValueKey('model-anchor-${variant.id}'),
           variant: variant,
           value: model,
+          controller: widget.controller,
           onSelected: (value) => setState(() => model = value),
         ),
-        const SizedBox(height: 8),
-        _MenuSurface(
-          variant: variant,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final value in _models)
-                _Option(
-                  key: ValueKey('model-${variant.id}-$value'),
-                  variant: variant,
-                  label: value,
-                  selected: value == model,
-                  onPressed: () => setState(() => model = value),
-                ),
-            ],
-          ),
-        ),
+        const SizedBox(height: 176),
         const SizedBox(height: 28),
         Row(
           children: [
             Expanded(child: _SectionTitle(tr('空间', 'Space'))),
-            MenuAnchor(
-              consumeOutsideTap: true,
-              style: _menuStyle(context, variant),
-              menuChildren: [
-                SizedBox(
-                  width: 248,
-                  child: _SpaceActions(
-                    variant: variant,
-                    english: widget.english,
-                    autofocus: true,
-                  ),
-                ),
-              ],
-              builder: (context, controller, _) => IconButton(
+            _AnimatedAnchor(
+              variant: variant,
+              width: 248,
+              alignRight: true,
+              menu: _SpaceActions(
+                variant: variant,
+                english: widget.english,
+                autofocus: true,
+              ),
+              builder: (toggle, focus) => IconButton(
                 key: ValueKey('actions-anchor-${variant.id}'),
                 tooltip: tr('更多', 'More'),
-                onPressed: () =>
-                    controller.isOpen ? controller.close() : controller.open(),
+                focusNode: focus,
+                onPressed: toggle,
                 icon: const Icon(Icons.more_horiz, size: 20),
               ),
             ),
           ],
         ),
-        _MenuSurface(
-          variant: variant,
-          child: _SpaceActions(variant: variant, english: widget.english),
-        ),
+        const SizedBox(height: 176),
         const SizedBox(height: 28),
         const _SectionTitle('Dot'),
         _MenuSurface(
@@ -297,16 +301,6 @@ class _SectionTitle extends StatelessWidget {
   );
 }
 
-MenuStyle _menuStyle(BuildContext context, _Variant variant) => MenuStyle(
-  shape: WidgetStatePropertyAll(variant.shape),
-  backgroundColor: WidgetStatePropertyAll(context.tone.menu),
-  surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
-  elevation: WidgetStatePropertyAll(variant.elevation),
-  shadowColor: WidgetStatePropertyAll(Colors.black.withValues(alpha: .16)),
-  side: WidgetStatePropertyAll(BorderSide(color: context.tone.line, width: .5)),
-  padding: WidgetStatePropertyAll(EdgeInsets.all(variant.inset)),
-);
-
 class _MenuSurface extends StatelessWidget {
   final _Variant variant;
   final Widget child;
@@ -347,10 +341,16 @@ class _Option extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = context.tone;
-    final ink = selected && variant.id == 'B' ? tone.base : tone.ink;
+    final ink = tone.ink;
     return MenuItemButton(
+      overflowAxis: Axis.vertical,
       autofocus: autofocus,
-      onPressed: onPressed,
+      onPressed: onPressed == null
+          ? null
+          : () {
+              MenuController.maybeOf(context)?.close();
+              onPressed!();
+            },
       style: ButtonStyle(
         minimumSize: WidgetStatePropertyAll(
           Size(double.infinity, mobile ? 48 : variant.rowHeight),
@@ -369,7 +369,7 @@ class _Option extends StatelessWidget {
             ? Duration.zero
             : const Duration(milliseconds: 140),
         backgroundColor: WidgetStateProperty.resolveWith((states) {
-          if (selected) return variant.selection(tone);
+          if (selected) return tone.hover;
           if (states.contains(WidgetState.hovered) ||
               states.contains(WidgetState.focused)) {
             return tone.hover;
@@ -401,41 +401,39 @@ class _SelectAnchor extends StatelessWidget {
   final _Variant variant;
   final String value;
   final ValueChanged<String> onSelected;
+  final MenuController controller;
   const _SelectAnchor({
     super.key,
     required this.variant,
     required this.value,
     required this.onSelected,
+    required this.controller,
   });
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, size) => MenuAnchor(
-      consumeOutsideTap: true,
-      style: _menuStyle(context, variant),
-      menuChildren: [
-        SizedBox(
-          width: size.maxWidth - variant.inset * 2,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final model in _models)
-                _Option(
-                  key: ValueKey('popup-model-${variant.id}-$model'),
-                  variant: variant,
-                  label: model,
-                  selected: model == value,
-                  autofocus: model == value,
-                  onPressed: () => onSelected(model),
-                ),
-            ],
-          ),
-        ),
-      ],
-      builder: (context, controller, _) => OutlinedButton(
+    builder: (context, size) => _AnimatedAnchor(
+      variant: variant,
+      controller: controller,
+      width: size.maxWidth,
+      menu: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final model in _models)
+            _Option(
+              key: ValueKey('popup-model-${variant.id}-$model'),
+              variant: variant,
+              label: model,
+              selected: model == value,
+              autofocus: model == value,
+              onPressed: () => onSelected(model),
+            ),
+        ],
+      ),
+      builder: (toggle, focus) => OutlinedButton(
         key: ValueKey('open-model-${variant.id}'),
-        onPressed: () =>
-            controller.isOpen ? controller.close() : controller.open(),
+        focusNode: focus,
+        onPressed: toggle,
         style: OutlinedButton.styleFrom(
           alignment: Alignment.centerLeft,
           minimumSize: const Size(double.infinity, 36),
@@ -494,6 +492,171 @@ class _SpaceActions extends StatelessWidget {
       ],
     ],
   );
+}
+
+// RawMenuAnchor exposes Flutter's official open/close animation hooks. This
+// preview changes the transition, not the native overlay or menu controller.
+class _AnimatedAnchor extends StatefulWidget {
+  final _Variant variant;
+  final MenuController? controller;
+  final double width;
+  final bool alignRight;
+  final Widget menu;
+  final Widget Function(VoidCallback toggle, FocusNode focus) builder;
+  const _AnimatedAnchor({
+    required this.variant,
+    required this.width,
+    required this.menu,
+    required this.builder,
+    this.controller,
+    this.alignRight = false,
+  });
+
+  @override
+  State<_AnimatedAnchor> createState() => _AnimatedAnchorState();
+}
+
+class _AnimatedAnchorState extends State<_AnimatedAnchor>
+    with SingleTickerProviderStateMixin {
+  late final menu = widget.controller ?? MenuController();
+  final focus = FocusNode();
+  final menuFocus = FocusScopeNode();
+  late final animation =
+      AnimationController(
+        vsync: this,
+        duration: widget.variant.enter,
+        reverseDuration: widget.variant.exit,
+      )..addStatusListener((status) {
+        if (status == AnimationStatus.dismissed) {
+          hideOverlay?.call();
+          hideOverlay = null;
+        }
+        setState(() {});
+      });
+  late final eased = CurvedAnimation(
+    parent: animation,
+    curve: widget.variant.curve,
+    reverseCurve: Curves.easeInCubic,
+  );
+  VoidCallback? hideOverlay;
+
+  @override
+  void dispose() {
+    eased.dispose();
+    animation.dispose();
+    menuFocus.dispose();
+    focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = MediaQuery.disableAnimationsOf(context);
+    final closing = animation.status == AnimationStatus.reverse;
+    return RawMenuAnchor(
+      controller: menu,
+      childFocusNode: focus,
+      onOpenRequested: (_, show) {
+        hideOverlay = null;
+        show();
+        if (reduced) {
+          animation.value = 1;
+        } else {
+          animation.forward();
+        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && animation.isForwardOrCompleted) {
+            menuFocus.requestFocus();
+          }
+        });
+      },
+      onCloseRequested: (hide) {
+        if (reduced || animation.isDismissed) {
+          animation.value = 0;
+          hide();
+        } else {
+          hideOverlay = hide;
+          animation.reverse();
+        }
+      },
+      builder: (_, _, _) => widget.builder(
+        () => animation.isForwardOrCompleted ? menu.close() : menu.open(),
+        focus,
+      ),
+      overlayBuilder: (context, info) => Positioned(
+        top: info.anchorRect.bottom + 6,
+        left: widget.alignRight
+            ? info.anchorRect.right - widget.width
+            : info.anchorRect.left,
+        width: widget.width,
+        child: TapRegion(
+          groupId: info.tapRegionGroupId,
+          onTapOutside: (_) => menu.close(),
+          child: ExcludeFocus(
+            excluding: closing,
+            child: ExcludeSemantics(
+              excluding: closing,
+              child: IgnorePointer(
+                ignoring: closing,
+                child: FocusScope(
+                  node: menuFocus,
+                  child: Shortcuts(
+                    shortcuts: const {
+                      SingleActivator(LogicalKeyboardKey.escape):
+                          DismissIntent(),
+                      SingleActivator(LogicalKeyboardKey.arrowDown):
+                          NextFocusIntent(),
+                      SingleActivator(LogicalKeyboardKey.arrowUp):
+                          PreviousFocusIntent(),
+                    },
+                    child: AnimatedBuilder(
+                      animation: animation,
+                      child: _MenuSurface(
+                        variant: widget.variant,
+                        child: widget.menu,
+                      ),
+                      builder: (context, child) {
+                        final t = reduced ? 1.0 : eased.value;
+                        final alignment = widget.alignRight
+                            ? Alignment.topRight
+                            : Alignment.topLeft;
+                        final transformed = switch (widget.variant.id) {
+                          'A1' => Transform.translate(
+                            offset: Offset(0, -6 * (1 - t)),
+                            child: child,
+                          ),
+                          'A2' => Transform.scale(
+                            scale: .92 + .08 * t,
+                            alignment: alignment,
+                            child: child,
+                          ),
+                          _ => Transform.scale(
+                            scaleX: .97 + .03 * t,
+                            scaleY: .84 + .16 * t,
+                            alignment: alignment,
+                            child: child,
+                          ),
+                        };
+                        return Opacity(
+                          key: ValueKey(
+                            'motion-${widget.variant.id}-${widget.alignRight ? 'actions' : 'model'}',
+                          ),
+                          opacity: reduced
+                              ? 1
+                              : Curves.easeOut.transform(animation.value),
+                          child: transformed,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _PhoneReview extends StatelessWidget {
@@ -566,7 +729,17 @@ class _PhoneSceneState extends State<_PhoneScene> {
       showDragHandle: true,
       sheetAnimationStyle: MediaQuery.disableAnimationsOf(context)
           ? AnimationStyle.noAnimation
-          : const AnimationStyle(duration: Duration(milliseconds: 200)),
+          : AnimationStyle(
+              duration: widget.variant.enter,
+              reverseDuration: widget.variant.exit,
+              // Keep the native sheet attached to the bottom edge, even for A3.
+              curve: switch (widget.variant.id) {
+                'A1' => Curves.easeOutCubic,
+                'A2' => Curves.easeInOutCubicEmphasized,
+                _ => Curves.easeOutQuint,
+              },
+              reverseCurve: Curves.easeInCubic,
+            ),
       shape: RoundedSuperellipseBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(widget.variant.radius + 12),
