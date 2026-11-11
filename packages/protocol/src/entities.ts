@@ -88,6 +88,8 @@ const messageBase = {
 const textContent = z.strictObject({
   text: z.string(),
   files: z.array(z.uuid()).optional(),
+  spaces: z.array(z.uuid()).optional(),
+  createSpace: z.boolean().optional(),
   failureReason: z.string().optional(),
   /** Clients show their own localized copy for these run-start failures. */
   failureCode: z.enum(['run_start', 'timeout']).optional(),

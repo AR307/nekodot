@@ -17,3 +17,4 @@ export * from './secrets';
 export * from './flow';
 export * from './usage';
 export * from './tasks';
+export * from './spaces';
