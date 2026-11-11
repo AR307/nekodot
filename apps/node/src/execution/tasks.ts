@@ -481,10 +481,11 @@ export class DotTasks {
           : undefined,
     };
     this.database.saveRun(run);
-    return this.control.start(
-      run,
-      `Task result notification, not a new user request. Requirement: ${task.title}\nTask ID: ${task.taskId}\nExecution status: ${execution.state}\nResult message reference: ${execution.resultMessageId ?? ''}\nGive the actual findings or outcome directly in your own voice as the same Dot the user spoke to. Keep task IDs, internal titles, sessions, delegation and worker returns private; do not introduce a task completion receipt. Explain blockers or failures plainly and only ask for input when needed. Do not claim success for failed/stopped work. Do not start the work again.\n<task-result>\n${result?.kind === 'text' ? result.content.text + (result.content.failureReason ? '\n' + result.content.failureReason : '') : ''}\n</task-result>`,
-    );
+    // Redirect task result report to the main Dot for natural language rewrite
+    return this.hermes.gateway(task.botId).rpc('session.input', {
+      session_id: this.database.conversation(task.conversationId)?.mainSessionId ?? '',
+      text: `Task result notification (private). Requirement: ${task.title}\\nExecution status: ${execution.state}\\nResult findings: ${result?.kind === 'text' ? result.content.text : ''}\\nAs the coordinating Dot, summarize these findings and explain the outcome naturally to the user. Do not mention tasks, IDs, or internal sessions. If failed, explain simply.`,
+    });
   }
 
   async recoverReports() {

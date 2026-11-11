@@ -19,7 +19,8 @@ class ThinkingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.bodyMedium!.copyWith(
       fontSize: context.tone.glass ? 14 : 13,
-      color: context.tone.ink2,
+      fontWeight: FontWeight.w500,
+      color: context.tone.ink2.withOpacity(0.8),
     );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -32,7 +33,14 @@ class ThinkingRow extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: moving
-                ? ShiningText(text: line, style: style)
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: context.tone.accent.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: ShiningText(text: line, style: style.copyWith(color: context.tone.accent)),
+                  )
                 : Text(
                     line,
                     maxLines: 1,

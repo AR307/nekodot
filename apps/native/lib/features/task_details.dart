@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
+import 'chat_message.dart';
 import 'chat_activity.dart';
 import 'chat_presentation.dart';
 import 'work.dart';
@@ -59,11 +60,35 @@ class DotActivity extends StatelessWidget {
                   task.state == 'running' &&
                   client.node.taskActivities[task.taskId]?.stalled != true,
             ));
-    return ThinkingRow(
-      key: const ValueKey('dot-activity'),
-      bot: view.bot,
-      line: line,
-      moving: moving,
+    final waitingTask = tasks.where((t) => t.state == 'waiting_approval' || t.state == 'waiting_question').firstOrNull;
+    return GestureDetector(
+      onTap: waitingTask == null ? null : () => _showControlOverlay(context, waitingTask),
+      child: ThinkingRow(
+        key: const ValueKey('dot-activity'),
+        bot: view.bot,
+        line: waitingTask != null ? '⚠️ ${client.tr('需要你的确认 · 点击处理', 'Action required · Tap to view')}' : line,
+        moving: moving,
+      ),
     );
+  }
+
+  void _showControlOverlay(BuildContext context, dynamic task) {
+    final msg = (client.node.messages[task.conversationId] ?? []).where((m) => m.taskId == task.taskId && (m.kind == 'question' || m.kind == 'approval')).lastOrNull;
+    if (msg == null) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: const [BoxShadow(blurRadius: 20, color: Colors.black26)],
+        ),
+        child: ControlCard(client: client, message: msg),
+      ),
+    );
+  }
   }
 }

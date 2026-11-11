@@ -159,7 +159,7 @@ class _MessageTileState extends State<MessageTile> {
     } else if (kind == 'routine') {
       content = RoutineCard(client: c, content: body);
     } else if (kind == 'question' || kind == 'approval') {
-      content = ControlCard(key: ValueKey(m.messageId), client: c, message: m);
+      content = const SizedBox.shrink(); // Hide from chat flow
     } else if (text.trim().isNotEmpty ||
         streaming ||
         stopped ||
