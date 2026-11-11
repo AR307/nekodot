@@ -117,7 +117,7 @@ class _SpaceWebViewState extends State<SpaceWebView>
   // Opaque sandbox origins have no persistent web storage. Only our SDK can
   // persist data. Explicit resource origins keep local modules/fetch working.
   String get csp =>
-      "default-src 'none'; sandbox allow-scripts; "
+      "default-src 'none'; sandbox allow-scripts allow-forms; "
       "script-src $origin 'unsafe-inline'; style-src $origin 'unsafe-inline'; "
       "img-src $origin data: blob: ${widget.space.allowedOrigins.join(' ')}; "
       "font-src $origin; media-src $origin blob: ${widget.space.allowedOrigins.join(' ')}; "

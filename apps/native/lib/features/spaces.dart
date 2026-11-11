@@ -455,16 +455,21 @@ class _SpacePageState extends State<SpacePage> {
                   child: Text(c.tr('空间暂时无法打开', 'Unable to open this space')),
                 ),
               )
-            : SpaceWebView(
-                key: ValueKey('$generation:${shown!.allowedOrigins.join(',')}'),
-                client: c,
-                nodeId: widget.nodeId,
-                space: shown,
-                bundle: bundle!,
-                environment: environment,
-                onError: () {
-                  if (mounted) setState(() => failed = true);
-                },
+            : SafeArea(
+                top: false,
+                child: SpaceWebView(
+                  key: ValueKey(
+                    '$generation:${shown!.allowedOrigins.join(',')}',
+                  ),
+                  client: c,
+                  nodeId: widget.nodeId,
+                  space: shown,
+                  bundle: bundle!,
+                  environment: environment,
+                  onError: () {
+                    if (mounted) setState(() => failed = true);
+                  },
+                ),
               ),
       );
     },
@@ -475,7 +480,12 @@ class _SpacePageState extends State<SpacePage> {
 /// introduce another agent entry point.
 class CreateSpacePage extends StatefulWidget {
   final NekodotClient client;
-  const CreateSpacePage({super.key, required this.client});
+  final bool compact;
+  const CreateSpacePage({
+    super.key,
+    required this.client,
+    this.compact = false,
+  });
   @override
   State<CreateSpacePage> createState() => _CreateSpacePageState();
 }
@@ -496,81 +506,120 @@ class _CreateSpacePageState extends State<CreateSpacePage> {
         bots = widget.client.node.bots
             .where((b) => b['archived'] != true)
             .toList();
-    return Scaffold(
-      appBar: AppBar(title: Text(c.tr('新建空间', 'New space'))),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DropdownButtonFormField<String>(
-              initialValue: botId,
-              decoration: const InputDecoration(labelText: 'Dot'),
-              items: [
-                for (final bot in bots)
-                  DropdownMenuItem(
-                    value: bot['botId'] as String,
-                    child: Row(
-                      children: [
-                        CatAvatar.of(bot, size: 24),
-                        const SizedBox(width: 8),
-                        Text('${bot['displayName']}'),
-                      ],
-                    ),
+    final form = SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DropdownButtonFormField<String>(
+            initialValue: botId,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Dot'),
+            items: [
+              for (final bot in bots)
+                DropdownMenuItem(
+                  value: bot['botId'] as String,
+                  child: Row(
+                    children: [
+                      CatAvatar.of(bot, size: 24),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${bot['displayName']}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
-              ],
-              onChanged: busy ? null : (value) => setState(() => botId = value),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: prompt,
-              minLines: 3,
-              maxLines: 8,
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton(
-                onPressed: busy || botId == null || prompt.text.trim().isEmpty
-                    ? null
-                    : () async {
-                        final conversation = c.node.conversations.firstWhere(
-                          (v) => v['kind'] == 'dm' && v['botId'] == botId,
+                ),
+            ],
+            onChanged: busy ? null : (value) => setState(() => botId = value),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: prompt,
+            minLines: 3,
+            maxLines: 8,
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton(
+              onPressed: busy || botId == null || prompt.text.trim().isEmpty
+                  ? null
+                  : () async {
+                      final conversation = c.node.conversations.firstWhere(
+                        (v) => v['kind'] == 'dm' && v['botId'] == botId,
+                      );
+                      final id = conversation['conversationId'] as String,
+                          nodeId = c.selectedNodeId!;
+                      setState(() => busy = true);
+                      try {
+                        await c.deliveries.enqueue(
+                          'messages.send',
+                          {
+                            'conversationId': id,
+                            'text': prompt.text.trim(),
+                            'createSpace': true,
+                            'clientMsgId': uid(),
+                          },
+                          nodeId,
+                          [],
                         );
-                        final id = conversation['conversationId'] as String,
-                            nodeId = c.selectedNodeId!;
-                        setState(() => busy = true);
-                        try {
-                          await c.deliveries.enqueue(
-                            'messages.send',
-                            {
-                              'conversationId': id,
-                              'text': prompt.text.trim(),
-                              'createSpace': true,
-                              'clientMsgId': uid(),
-                            },
-                            nodeId,
-                            [],
-                          );
-                          if (context.mounted) {
-                            Navigator.pop(context, conversation);
-                          }
-                        } catch (_) {
-                          if (context.mounted) {
-                            setState(() => busy = false);
-                            showNotice(
-                              context,
-                              c.tr('空间暂时无法打开', 'Unable to open this space'),
-                            );
-                          }
+                        if (context.mounted) {
+                          Navigator.pop(context, conversation);
                         }
-                      },
-                child: Text(c.tr('发送', 'Send')),
-              ),
+                      } catch (_) {
+                        if (context.mounted) {
+                          setState(() => busy = false);
+                          showNotice(
+                            context,
+                            c.tr('空间暂时无法打开', 'Unable to open this space'),
+                          );
+                        }
+                      }
+                    },
+              child: Text(c.tr('发送', 'Send')),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+    if (!widget.compact) {
+      return Scaffold(
+        appBar: AppBar(title: Text(c.tr('新建空间', 'New space'))),
+        body: form,
+      );
+    }
+    return Dialog(
+      constraints: const BoxConstraints(maxWidth: 480),
+      shape: RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(18)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 12, 8, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    c.tr('新建空间', 'New space'),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                IconButton(
+                  tooltip: c.tr('关闭', 'Close'),
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, size: 18),
+                ),
+              ],
+            ),
+          ),
+          Flexible(child: form),
+        ],
       ),
     );
   }

@@ -65,7 +65,7 @@ class _HomePageState extends State<HomePage> {
         openDestination(c.pendingDestination!);
       } else if (category == 'space' &&
           selectedSpace != null &&
-          c.node.spaces.containsKey(selectedSpace) &&
+          c.node.spaces[selectedSpace]?.archived == false &&
           MediaQuery.sizeOf(context).width < 840) {
         unawaited(
           pushPage(
@@ -365,11 +365,17 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> create(String value) async {
     if (value == 'space') {
-      final created = await openPage<Json>(
-        context,
-        CreateSpacePage(client: c),
-        form: true,
-      );
+      final created = sheetsOpen(context)
+          ? await showDialog<Json>(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => CreateSpacePage(client: c, compact: true),
+            )
+          : await openPage<Json>(
+              context,
+              CreateSpacePage(client: c),
+              form: true,
+            );
       if (created != null && mounted) {
         await open(created, MediaQuery.sizeOf(context).width < 840);
       }
@@ -1129,9 +1135,11 @@ class _HomePageState extends State<HomePage> {
                                   child:
                                       category == 'space' &&
                                           selectedSpace != null &&
-                                          c.node.spaces.containsKey(
-                                            selectedSpace,
-                                          )
+                                          c
+                                                  .node
+                                                  .spaces[selectedSpace]
+                                                  ?.archived ==
+                                              false
                                       ? SpacePage(
                                           key: ValueKey(
                                             '${c.selectedNodeId}:$selectedSpace',
