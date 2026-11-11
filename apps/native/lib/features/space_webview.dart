@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_inappwebview_platform_interface/flutter_inappwebview_platform_interface.dart'
     show ChannelController, InternalChannelController;
+import 'package:window_manager/window_manager.dart';
 
 import '../data/client.dart';
 import '../data/json.dart';
@@ -108,11 +109,12 @@ class SpaceWebView extends StatefulWidget {
 }
 
 class _SpaceWebViewState extends State<SpaceWebView>
-    with WidgetsBindingObserver, RouteAware {
+    with WidgetsBindingObserver, RouteAware, WindowListener {
   InAppWebViewController? controller;
   late final owner = widget.client.store;
   ModalRoute<void>? route;
   bool visible = true;
+  bool desktopVisible = true;
   String get origin => 'https://s-${widget.space.spaceId}.nekodot.invalid';
   // Opaque sandbox origins have no persistent web storage. Only our SDK can
   // persist data. Explicit resource origins keep local modules/fetch working.
@@ -129,6 +131,7 @@ class _SpaceWebViewState extends State<SpaceWebView>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     widget.client.spaces.addListener(recordsChanged);
+    if (Platform.isWindows) windowManager.addListener(this);
   }
 
   void recordsChanged() {
@@ -158,20 +161,36 @@ class _SpaceWebViewState extends State<SpaceWebView>
     if (active) {
       await view.resume();
       if (Platform.isAndroid) await view.resumeTimers();
+      recordsChanged();
     } else {
       await view.pause();
       if (Platform.isAndroid) await view.pauseTimers();
     }
   }
 
+  void updateActivity() =>
+      unawaited(activity((route?.isCurrent ?? true) && desktopVisible));
+
+  @override
+  void onWindowEvent(String eventName) {
+    if (eventName == 'minimize' || eventName == 'hide') {
+      desktopVisible = false;
+    } else if (eventName == 'restore' || eventName == 'show') {
+      desktopVisible = true;
+    } else {
+      return;
+    }
+    updateActivity();
+  }
+
   @override
   void didPushNext() => unawaited(activity(false));
   @override
-  void didPopNext() => unawaited(activity(true));
+  void didPopNext() => updateActivity();
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      unawaited(activity(route?.isCurrent ?? true));
+      updateActivity();
     } else if (state != AppLifecycleState.inactive) {
       unawaited(activity(false));
     }
@@ -182,6 +201,7 @@ class _SpaceWebViewState extends State<SpaceWebView>
     nativeRoutes.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     widget.client.spaces.removeListener(recordsChanged);
+    if (Platform.isWindows) windowManager.removeListener(this);
     // Android timers are process-wide; do not leave the next space paused.
     if (!visible && Platform.isAndroid) unawaited(controller?.resumeTimers());
     controller = null;
@@ -290,10 +310,16 @@ class _SpaceWebViewState extends State<SpaceWebView>
       mediaPlaybackRequiresUserGesture: true,
       disableDefaultErrorPage: true,
     ),
-    onWebViewCreated: (view) {
+    onWebViewCreated: (view) async {
       controller = view;
       view.addJavaScriptHandler(handlerName: 'spaceData', callback: bridge);
-      if (!visible) unawaited(activity(false));
+      if (Platform.isWindows) {
+        desktopVisible =
+            await windowManager.isVisible() &&
+            !await windowManager.isMinimized();
+      }
+      if (!mounted) return;
+      if (!visible || !desktopVisible) unawaited(activity(false));
     },
     shouldInterceptRequest: (_, request) => resource(request),
     shouldOverrideUrlLoading: (_, action) async {
