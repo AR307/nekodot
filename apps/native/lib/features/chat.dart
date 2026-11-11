@@ -13,6 +13,7 @@ import 'bot_details.dart';
 import 'bot_editor.dart';
 import 'flowchart.dart';
 
+import 'chat_controls.dart';
 import 'chat_presentation.dart';
 import 'chat_timeline.dart';
 import 'chat_composer.dart';
@@ -233,6 +234,14 @@ class _ChatPageState extends State<ChatPage>
       await c.loadMessages(id, around: messageId);
     }
     if (!mounted) return;
+    // An approval or a question is not a line of the history; it opens.
+    final control = c.node.messages[id]
+        ?.where((m) => m.messageId == messageId)
+        .firstOrNull;
+    if (control != null && isControl(control)) {
+      await openControls(context, c, id, messageId: messageId);
+      return;
+    }
     setState(() => focusedMessage = messageId);
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted || !scroll.hasClients) return;

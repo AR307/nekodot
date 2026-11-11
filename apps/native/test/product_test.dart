@@ -28,6 +28,7 @@ class JourneyClient extends NekodotClient {
   @override
   DeliveryQueue get deliveries => journeyDeliveries;
   final accepted = Completer<Json>();
+  final answers = <Json>[];
   Json? update;
   var catalogs = 0;
   bool rejectFirstCatalog = false;
@@ -78,7 +79,12 @@ class JourneyClient extends NekodotClient {
         update = params;
         return {};
       case 'messages.list':
-        return {'messages': node.messages['dm'] ?? []};
+        return {
+          'messages': [for (final m in node.messages['dm'] ?? []) m.toJson()],
+        };
+      case 'questions.respond':
+        answers.add(params);
+        return {};
       case 'messages.send':
         return accepted.future;
       default:
@@ -293,6 +299,80 @@ void main() {
     client.notifyListeners();
     await tester.pump();
     expect(dock, findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+    client.dispose();
+  });
+
+  testWidgets('A waiting question opens from the Dot line, not the history', (
+    tester,
+  ) async {
+    final client = JourneyClient();
+    Json question(String status) => {
+      'messageId': 'q1',
+      'conversationId': 'dm',
+      'createdAt': '2026-11-06T00:00:01Z',
+      'seq': 2,
+      'kind': 'question',
+      'status': status,
+      'author': {'type': 'bot', 'id': bot['botId']},
+      'content': {
+        'question': 'List or table?',
+        'choices': ['List', 'Table'],
+      },
+    };
+    client.node.messages['dm'] = [
+      ChatMessage.fromJson({
+        'messageId': 'm1',
+        'conversationId': 'dm',
+        'createdAt': '2026-11-06T00:00:00Z',
+        'seq': 1,
+        'kind': 'text',
+        'status': 'done',
+        'author': {'type': 'user', 'id': 'me'},
+        'content': {'text': 'Summarise the file'},
+      }),
+      ChatMessage.fromJson(question('streaming')),
+    ];
+    client.node.activities['dm'] = ConversationActivity.fromJson({
+      'state': 'waiting_question',
+      'botId': bot['botId'],
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: appTheme(Brightness.light),
+        home: ChatPage(client: client, conversationId: 'dm'),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    final line = find.byKey(const ValueKey('dot-activity'));
+    final controls = find.byKey(const ValueKey('chat-controls'));
+    expect(find.text('List or table?'), findsNothing);
+    expect(
+      find.descendant(of: line, matching: find.text('等你回答')),
+      findsOneWidget,
+    );
+    // The waiting Dot's avatar keeps moving, so frames are pumped by time.
+    await tester.tap(line);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      find.descendant(of: controls, matching: find.text('List or table?')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('choice-q1-0')));
+    await tester.pump();
+    expect(client.answers, [
+      {'messageId': 'q1', 'answer': 'List'},
+    ]);
+    // The Node settles the question; the card leaves and the chat stays.
+    client.node.messages['dm']![1] = ChatMessage.fromJson(question('done'));
+    client.node.activities['dm'] = const ConversationActivity.idle();
+    client.notifyListeners();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(controls, findsNothing);
+    expect(find.byKey(const ValueKey('chat-input')), findsOneWidget);
+    expect(line, findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     client.dispose();
   });

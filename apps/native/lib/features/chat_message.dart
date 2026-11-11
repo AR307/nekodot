@@ -143,12 +143,7 @@ class _MessageTileState extends State<MessageTile> {
             ),
           ),
     ];
-    final card = const {
-      'secret',
-      'routine',
-      'question',
-      'approval',
-    }.contains(kind);
+    final card = const {'secret', 'routine'}.contains(kind);
     Widget? content;
     if (kind == 'secret') {
       content = SecretCard(
@@ -158,8 +153,6 @@ class _MessageTileState extends State<MessageTile> {
       );
     } else if (kind == 'routine') {
       content = RoutineCard(client: c, content: body);
-    } else if (kind == 'question' || kind == 'approval') {
-      content = const SizedBox.shrink(); // Hide from chat flow
     } else if (text.trim().isNotEmpty ||
         streaming ||
         stopped ||

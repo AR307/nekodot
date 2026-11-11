@@ -10,6 +10,10 @@ class ChatPresentation {
   final List<Json> members;
   final ConversationActivity activity;
   final List<ChatMessage> messages;
+
+  /// Approvals and questions still waiting for you. They are answered from
+  /// the status line above the composer, never in the history.
+  final List<ChatMessage> controls;
   final String title;
   ChatPresentation._(
     this.conversation,
@@ -18,6 +22,7 @@ class ChatPresentation {
     this.members,
     this.activity,
     this.messages,
+    this.controls,
     this.title,
   );
   factory ChatPresentation(NodeData node, Json conversation) {
@@ -36,14 +41,14 @@ class ChatPresentation {
               : (group['botIds'] as List).contains(b['botId']),
         )
         .toList();
-    final messages =
-        visibleChatMessages(node.messages[conversation['conversationId']] ?? [])
-            .where(
-              (row) =>
-                  (row.taskRole != 'execution' ||
-                  const {'approval', 'question', 'secret'}.contains(row.kind)),
-            )
-            .toList();
+    final loaded = node.messages[conversation['conversationId']] ?? const [];
+    final messages = visibleChatMessages(loaded)
+        .where(
+          (row) =>
+              !isControl(row) &&
+              (row.taskRole != 'execution' || row.kind == 'secret'),
+        )
+        .toList();
     final lastBot = messages
         .where((m) => m.author.type == 'bot')
         .lastOrNull
@@ -71,6 +76,7 @@ class ChatPresentation {
       members,
       activity,
       messages,
+      pendingControls(loaded),
       title,
     );
   }
@@ -92,3 +98,9 @@ List<ChatMessage> visibleChatMessages(List<ChatMessage> messages) => messages
               '${m.content['text'] ?? ''}'.trim().isEmpty),
     )
     .toList();
+
+bool isControl(ChatMessage message) =>
+    message.kind == 'approval' || message.kind == 'question';
+
+List<ChatMessage> pendingControls(List<ChatMessage> messages) =>
+    messages.where((m) => isControl(m) && m.status == 'streaming').toList();

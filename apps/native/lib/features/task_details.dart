@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../data/client.dart';
-import 'chat_message.dart';
 import 'chat_activity.dart';
+import 'chat_controls.dart';
 import 'chat_presentation.dart';
 import 'work.dart';
 
 /// Internal work contributes to one fixed Dot status, never a task navigator.
+/// While the Dot waits for an approval or an answer, the line says so and
+/// opens it.
 class DotActivity extends StatelessWidget {
   final NekodotClient client;
   final ChatPresentation view;
@@ -14,7 +16,7 @@ class DotActivity extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final id = view.conversation['conversationId'];
+    final id = view.conversation['conversationId'] as String;
     final tasks = client.node.tasks.values
         .where(
           (task) =>
@@ -22,6 +24,18 @@ class DotActivity extends StatelessWidget {
               (task.active || task.reportMessageId == null),
         )
         .toList();
+    final controls = view.controls;
+    if (controls.isNotEmpty) {
+      return ThinkingRow(
+        key: const ValueKey('dot-activity'),
+        bot: view.bot,
+        line: controls.any((m) => m.kind == 'approval')
+            ? client.tr('等你确认', 'Needs your OK')
+            : client.tr('等你回答', 'Needs your answer'),
+        moving: false,
+        onTap: () => openControls(context, client, id),
+      );
+    }
     if (tasks.isEmpty && !view.running) return const SizedBox.shrink();
     final names = tasks
         .map((task) => compactActivity(task.title))
@@ -60,35 +74,11 @@ class DotActivity extends StatelessWidget {
                   task.state == 'running' &&
                   client.node.taskActivities[task.taskId]?.stalled != true,
             ));
-    final waitingTask = tasks.where((t) => t.state == 'waiting_approval' || t.state == 'waiting_question').firstOrNull;
-    return GestureDetector(
-      onTap: waitingTask == null ? null : () => _showControlOverlay(context, waitingTask),
-      child: ThinkingRow(
-        key: const ValueKey('dot-activity'),
-        bot: view.bot,
-        line: waitingTask != null ? '⚠️ ${client.tr('需要你的确认 · 点击处理', 'Action required · Tap to view')}' : line,
-        moving: moving,
-      ),
+    return ThinkingRow(
+      key: const ValueKey('dot-activity'),
+      bot: view.bot,
+      line: line,
+      moving: moving,
     );
-  }
-
-  void _showControlOverlay(BuildContext context, dynamic task) {
-    final msg = (client.node.messages[task.conversationId] ?? []).where((m) => m.taskId == task.taskId && (m.kind == 'question' || m.kind == 'approval')).lastOrNull;
-    if (msg == null) return;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: const [BoxShadow(blurRadius: 20, color: Colors.black26)],
-        ),
-        child: ControlCard(client: client, message: msg),
-      ),
-    );
-  }
   }
 }

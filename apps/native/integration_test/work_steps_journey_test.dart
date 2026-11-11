@@ -443,11 +443,17 @@ void main() {
       final allow = pending == null
           ? null
           : find.byKey(ValueKey('choice-${pending.messageId}-0'));
+      final dot = find.byKey(const ValueKey('dot-activity'));
+      if (allow != null &&
+          allow.evaluate().isEmpty &&
+          dot.evaluate().isNotEmpty) {
+        await tap(dot);
+      }
       if (allow != null && allow.evaluate().isNotEmpty) {
         final fold = find.descendant(
           of: find.byWidgetPredicate(
             (w) =>
-                w is MessageTile && w.message.messageId == pending!.messageId,
+                w is ControlCard && w.message.messageId == pending!.messageId,
           ),
           matching: find.byKey(const ValueKey('command-fold')),
         );
@@ -474,7 +480,7 @@ void main() {
             find.descendant(
               of: find.byWidgetPredicate(
                 (w) =>
-                    w is MessageTile &&
+                    w is ControlCard &&
                     w.message.messageId == pending.messageId,
               ),
               matching: find.byType(SelectableText),
@@ -552,6 +558,12 @@ void main() {
       final allow = pending == null
           ? null
           : find.byKey(ValueKey('choice-${pending.messageId}-0'));
+      final dot = find.byKey(const ValueKey('dot-activity'));
+      if (allow != null &&
+          allow.evaluate().isEmpty &&
+          dot.evaluate().isNotEmpty) {
+        await tap(dot);
+      }
       if (allow != null && allow.evaluate().isNotEmpty) {
         await tap(allow);
         continue;

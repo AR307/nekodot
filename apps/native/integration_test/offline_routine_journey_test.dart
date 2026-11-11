@@ -215,6 +215,7 @@ void main() {
     );
     final task = c.node.tasks[approval.taskId]!;
     final executionId = task.routineExecutionId!;
+    await tap(find.byKey(const ValueKey('dot-activity')));
     await fault(true);
     await tap(find.byKey(ValueKey('choice-${approval.messageId}-0')));
     expect(

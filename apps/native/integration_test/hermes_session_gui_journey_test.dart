@@ -137,16 +137,17 @@ void main() {
     final activity = find.byKey(const ValueKey('dot-activity'));
     String statusLine() =>
         tester.widget<ThinkingRow>(find.byType(ThinkingRow)).line;
-    Future<void> checkPinned() async {
+    Future<void> checkPinned({bool waiting = false}) async {
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
       expect(activity, findsOneWidget);
       expect(find.byType(ThinkingRow), findsOneWidget);
       expect(find.byKey(const ValueKey('work-status')), findsNothing);
       expect(find.text('Queued task'), findsNothing);
+      // The line opens something only while the Dot waits for you.
       expect(
         find.descendant(of: activity, matching: find.byType(InkWell)),
-        findsNothing,
+        waiting ? findsOneWidget : findsNothing,
       );
       final history = find.byKey(const ValueKey('chat-messages'));
       expect(find.descendant(of: history, matching: activity), findsNothing);
@@ -266,7 +267,8 @@ void main() {
       return;
     }
 
-    // Real interaction card: both platforms receive and answer it in the main chat.
+    // Real interaction card: both platforms open it from the Dot's line and
+    // answer it there.
     final known = c.node.tasks.keys.toSet();
     await send(
       '请读 $work/input.txt，读完先用原生clarify问我想要短版还是长版，选项用短版、长版。等我选完再总结，最后带上 SINGLE_QUESTION_$stamp。',
@@ -275,21 +277,24 @@ void main() {
       () => (c.node.messages[id] ?? []).any(
         (m) => m.kind == 'question' && m.status == 'streaming',
       ),
-      'real question in main chat',
+      'real question waiting',
     );
     final question = c.node.messages[id]!.lastWhere(
       (m) => m.kind == 'question' && m.status == 'streaming',
     );
-    await until(
-      () => find
-          .byKey(ValueKey('choice-${question.messageId}-0'))
-          .evaluate()
-          .isNotEmpty,
-      'original answer control visible',
-    );
-    await checkPinned();
+    final choice = find.byKey(ValueKey('choice-${question.messageId}-0'));
+    expect(choice, findsNothing);
+    await checkPinned(waiting: true);
+    expect(statusLine(), 'Needs your answer');
     await shot('single-dot-question');
-    await tap(find.byKey(ValueKey('choice-${question.messageId}-0')));
+    await tap(activity);
+    await until(
+      () => choice.evaluate().isNotEmpty,
+      'answer control opens over the chat',
+      seconds: 30,
+    );
+    await shot('single-dot-question-open');
+    await tap(choice);
     await until(
       () => c.node.tasks.values.any(
         (t) => !known.contains(t.taskId) && t.reportMessageId != null,

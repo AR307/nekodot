@@ -11,9 +11,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/features/chat_activity.dart';
+import 'package:nekodot_native/features/chat_message.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/features/chat_composer.dart';
-import 'package:nekodot_native/features/work.dart';
 import 'package:nekodot_native/platform/desktop.dart';
 import 'package:nekodot_native/ui/connection_notice.dart';
 import 'package:nekodot_native/ui/design.dart';
@@ -192,17 +192,29 @@ void main() {
     await shot('draft');
     FocusManager.instance.primaryFocus?.unfocus();
     await frames();
+    // Both questions wait behind one line: it names the wait, not the work.
     final row = tester.widget<ThinkingRow>(find.byType(ThinkingRow));
-    for (final id in taskIds) {
-      expect(row.line, contains(compactActivity(c.node.tasks[id]!.title)));
-    }
+    expect(row.line, c.tr('等你回答', 'Needs your answer'));
+    expect(row.moving, isFalse);
+    expect(find.byKey(const ValueKey('chat-activity-select')), findsNothing);
+    // Neither question is a line of the history; the line opens them.
     expect(
-      find.descendant(of: dock, matching: find.byType(InkWell)),
+      find.descendant(
+        of: find.byKey(const ValueKey('chat-messages')),
+        matching: find.byType(ControlCard),
+      ),
       findsNothing,
     );
-    expect(find.byKey(const ValueKey('chat-activity-select')), findsNothing);
-    await tester.tap(dock);
+    final controls = find.byKey(const ValueKey('chat-controls'));
+    await tap(dock);
+    expect(
+      find.descendant(of: controls, matching: find.byType(ControlCard)),
+      findsNWidgets(taskIds.length),
+    );
+    await shot('controls');
+    nav.currentState!.pop();
     await frames();
+    expect(controls, findsNothing);
     expect(nav.currentState!.canPop(), phone);
     await tap(find.byKey(const ValueKey('chat-flowchart')));
     await shot('flow');
@@ -271,28 +283,17 @@ void main() {
     }
     final latest = find.byKey(const ValueKey('chat-latest'));
     if (latest.hitTestable().evaluate().isNotEmpty) await tap(latest);
+    await tap(dock);
     for (final id in taskIds) {
       final question = c.node.messages[dm]!.firstWhere(
         (m) =>
             m.taskId == id && m.kind == 'question' && m.status == 'streaming',
       );
-      final choice = find.byKey(ValueKey('choice-${question.messageId}-0'));
-      if (choice.evaluate().isEmpty) {
-        await tester.scrollUntilVisible(
-          choice,
-          -220,
-          scrollable: find
-              .descendant(
-                of: find.byKey(const ValueKey('chat-messages')),
-                matching: find.byType(Scrollable),
-              )
-              .first,
-          maxScrolls: 20,
-        );
-      }
-      await tap(choice);
+      await tap(find.byKey(ValueKey('choice-${question.messageId}-0')));
       await shot('answered-${taskIds.toList().indexOf(id)}');
     }
+    // Nothing is left to answer, so the card leaves on its own.
+    await until(() => controls.evaluate().isEmpty, 'answered controls closed');
     await until(
       () => taskIds.every(
         (id) =>

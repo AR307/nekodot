@@ -371,6 +371,10 @@ void main() {
             .lastOrNull;
         if (pending != null) {
           final allow = find.byKey(ValueKey('choice-${pending.messageId}-0'));
+          final dot = find.byKey(const ValueKey('dot-activity'));
+          if (allow.evaluate().isEmpty && dot.evaluate().isNotEmpty) {
+            await tap(dot);
+          }
           if (allow.evaluate().isNotEmpty) {
             await tap(allow);
             continue;
