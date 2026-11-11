@@ -93,6 +93,9 @@ String visibleMessageText(ChatMessage message) {
 bool isProgressMessage(ChatMessage message) =>
     _said(message) != null && visibleMessageText(message).isEmpty;
 
+String compactActivity(String title) =>
+    title.trim().replaceAll(RegExp(r'\s+'), ' ').characters.take(7).toString();
+
 /// The command frame used by approval cards.
 class StepFrame extends StatelessWidget {
   final Widget child;

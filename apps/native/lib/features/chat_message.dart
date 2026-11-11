@@ -171,17 +171,9 @@ class _MessageTileState extends State<MessageTile> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (body['queue'] != null)
+            if (body['queue'] == 'cancelled')
               Text(
-                switch (body['queue']) {
-                  'queued' => c.tr(
-                    '已排队，当前任务完成后执行',
-                    'Queued, runs after the current turn',
-                  ),
-                  'running' => c.tr('队列任务', 'Queued task'),
-                  'steered' => c.tr('已交给当前任务', 'Sent to the current turn'),
-                  _ => c.tr('已取消排队', 'Queue entry cancelled'),
-                },
+                c.tr('已取消排队', 'Queue entry cancelled'),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: user ? tone.base.withValues(alpha: 0.75) : tone.ink3,
                 ),

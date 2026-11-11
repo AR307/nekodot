@@ -1,4 +1,4 @@
-import 'chat_activity.dart';
+import 'task_details.dart';
 import '../data/chat_models.dart';
 
 import 'dart:async';
@@ -64,7 +64,8 @@ class ChatComposerState extends State<ChatComposer> {
   String get id => widget.conversationId;
   String get draftKey => '${c.selectedNodeId}:$id';
   Json? get routineDraft => c.routineDrafts[draftKey];
-  Json? get taskDraft => c.workspace['taskQuote:$draftKey'] is Map
+  Json? get taskDraft =>
+      quoted != null && c.workspace['taskQuote:$draftKey'] is Map
       ? object(c.workspace['taskQuote:$draftKey'])
       : null;
 
@@ -124,9 +125,14 @@ class ChatComposerState extends State<ChatComposer> {
   String? quoted;
   final field = FocusNode();
 
-  void quote(String words) {
+  void quote(String words, {String? taskId}) {
     setState(() => quoted = words.trim());
     c.quotes[draftKey] = words.trim();
+    if (taskId == null) {
+      c.workspace.remove('taskQuote:$draftKey');
+    } else {
+      c.workspace['taskQuote:$draftKey'] = {'taskId': taskId};
+    }
     c.saveContent();
     field.requestFocus();
   }
@@ -567,17 +573,6 @@ class ChatComposerState extends State<ChatComposer> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (error.isNotEmpty) ErrorNotice(error),
-                      if (taskDraft != null)
-                        QuoteChip(
-                          text: '${taskDraft!['title']}',
-                          tooltip: c.tr('取消', 'Cancel'),
-                          onClear: () {
-                            setState(
-                              () => c.workspace.remove('taskQuote:$draftKey'),
-                            );
-                            c.saveContent();
-                          },
-                        ),
 
                       for (final item in c.deliveries.items.where(
                         (i) =>
@@ -747,6 +742,7 @@ class ChatComposerState extends State<ChatComposer> {
                           onClear: () {
                             setState(() => quoted = null);
                             c.quotes.remove(draftKey);
+                            c.workspace.remove('taskQuote:$draftKey');
                             c.saveContent();
                           },
                         ),
@@ -770,11 +766,7 @@ class ChatComposerState extends State<ChatComposer> {
                     ],
                   ),
                 ),
-                ChatActivityDock(
-                  key: ValueKey('activity:${c.selectedNodeId}:$id'),
-                  client: c,
-                  conversationId: id,
-                ),
+                DotActivity(client: c, view: widget.view),
                 PromptCard(
                   key: const ValueKey('composer-card'),
                   field: composerField,
@@ -818,17 +810,7 @@ class ChatComposerState extends State<ChatComposer> {
       ),
     );
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [tone.base.withValues(alpha: 0), tone.base, tone.base],
-          stops: const [0, .12, 1],
-        ),
-      ),
-      child: composer,
-    );
+    return composer;
   }
 }
 

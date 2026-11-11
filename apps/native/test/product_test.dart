@@ -1,4 +1,4 @@
-import 'package:nekodot_native/features/chat_activity.dart';
+import 'package:nekodot_native/features/task_details.dart';
 import 'package:nekodot_native/data/chat_models.dart';
 
 import 'dart:async';
@@ -265,9 +265,9 @@ void main() {
       ),
     );
     await tester.pump(const Duration(milliseconds: 100));
-    final dock = find.byKey(const ValueKey('chat-activity-dock'));
+    final dock = find.byKey(const ValueKey('dot-activity'));
     final input = find.byKey(const ValueKey('composer-card'));
-    expect(find.byType(ChatActivityDock), findsOneWidget);
+    expect(find.byType(DotActivity), findsOneWidget);
     expect(tester.getRect(dock).bottom, tester.getRect(input).top);
     client.node.messages['dm']!.add(
       ChatMessage.fromJson({

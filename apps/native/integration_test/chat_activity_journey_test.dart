@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,7 +12,8 @@ import 'package:window_manager/window_manager.dart';
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/features/chat_activity.dart';
 import 'package:nekodot_native/features/home.dart';
-import 'package:nekodot_native/features/task_details.dart';
+import 'package:nekodot_native/features/chat_composer.dart';
+import 'package:nekodot_native/features/work.dart';
 import 'package:nekodot_native/platform/desktop.dart';
 import 'package:nekodot_native/ui/connection_notice.dart';
 import 'package:nekodot_native/ui/design.dart';
@@ -33,6 +35,7 @@ void main() {
     final phone = Platform.isAndroid;
     const dm = String.fromEnvironment('QA_CONVERSATION');
     const evidence = String.fromEnvironment('QA_EVIDENCE_DIR');
+    const work = String.fromEnvironment('QA_WORK_DIR');
     final suffix = phone ? 'android' : 'windows';
     var converted = false;
     addTearDown(c.dispose);
@@ -130,7 +133,7 @@ void main() {
     await frames(1000);
     await tap(find.byKey(const ValueKey('conversation-$dm')));
     final input = find.byKey(const ValueKey('chat-input'));
-    final dock = find.byKey(const ValueKey('chat-activity-dock'));
+    final dock = find.byKey(const ValueKey('dot-activity'));
     final box = find.byKey(const ValueKey('composer-card'));
     final original = c.node.tasks.keys.toSet();
     Future<void> send(String text) async {
@@ -143,7 +146,7 @@ void main() {
     final taskIds = reuse.split(',').where((s) => s.isNotEmpty).toSet();
     if (taskIds.isEmpty) {
       await send(
-        '创建一个独立需求，标题“排版验收”。执行者先用原生 clarify 工具问我输出格式，选项“列表”和“表格”。等我回答后，只运行一次 Python：前台等待 15 秒并计算 1 到 20 的平方和，按所选格式给结果。不读写任何文件。',
+        '帮我阅读 $work/activity-input.txt，用原生 clarify 问我想要列表还是表格，等我回答后按我选的格式总结文档。不要改写原文件。',
       );
       await until(
         () => c.node.tasks.values.any(
@@ -155,9 +158,7 @@ void main() {
       debugPrint('ACTIVITY first task ${taskIds.join(',')}');
     }
     if (taskIds.length == 1) {
-      await send(
-        '另建一个独立需求“日历验收”。执行者先用原生 clarify 问我要中文还是英文，选项“中文”和“英文”。等我回答后，以所选语言列出一周七天的名称。不影响之前的需求，不读写文件。',
-      );
+      await send('另外帮我列出一周七天的名字，先用原生 clarify 问我要中文还是英文，等我选完再回答。之前的工作继续保留。');
       await until(
         () => c.node.tasks.keys.any(
           (id) => !original.contains(id) && !taskIds.contains(id),
@@ -191,20 +192,52 @@ void main() {
     await shot('draft');
     FocusManager.instance.primaryFocus?.unfocus();
     await frames();
-    final selector = find.byKey(const ValueKey('chat-activity-select'));
-    await tap(selector);
-    await shot('selector');
-    final chosen = c.node.tasks[taskIds.first]!;
-    await tap(find.widgetWithText(PopupMenuItem<String>, chosen.title));
-    await tap(find.byKey(const ValueKey('chat-activity-current')));
-    expect(find.byType(TaskDetailsPage), findsOneWidget);
-    if (!phone) expect(tester.getSize(find.byType(TaskDetailsPage)).width, 540);
-    await shot('details');
-    await tap(find.byTooltip(c.tr('引用', 'Quote')));
-    expect(find.byType(TaskDetailsPage), findsNothing);
+    final row = tester.widget<ThinkingRow>(find.byType(ThinkingRow));
+    for (final id in taskIds) {
+      expect(row.line, contains(compactActivity(c.node.tasks[id]!.title)));
+    }
+    expect(
+      find.descendant(of: dock, matching: find.byType(InkWell)),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('chat-activity-select')), findsNothing);
+    await tester.tap(dock);
+    await frames();
+    expect(nav.currentState!.canPop(), phone);
+    await tap(find.byKey(const ValueKey('chat-flowchart')));
+    await shot('flow');
+    await tap(find.byKey(const ValueKey('flow-close')));
     expect(tester.widget<TextField>(input).controller!.text, '保留这段未发送草稿\n第二行');
+    final composer = tester.state<ChatComposerState>(find.byType(ChatComposer));
+    final question = c.node.messages[dm]!.firstWhere(
+      (m) =>
+          m.taskId == taskIds.first &&
+          m.kind == 'question' &&
+          m.status == 'streaming',
+    );
+    composer.quote(
+      '${question.content['question'] ?? question.content['prompt'] ?? '列表'}',
+      taskId: taskIds.first,
+    );
+    await frames();
+    expect(composer.taskDraft?['taskId'], taskIds.first);
     expect(tester.getRect(dock).bottom, closeTo(tester.getRect(box).top, 1));
     await shot('quoted');
+    await tap(find.byTooltip(c.tr('取消', 'Cancel')).last);
+    expect(composer.taskDraft, isNull);
+    expect(c.workspace['taskQuote:${c.selectedNodeId}:$dm'], isNull);
+    if (phone) {
+      tester.testTextInput.unregister();
+      await tester.tap(input);
+      await frames(1000);
+      expect(tester.view.viewInsets.bottom, greaterThan(0));
+      expect(tester.getRect(dock).bottom, closeTo(tester.getRect(box).top, 1));
+      await shot('keyboard');
+      await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+      FocusManager.instance.primaryFocus?.unfocus();
+      await frames(500);
+      tester.testTextInput.register();
+    }
     await c.prefs.update(locale: 'en', appearance: 'dark');
     await shot('dark-en');
     reducedMotion.value = true;
@@ -222,41 +255,43 @@ void main() {
     await shot('offline');
     await c.connection.connect();
     await until(() => c.online, 'reconnected');
-    for (final id in taskIds) {
-      final task = c.node.tasks[id]!;
-      final picker = find.byKey(const ValueKey('chat-activity-select'));
-      if (picker.evaluate().isNotEmpty) {
-        await tap(picker);
-        await tap(find.widgetWithText(PopupMenuItem<String>, task.title));
+    if (const bool.fromEnvironment('QA_ACTIVITY_OBSERVE_ONLY')) {
+      final result = {
+        'taskIds': taskIds.toList(),
+        'platform': suffix,
+        'pending': true,
+      };
+      if (!phone) {
+        await File('$evidence/activity-pending.json')
+            .writeAsString(jsonEncode(result));
       }
-      await tap(find.byKey(const ValueKey('chat-activity-current')));
-      await until(
-        () => (c.node.messages[dm] ?? []).any(
-          (m) =>
-              m.taskId == id && m.kind == 'question' && m.status == 'streaming',
-        ),
-        'original question loaded',
-      );
+      binding.reportData = {...?binding.reportData, ...result};
+      debugPrint('ACTIVITY pending ${jsonEncode(result)}');
+      return;
+    }
+    final latest = find.byKey(const ValueKey('chat-latest'));
+    if (latest.hitTestable().evaluate().isNotEmpty) await tap(latest);
+    for (final id in taskIds) {
       final question = c.node.messages[dm]!.firstWhere(
         (m) =>
             m.taskId == id && m.kind == 'question' && m.status == 'streaming',
       );
-      await tap(find.byKey(ValueKey('choice-${question.messageId}-0')));
-      await tap(find.byTooltip(c.tr('关闭', 'Close')).last);
-      if (id == taskIds.first) {
-        await until(
-          () =>
-              c.node.flows[id]?.steps.any(
-                (s) =>
-                    s.state == 'running' &&
-                    s.tool != null &&
-                    s.tool != 'clarify',
-              ) ==
-              true,
-          'real tool activity after answering',
+      final choice = find.byKey(ValueKey('choice-${question.messageId}-0'));
+      if (choice.evaluate().isEmpty) {
+        await tester.scrollUntilVisible(
+          choice,
+          -220,
+          scrollable: find
+              .descendant(
+                of: find.byKey(const ValueKey('chat-messages')),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+          maxScrolls: 20,
         );
-        await shot('live-tool');
       }
+      await tap(choice);
+      await shot('answered-${taskIds.toList().indexOf(id)}');
     }
     await until(
       () => taskIds.every(
@@ -275,21 +310,18 @@ void main() {
     c.workspace.remove('taskQuote:${c.selectedNodeId}:$dm');
     c.node.changed(dm);
     await frames();
-    final latest = find.byKey(const ValueKey('chat-latest'));
     if (latest.hitTestable().evaluate().isNotEmpty) await tap(latest);
     await shot('results');
     final result = {
       'platform': suffix,
       'taskIds': taskIds.toList(),
       'states': [for (final id in taskIds) c.node.tasks[id]!.state],
-      'labels': [
-        for (final id in taskIds) ChatActivity(c, dm, c.node.tasks[id]).label,
-      ],
     };
     if (!phone) {
       await File('$evidence/activity-$suffix-results.json')
           .writeAsString(jsonEncode(result));
     }
+    binding.reportData = {...?binding.reportData, ...result};
     debugPrint('ACTIVITY PASS ${jsonEncode(result)}');
   });
 }

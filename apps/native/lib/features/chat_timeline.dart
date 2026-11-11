@@ -1,5 +1,3 @@
-import 'task_details.dart';
-
 import 'package:flutter/material.dart';
 
 import '../data/chat_models.dart';
@@ -18,7 +16,8 @@ class ChatTimeline extends StatelessWidget {
   final double composerHeight;
   final String? focusedMessage;
   final GlobalKey focusedKey;
-  final ValueChanged<String> onRetry, onError, onQuote;
+  final ValueChanged<String> onRetry, onError;
+  final void Function(String words, String? taskId) onQuote;
   final ValueChanged<bool>? onFocusChanged;
 
   /// Whether a message arrived while the page was open and has not been shown
@@ -120,14 +119,10 @@ class ChatTimeline extends StatelessWidget {
                         previous.author.id == m.author.id &&
                         previous.author.type == m.author.type,
                     onRetry: onRetry,
-                    onQuote: onQuote,
+                    onQuote: (words) => onQuote(words, m.taskId),
                   ),
                 ),
               ),
-              if (m.taskId != null &&
-                  c.node.tasks[m.taskId] != null &&
-                  (at == items.length - 1 || items[at + 1].taskId != m.taskId))
-                TaskLink(client: c, task: c.node.tasks[m.taskId]!),
             ],
           ),
         ),
@@ -207,23 +202,33 @@ class ChatTimeline extends StatelessWidget {
           ),
         );
         final top = head - 6;
-        if (top == 0 || !height.isFinite || height <= top) return list;
-        // Lines fade out as they pass under the floating bar, so nothing shows
-        // around its pills.
+        if (!height.isFinite || height <= 0) return list;
+        final bottomEnd = ((height - composerHeight) / height).clamp(0.0, 1.0);
+        final bottomStart = ((height - composerHeight - 12) / height).clamp(
+          0.0,
+          bottomEnd,
+        );
+        // History stays clear of the fixed activity line and floating input.
         return ShaderMask(
           blendMode: BlendMode.dstIn,
           shaderCallback: (rect) => LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: const [
-              Colors.transparent,
-              Colors.transparent,
+            colors: [
+              top == 0 ? Colors.black : Colors.transparent,
+              top == 0 ? Colors.black : Colors.transparent,
               Colors.black,
+              Colors.black,
+              Colors.transparent,
+              Colors.transparent,
             ],
             stops: [
               0,
-              ((top - 24) / height).clamp(0.0, 1.0),
-              ((top + 8) / height).clamp(0.0, 1.0),
+              ((top - 24) / height).clamp(0.0, bottomStart),
+              ((top + 8) / height).clamp(0.0, bottomStart),
+              bottomStart,
+              bottomEnd,
+              1,
             ],
           ).createShader(rect),
           child: list,

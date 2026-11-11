@@ -1083,7 +1083,7 @@ export class ConversationExecution {
             ? tasks
             : [];
     if (tasks.length > 1 && !selected.length && !target)
-      return tasks.map((task) => `${task.title} · /stop ${task.taskId}`).join('\n');
+      return tasks.map((task) => `/stop ${task.title}`).join('\n');
     if (target && selector !== 'all' && selected.length !== 1)
       throw new NodeFault('not_found', 'Task not found in this chat');
     const runs = this.database
