@@ -70,6 +70,7 @@ export class ConversationExecution {
     this.tasks = new DotTasks(database, hermes, {
       start: (run, input) => this.startRun(run, input),
       stop: (conversationId, runId) => this.stop(conversationId, runId),
+      answer: (messageId, answer) => this.controls.respondToQuestion({ messageId, answer }),
     });
     this.routines.onTask = (value) => this.tasks.local(value);
     this.routines.onExecution = async (routine, execution, conversationId, prompts, generation) => {
@@ -87,7 +88,7 @@ export class ConversationExecution {
         this.end(run);
         await this.tasks.finished(run, execution.state as 'completed' | 'failed' | 'cancelled');
       } else {
-        this.controls.restoreNativePrompts(run, prompts);
+        await this.controls.restoreNativePrompts(run, prompts);
         this.publishActivity(run);
       }
     };
@@ -194,8 +195,13 @@ export class ConversationExecution {
         this.consume(run, hermes.gateway(run.botId));
       },
     );
-    this.controls = new RunControls(this.database, hermes, this.flow, this.notifications, (run) =>
-      this.publishActivity(run),
+    this.controls = new RunControls(
+      this.database,
+      hermes,
+      this.flow,
+      this.notifications,
+      (run) => this.publishActivity(run),
+      (run, question) => this.tasks.consult(run, question),
     );
     this.groupExecution = new GroupExecution(
       this.database,
@@ -377,7 +383,7 @@ export class ConversationExecution {
           }
           if (run.queue !== 'queued') this.activeRuns.set(run.inputMessageId, run);
           if (run.queue !== 'queued')
-            this.controls.restoreNativePrompts(run, snapshot.prompts ?? []);
+            await this.controls.restoreNativePrompts(run, snapshot.prompts ?? []);
           if (receipt.status === 'started') this.flow.start(run);
           this.publishActivity(run);
           this.consume(run, gateway);
@@ -648,7 +654,7 @@ export class ConversationExecution {
         run.botId,
         [
           run.role === 'execution'
-            ? 'Execute this requirement using your full native tools. Do not use nekodot_task in this execution. Do not narrate internal delegation. Produce verifiable results and preserve native memory/skills as usual.'
+            ? 'Carry out the full brief for the coordinating Dot using your native tools. You are not speaking directly to the user. Do not use nekodot_task. If a decision is missing, use native clarify: the main Dot will consider it, ask the user when necessary and return the answer. Preserve all supplied user constraints and attachments. Return verifiable findings, failures and actual deliverable references to the main Dot; it will compose the user-facing response. Preserve native memory and skills as usual.'
             : this.tasks.context(run.conversationId, run.botId, run.targetTaskId),
           snapshot.bootstrap,
           instructions,
@@ -756,7 +762,7 @@ export class ConversationExecution {
             run.lastSeq = snapshot.last_sequence;
           }
           if (run.queue !== 'queued')
-            this.controls.restoreNativePrompts(run, snapshot.prompts ?? []);
+            await this.controls.restoreNativePrompts(run, snapshot.prompts ?? []);
           const session = this.database.hermesSession(
             run.sessionKey ??
               (run.groupId ? 'group:' + run.conversationId + ':' + run.botId : run.conversationId),
@@ -792,7 +798,7 @@ export class ConversationExecution {
           run.executionGeneration = snapshot.execution_generation;
           this.messages.reconcileNativeText(run, snapshot);
           if (run.queue !== 'queued')
-            this.controls.restoreNativePrompts(run, snapshot.prompts ?? []);
+            await this.controls.restoreNativePrompts(run, snapshot.prompts ?? []);
           const session = this.database.hermesSession(
             run.sessionKey ??
               (run.groupId ? 'group:' + run.conversationId + ':' + run.botId : run.conversationId),
@@ -860,7 +866,7 @@ export class ConversationExecution {
               this.activeRuns.set(run.inputMessageId, run);
               this.flow.start(run);
               this.queueMessage(run, 'running');
-              this.controls.restoreNativePrompts(run, snapshot.prompts ?? []);
+              await this.controls.restoreNativePrompts(run, snapshot.prompts ?? []);
               this.database.saveRun(run);
               this.publishActivity(run);
             }
@@ -1190,6 +1196,10 @@ export class ConversationExecution {
     status: 'completed' | 'failed' | 'cancelled',
     output: string,
   ) {
+    if (run.role === 'consultation') {
+      this.end(run);
+      return;
+    }
     if (run.role === 'execution' || run.role === 'report') {
       this.end(run);
       await this.tasks.finished(run, status);

@@ -12,7 +12,11 @@ import { ExecutionFlows } from './flow';
 
 function makeRoutines(db: NodeDatabase, hermes: HermesRuntime, notifications: Notifications) {
   const routines = new Routines(db, hermes, notifications);
-  const tasks = new DotTasks(db, hermes, { start: async () => {}, stop: async () => {} });
+  const tasks = new DotTasks(db, hermes, {
+    start: async () => {},
+    stop: async () => {},
+    answer: async (messageId, answer) => controls.respondToQuestion({ messageId, answer }),
+  });
   const controls = new RunControls(db, hermes, new ExecutionFlows(db), notifications, () => {});
   routines.scrub = (_, text) => text;
   routines.onExecution = async (routine, execution, conversationId, prompts, generation) => {
@@ -22,7 +26,7 @@ function makeRoutines(db: NodeDatabase, hermes: HermesRuntime, notifications: No
       run.state = 'idle';
       db.saveRun(run);
       await tasks.finished(run, execution.state as 'completed' | 'failed' | 'cancelled');
-    } else controls.restoreNativePrompts(run, prompts);
+    } else await controls.restoreNativePrompts(run, prompts);
   };
   return { routines, controls };
 }

@@ -226,11 +226,19 @@ export class ExecutionFlows {
     this.phase(run, 'thinking', seq);
   }
 
-  prompt(run: RunRecord, kind: 'approval' | 'question', promptId: string, messageId: string) {
+  prompt(run: RunRecord, kind: 'approval' | 'question', promptId: string, messageId?: string) {
     this.start(run);
     const flow = this.owned(run);
     const id = `${run.runId}:${kind}:${promptId}`;
-    if (!flow || flow.steps.some((s) => s.stepId === id)) return;
+    if (!flow) return;
+    const existing = flow.steps.find((s) => s.stepId === id);
+    if (existing) {
+      if (messageId && existing.messageId !== messageId) {
+        existing.messageId = messageId;
+        this.database.saveFlow(flow, [existing]);
+      }
+      return;
+    }
     const changed = this.endPhases(flow, run);
     const step = this.step(run, kind, id, this.frontier(flow));
     const calls = flow.steps.filter((s) => s.runId === run.runId && s.tool && active(s));

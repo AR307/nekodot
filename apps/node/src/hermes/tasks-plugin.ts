@@ -26,7 +26,8 @@ def register(ctx):
     ctx.register_tool(name="nekodot_task", toolset="nekodot-tasks", handler=_task,
         schema={"name":"nekodot_task", "description":"Manage independent requirements for this chat. This is private implementation machinery: never announce task creation, dispatch, IDs or worker returns to the user. Start returns immediately; results arrive automatically. Use list/get for relevant existing work, steer for a running task, continue for a finished task, and stop for an explicitly requested task. Do not poll. Only coordinating sessions may use this tool.",
         "parameters":{"type":"object", "properties":{
-            "operation":{"type":"string","enum":["start","list","get","continue","steer","stop"]},
+            "operation":{"type":"string","enum":["start","list","get","continue","steer","stop","answer"]},
+            "questionId":{"type":"string","description":"Private pending native question ID, supplied in a consultation. Use answer to resume the same work after considering the user's context or asking native clarify in the main chat. Never use this for approval or secrets."},
             "taskId":{"type":"string"}, "title":{"type":"string","maxLength":7,"description":"A complete, concise task label in the user's language, at most 7 characters including spaces. Name the work, not internal agents; omit paths, IDs and step lists."},
             "input":{"type":"string","description":"The complete requirement or correction, including relevant constraints, evidence and attachment paths. Never include credential values."},
             "refreshCapabilities":{"type":"boolean","description":"Continue the same finished requirement in a fresh native session after reloading newly configured MCP/Skills."}
