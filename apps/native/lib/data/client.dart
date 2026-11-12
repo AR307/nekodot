@@ -80,6 +80,7 @@ class NekodotClient extends ChangeNotifier {
   final routineDrafts = <String, Json>{};
   final spaceDrafts = <String, Json>{};
   final notifications = StreamController<Json>.broadcast();
+  final connectorChanges = StreamController<Json>.broadcast();
   final foregroundNotice = ValueNotifier<Json?>(null);
   final destinations = StreamController<Json>.broadcast();
   Json? pendingDestination;
@@ -511,6 +512,9 @@ class NekodotClient extends ChangeNotifier {
   void _receive(Json frame) {
     final p = object(frame['payload']), id = frame['nodeId'] as String?;
     switch (frame['type']) {
+      case 'connectors.changed':
+        connectorChanges.add(p);
+        return;
       case 'node.status':
         if (id == null) return;
         nodes.putIfAbsent(id, NodeData.new).online = p['online'] == true;
@@ -606,6 +610,7 @@ class NekodotClient extends ChangeNotifier {
     connection.removeListener(notifyListeners);
     connection.dispose();
     account.dispose();
+    connectorChanges.close();
     prefs.dispose();
     reading.dispose();
     for (final n in nodes.values) {
