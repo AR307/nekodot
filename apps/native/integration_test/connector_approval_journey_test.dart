@@ -18,7 +18,7 @@ import 'package:nekodot_native/ui/design.dart';
 import 'local_desktop_journey_test.dart' show MemoryVault;
 
 // Windows: an existing real, pending approval; DENY the dedicated test operation.
-// Android: reopen the same real, denied card. Never grant a third-party write.
+// Android: inspect a pending card without deciding, or review its real result.
 // Prepare the task separately so rerunning this UI journey never starts a task.
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -76,7 +76,7 @@ void main() {
         );
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
         await File(
-          '${const String.fromEnvironment('QA_EVIDENCE_DIR')}/approval-fold-windows-$name.png',
+          '${const String.fromEnvironment('QA_EVIDENCE_DIR')}/approval-ui-windows-$name.png',
         ).writeAsBytes(bytes!.buffer.asUint8List());
         image.dispose();
       } else {
@@ -85,7 +85,7 @@ void main() {
           surfaceReady = true;
           await frames();
         }
-        await binding.takeScreenshot('approval-fold-android-$name');
+        await binding.takeScreenshot('approval-ui-android-$name');
       }
     }
 
@@ -112,11 +112,24 @@ void main() {
       matching: find.byType(ConnectorApprovalCard),
     );
     Finder within(Finder finder) => find.descendant(of: card, matching: finder);
-    if (Platform.isWindows &&
-        tester.widget<ConnectorApprovalCard>(approval).pending) {
+    if (tester.widget<ConnectorApprovalCard>(approval).pending) {
+      await shot('pending');
+      await client.prefs.update(appearance: 'dark');
+      await frames(700);
+      await shot('pending-dark');
+      await client.prefs.update(appearance: 'light');
+      await frames(700);
       await tester.tap(within(find.text('详细信息')));
       await frames();
       await shot('before');
+      if (!Platform.isWindows) {
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+        debugPrint(
+          'CONNECTOR APPROVAL pending layout reviewed; no decision sent',
+        );
+        return;
+      }
       final before = tester.getSize(within(find.byType(ChatCard))).height;
       await tester.tap(
         within(find.byKey(const ValueKey('connector-approval-deny'))),
@@ -127,6 +140,7 @@ void main() {
         findsOneWidget,
       );
       expect(within(find.text('详细信息')), findsNothing);
+      await frames();
       expect(
         tester.getSize(within(find.byType(ChatCard))).height,
         lessThan(before),
@@ -145,15 +159,17 @@ void main() {
       within(find.byKey(const ValueKey('connector-approval-summary'))),
     );
     await frames();
-    expect(within(find.text('详细信息')), findsOneWidget);
+    expect(
+      within(find.byKey(const ValueKey('connector-approval-details'))),
+      findsNothing,
+    );
+    expect(within(find.text(marker)), findsOneWidget);
     for (final choice in ['once', 'always', 'deny']) {
       expect(
         within(find.byKey(ValueKey('connector-approval-$choice'))),
         findsNothing,
       );
     }
-    await tester.tap(within(find.text('详细信息')));
-    await frames();
     await shot('expanded');
     await tester.tap(
       within(find.byKey(const ValueKey('connector-approval-summary'))),
@@ -162,7 +178,7 @@ void main() {
     if (DesktopHost.supported) {
       await windowManager.setSize(const Size(480, 800));
     }
-    await frames();
+    await frames(700);
     client.openNotification({
       'nodeId': client.selectedNodeId!,
       'conversationId': conversation,
