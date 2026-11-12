@@ -6,7 +6,7 @@ import '../data/hermes_zh.dart';
 import '../ui/design.dart';
 import 'bot_editor.dart';
 import 'bot_model.dart';
-import 'extensions.dart';
+import 'plugin_center.dart';
 import 'hermes_settings.dart';
 import 'settings.dart';
 import 'learning.dart';
@@ -49,7 +49,7 @@ Future<void> openCommandPage(
     ),
     'model' => BotModelPage(client: client, botId: botId),
     'profile-import' => BotEditor(client: client, importProfile: true),
-    'plugins' => ExtensionsPage(client: client, kind: 'plugins'),
+    'plugins' => PluginCenterPage(client: client, kind: 'plugins'),
     'sources' => SourcesPage(client: client),
     'journey' =>
       argument.isEmpty

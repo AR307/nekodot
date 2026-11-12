@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
 
-import 'package:nekodot_native/features/extensions.dart';
+import 'package:nekodot_native/features/plugin_center.dart';
 import 'package:nekodot_native/ui/design.dart';
 
 /// Uses the isolated Node + Relay + recorded-management service, not a widget mock.
@@ -37,16 +37,19 @@ void main() {
       runApp(
         MaterialApp(
           theme: appTheme(Brightness.light),
-          home: ExtensionsPage(client: client, kind: 'plugins'),
+          home: PluginCenterPage(client: client, kind: 'plugins'),
         ),
       );
       await until(() => find.byType(TextField).evaluate().isNotEmpty);
       await tester.enterText(find.byType(TextField).first, 'docs-probe');
       await tester.pump(const Duration(milliseconds: 300));
       await until(
-        () => find.widgetWithText(ListTile, 'docs-probe').evaluate().isNotEmpty,
+        () => find
+            .byKey(const ValueKey('extension-docs-probe'))
+            .evaluate()
+            .isNotEmpty,
       );
-      await tester.tap(find.widgetWithText(ListTile, 'docs-probe'));
+      await tester.tap(find.byKey(const ValueKey('extension-docs-probe')));
       await until(
         () => find.text('Native documentation probe').evaluate().isNotEmpty,
       );
@@ -79,7 +82,10 @@ void main() {
             .text,
         'docs-probe',
       );
-      expect(find.widgetWithText(ListTile, 'docs-probe'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('extension-docs-probe')),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
       debugPrint('QA: native extension back and filtered list restored');
       client.dispose();

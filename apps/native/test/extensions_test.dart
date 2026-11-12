@@ -2,10 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/data/json.dart';
-import 'package:nekodot_native/features/extensions.dart';
+import 'package:nekodot_native/features/plugin_center.dart';
 import 'package:nekodot_native/ui/design.dart';
 
 class DocumentClient extends NekodotClient {
+  DocumentClient() {
+    selectedNodeId = 'document-node';
+    node.bots = [
+      {
+        'botId': 'nk-docs00',
+        'displayName': 'Document Dot',
+        'avatar': {'color': '#E8603C', 'shape': 'dot'},
+      },
+    ];
+  }
   Json? requested;
   @override
   Future<Json> rpc(
@@ -50,7 +60,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: appTheme(Brightness.light, glass: true),
-        home: ExtensionsPage(client: client, kind: 'plugins'),
+        home: PluginCenterPage(client: client, kind: 'plugins'),
       ),
     );
     await tester.pumpAndSettle();
@@ -66,7 +76,7 @@ void main() {
     await tester.enterText(find.byType(TextField), 'Readable');
     await tester.pumpAndSettle();
     expect(
-      find.widgetWithText(ListTile, 'Readable package title'),
+      find.byKey(const ValueKey('extension-tools/package')),
       findsOneWidget,
     );
   });
@@ -81,11 +91,11 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: appTheme(Brightness.light),
-          home: ExtensionsPage(client: client, kind: 'plugins'),
+          home: PluginCenterPage(client: client, kind: 'plugins'),
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(ListTile, 'Readable package title'));
+      await tester.tap(find.byKey(const ValueKey('extension-tools/package')));
       await tester.pumpAndSettle();
       expect(client.requested, {
         'kind': 'plugins',
@@ -107,7 +117,7 @@ void main() {
       await tester.pageBack();
       await tester.pumpAndSettle();
       expect(
-        find.widgetWithText(ListTile, 'Readable package title'),
+        find.byKey(const ValueKey('extension-tools/package')),
         findsOneWidget,
       );
       expect(tester.takeException(), isNull);

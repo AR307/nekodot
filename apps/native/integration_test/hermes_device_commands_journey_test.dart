@@ -8,7 +8,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
-import 'package:nekodot_native/features/extensions.dart';
+import 'package:nekodot_native/features/plugin_center.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/features/learning.dart';
 import 'package:nekodot_native/features/pets.dart';
@@ -303,7 +303,7 @@ void main() {
     await tester.pageBack();
     await until(() => input.evaluate().isNotEmpty);
     await send('/plugins');
-    await until(() => find.byType(ExtensionsPage).evaluate().isNotEmpty);
+    await until(() => find.byType(PluginCenterPage).evaluate().isNotEmpty);
     await tester.pageBack();
     await until(() => input.evaluate().isNotEmpty);
     await send('/prompt Harmless unsent native draft');

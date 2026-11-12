@@ -8,7 +8,7 @@ import '../data/client.dart';
 import '../data/json.dart';
 import '../local/runtime.dart';
 import '../platform/desktop.dart';
-import 'extensions.dart';
+import 'plugin_center.dart';
 import 'hermes_settings.dart';
 import 'local_setup.dart';
 import '../ui/design.dart';
@@ -165,8 +165,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 link(
                   'settings-extensions',
-                  c.tr('Skills 与插件', 'Skills & plugins'),
-                  ExtensionsPage(client: c, kind: 'skills'),
+                  c.tr('插件中心', 'Plugin center'),
+                  PluginCenterPage(client: c, kind: 'skills'),
                 ),
                 if (c.online)
                   link(

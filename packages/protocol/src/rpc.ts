@@ -333,6 +333,34 @@ export const rpcContracts = {
     params: z.strictObject({ kind: z.enum(['skills', 'plugins']) }),
     result: z.strictObject({ entries: z.array(extensionSchema) }),
   },
+  'mcp.list': {
+    params: z.strictObject(botTarget),
+    result: z.strictObject({ servers: z.array(nativeRecordSchema) }),
+  },
+  'mcp.add': {
+    params: z.strictObject({
+      ...botTarget,
+      name: z.string().trim().min(1),
+      config: z
+        .strictObject({
+          url: z.url().optional(),
+          command: z.string().trim().min(1).optional(),
+          args: z.array(z.string()).optional(),
+          env: z.record(z.string(), z.string()).optional(),
+        })
+        .refine((v) => Boolean(v.url) !== Boolean(v.command), 'Choose URL or command'),
+      bearerToken: z.string().optional(),
+    }),
+    result: nativeRecordSchema,
+  },
+  'mcp.toggle': {
+    params: z.strictObject({ ...botTarget, name: z.string().min(1), enabled: z.boolean() }),
+    result: nativeRecordSchema,
+  },
+  'mcp.test': {
+    params: z.strictObject({ ...botTarget, name: z.string().min(1) }),
+    result: nativeRecordSchema,
+  },
   'extensions.content': {
     params: z.strictObject({
       kind: z.enum(['skills', 'plugins']),

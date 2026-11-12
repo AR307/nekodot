@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/data/json.dart';
-import 'package:nekodot_native/features/extensions.dart';
+import 'package:nekodot_native/features/plugin_center.dart';
 import 'package:nekodot_native/features/connectors.dart';
 import 'package:nekodot_native/features/connector_authorization.dart';
 import 'package:nekodot_native/features/connector_service.dart';
@@ -31,7 +31,10 @@ void main() {
       'theme': 'light',
     });
     final client = NekodotClient(vault: MemoryVault());
-    addTearDown(client.dispose);
+    addTearDown(() async {
+      await client.clearSession();
+      client.dispose();
+    });
     await client.acceptSession({
       'token': const String.fromEnvironment('QA_TOKEN'),
     });
@@ -105,7 +108,7 @@ void main() {
         ),
         child: Ambient(child: child!),
       ),
-      home: ExtensionsPage(client: client, kind: 'connectors'),
+      home: PluginCenterPage(client: client, kind: 'connectors'),
     );
     Finder service(String id) => find.byKey(ValueKey('connector-service-$id'));
     Future<void> searchCatalog(String value) async {
