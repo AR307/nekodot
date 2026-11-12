@@ -241,12 +241,22 @@ class _ConnectorServicePageState extends State<ConnectorServicePage>
   @override
   Widget build(BuildContext context) {
     final tone = context.tone;
+    final text = Theme.of(context).textTheme;
     final count = connections.where((row) => row['status'] == 'active').length;
     final pending = authorizations.map((row) => row['connectionId']).toSet();
-    final website = Uri.tryParse(service['website'] as String? ?? '');
-    Widget heading(String text) => Padding(
-      padding: const EdgeInsets.only(top: 28, bottom: 12),
-      child: Text(text, style: Theme.of(context).textTheme.titleSmall),
+    Widget heading(String label, {Object? count, Key? countKey}) => Row(
+      children: [
+        Expanded(child: Text(label, style: text.titleMedium)),
+        if (count != null)
+          Text(
+            '$count',
+            key: countKey,
+            style: text.bodySmall?.copyWith(
+              fontSize: 13,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+      ],
     );
     return Scaffold(
       appBar: AppBar(
@@ -267,43 +277,30 @@ class _ConnectorServicePageState extends State<ConnectorServicePage>
         ],
       ),
       body: PageList(
-        maxWidth: 800,
+        maxWidth: 880,
         children: [
-          Row(
-            children: [
-              ConnectorIcon(url: service['icon'] as String?, size: 44),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  '${service['name']}',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-              ),
-              const SizedBox(width: 16),
-              FilledButton(
-                key: const ValueKey('connector-connect'),
-                onPressed:
-                    connecting || (service['authMethods'] as List).isEmpty
-                    ? null
-                    : connect,
-                child: connecting
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(c.tr('连接', 'Connect')),
-              ),
-            ],
-          ),
-          if ((service['description'] as String? ?? '').isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: SelectableText(
-                '${service['description']}',
-                style: TextStyle(color: tone.ink2, height: 1.5),
+          _ServiceHeader(
+            client: c,
+            service: service,
+            action: FilledButton.icon(
+              key: const ValueKey('connector-connect'),
+              onPressed: connecting || (service['authMethods'] as List).isEmpty
+                  ? null
+                  : connect,
+              icon: connecting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.add, size: 18),
+              label: Text(
+                connections.isEmpty
+                    ? c.tr('连接', 'Connect')
+                    : c.tr('连接其他账号', 'Connect another account'),
               ),
             ),
+          ),
           if (error != null)
             ErrorNotice(
               error!,
@@ -312,91 +309,124 @@ class _ConnectorServicePageState extends State<ConnectorServicePage>
                 child: Text(c.tr('重试', 'Retry')),
               ),
             ),
-          heading('${c.tr('已连接账号', 'Connected accounts')} · $count'),
-          if (loading)
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
+          const SizedBox(height: 24),
+          Panel(
+            radius: 16,
+            color: tone.glass ? tone.bubble : tone.sidebar,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  heading(
+                    c.tr('已连接账号', 'Connected accounts'),
+                    count: count,
+                    countKey: const ValueKey('connector-account-count'),
+                  ),
+                  const SizedBox(height: 12),
+                  if (loading)
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  if (!loading && connections.isEmpty)
+                    Text(
+                      c.tr('暂无连接', 'No connections'),
+                      style: TextStyle(color: tone.ink2),
+                    ),
+                  for (final row in connections)
+                    if (!pending.contains(row['connectionId']))
+                      ListTile(
+                        key: ValueKey(
+                          'connector-account-${row['connectionId']}',
+                        ),
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          (row['label'] as String).isNotEmpty
+                              ? '${row['label']}'
+                              : (row['account'] as String).isNotEmpty
+                              ? '${row['account']}'
+                              : '${service['name']}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if ((row['label'] as String).isNotEmpty &&
+                                (row['account'] as String).isNotEmpty)
+                              Text(
+                                '${row['account']}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  row['status'] == 'active'
+                                      ? Icons.check_circle_outline
+                                      : Icons.link_off,
+                                  size: 14,
+                                  color: tone.ink3,
+                                ),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    connectorStatus(c, '${row['status']}'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        trailing: ActionMenu<String>(
+                          tooltip: c.tr('更多', 'More'),
+                          alignEnd: true,
+                          onSelected: (value) => unawaited(action(value, row)),
+                          items: [
+                            MenuAction(
+                              value: 'label',
+                              label: c.tr('账号备注', 'Account label'),
+                              icon: Icons.edit_outlined,
+                            ),
+                            MenuAction(
+                              value: 'reconnect',
+                              label: c.tr('重新授权', 'Reconnect'),
+                              icon: Icons.refresh,
+                              enabled: !connecting,
+                            ),
+                            null,
+                            MenuAction(
+                              value: 'disconnect',
+                              label: c.tr('断开连接', 'Disconnect'),
+                              icon: Icons.link_off,
+                            ),
+                          ],
+                        ),
+                      ),
+                  for (final auth in authorizations)
+                    ConnectorAuthorizationView(
+                      key: ValueKey(auth['authorizationId']),
+                      client: c,
+                      authorization: auth,
+                      onChanged: () => unawaited(accounts()),
+                    ),
+                ],
               ),
             ),
-          if (!loading && connections.isEmpty)
-            Text(
-              c.tr('暂无连接', 'No connections'),
-              style: TextStyle(color: tone.ink2),
-            ),
-          for (final row in connections)
-            if (!pending.contains(row['connectionId']))
-              ListTile(
-                key: ValueKey('connector-account-${row['connectionId']}'),
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  (row['label'] as String).isNotEmpty
-                      ? '${row['label']}'
-                      : (row['account'] as String).isNotEmpty
-                      ? '${row['account']}'
-                      : '${service['name']}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(
-                  [
-                    if ((row['label'] as String).isNotEmpty &&
-                        (row['account'] as String).isNotEmpty)
-                      '${row['account']}',
-                    connectorStatus(c, '${row['status']}'),
-                  ].join(' · '),
-                ),
-                trailing: ActionMenu<String>(
-                  tooltip: c.tr('更多', 'More'),
-                  alignEnd: true,
-                  onSelected: (value) => unawaited(action(value, row)),
-                  items: [
-                    MenuAction(
-                      value: 'label',
-                      label: c.tr('账号备注', 'Account label'),
-                      icon: Icons.edit_outlined,
-                    ),
-                    MenuAction(
-                      value: 'reconnect',
-                      label: c.tr('重新授权', 'Reconnect'),
-                      icon: Icons.refresh,
-                      enabled: !connecting,
-                    ),
-                    null,
-                    MenuAction(
-                      value: 'disconnect',
-                      label: c.tr('断开连接', 'Disconnect'),
-                      icon: Icons.link_off,
-                    ),
-                  ],
-                ),
-              ),
-          for (final auth in authorizations)
-            ConnectorAuthorizationView(
-              key: ValueKey(auth['authorizationId']),
-              client: c,
-              authorization: auth,
-              onChanged: () => unawaited(accounts()),
-            ),
-          if (connections.isNotEmpty)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: connecting ? null : connect,
-                icon: const Icon(Icons.add, size: 18),
-                label: Text(c.tr('连接其他账号', 'Connect another account')),
-              ),
-            ),
-          heading(
-            '${c.tr('可用工具', 'Available tools')}${service['toolCount'] == null ? '' : ' · ${service['toolCount']}'}',
           ),
+          const SizedBox(height: 28),
+          heading(c.tr('可用工具', 'Available tools'), count: service['toolCount']),
+          const SizedBox(height: 12),
           TextField(
             controller: search,
             decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: const Icon(Icons.search, size: 20),
               hintText: c.tr('搜索', 'Search'),
             ),
             onChanged: (_) {
@@ -437,24 +467,33 @@ class _ConnectorServicePageState extends State<ConnectorServicePage>
                   style: TextStyle(color: tone.ink2),
                 ),
               ),
-            for (final tool in tools)
+            for (final tool in tools) ...[
               ListTile(
+                key: ValueKey('connector-tool-${tool['name']}'),
                 contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  Icons.extension_outlined,
-                  size: 20,
-                  color: tone.ink3,
-                ),
                 title: Text(
                   '${tool['name']}',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: text.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-                subtitle: Text(
-                  '${tool['description']}',
-                  maxLines: expanded.contains(tool['name']) ? null : 2,
-                  overflow: expanded.contains(tool['name'])
-                      ? null
-                      : TextOverflow.ellipsis,
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '${tool['description']}',
+                    style: text.bodySmall?.copyWith(fontSize: 13, height: 1.5),
+                    maxLines: expanded.contains(tool['name']) ? null : 2,
+                    overflow: expanded.contains(tool['name'])
+                        ? null
+                        : TextOverflow.ellipsis,
+                  ),
+                ),
+                trailing: Icon(
+                  expanded.contains(tool['name'])
+                      ? Icons.expand_less
+                      : Icons.expand_more,
+                  color: tone.ink3,
+                  size: 18,
                 ),
                 onTap: () => setState(() {
                   if (!expanded.add('${tool['name']}')) {
@@ -465,6 +504,9 @@ class _ConnectorServicePageState extends State<ConnectorServicePage>
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
+              if (tool != tools.last)
+                Divider(height: 17, thickness: .5, color: tone.line),
+            ],
             if (tools.length == toolLimit)
               Align(
                 alignment: Alignment.centerLeft,
@@ -477,26 +519,111 @@ class _ConnectorServicePageState extends State<ConnectorServicePage>
                 ),
               ),
           ],
-          heading(c.tr('授权方式', 'Authorization')),
-          Text(
-            (service['authMethods'] as List).join(' · '),
-            style: TextStyle(color: tone.ink2),
-          ),
-          if (website != null &&
-              ['https', 'http'].contains(website.scheme)) ...[
-            heading(c.tr('网站', 'Website')),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () =>
-                    launchUrl(website, mode: LaunchMode.externalApplication),
-                icon: const Icon(Icons.open_in_new, size: 16),
-                label: Text(website.host),
-              ),
-            ),
-          ],
         ],
       ),
+    );
+  }
+}
+
+/// Service identity and connection action stay together; provider metadata is secondary.
+class _ServiceHeader extends StatelessWidget {
+  final NekodotClient client;
+  final Json service;
+  final Widget action;
+  const _ServiceHeader({
+    required this.client,
+    required this.service,
+    required this.action,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = client;
+    final tone = context.tone;
+    final text = Theme.of(context).textTheme;
+    final website = Uri.tryParse(service['website'] as String? ?? '');
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide =
+            constraints.maxWidth >= 640 &&
+            MediaQuery.textScalerOf(context).scale(14) <= 20;
+        final identity = Row(
+          children: [
+            ConnectorIcon(url: service['icon'] as String?, size: 44),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text('${service['name']}', style: text.headlineSmall),
+            ),
+          ],
+        );
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (wide)
+              Row(
+                children: [
+                  Expanded(child: identity),
+                  const SizedBox(width: 24),
+                  action,
+                ],
+              )
+            else
+              identity,
+            if ((service['description'] as String? ?? '').isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: SelectableText(
+                  '${service['description']}',
+                  style: text.bodyMedium?.copyWith(
+                    color: tone.ink2,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 24,
+              runSpacing: 12,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if ((service['authMethods'] as List).isNotEmpty)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        c.tr('授权方式', 'Authorization'),
+                        style: text.bodySmall,
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 4,
+                        children: [
+                          for (final method in service['authMethods'] as List)
+                            Text(
+                              '$method',
+                              style: text.bodySmall?.copyWith(color: tone.ink),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                if (website != null &&
+                    ['https', 'http'].contains(website.scheme))
+                  TextButton.icon(
+                    onPressed: () => launchUrl(
+                      website,
+                      mode: LaunchMode.externalApplication,
+                    ),
+                    icon: const Icon(Icons.open_in_new, size: 16),
+                    label: Text(website.host),
+                  ),
+              ],
+            ),
+            if (!wide) ...[const SizedBox(height: 16), action],
+          ],
+        );
+      },
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -19,6 +20,7 @@ class ConnectorsBody extends StatefulWidget {
 class _ConnectorsBodyState extends State<ConnectorsBody>
     with WidgetsBindingObserver {
   final search = TextEditingController();
+  final scroll = ScrollController();
   final categories = <String, String>{};
   List<Json> connections = [], services = [];
   StreamSubscription<Json>? changes;
@@ -42,6 +44,7 @@ class _ConnectorsBodyState extends State<ConnectorsBody>
     changes?.cancel();
     debounce?.cancel();
     search.dispose();
+    scroll.dispose();
     super.dispose();
   }
 
@@ -117,6 +120,7 @@ class _ConnectorsBodyState extends State<ConnectorsBody>
     debounce?.cancel();
     search.clear();
     category = value;
+    if (scroll.hasClients) scroll.jumpTo(0);
     unawaited(load());
   }
 
@@ -128,6 +132,7 @@ class _ConnectorsBodyState extends State<ConnectorsBody>
   @override
   Widget build(BuildContext context) {
     final tone = context.tone;
+    final text = Theme.of(context).textTheme;
     final query = search.text.trim();
     // Include the user's services even when they are not on the first catalog page.
     // Only service summaries live here; individual accounts belong to the detail.
@@ -136,21 +141,15 @@ class _ConnectorsBodyState extends State<ConnectorsBody>
         for (final row in connections)
           '${row['service']['serviceId']}': object(row['service']),
       for (final service in services) '${service['serviceId']}': service,
-    }.values;
-    final groups = <String, List<Json>>{};
-    for (final service in entries) {
-      final tags = objects(service['categories']);
-      final heading = category != null
-          ? categories[category]!
-          : query.isNotEmpty
-          ? c.tr('可连接服务', 'Available services')
-          : tags.isNotEmpty
-          ? '${tags.first['name']}'
-          : c.tr('可连接服务', 'Available services');
-      (groups[heading] ??= []).add(service);
-    }
+    }.values.toList();
+    final filters = {
+      '': c.tr('全部', 'All'),
+      ...Map.fromEntries(
+        categories.entries.toList()..sort((a, b) => a.value.compareTo(b.value)),
+      ),
+    };
 
-    Widget tile(Json service) {
+    Widget tile(Json service, {required bool wide}) {
       final linked = connections.any(
         (row) =>
             row['service']['serviceId'] == service['serviceId'] &&
@@ -161,170 +160,227 @@ class _ConnectorsBodyState extends State<ConnectorsBody>
             row['service']['serviceId'] == service['serviceId'] &&
             row['status'] == 'pending',
       );
-      return ListTile(
+      return Material(
         key: ValueKey('connector-service-${service['serviceId']}'),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        color: wide ? tone.sidebar : Colors.transparent,
+        clipBehavior: Clip.antiAlias,
         shape: RoundedSuperellipseBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
         ),
-        leading: ConnectorIcon(url: service['icon'] as String?, size: 40),
-        title: Text(
-          '${service['name']}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        child: InkWell(
+          onTap: () => open(service),
+          child: Padding(
+            padding: EdgeInsets.all(wide ? 16 : 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    ConnectorIcon(url: service['icon'] as String?, size: 32),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '${service['name']}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.titleMedium,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (linked)
+                      Tooltip(
+                        message: c.tr('已连接', 'Connected'),
+                        child: Icon(
+                          Icons.check_circle_outline,
+                          size: 16,
+                          color: tone.ink2,
+                        ),
+                      )
+                    else
+                      Icon(Icons.chevron_right, size: 18, color: tone.ink3),
+                  ],
+                ),
+                if ((service['description'] as String? ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    '${service['description']}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.bodySmall?.copyWith(fontSize: 13, height: 1.5),
+                  ),
+                ],
+                if (pending) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    c.tr('等待授权', 'Awaiting authorization'),
+                    style: text.bodySmall,
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
-        subtitle: pending ? Text(c.tr('等待授权', 'Awaiting authorization')) : null,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (linked) ...[
-              Tooltip(
-                message: c.tr('已连接', 'Connected'),
-                child: const Icon(Icons.check, size: 16),
-              ),
-              const SizedBox(width: 8),
-            ],
-            Icon(Icons.chevron_right, size: 18, color: tone.ink3),
-          ],
-        ),
-        onTap: () => open(service),
       );
     }
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 680;
-        final visible = categories.entries.take(wide ? 4 : 1).toList();
-        final extra = categories.entries.skip(visible.length).toList();
-        Widget filter(String label, String? value) => TextButton(
-          key: ValueKey('connector-category-${value ?? 'all'}'),
-          style: TextButton.styleFrom(
-            backgroundColor: category == value ? tone.ink : tone.raised,
-            foregroundColor: category == value ? tone.base : tone.ink2,
-          ),
-          onPressed: () => select(value),
-          child: Text(label),
-        );
-        return PageList(
+        final wide =
+            !tone.glass &&
+            constraints.maxWidth >= 800 &&
+            MediaQuery.textScalerOf(context).scale(14) <= 20;
+        final side = math.max(16.0, (constraints.maxWidth - 1080) / 2);
+        final columns = wide ? 2 : 1;
+        final rows = (entries.length / columns).ceil();
+        final inset = MediaQuery.paddingOf(context);
+        final catalog = CustomScrollView(
           key: const PageStorageKey('connector-catalog'),
-          maxWidth: 880,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: search,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.search),
-                      hintText: c.tr('搜索', 'Search'),
-                    ),
-                    onChanged: (_) {
-                      debounce?.cancel();
-                      category = null;
-                      debounce = Timer(
-                        const Duration(milliseconds: 250),
-                        () => unawaited(load()),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconAction(
-                  icon: Icons.refresh,
-                  tooltip: c.tr('刷新', 'Refresh'),
-                  onPressed: loading ? null : () => load(refresh: true),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                filter(c.tr('全部', 'All'), null),
-                for (final entry in visible) filter(entry.value, entry.key),
-                if (extra.isNotEmpty)
-                  ActionMenu<String>(
-                    tooltip: c.tr('更多', 'More'),
-                    items: [
-                      for (final entry in extra)
-                        MenuAction(
-                          value: entry.key,
-                          label: entry.value,
-                          selected: category == entry.key,
-                        ),
-                    ],
-                    onSelected: select,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: tone.glass ? 14 : 7,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            extra.any((entry) => entry.key == category)
-                                ? categories[category]!
-                                : c.tr('更多', 'More'),
+          controller: scroll,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          slivers: [
+            SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: search,
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(Icons.search, size: 20),
+                            hintText: c.tr('搜索', 'Search'),
                           ),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.expand_more, size: 16),
-                        ],
+                          onChanged: (_) {
+                            debounce?.cancel();
+                            category = null;
+                            debounce = Timer(
+                              const Duration(milliseconds: 250),
+                              () => unawaited(load()),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconAction(
+                        icon: Icons.refresh,
+                        tooltip: c.tr('刷新', 'Refresh'),
+                        onPressed: loading ? null : () => load(refresh: true),
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: wide
+                        ? Text(
+                            category == null
+                                ? c.tr('可连接服务', 'Available services')
+                                : categories[category]!,
+                            style: text.titleMedium,
+                          )
+                        : Align(
+                            alignment: Alignment.centerLeft,
+                            child: ActionMenu<String>(
+                              key: const ValueKey('connector-category-menu'),
+                              tooltip: c.tr('可连接服务', 'Available services'),
+                              items: [
+                                for (final entry in filters.entries)
+                                  MenuAction(
+                                    key: ValueKey(
+                                      'connector-category-${entry.key.isEmpty ? 'all' : entry.key}',
+                                    ),
+                                    value: entry.key,
+                                    label: entry.value,
+                                    selected: (category ?? '') == entry.key,
+                                  ),
+                              ],
+                              onSelected: (value) =>
+                                  select(value.isEmpty ? null : value),
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minHeight: tone.glass ? 48 : 36,
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          filters[category ?? '']!,
+                                          style: text.titleMedium,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Icon(Icons.expand_more, size: 18),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                  ),
+                  if (error != null)
+                    ErrorNotice(
+                      error!,
+                      action: TextButton(
+                        onPressed: () => load(refresh: true),
+                        child: Text(c.tr('重试', 'Retry')),
                       ),
                     ),
-                  ),
-              ],
-            ),
-            if (error != null)
-              ErrorNotice(
-                error!,
-                action: TextButton(
-                  onPressed: () => load(refresh: true),
-                  child: Text(c.tr('重试', 'Retry')),
-                ),
+                ],
               ),
+            ),
             if (loading)
-              const Padding(
-                padding: EdgeInsets.all(32),
-                child: Center(child: CircularProgressIndicator()),
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
               )
-            else ...[
-              if (entries.isEmpty && error == null)
-                Padding(
+            else if (entries.isEmpty && error == null)
+              SliverToBoxAdapter(
+                child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 32),
-                  child: Text(
-                    c.tr('未找到服务', 'No services found'),
-                    style: TextStyle(color: tone.ink2),
+                  child: Center(
+                    child: Text(
+                      c.tr('未找到服务', 'No services found'),
+                      style: text.bodyMedium?.copyWith(color: tone.ink2),
+                    ),
                   ),
                 ),
-              for (final group in groups.entries) ...[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 24, 8, 8),
-                  child: Text(
-                    group.key,
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                ),
-                for (var i = 0; i < group.value.length; i += wide ? 2 : 1)
-                  if (wide)
-                    Row(
-                      children: [
-                        Expanded(child: tile(group.value[i])),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: i + 1 < group.value.length
-                              ? tile(group.value[i + 1])
-                              : const SizedBox.shrink(),
-                        ),
-                      ],
-                    )
-                  else
-                    tile(group.value[i]),
-              ],
-              if (cursor != null)
-                Padding(
+              )
+            else
+              SliverList.builder(
+                itemCount: rows,
+                itemBuilder: (context, row) {
+                  final at = row * columns;
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: wide ? 12 : 8),
+                    child: wide
+                        ? IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(child: tile(entries[at], wide: true)),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: at + 1 < entries.length
+                                      ? tile(entries[at + 1], wide: true)
+                                      : const SizedBox.shrink(),
+                                ),
+                              ],
+                            ),
+                          )
+                        : tile(entries[at], wide: false),
+                  );
+                },
+              ),
+            if (!loading && cursor != null)
+              SliverToBoxAdapter(
+                child: Padding(
                   padding: const EdgeInsets.only(top: 16),
                   child: Center(
                     child: TextButton(
@@ -339,8 +395,72 @@ class _ConnectorsBodyState extends State<ConnectorsBody>
                     ),
                   ),
                 ),
-            ],
+              ),
+            SliverToBoxAdapter(child: SizedBox(height: inset.bottom + 28)),
           ],
+        );
+        return Padding(
+          padding: EdgeInsets.fromLTRB(side, inset.top + 12, side, 0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (wide) ...[
+                SizedBox(
+                  width: 184,
+                  child: ListView(
+                    primary: false,
+                    padding: EdgeInsets.only(bottom: inset.bottom + 28),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
+                        child: Text(
+                          c.tr('可连接服务', 'Available services'),
+                          style: text.bodySmall?.copyWith(fontSize: 13),
+                        ),
+                      ),
+                      for (final entry in filters.entries)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: TextButton(
+                            key: ValueKey(
+                              'connector-category-${entry.key.isEmpty ? 'all' : entry.key}',
+                            ),
+                            style: TextButton.styleFrom(
+                              alignment: Alignment.centerLeft,
+                              minimumSize: const Size.fromHeight(36),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              foregroundColor: (category ?? '') == entry.key
+                                  ? tone.ink
+                                  : tone.ink2,
+                              backgroundColor: (category ?? '') == entry.key
+                                  ? tone.hover
+                                  : Colors.transparent,
+                              textStyle: text.bodyMedium?.copyWith(
+                                fontSize: 13,
+                                fontWeight: (category ?? '') == entry.key
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                              ),
+                              shape: RoundedSuperellipseBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            onPressed: () =>
+                                select(entry.key.isEmpty ? null : entry.key),
+                            child: Text(entry.value),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 24),
+              ],
+              Expanded(child: catalog),
+            ],
+          ),
         );
       },
     );
