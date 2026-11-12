@@ -41,6 +41,12 @@ export interface ConnectorPage {
   services: ConnectorService[];
   cursor?: string;
 }
+export const connectorApprovalSchema = z.object({
+  title: z.string(),
+  service: z.object({ serviceId: z.string(), name: z.string(), icon: z.string().optional() }),
+  account: z.string(),
+  arguments: z.record(z.string(), z.unknown()),
+});
 const ref = z.string().min(1);
 export const connectorRequestSchema = z.discriminatedUnion('operation', [
   z.strictObject({ operation: z.literal('list'), serviceId: ref.optional() }),
@@ -53,7 +59,7 @@ export const connectorRequestSchema = z.discriminatedUnion('operation', [
   z.strictObject({ operation: z.literal('authorization'), authorizationId: ref }),
   z.strictObject({ operation: z.literal('cancel'), authorizationId: ref }),
   z.strictObject({ operation: z.literal('search'), query: ref, serviceId: ref.optional() }),
-  z.strictObject({ operation: z.literal('describe'), toolId: ref }),
+  z.strictObject({ operation: z.literal('describe'), toolId: ref, connectionId: ref.optional() }),
   z.strictObject({
     operation: z.literal('execute'),
     toolId: ref,

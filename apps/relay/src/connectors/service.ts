@@ -194,6 +194,11 @@ export class AccountConnectors {
   async authorization(userId: string, id: string) {
     const auth = this.auth(userId, id);
     if (auth.status !== 'pending') return this.authView(auth);
+    if (this.connection(userId, auth.connectionId).reference !== auth.reference) {
+      auth.status = 'cancelled';
+      this.saveAuth(auth);
+      return this.authView(auth);
+    }
     const matches = await this.active(auth.providerId).connections(userId);
     const remote = matches.find(
       (r) => r.reference === auth.reference && r.serviceId === auth.service.serviceId,
@@ -225,6 +230,15 @@ export class AccountConnectors {
     // Deny subsequent calls immediately, even if revocation cannot reach the provider.
     connection.status = 'disconnected';
     this.saveConnection(userId, connection);
+    for (const row of this.database.db
+      .prepare(
+        "SELECT data FROM connector_authorizations WHERE user_id=? AND json_extract(data,'$.connectionId')=? AND json_extract(data,'$.status')='pending'",
+      )
+      .all(userId, id)) {
+      const authorization = JSON.parse(String(row.data)) as StoredAuthorization;
+      authorization.status = 'cancelled';
+      this.saveAuth(authorization);
+    }
     this.onChanged(userId);
     await this.active(connection.providerId).disconnect(connection.reference);
     return {};
@@ -260,9 +274,15 @@ export class AccountConnectors {
         return this.cancel(userId, request.authorizationId);
       case 'describe': {
         const { providerId, reference, ...tool } = this.tool(request.toolId);
-        this.active(providerId);
+        const service = await this.active(providerId).service(tool.serviceId);
         void reference;
-        return tool;
+        return {
+          ...tool,
+          service,
+          ...(request.connectionId
+            ? { connection: this.view(this.connection(userId, request.connectionId)) }
+            : {}),
+        };
       }
       case 'search': {
         const found = await provider.search(userId, request.query, request.serviceId);
@@ -393,7 +413,7 @@ export class AccountConnectors {
         .header('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'")
         .type('text/html')
         .send(
-          '<!doctype html><meta name="viewport" content="width=device-width"><title>nekodot</title><body style="font:16px system-ui;padding:32px">返回 nekodot · Return to nekodot</body>',
+          '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>nekodot</title><body style="font:16px system-ui;padding:32px">返回 nekodot<br>Return to nekodot</body>',
         );
     });
   }
