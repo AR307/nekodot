@@ -11,157 +11,193 @@ import 'package:url_launcher/url_launcher.dart';
 import '../data/client.dart';
 import '../data/json.dart';
 import '../data/account.dart';
-import '../platform/desktop.dart';
 import '../ui/design.dart';
-import 'connectors.dart';
+import 'plugin_catalog.dart';
 
-Future<void> showExtensionsDialog(BuildContext context, NekodotClient client) =>
-    openPage(context, ExtensionsPage(client: client, kind: 'skills'));
-
-class ExtensionsPage extends StatefulWidget {
+class ExtensionsBody extends StatefulWidget {
   final NekodotClient client;
   final String kind;
-  const ExtensionsPage({super.key, required this.client, required this.kind});
+  const ExtensionsBody({super.key, required this.client, required this.kind});
   @override
-  State<ExtensionsPage> createState() => _ExtensionsPageState();
+  State<ExtensionsBody> createState() => _ExtensionsBodyState();
 }
 
-class _ExtensionsPageState extends State<ExtensionsPage> {
-  late String kind = widget.client.selectedNodeId == null
-      ? 'connectors'
-      : widget.kind;
+class _ExtensionsBodyState extends State<ExtensionsBody> {
+  String get kind => widget.kind;
   final search = TextEditingController();
+  final scroll = ScrollController();
   String query = '';
-  int revision = 0;
+  bool installedOnly = false;
+  String category = '';
+  late Future<Json> listing = load();
+  Future<Json> load() => widget.client.rpc('extensions.list', {'kind': kind});
+  void reload() => setState(() {
+    listing = load();
+  });
   @override
   void dispose() {
     search.dispose();
+    scroll.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final c = widget.client;
-    final glass = context.tone.glass;
-    return Scaffold(
-      extendBodyBehindAppBar: glass,
-      appBar: AppBar(
-        flexibleSpace: glass ? const Frost() : const WindowDrag(),
-        titleSpacing: 0,
-        title: Segment<String>(
-          value: kind,
-          options: {
-            'skills': const Text('Skills'),
-            'plugins': Text(c.tr('插件', 'Plugins')),
-            'connectors': Text(c.tr('连接器', 'Connectors')),
+    return FutureBuilder<Json>(
+      future: listing,
+      builder: (context, snapshot) {
+        final all = objects(snapshot.data?['entries']);
+        final categories = all.map((e) => '${e['category']}').toSet().toList()
+          ..sort();
+        final entries = all
+            .where(
+              (e) => '${e['name']} ${e['description']}'.toLowerCase().contains(
+                query,
+              ),
+            )
+            .where((e) => category.isEmpty || e['category'] == category)
+            .where(
+              (e) =>
+                  !installedOnly ||
+                  objects(e['states']).any((s) => s['installed'] == true),
+            )
+            .toList();
+        Widget tile(Json entry, bool wide) => PluginTile(
+          key: ValueKey('extension-${entry['id']}'),
+          wide: wide,
+          icon: ExtensionIcon(entry: entry),
+          name: '${entry['name']}',
+          description: '${entry['description']}',
+          status: Row(
+            children: [
+              for (final bot
+                  in c.node.bots
+                      .where(
+                        (bot) =>
+                            objects(entry['states'])
+                                .any((state) => state['botId'] == bot['botId']),
+                      )
+                      .take(3))
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: CatAvatar.of(bot, size: 20),
+                ),
+              if (objects(entry['states']).isNotEmpty) const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  objects(entry['states']).isNotEmpty
+                      ? '${c.tr('已安装', 'Installed')} ${objects(entry['states']).length}'
+                      : '${entry['category']}',
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            ],
+          ),
+          onTap: () async {
+            await pushPage(
+              context,
+              ExtensionPage(client: c, entry: entry, kind: kind),
+            );
+            if (mounted) reload();
           },
-          onChanged: (value) => setState(() => kind = value),
-        ),
-        actions: [
-          if (kind != 'connectors')
+        );
+        return PluginCatalog(
+          scroll: scroll,
+          count: entries.length,
+          loading: snapshot.connectionState == ConnectionState.waiting,
+          search: TextField(
+            key: ValueKey('extension-search-$kind'),
+            controller: search,
+            onChanged: (value) => setState(() => query = value.toLowerCase()),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search, size: 20),
+              hintText: c.tr('搜索', 'Search'),
+            ),
+          ),
+          actions: [
             IconAction(
-              tooltip: c.tr('导入', 'Import'),
+              icon: Icons.refresh,
+              tooltip: c.tr('刷新', 'Refresh'),
+              onPressed: reload,
+            ),
+            IconAction(
               icon: Icons.add,
-              onPressed: () async {
-                await pushPage(
-                  context,
-                  ExtensionInstall(client: c, kind: kind),
-                );
-                setState(() => revision++);
-              },
+              tooltip: c.tr('导入', 'Import'),
+              onPressed: !c.online
+                  ? null
+                  : () async {
+                      await pushPage(
+                        context,
+                        ExtensionInstall(client: c, kind: kind),
+                      );
+                      if (mounted) reload();
+                    },
             ),
-          const SizedBox(width: 8),
-          SizedBox(width: WindowChrome.reserved(context)),
-        ],
-      ),
-      body: kind == 'connectors'
-          ? ConnectorsBody(client: c)
-          : AsyncPane(
-              key: ValueKey('$kind:$revision'),
-              load: () => c.rpc('extensions.list', {'kind': kind}),
-              builder: (context, data, reload) {
-                final entries = objects(data['entries'])
-                    .where(
-                      (e) => '${e['name']} ${e['description']}'
-                          .toLowerCase()
-                          .contains(query),
-                    )
-                    .toList();
-                Widget tile(Json entry) => ListTile(
-                  shape: RoundedSuperellipseBorder(
-                    borderRadius: BorderRadius.circular(context.tone.corner),
+          ],
+          filters: Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Segment<bool>(
+                value: installedOnly,
+                options: {
+                  false: Text(c.tr('全部', 'All')),
+                  true: Text(c.tr('已安装', 'Installed')),
+                },
+                onChanged: (value) => setState(() => installedOnly = value),
+              ),
+              ActionMenu<String>(
+                tooltip: c.tr('全部', 'All'),
+                items: [
+                  for (final value in ['', ...categories])
+                    MenuAction(
+                      value: value,
+                      label: value.isEmpty ? c.tr('全部', 'All') : value,
+                      selected: category == value,
+                    ),
+                ],
+                onSelected: (value) => setState(() => category = value),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(category.isEmpty ? c.tr('全部', 'All') : category),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.expand_more, size: 18),
+                      ],
+                    ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                  leading: entry['icon'] == null
-                      ? null
-                      : ExtensionIcon(entry: entry),
-                  title: Text(
-                    '${entry['name']}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          notice: snapshot.hasError
+              ? ErrorNotice(
+                  c.tr('请求失败，请重试', 'Request failed. Try again.'),
+                  action: TextButton(
+                    onPressed: reload,
+                    child: Text(c.tr('重试', 'Retry')),
                   ),
-                  subtitle: Text(
-                    '${entry['description']}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  onTap: () async {
-                    await pushPage(
-                      context,
-                      ExtensionPage(client: c, entry: entry, kind: kind),
-                    );
-                    reload();
-                  },
-                );
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    final columns = !glass && constraints.maxWidth >= 720
-                        ? 2
-                        : 1;
-                    final rows = (entries.length / columns).ceil();
-                    return ListView.builder(
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
-                      padding: EdgeInsets.fromLTRB(
-                        14,
-                        glass ? MediaQuery.paddingOf(context).top + 12 : 8,
-                        14,
-                        MediaQuery.paddingOf(context).bottom + 24,
-                      ),
-                      itemCount: rows + 1,
-                      itemBuilder: (context, index) {
-                        if (index == 0) {
-                          return Padding(
-                            padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
-                            child: TextField(
-                              controller: search,
-                              onChanged: (value) =>
-                                  setState(() => query = value.toLowerCase()),
-                              decoration: InputDecoration(
-                                prefixIcon: const Icon(Icons.search),
-                                hintText: c.tr('搜索', 'Search'),
-                              ),
-                            ),
-                          );
-                        }
-                        final at = (index - 1) * columns;
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            for (var i = at; i < at + columns; i++)
-                              Expanded(
-                                child: i < entries.length
-                                    ? tile(entries[i])
-                                    : const SizedBox.shrink(),
-                              ),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                );
-              },
-            ),
+                )
+              : null,
+          empty: snapshot.hasError
+              ? null
+              : Text(
+                  c.tr('未找到插件', 'No plugins found'),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+          itemBuilder: (index, wide) => tile(entries[index], wide),
+        );
+      },
     );
   }
 }
@@ -219,7 +255,7 @@ class ExtensionPage extends StatefulWidget {
 }
 
 class _ExtensionPageState extends State<ExtensionPage> {
-  Json get entry => widget.entry;
+  late Json entry = widget.entry;
   NekodotClient get client => widget.client;
   late Future<Json> document = load();
   Future<Json> load() {
@@ -252,6 +288,7 @@ class _ExtensionPageState extends State<ExtensionPage> {
 
         return PageList(
           key: PageStorageKey('extension-${entry['id']}'),
+          maxWidth: 720,
           children: [
             Row(
               children: [
@@ -262,10 +299,8 @@ class _ExtensionPageState extends State<ExtensionPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('${entry['description']}', style: text.bodyMedium),
-                      MetaText([
-                        '${entry['source']}',
-                        '${entry['category']}',
-                      ], style: text.labelMedium),
+                      const SizedBox(height: 8),
+                      Text('${entry['category']}', style: text.bodySmall),
                     ],
                   ),
                 ),
@@ -297,15 +332,49 @@ class _ExtensionPageState extends State<ExtensionPage> {
                     ),
                   );
                   if (mounted) {
+                    final listing = await client.rpc('extensions.list', {
+                      'kind': widget.kind,
+                    });
+                    if (!mounted) return;
                     setState(() {
+                      entry = objects(listing['entries'])
+                          .firstWhere((e) => e['id'] == entry['id']);
                       document = load();
                     });
                   }
                 },
-                child: Text(client.tr('安装 / 管理', 'Install / manage')),
+                child: Text(
+                  objects(entry['states']).isEmpty
+                      ? client.tr('安装', 'Install')
+                      : client.tr('管理', 'Manage'),
+                ),
               ),
             ),
-            const SizedBox(height: 20),
+            if (objects(entry['states']).isNotEmpty) ...[
+              const SizedBox(height: 24),
+              SectionLabel(client.tr('已安装', 'Installed')),
+              for (final bot in client.node.bots.where(
+                (bot) =>
+                    objects(entry['states'])
+                        .any((state) => state['botId'] == bot['botId']),
+              ))
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CatAvatar.of(bot, size: 28),
+                  title: Text('${bot['displayName']}'),
+                  trailing: Icon(
+                    objects(entry['states']).any(
+                          (state) =>
+                              state['botId'] == bot['botId'] &&
+                              state['enabled'] == true,
+                        )
+                        ? Icons.check_circle_outline
+                        : Icons.pause_circle_outline,
+                    size: 18,
+                  ),
+                ),
+            ],
+            const SizedBox(height: 24),
             if (snapshot.connectionState == ConnectionState.waiting)
               const Center(child: ShiningText()),
             if (snapshot.hasError) ...[
@@ -354,7 +423,7 @@ class _ExtensionPageState extends State<ExtensionPage> {
               ),
             if ((data['files'] as List? ?? []).isNotEmpty) ...[
               SectionLabel(client.tr('文件', 'Files')),
-              PanelGroup(
+              Column(
                 children: [
                   for (final path in data['files'] as List)
                     ListTile(
@@ -393,6 +462,7 @@ class ExtensionInstall extends StatefulWidget {
 
 class _ExtensionInstallState extends State<ExtensionInstall> {
   final target = <String>{}, identifier = TextEditingController();
+  final installed = <String>{};
   Json? operation;
   String error = '';
   bool busy = false;
@@ -404,6 +474,12 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
   void initState() {
     super.initState();
     identifier.text = widget.entry?['identifier'] as String? ?? '';
+    installed.addAll(
+      objects(widget.entry?['states'])
+          .where((state) => state['installed'] == true)
+          .map((state) => '${state['botId']}'),
+    );
+    target.addAll(installed);
   }
 
   @override
@@ -489,7 +565,10 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
   }
 
   Future<void> run(String method, [bool? enabled]) async {
-    setState(() => busy = true);
+    setState(() {
+      busy = true;
+      error = '';
+    });
     try {
       final result = await c.rpc(method, {
         'kind': widget.kind,
@@ -514,7 +593,18 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
           if (mounted) setState(() => operation = value);
           if (value['status'] != 'running') {
             timer?.cancel();
-            if (mounted) setState(() => busy = false);
+            if (mounted) {
+              setState(() {
+                busy = false;
+                if (method == 'extensions.install') {
+                  installed.addAll(
+                    objects(value['results'])
+                        .where((row) => row['ok'] == true)
+                        .map((row) => '${row['botId']}'),
+                  );
+                }
+              });
+            }
           }
         } catch (e) {
           timer?.cancel();
@@ -538,7 +628,8 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
 
   @override
   Widget build(BuildContext context) => AppPage(
-    title: c.tr('安装与管理', 'Install & manage'),
+    title:
+        widget.entry?['name'] as String? ?? c.tr('安装与管理', 'Install & manage'),
     actions: [
       IconButton(
         tooltip: c.tr('导入文件或 ZIP', 'Import file or ZIP'),
@@ -554,20 +645,28 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
     ],
     body: PageList(
       children: [
-        LabeledField(
-          label: c.tr('标识或 Git 仓库', 'Identifier or Git repository'),
-          child: TextField(
-            controller: identifier,
-            decoration: InputDecoration(),
+        if (widget.entry == null || identifier.text.isNotEmpty)
+          LabeledField(
+            label: c.tr('标识或 Git 仓库', 'Identifier or Git repository'),
+            child: TextField(
+              controller: identifier,
+              enabled: !busy,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(),
+            ),
           ),
-        ),
         const SizedBox(height: 14),
-        PanelGroup(
+        Column(
           children: [
             for (final bot in c.node.bots)
               CheckboxListTile(
                 secondary: CatAvatar.of(bot),
                 title: Text('${bot['displayName']}'),
+                subtitle: Text(
+                  installed.contains(bot['botId'])
+                      ? c.tr('已安装', 'Installed')
+                      : c.tr('未安装', 'Not installed'),
+                ),
                 value: target.contains(bot['botId']),
                 onChanged: busy
                     ? null
@@ -582,35 +681,36 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
           ],
         ),
         const SizedBox(height: 16),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: FilledButton(
-            onPressed: target.isEmpty || busy
-                ? null
-                : () => run('extensions.install'),
-            child: Text(c.tr('安装', 'Install')),
-          ),
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          children: [
+            if (widget.entry == null || identifier.text.isNotEmpty)
+              FilledButton(
+                onPressed:
+                    target.isEmpty || busy || identifier.text.trim().isEmpty
+                    ? null
+                    : () => run('extensions.install'),
+                child: Text(c.tr('安装', 'Install')),
+              ),
+            if (widget.entry != null)
+              TextButton(
+                onPressed:
+                    target.isEmpty || busy || !target.every(installed.contains)
+                    ? null
+                    : () => run('extensions.toggle', true),
+                child: Text(c.tr('启用', 'Enable')),
+              ),
+            if (widget.entry != null)
+              TextButton(
+                onPressed:
+                    target.isEmpty || busy || !target.every(installed.contains)
+                    ? null
+                    : () => run('extensions.toggle', false),
+                child: Text(c.tr('停用', 'Disable')),
+              ),
+          ],
         ),
-        if (widget.entry != null)
-          Center(
-            child: Wrap(
-              spacing: 10,
-              children: [
-                TextButton(
-                  onPressed: target.isEmpty || busy
-                      ? null
-                      : () => run('extensions.toggle', true),
-                  child: Text(c.tr('启用', 'Enable')),
-                ),
-                TextButton(
-                  onPressed: target.isEmpty || busy
-                      ? null
-                      : () => run('extensions.toggle', false),
-                  child: Text(c.tr('停用', 'Disable')),
-                ),
-              ],
-            ),
-          ),
         if (busy)
           const Padding(
             padding: EdgeInsets.all(16),
@@ -619,9 +719,35 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
         if (operation != null)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
-            child: SelectableText(
-              '${operation!['status']}\n${operation!['detail']}\n${operation!['results']}',
-              style: Theme.of(context).textTheme.bodySmall,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final result in objects(operation!['results']))
+                  ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    leading: Icon(
+                      result['ok'] == true
+                          ? Icons.check_circle_outline
+                          : Icons.error_outline,
+                      size: 20,
+                    ),
+                    title: Text(
+                      '${c.node.bots.where((bot) => bot['botId'] == result['botId']).firstOrNull?['displayName'] ?? result['botId']}',
+                    ),
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: SelectableText(
+                            '${result['detail']}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
             ),
           ),
         if (uploadProgress.isNotEmpty)
