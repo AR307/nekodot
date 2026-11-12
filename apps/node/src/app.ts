@@ -13,6 +13,7 @@ import { Operations } from './operations';
 import { BotManagement } from './bot-management';
 import { FileLibrary } from './files';
 import { Extensions } from './extensions';
+import { McpServers } from './mcp';
 import { BotScreens } from './screens';
 import { DesktopControl } from './desktop-control';
 import { Notifications } from './notifications';
@@ -64,6 +65,7 @@ export class NodeApplication {
   readonly management: BotManagement;
   readonly files: FileLibrary;
   readonly extensions: Extensions;
+  readonly mcp: McpServers;
   readonly screens: BotScreens;
   readonly desktopControl: DesktopControl;
   readonly notifications: Notifications;
@@ -140,6 +142,7 @@ export class NodeApplication {
     );
     this.files = new FileLibrary(this.database, hermes, this.operations);
     this.extensions = new Extensions(this.database, this.bots, hermes, this.operations);
+    this.mcp = new McpServers(this.bots, hermes);
     this.screens = new BotScreens(hermes, this.bots, this.operations, desktop);
     this.desktopControl = new DesktopControl(hermes, this.bots, desktop, this.screens.available);
     this.screens.onStatus = (status) => this.onLive({ kind: 'screen', status });
@@ -184,6 +187,7 @@ export class NodeApplication {
         management: this.management,
         files: this.files,
         extensions: this.extensions,
+        mcp: this.mcp,
         flow: this.flow,
         database: this.database,
         providers: this.providers,
