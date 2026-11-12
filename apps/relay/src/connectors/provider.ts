@@ -4,6 +4,7 @@ import type {
   ConnectorStatus,
   ConnectorTool,
   ConnectorResult,
+  ConnectorCapabilities,
 } from '@nekodot/protocol';
 
 /** Only this boundary knows third-party connection and tool references. */
@@ -18,8 +19,14 @@ export interface ProviderTool extends Omit<ConnectorTool, 'toolId'> {
 }
 export interface ConnectorProvider {
   readonly id: string;
-  catalog(userId: string, query?: string, cursor?: string): Promise<ConnectorPage>;
+  catalog(
+    userId: string,
+    query?: string,
+    cursor?: string,
+    category?: string,
+  ): Promise<ConnectorPage>;
   service(serviceId: string): Promise<ConnectorService>;
+  capabilities(serviceId: string, query?: string, limit?: number): Promise<ConnectorCapabilities>;
   connections(userId: string): Promise<ProviderConnection[]>;
   authorize(
     userId: string,

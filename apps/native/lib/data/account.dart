@@ -89,9 +89,11 @@ class AccountSession extends ChangeNotifier {
 
   Future<Json> request(String path, {String method = 'GET', Json? body}) async {
     final req = http.Request(method, url('/api$path'));
-    req.headers['Content-Type'] = 'application/json';
     if (token != null) req.headers['Authorization'] = 'Bearer $token';
-    if (body != null) req.body = jsonEncode(body);
+    if (body != null) {
+      req.headers['Content-Type'] = 'application/json';
+      req.body = jsonEncode(body);
+    }
     final response = await transport
         .send(req)
         .then(http.Response.fromStream)

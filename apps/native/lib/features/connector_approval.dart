@@ -46,7 +46,8 @@ class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
   @override
   void didUpdateWidget(ConnectorApprovalCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.pending && !widget.pending) {
+    if ((oldWidget.sending == null && widget.sending != null) ||
+        (oldWidget.pending && !widget.pending)) {
       unfolded = false;
       expanded = false;
     }
@@ -58,115 +59,178 @@ class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
     final service = object(data['service']);
     final tone = context.tone;
     final text = Theme.of(context).textTheme;
+    final sending = widget.pending && widget.sending != null;
+    final choosing = widget.pending && !sending;
+    final showDetails = choosing ? expanded : unfolded;
+    final sendingLabel = switch (widget.sending) {
+      'once' => c.tr('允许一次', 'Allow once'),
+      'always' => c.tr('总是允许', 'Always allow'),
+      'deny' => c.tr('拒绝', 'Deny'),
+      _ => widget.result,
+    };
     final height = DesktopHost.supported ? 36.0 : 48.0;
+    final motion = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 180);
     final shape = RoundedSuperellipseBorder(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(8),
     );
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 440),
-        child: ChatCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.pending)
-                Text(
-                  '${data['title']}',
-                  style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                )
-              else
-                Material(
-                  color: Colors.transparent,
-                  shape: shape,
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    key: const ValueKey('connector-approval-summary'),
-                    customBorder: shape,
-                    onTap: () => setState(() => unfolded = !unfolded),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(minHeight: height),
-                      child: Row(
-                        children: [
-                          Icon(
-                            widget.unanswered
-                                ? Icons.remove
-                                : widget.denied
-                                ? Icons.close
-                                : Icons.check,
-                            size: 16,
-                            color: tone.ink2,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
+    final titleStyle = text.bodyMedium?.copyWith(
+      fontWeight: Theme.of(context).brightness == Brightness.dark
+          ? FontWeight.w500
+          : FontWeight.w600,
+    );
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (choosing)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Text('${data['title']}', style: titleStyle),
+          )
+        else
+          Semantics(
+            expanded: unfolded,
+            child: Material(
+              color: Colors.transparent,
+              shape: const RoundedSuperellipseBorder(
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                key: const ValueKey('connector-approval-summary'),
+                onTap: () => setState(() => unfolded = !unfolded),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      ExcludeSemantics(
+                        child: ConnectorIcon(
+                          url: service['icon'] as String?,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
                               '${data['title']}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              maxLines: unfolded ? null : 1,
+                              overflow: unfolded ? null : TextOverflow.ellipsis,
                               style: text.bodyMedium,
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(widget.result, style: text.bodySmall),
-                          const SizedBox(width: 4),
-                          Icon(
-                            unfolded ? Icons.expand_less : Icons.expand_more,
-                            size: 18,
-                            color: tone.ink2,
-                          ),
-                        ],
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Icon(
+                                  sending
+                                      ? Icons.more_horiz
+                                      : widget.unanswered
+                                      ? Icons.remove
+                                      : widget.denied
+                                      ? Icons.close_rounded
+                                      : Icons.check_rounded,
+                                  size: 14,
+                                  color: tone.ink2,
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: sending
+                                      ? ShiningText(
+                                          text: sendingLabel,
+                                          style: text.bodySmall,
+                                        )
+                                      : Text(
+                                          widget.result,
+                                          style: text.bodySmall,
+                                        ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      AnimatedRotation(
+                        turns: unfolded ? .5 : 0,
+                        duration: motion,
+                        child: Icon(
+                          Icons.expand_more,
+                          size: 18,
+                          color: tone.ink2,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              if (widget.pending || unfolded) ...[
+              ),
+            ),
+          ),
+        if (choosing || unfolded)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 12,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Flexible(
-                        child: Column(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             widget.bot == null
-                                ? const CatAvatar(size: 36)
-                                : CatAvatar.of(widget.bot!, size: 36),
+                                ? const CatAvatar(size: 28)
+                                : CatAvatar.of(widget.bot!, size: 28),
                             if (widget.bot != null) ...[
-                              const SizedBox(height: 8),
-                              Text(
-                                '${widget.bot!['displayName']}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: text.bodySmall,
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  '${widget.bot!['displayName']}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: text.bodySmall,
+                                ),
                               ),
                             ],
                           ],
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         child: Icon(
                           Icons.arrow_forward_rounded,
-                          size: 20,
+                          size: 16,
                           color: tone.ink3,
                         ),
                       ),
                       Flexible(
-                        child: Column(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             ConnectorIcon(
                               url: service['icon'] as String?,
-                              size: 36,
+                              size: 28,
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '${service['name']}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: text.bodySmall,
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                '${service['name']}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: text.bodySmall,
+                              ),
                             ),
                           ],
                         ),
@@ -174,74 +238,38 @@ class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
                     ],
                   ),
                 ),
-                Material(
-                  color: Colors.transparent,
-                  shape: shape,
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    customBorder: shape,
-                    onTap: () => setState(() => expanded = !expanded),
-                    child: SizedBox(
-                      height: height,
+                if (choosing)
+                  Semantics(
+                    expanded: expanded,
+                    child: TextButton(
+                      key: const ValueKey('connector-approval-details'),
+                      style: TextButton.styleFrom(
+                        minimumSize: Size(0, height),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        shape: shape,
+                        foregroundColor: tone.ink2,
+                        textStyle: text.bodySmall,
+                        visualDensity: VisualDensity.standard,
+                      ),
+                      onPressed: () => setState(() => expanded = !expanded),
                       child: Row(
                         children: [
-                          Text(c.tr('详细信息', 'Details'), style: text.bodySmall),
-                          const SizedBox(width: 4),
-                          Icon(
-                            expanded ? Icons.expand_less : Icons.expand_more,
-                            size: 18,
-                            color: tone.ink2,
+                          Expanded(child: Text(c.tr('详细信息', 'Details'))),
+                          AnimatedRotation(
+                            turns: expanded ? .5 : 0,
+                            duration: motion,
+                            child: const Icon(Icons.expand_more, size: 18),
                           ),
                         ],
                       ),
                     ),
                   ),
-                ),
-                if (expanded)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4, bottom: 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if ('${data['account']}'.isNotEmpty)
-                          SelectableText(
-                            '${data['account']}',
-                            style: text.bodySmall,
-                          ),
-                        for (final entry in object(data['arguments']).entries)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  flex: 2,
-                                  child: Text(
-                                    entry.key,
-                                    style: text.bodySmall?.copyWith(
-                                      color: tone.ink2,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  flex: 5,
-                                  child: SelectableText(
-                                    entry.value is String
-                                        ? entry.value as String
-                                        : const JsonEncoder.withIndent('  ')
-                                              .convert(entry.value),
-                                    style: text.bodySmall,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                if (widget.pending)
+                if (showDetails) _ApprovalDetails(details: data),
+                if (choosing) ...[
+                  const SizedBox(height: 8),
                   Row(
+                    spacing: 8,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       for (final (choice, label) in [
                         ('once', c.tr('允许', 'Allow')),
@@ -249,39 +277,108 @@ class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
                         ('deny', c.tr('拒绝', 'Deny')),
                       ])
                         Expanded(
-                          child: Align(
-                            alignment: choice == 'once'
-                                ? Alignment.centerLeft
-                                : choice == 'deny'
-                                ? Alignment.centerRight
-                                : Alignment.center,
-                            child: TextButton(
-                              key: ValueKey('connector-approval-$choice'),
-                              style: TextButton.styleFrom(
-                                minimumSize: Size(0, height),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                                shape: shape,
+                          flex: choice == 'always' ? 4 : 3,
+                          child: TextButton(
+                            key: ValueKey('connector-approval-$choice'),
+                            style: TextButton.styleFrom(
+                              minimumSize: Size(0, height),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 8,
                               ),
-                              onPressed:
-                                  widget.sending == null &&
-                                      widget.choices.contains(choice)
-                                  ? () => widget.onRespond(choice)
-                                  : null,
-                              child: widget.sending == choice
-                                  ? ShiningText(text: label)
-                                  : Text(label),
+                              backgroundColor: tone.bubble,
+                              foregroundColor: tone.ink,
+                              textStyle: text.labelLarge,
+                              shape: shape,
+                              visualDensity: VisualDensity.standard,
                             ),
+                            onPressed: widget.choices.contains(choice)
+                                ? () => widget.onRespond(choice)
+                                : null,
+                            child: Text(label, textAlign: TextAlign.center),
                           ),
                         ),
                     ],
                   ),
+                ],
               ],
-              ErrorNotice(widget.error, action: widget.retry),
-            ],
+            ),
           ),
+        if (widget.error.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: ErrorNotice(widget.error, action: widget.retry),
+          ),
+      ],
+    );
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: ChatCard(
+          padding: EdgeInsets.zero,
+          child: motion == Duration.zero
+              ? content
+              : AnimatedSize(
+                  duration: motion,
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: content,
+                ),
         ),
+      ),
+    );
+  }
+}
+
+/// Keep exact provider fields readable, without framing each parameter.
+class _ApprovalDetails extends StatelessWidget {
+  final Json details;
+  const _ApprovalDetails({required this.details});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stacked =
+              constraints.maxWidth < 360 ||
+              MediaQuery.textScalerOf(context).scale(14) > 18;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 12,
+            children: [
+              if ((details['account'] as String?)?.isNotEmpty == true)
+                SelectableText('${details['account']}', style: text.bodySmall),
+              for (final entry in object(details['arguments']).entries)
+                Flex(
+                  direction: stacked ? Axis.vertical : Axis.horizontal,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: stacked ? 4 : 16,
+                  children: [
+                    SizedBox(
+                      width: stacked ? null : 80,
+                      child: Text(entry.key, style: text.bodySmall),
+                    ),
+                    Flexible(
+                      flex: stacked ? 0 : 1,
+                      child: SelectableText(
+                        entry.value is String
+                            ? entry.value as String
+                            : const JsonEncoder.withIndent('  ')
+                                  .convert(entry.value),
+                        style: text.bodySmall?.copyWith(
+                          color: context.tone.ink,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          );
+        },
       ),
     );
   }

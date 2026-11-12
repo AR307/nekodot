@@ -1,4 +1,5 @@
 import { Composio } from '@composio/core';
+import ComposioClient, { Auth } from '@composio/client';
 import type { ConnectorPage, ConnectorService } from '@nekodot/protocol';
 import type { ConnectorProvider, ProviderConnection, ProviderTool } from './provider';
 import { HttpFault } from '../auth';
@@ -13,6 +14,7 @@ const options = {
 export class ComposioConnectorProvider implements ConnectorProvider {
   readonly id = 'composio';
   private readonly sdk: Composio;
+  private readonly catalogClient: ComposioClient;
   private readonly services = new Map<string, { expires: number; value: ConnectorService }>();
   private readonly catalogs = new Map<string, { expires: number; value: ConnectorPage }>();
   private readonly sessions = new Map<
@@ -21,6 +23,7 @@ export class ComposioConnectorProvider implements ConnectorProvider {
   >();
   constructor(apiKey: string) {
     this.sdk = new Composio({ apiKey, disableVersionCheck: true });
+    this.catalogClient = new ComposioClient({ auth: Auth.project(apiKey) });
   }
   private session(userId: string) {
     const cached = this.sessions.get(userId);
@@ -50,26 +53,58 @@ export class ComposioConnectorProvider implements ConnectorProvider {
       name: toolkit.name,
       icon: toolkit.meta.logo,
       authMethods,
+      description: toolkit.meta.description,
+      categories: toolkit.meta.categories?.map((category) => ({
+        categoryId: category.slug,
+        name: category.name,
+      })),
+      website: toolkit.meta.appUrl,
+      toolCount: toolkit.meta.toolsCount,
     };
     this.services.set(serviceId, { expires: Date.now() + 10 * 60_000, value });
     return value;
   }
-  async catalog(userId: string, query = '', cursor?: string): Promise<ConnectorPage> {
-    const key = JSON.stringify([userId, query, cursor]);
+  async catalog(
+    userId: string,
+    query = '',
+    cursor?: string,
+    category?: string,
+  ): Promise<ConnectorPage> {
+    const key = JSON.stringify([userId, query, cursor, category]);
     const cached = this.catalogs.get(key);
     if (cached && cached.expires > Date.now()) return cached.value;
-    const page = await (
-      await this.session(userId)
-    ).toolkits({ search: query || undefined, cursor, limit: 20 });
-    const services = await Promise.all(
-      page.items.filter((item) => !item.isNoAuth).map((item) => this.service(item.slug)),
-    );
+    // core.toolkits.get drops next_cursor. The official client retains category pagination.
+    let page: { items: { slug: string }[]; cursor?: string };
+    if (category) {
+      const result = await this.catalogClient.toolkits.list({
+        category,
+        cursor,
+        limit: 20,
+        sort_by: 'usage',
+      });
+      page = { items: result.items, cursor: result.next_cursor ?? undefined };
+    } else {
+      page = await (
+        await this.session(userId)
+      ).toolkits({ search: query || undefined, cursor, limit: 20 });
+    }
+    const services = await Promise.all(page.items.map((item) => this.service(item.slug)));
     const value = {
       services: services.filter((service) => service.authMethods.length > 0),
       cursor: page.cursor,
     };
     this.catalogs.set(key, { expires: Date.now() + 60_000, value });
     return value;
+  }
+  async capabilities(serviceId: string, query = '', limit = 20) {
+    const tools = await this.sdk.tools.getRawComposioTools({
+      toolkits: [serviceId],
+      search: query || undefined,
+      limit,
+    });
+    return {
+      tools: tools.map((tool) => ({ name: tool.name, description: tool.description ?? '' })),
+    };
   }
   async connections(userId: string) {
     const connections: ProviderConnection[] = [];
