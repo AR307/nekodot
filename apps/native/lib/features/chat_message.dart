@@ -14,7 +14,7 @@ import '../ui/chat_notice.dart';
 import 'files.dart';
 import 'routines.dart';
 import 'secrets.dart';
-import 'connectors.dart';
+import 'connector_authorization.dart';
 import 'connector_approval.dart';
 import 'work.dart';
 import 'spaces.dart';
