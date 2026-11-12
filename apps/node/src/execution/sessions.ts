@@ -670,7 +670,7 @@ export class ConversationExecution {
         run.botId,
         [
           run.role === 'execution'
-            ? 'Carry out the full brief for the coordinating Dot using your native tools. You are not speaking directly to the user. Do not use nekodot_task. If a decision is missing, use native clarify: the main Dot will consider it, ask the user when necessary and return the answer. Preserve all supplied user constraints and attachments. Return verifiable findings, failures and actual deliverable references to the main Dot; it will compose the user-facing response. Preserve native memory and skills as usual.'
+            ? 'Carry out the full brief for the coordinating Dot using your native tools. You are not speaking directly to the user. Do not use nekodot_task. If a decision is missing, use native clarify: the main Dot will consider it, ask the user when necessary and return the answer. Preserve all supplied user constraints and attachments. Return verifiable findings, failures and actual deliverable references to the main Dot; it will compose the user-facing response. Your final response is the result the main Dot needs, so always provide it; do not use NO_REPLY, [SILENT], or another silence marker in place of findings or a blocker. Preserve native memory and skills as usual.'
             : this.tasks.context(run.conversationId, run.botId, run.targetTaskId),
           snapshot.bootstrap,
           (this.database.message(run.inputMessageId) as TextMessage | undefined)?.content
