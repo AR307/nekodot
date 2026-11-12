@@ -42,8 +42,12 @@ class MessageMarkdown extends StatelessWidget {
         }
       },
     );
-    return SelectionContainer.maybeOf(context) == null
-        ? SelectionArea(child: body)
-        : body;
+    return DefaultSelectionStyle.merge(
+      // User bubbles invert the text/background; their selection must invert too.
+      selectionColor: (color ?? context.tone.ink).withValues(alpha: .25),
+      child: SelectionContainer.maybeOf(context) == null
+          ? SelectionArea(child: body)
+          : body,
+    );
   }
 }

@@ -522,31 +522,13 @@ class _HomePageState extends State<HomePage> {
 
   /// When anything was last said there.
   DateTime? lastActivity(String id) {
-    final loaded = c.node.messages[id]?.lastOrNull;
-    final reported = c.node.latest[id];
-    final last =
-        loaded == null || (reported != null && reported.seq > loaded.seq)
-        ? reported
-        : loaded;
+    final last = c.node.latestText(id);
     return last == null ? null : DateTime.parse(last.createdAt).toLocal();
   }
 
   /// The latest thing said there, as one line; a group names who said it.
   String? preview(Json value, bool isGroup) {
-    final id = value['conversationId'];
-    final loaded = (c.node.messages[id] ?? [])
-        .where(
-          (x) =>
-              (x.kind == 'text' || x.kind == 'commentary') &&
-              '${x.content['text'] ?? ''}'.trim().isNotEmpty,
-        )
-        .lastOrNull;
-    // Loaded messages are newer than the node's first report once they pass it.
-    final reported = c.node.latest[id];
-    final last =
-        loaded == null || (reported != null && reported.seq > loaded.seq)
-        ? reported
-        : loaded;
+    final last = c.node.latestText(value['conversationId'] as String);
     if (last == null) return null;
     final words = '${last.content['text']}';
     final files = last.content['files'];

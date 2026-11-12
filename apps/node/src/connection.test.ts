@@ -1,16 +1,73 @@
 import { it, expect } from 'vitest';
+import { once } from 'node:events';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { createServer, connect, type AddressInfo, type Socket } from 'node:net';
-import { WebSocket } from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 import { nodeCredentialsSchema, rpcResponseSchema, type Envelope } from '@nekodot/protocol';
 import { createRelay } from '../../relay/src/server';
 import { seedVerifiedAccount } from '../../../tests/support/account';
 import { pairNode } from './pair';
 import { connectRelay } from './connection';
 import { NodeDatabase } from './database';
+
+it('reconnects after the Relay hello deadline while keeping the paired node', async () => {
+  const relay = await createRelay({
+    dataDir: await mkdtemp(join(tmpdir(), 'nekodot-hello-timeout-')),
+    jwtSecret: 'hello-timeout-test-secret',
+    publicUrl: 'http://localhost',
+  });
+  const base = await relay.app.listen({ host: '127.0.0.1', port: 0 });
+  const userId = await seedVerifiedAccount(relay.database, 'hello@example.test', 'test-password');
+  const pair = relay.database.pairingCode(userId);
+  const credentials = relay.database.pair(pair.code, 'Test server', 'linux')!;
+  const proxy = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+  await once(proxy, 'listening');
+  let attempts = 0;
+  const closures: number[] = [];
+  proxy.on('connection', (client) => {
+    const first = ++attempts === 1;
+    const upstream = new WebSocket(base.replace('http', 'ws') + '/ws/node');
+    const opened = once(upstream, 'open');
+    client.on('message', (data, binary) => {
+      // Lose only the first hello after a successful WebSocket upgrade.
+      if (!first) void opened.then(() => upstream.send(data, { binary }));
+    });
+    upstream.on('message', (data, binary) => client.send(data, { binary }));
+    upstream.on('close', (code, reason) => {
+      closures.push(code);
+      client.close(code, reason);
+    });
+    client.on('close', () => upstream.close());
+  });
+  let ready!: () => void;
+  const online = new Promise<void>((resolve) => {
+    ready = resolve;
+  });
+  const connection = connectRelay({
+    credentials: {
+      ...credentials,
+      relayUrl: `http://127.0.0.1:${(proxy.address() as AddressInfo).port}`,
+    },
+    version: 'development',
+    onReady: ready,
+    handleRpc: async () => ({}),
+  });
+  try {
+    await online;
+    expect(closures).toEqual([1013]);
+    expect(attempts).toBe(2);
+    expect(relay.routing.online(credentials.nodeId)).toBe(true);
+    expect(relay.database.owns(userId, credentials.nodeId)).toBe(true);
+  } finally {
+    connection.close();
+    for (const client of proxy.clients) client.terminate();
+    await new Promise<void>((resolve) => proxy.close(() => resolve()));
+    await relay.app.close();
+  }
+});
 
 it('recovers a stalled Relay handshake and serves paired, persisted state', async () => {
   const home = await mkdtemp(join(tmpdir(), 'nekodot-node-pair-'));

@@ -146,7 +146,7 @@ export function registerRouting(
     let authenticating = false;
     let lastPong = Date.now();
     const helloTimer = setTimeout(
-      () => socket.close(1008, 'Hello required'),
+      () => socket.close(1013, 'Hello required'),
       protocolTimings.helloMs,
     );
     const heartbeat = setInterval(() => {
