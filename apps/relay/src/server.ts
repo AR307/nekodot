@@ -10,6 +10,8 @@ import { registerTunnels } from './tunnels';
 import { registerNotifications } from './notifications';
 import type { SmtpConfiguration } from './email';
 import { registerReleases, relayRelease } from './releases';
+import { AccountConnectors } from './connectors/service';
+import { ComposioConnectorProvider } from './connectors/composio';
 
 export interface RelayOptions {
   dataDir: string;
@@ -21,6 +23,7 @@ export interface RelayOptions {
   firebaseCredentials?: string;
   smtp?: SmtpConfiguration;
   trustedProxy?: string[];
+  composioApiKey?: string;
 }
 export async function createRelay(options: RelayOptions) {
   const app = Fastify({
@@ -28,6 +31,11 @@ export async function createRelay(options: RelayOptions) {
     logger: options.logger ? { redact: ['req.headers.authorization'] } : false,
   });
   const database = new RelayDatabase(options.dataDir);
+  const connectors = new AccountConnectors(
+    database,
+    options.composioApiKey ? new ComposioConnectorProvider(options.composioApiKey) : undefined,
+    options.publicUrl,
+  );
   await app.register(cors, {
     origin: options.clientOrigins ?? [],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -64,9 +72,11 @@ export async function createRelay(options: RelayOptions) {
         ? latestNodeRelease(options.distributionDirectory, app.log)
         : Promise.resolve(undefined),
     options.publicUrl,
+    connectors,
   );
   const tunnels = registerTunnels(app, database, auth.authenticate, routing);
   routing.usage.register(app, auth.authenticate, routing);
+  connectors.register(app, auth.authenticate);
   routing.routines.register(app, routing.deliverRoutine);
   registerFileTransfer(app, auth.authenticate, routing.transfer, (userId, nodeId) =>
     database.owns(userId, nodeId),
@@ -89,5 +99,5 @@ export async function createRelay(options: RelayOptions) {
     routing.close();
   });
   app.addHook('onClose', async () => database.db.close());
-  return { app, database, routing };
+  return { app, database, routing, connectors };
 }
