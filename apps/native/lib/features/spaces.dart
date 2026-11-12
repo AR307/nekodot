@@ -393,30 +393,29 @@ class _SpacePageState extends State<SpacePage> {
                     : Icons.fullscreen,
                 onPressed: widget.onExpand,
               ),
-            PopupMenuButton<String>(
+            ActionMenu<String>(
+              key: const ValueKey('space-menu'),
               tooltip: c.tr('更多', 'More'),
+              alignEnd: true,
               onSelected: menu,
-              itemBuilder: (context) => [
-                menuItem(
-                  context,
+              items: [
+                MenuAction(
                   value: 'edit',
                   icon: Icons.edit_outlined,
                   label: c.tr('请 Dot 修改', 'Edit with Dot'),
                 ),
-                menuItem(
-                  context,
+                MenuAction(
                   value: 'access',
                   icon: Icons.language,
                   label: c.tr('网站访问', 'Website access'),
                 ),
-                menuItem(
-                  context,
+                MenuAction(
                   value: 'rename',
                   icon: Icons.drive_file_rename_outline,
                   label: c.tr('重命名', 'Rename'),
                 ),
-                menuItem(
-                  context,
+                null,
+                MenuAction(
                   value: 'archive',
                   icon: Icons.archive_outlined,
                   label: c.tr('归档', 'Archive'),
@@ -511,29 +510,17 @@ class _CreateSpacePageState extends State<CreateSpacePage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          DropdownButtonFormField<String>(
-            initialValue: botId,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Dot'),
-            items: [
+          MenuSelect<String>(
+            value: botId,
+            label: 'Dot',
+            options: [
               for (final bot in bots)
-                DropdownMenuItem(
-                  value: bot['botId'] as String,
-                  child: Row(
-                    children: [
-                      CatAvatar.of(bot, size: 24),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          '${bot['displayName']}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                ('${bot['botId']}', '${bot['displayName']}'),
             ],
+            leading: (id) => CatAvatar.of(
+              bots.firstWhere((bot) => bot['botId'] == id),
+              size: 24,
+            ),
             onChanged: busy ? null : (value) => setState(() => botId = value),
           ),
           const SizedBox(height: 16),

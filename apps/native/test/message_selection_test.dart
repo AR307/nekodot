@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nekodot_native/ui/design.dart';
 import 'package:nekodot_native/ui/message_selection.dart';
 
 void main() {
@@ -11,7 +12,10 @@ void main() {
     final scroll = ScrollController();
     await tester.pumpWidget(
       MaterialApp(
-        theme: ThemeData(platform: TargetPlatform.windows),
+        theme: appTheme(
+          Brightness.light,
+          glass: false,
+        ).copyWith(platform: TargetPlatform.windows),
         home: Scaffold(
           body: ListView(
             controller: scroll,

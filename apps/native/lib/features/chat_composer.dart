@@ -892,46 +892,31 @@ class MentionCard extends StatelessWidget {
             maxWidth: 320,
             maxHeight: (tone.glass ? 48.0 : 42.0) * 5 + 12,
           ),
-          child: Panel(
-            lifted: true,
-            child: ListView(
-              key: const ValueKey('mention-card'),
-              shrinkWrap: true,
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              children: [
-                for (final (handle, name, avatar) in rows)
-                  InkWell(
-                    key: ValueKey('mention-$handle'),
-                    onTap: () => onPick(handle),
-                    child: SizedBox(
-                      height: tone.glass ? 48 : 42,
-                      child: Row(
-                        children: [
-                          const SizedBox(width: 12),
-                          avatar,
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: text.titleMedium?.copyWith(fontSize: 14),
-                            ),
-                          ),
-                          if (handle != 'everyone')
-                            Text(
+          child: MenuEntrance(
+            child: MenuCard(
+              child: ListView(
+                key: const ValueKey('mention-card'),
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                children: [
+                  for (final (handle, name, avatar) in rows)
+                    MenuChoice(
+                      key: ValueKey('mention-$handle'),
+                      onPressed: () => onPick(handle),
+                      label: name,
+                      leading: avatar,
+                      trailing: handle != 'everyone'
+                          ? Text(
                               '@$handle',
                               style: text.bodySmall?.copyWith(
                                 fontSize: 12,
                                 color: tone.ink3,
                               ),
-                            ),
-                          const SizedBox(width: 14),
-                        ],
-                      ),
+                            )
+                          : null,
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

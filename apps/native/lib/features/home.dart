@@ -217,10 +217,8 @@ class _HomePageState extends State<HomePage> {
     final current = nodes
         .where((n) => n['nodeId'] == c.selectedNodeId)
         .firstOrNull;
-    return PopupMenuButton<String>(
+    return ActionMenu<String>(
       tooltip: c.tr('电脑', 'Computer'),
-      position: PopupMenuPosition.under,
-      constraints: menuConstraints,
       onSelected: (id) {
         if (id == '') {
           openPage(context, _addComputer());
@@ -237,20 +235,16 @@ class _HomePageState extends State<HomePage> {
           c.selectNode(id);
         }
       },
-      itemBuilder: (context) => [
+      items: [
         for (final node in nodes)
-          menuItem(
-            context,
+          MenuAction(
             value: node['nodeId'] as String,
             leading: StatusDot(on: node['online'] == true, size: 7),
             label: '${node['name']}',
-            trailing: node['nodeId'] == c.selectedNodeId
-                ? const Icon(Icons.check)
-                : null,
+            selected: node['nodeId'] == c.selectedNodeId,
           ),
-        if (nodes.isNotEmpty) menuDivider,
-        menuItem(
-          context,
+        if (nodes.isNotEmpty) null,
+        MenuAction(
           value: '',
           icon: Icons.add_to_queue_outlined,
           label: c.tr('添加电脑', 'Add computer'),
@@ -325,38 +319,33 @@ class _HomePageState extends State<HomePage> {
           icon: const Icon(Icons.add),
           onPressed: () => create('space'),
         )
-      : PopupMenuButton<String>(
+      : ActionMenu<String>(
           tooltip: c.tr('新建', 'Create'),
-          position: PopupMenuPosition.under,
-          constraints: menuConstraints,
+          alignEnd: true,
           icon: const Icon(Icons.add),
           onSelected: create,
-          itemBuilder: createItems,
+          items: createItems(),
         );
 
   /// New Bot, new group, and the skills and plugins a Bot can be given.
-  List<PopupMenuEntry<String>> createItems(BuildContext context) => [
-    menuItem(
-      context,
+  List<MenuAction<String>?> createItems() => [
+    MenuAction(
       value: 'space',
       icon: Icons.web_asset_outlined,
       label: c.tr('新建空间', 'New space'),
     ),
-    menuItem(
-      context,
+    MenuAction(
       value: 'bot',
       icon: Icons.smart_toy_outlined,
       label: c.tr('新建 Bot', 'New Bot'),
     ),
-    menuItem(
-      context,
+    MenuAction(
       value: 'group',
       icon: Icons.groups_outlined,
       label: c.tr('新建群组', 'New group'),
     ),
-    menuDivider,
-    menuItem(
-      context,
+    null,
+    MenuAction(
       value: 'plugins',
       icon: Icons.extension_outlined,
       label: c.tr('添加插件', 'Add plugins'),
@@ -835,10 +824,8 @@ class _HomePageState extends State<HomePage> {
         child: Row(
           children: [
             Expanded(
-              child: PopupMenuButton<String>(
+              child: ActionMenu<String>(
                 tooltip: c.tr('账户', 'Account'),
-                position: PopupMenuPosition.over,
-                constraints: menuConstraints,
                 onSelected: (value) {
                   if (value == 'settings') {
                     openPage(context, SettingsPage(client: c));
@@ -846,7 +833,7 @@ class _HomePageState extends State<HomePage> {
                     signOut();
                   }
                 },
-                itemBuilder: (context) => [
+                items: [
                   for (final (value, icon, label) in [
                     (
                       'settings',
@@ -855,8 +842,8 @@ class _HomePageState extends State<HomePage> {
                     ),
                     ('logout', Icons.logout, c.tr('退出账号', 'Sign out')),
                   ]) ...[
-                    if (value == 'logout') menuDivider,
-                    menuItem(context, value: value, icon: icon, label: label),
+                    if (value == 'logout') null,
+                    MenuAction(value: value, icon: icon, label: label),
                   ],
                 ],
                 child: Padding(
@@ -1082,7 +1069,9 @@ class _HomePageState extends State<HomePage> {
           },
         );
         return PopScope(
-          canPop: !Platform.isAndroid,
+          canPop:
+              !Platform.isAndroid ||
+              ModalRoute.of(context)!.willHandlePopInternally,
           onPopInvokedWithResult: (didPop, result) {
             if (!didPop && Platform.isAndroid) {
               if (panelShown) {

@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
+import 'design.dart';
+
 /// Quotes the actual selected text, using Flutter's selection anchors.
 class MessageSelection extends StatefulWidget {
   final Widget child;
@@ -82,6 +84,8 @@ class _MessageSelectionState extends State<MessageSelection> {
           child: TextSelectionToolbar(
             anchorAbove: anchors.primaryAnchor,
             anchorBelow: anchors.secondaryAnchor ?? anchors.primaryAnchor,
+            toolbarBuilder: (context, child) =>
+                MenuEntrance(child: MenuCard(child: child)),
             children: [
               TextButton.icon(
                 key: const ValueKey('selection-quote-bubble'),
@@ -89,8 +93,11 @@ class _MessageSelectionState extends State<MessageSelection> {
                 icon: const Icon(Icons.format_quote_rounded, size: 18),
                 label: Text(widget.quoteLabel),
                 style: TextButton.styleFrom(
-                  minimumSize: const Size(44, 44),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  minimumSize: Size(48, context.tone.glass ? 48 : 36),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: RoundedSuperellipseBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
             ],

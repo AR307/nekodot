@@ -130,11 +130,11 @@ class _ModelSelectionState extends State<ModelSelection> {
                   for (final value in models.where(
                     (m) => m.toLowerCase().contains(query),
                   ))
-                    ListTile(
+                    MenuChoice(
                       key: ValueKey('model-option-$value'),
-                      title: Text(value),
-                      trailing: value == model ? const Icon(Icons.check) : null,
-                      onTap: () => Navigator.pop(context, value),
+                      label: value,
+                      selected: value == model,
+                      onPressed: () => Navigator.pop(context, value),
                     ),
                 ],
               ),

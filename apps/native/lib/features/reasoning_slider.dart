@@ -121,47 +121,30 @@ class _ReasoningSliderState extends State<ReasoningSlider> {
     final disabled = saving || !widget.enabled;
     String label(String? value) => value ?? '…';
     if (context.tone.glass) {
-      return TextButton(
+      return ActionMenu<String>(
         key: const ValueKey('reasoning-toggle'),
-        onPressed: disabled
-            ? null
-            : () => showModalBottomSheet<void>(
-                context: context,
-                useSafeArea: true,
-                showDragHandle: true,
-                isScrollControlled: true,
-                builder: (sheet) => SafeArea(
-                  top: false,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.sizeOf(sheet).height * .6,
-                    ),
-                    child: ListView(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
-                      children: [
-                        for (final value in options)
-                          ListTile(
-                            title: Text(label(value)),
-                            trailing: value == selected
-                                ? const Icon(Icons.check)
-                                : null,
-                            onTap: () {
-                              Navigator.pop(sheet);
-                              save(value);
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-        child: Text(
-          label(selected),
-          key: const ValueKey('reasoning-current'),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        tooltip: label(selected),
+        enabled: !disabled,
+        onSelected: save,
+        items: [
+          for (final value in options)
+            MenuAction(
+              value: value,
+              label: label(value),
+              selected: value == selected,
+            ),
+        ],
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+          child: Center(
+            widthFactor: 1,
+            child: Text(
+              label(selected),
+              key: const ValueKey('reasoning-current'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ),
       );
     }
@@ -233,21 +216,14 @@ class _ReasoningSliderState extends State<ReasoningSlider> {
         ],
       ),
     );
-    return MenuAnchor(
+    return MenuPopover(
       controller: menu,
-      consumeOutsideTap: true,
-      style: MenuStyle(
-        padding: const WidgetStatePropertyAll(
-          EdgeInsets.fromLTRB(10, 4, 10, 10),
-        ),
-        backgroundColor: WidgetStatePropertyAll(context.tone.menu),
-      ),
-      menuChildren: [slider],
-      builder: (context, controller, child) => TextButton(
+      width: 360,
+      menuBuilder: (context, _) => slider,
+      builder: (context, toggle, focus) => TextButton(
         key: const ValueKey('reasoning-toggle'),
-        onPressed: disabled
-            ? null
-            : () => controller.isOpen ? controller.close() : controller.open(),
+        focusNode: focus,
+        onPressed: disabled ? null : toggle,
         style: TextButton.styleFrom(
           minimumSize: Size(48, context.tone.glass ? 48 : 32),
           padding: const EdgeInsets.symmetric(horizontal: 8),
