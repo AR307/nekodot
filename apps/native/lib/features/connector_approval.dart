@@ -41,6 +41,16 @@ class ConnectorApprovalCard extends StatefulWidget {
 
 class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
   bool expanded = false;
+  bool unfolded = false;
+
+  @override
+  void didUpdateWidget(ConnectorApprovalCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.pending && !widget.pending) {
+      unfolded = false;
+      expanded = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,185 +71,213 @@ class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                '${data['title']}',
-                style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Flexible(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
+              if (widget.pending)
+                Text(
+                  '${data['title']}',
+                  style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                )
+              else
+                Material(
+                  color: Colors.transparent,
+                  shape: shape,
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    key: const ValueKey('connector-approval-summary'),
+                    customBorder: shape,
+                    onTap: () => setState(() => unfolded = !unfolded),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: height),
+                      child: Row(
                         children: [
-                          widget.bot == null
-                              ? const CatAvatar(size: 36)
-                              : CatAvatar.of(widget.bot!, size: 36),
-                          if (widget.bot != null) ...[
+                          Icon(
+                            widget.unanswered
+                                ? Icons.remove
+                                : widget.denied
+                                ? Icons.close
+                                : Icons.check,
+                            size: 16,
+                            color: tone.ink2,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${data['title']}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: text.bodyMedium,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(widget.result, style: text.bodySmall),
+                          const SizedBox(width: 4),
+                          Icon(
+                            unfolded ? Icons.expand_less : Icons.expand_more,
+                            size: 18,
+                            color: tone.ink2,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              if (widget.pending || unfolded) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            widget.bot == null
+                                ? const CatAvatar(size: 36)
+                                : CatAvatar.of(widget.bot!, size: 36),
+                            if (widget.bot != null) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                '${widget.bot!['displayName']}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: text.bodySmall,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                        child: Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 20,
+                          color: tone.ink3,
+                        ),
+                      ),
+                      Flexible(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ConnectorIcon(
+                              url: service['icon'] as String?,
+                              size: 36,
+                            ),
                             const SizedBox(height: 8),
                             Text(
-                              '${widget.bot!['displayName']}',
+                              '${service['name']}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: text.bodySmall,
                             ),
                           ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Material(
+                  color: Colors.transparent,
+                  shape: shape,
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    customBorder: shape,
+                    onTap: () => setState(() => expanded = !expanded),
+                    child: SizedBox(
+                      height: height,
+                      child: Row(
+                        children: [
+                          Text(c.tr('详细信息', 'Details'), style: text.bodySmall),
+                          const SizedBox(width: 4),
+                          Icon(
+                            expanded ? Icons.expand_less : Icons.expand_more,
+                            size: 18,
+                            color: tone.ink2,
+                          ),
                         ],
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                      child: Icon(
-                        Icons.arrow_forward_rounded,
-                        size: 20,
-                        color: tone.ink3,
-                      ),
-                    ),
-                    Flexible(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ConnectorIcon(
-                            url: service['icon'] as String?,
-                            size: 36,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${service['name']}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (expanded)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, bottom: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if ('${data['account']}'.isNotEmpty)
+                          SelectableText(
+                            '${data['account']}',
                             style: text.bodySmall,
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Material(
-                color: Colors.transparent,
-                shape: shape,
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  customBorder: shape,
-                  onTap: () => setState(() => expanded = !expanded),
-                  child: SizedBox(
-                    height: height,
-                    child: Row(
-                      children: [
-                        Text(c.tr('详细信息', 'Details'), style: text.bodySmall),
-                        const SizedBox(width: 4),
-                        Icon(
-                          expanded ? Icons.expand_less : Icons.expand_more,
-                          size: 18,
-                          color: tone.ink2,
-                        ),
+                        for (final entry in object(data['arguments']).entries)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    entry.key,
+                                    style: text.bodySmall?.copyWith(
+                                      color: tone.ink2,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  flex: 5,
+                                  child: SelectableText(
+                                    entry.value is String
+                                        ? entry.value as String
+                                        : const JsonEncoder.withIndent('  ')
+                                              .convert(entry.value),
+                                    style: text.bodySmall,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                   ),
-                ),
-              ),
-              if (expanded)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4, bottom: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                if (widget.pending)
+                  Row(
                     children: [
-                      if ('${data['account']}'.isNotEmpty)
-                        SelectableText(
-                          '${data['account']}',
-                          style: text.bodySmall,
-                        ),
-                      for (final entry in object(data['arguments']).entries)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  entry.key,
-                                  style: text.bodySmall?.copyWith(
-                                    color: tone.ink2,
-                                  ),
+                      for (final (choice, label) in [
+                        ('once', c.tr('允许', 'Allow')),
+                        ('always', c.tr('总是允许', 'Always allow')),
+                        ('deny', c.tr('拒绝', 'Deny')),
+                      ])
+                        Expanded(
+                          child: Align(
+                            alignment: choice == 'once'
+                                ? Alignment.centerLeft
+                                : choice == 'deny'
+                                ? Alignment.centerRight
+                                : Alignment.center,
+                            child: TextButton(
+                              key: ValueKey('connector-approval-$choice'),
+                              style: TextButton.styleFrom(
+                                minimumSize: Size(0, height),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
                                 ),
+                                shape: shape,
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                flex: 5,
-                                child: SelectableText(
-                                  entry.value is String
-                                      ? entry.value as String
-                                      : const JsonEncoder.withIndent('  ')
-                                            .convert(entry.value),
-                                  style: text.bodySmall,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              if (widget.pending)
-                Row(
-                  children: [
-                    for (final (choice, label) in [
-                      ('once', c.tr('允许', 'Allow')),
-                      ('always', c.tr('总是允许', 'Always allow')),
-                      ('deny', c.tr('拒绝', 'Deny')),
-                    ])
-                      Expanded(
-                        child: Align(
-                          alignment: choice == 'once'
-                              ? Alignment.centerLeft
-                              : choice == 'deny'
-                              ? Alignment.centerRight
-                              : Alignment.center,
-                          child: TextButton(
-                            key: ValueKey('connector-approval-$choice'),
-                            style: TextButton.styleFrom(
-                              minimumSize: Size(0, height),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              shape: shape,
+                              onPressed:
+                                  widget.sending == null &&
+                                      widget.choices.contains(choice)
+                                  ? () => widget.onRespond(choice)
+                                  : null,
+                              child: widget.sending == choice
+                                  ? ShiningText(text: label)
+                                  : Text(label),
                             ),
-                            onPressed:
-                                widget.sending == null &&
-                                    widget.choices.contains(choice)
-                                ? () => widget.onRespond(choice)
-                                : null,
-                            child: widget.sending == choice
-                                ? ShiningText(text: label)
-                                : Text(label),
                           ),
                         ),
-                      ),
-                  ],
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    children: [
-                      Icon(
-                        widget.unanswered
-                            ? Icons.remove
-                            : widget.denied
-                            ? Icons.close
-                            : Icons.check,
-                        size: 16,
-                        color: tone.ink2,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(widget.result, style: text.bodySmall),
                     ],
                   ),
-                ),
+              ],
               ErrorNotice(widget.error, action: widget.retry),
             ],
           ),

@@ -162,6 +162,18 @@ void main() {
       final card = find.byType(ConnectorApprovalCard).last;
       await Scrollable.ensureVisible(tester.element(card), alignment: .15);
       await frames();
+      final summary = find.descendant(
+        of: card,
+        matching: find.byKey(const ValueKey('connector-approval-summary')),
+      );
+      expect(summary, findsOneWidget);
+      expect(
+        find.descendant(of: card, matching: find.text('详细信息')),
+        findsNothing,
+      );
+      await shot('windows-approval-collapsed');
+      await tester.tap(summary);
+      await frames();
       expect(
         find.descendant(of: card, matching: find.text('GitHub')),
         findsOneWidget,
