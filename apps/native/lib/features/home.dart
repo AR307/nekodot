@@ -11,7 +11,7 @@ import '../ui/design.dart';
 import 'bot_details.dart';
 import 'chat.dart';
 import 'bot_editor.dart';
-import 'extensions.dart';
+import 'plugin_center.dart';
 import 'files.dart';
 import 'settings.dart';
 import 'pairing.dart';
@@ -170,7 +170,7 @@ class _HomePageState extends State<HomePage> {
       ),
       SearchEntry(
         section: actions,
-        title: c.tr('添加插件', 'Add plugins'),
+        title: c.tr('插件中心', 'Plugin center'),
         leading: icon(Icons.extension_outlined),
         open: () => create('plugins'),
       ),
@@ -348,7 +348,7 @@ class _HomePageState extends State<HomePage> {
     MenuAction(
       value: 'plugins',
       icon: Icons.extension_outlined,
-      label: c.tr('添加插件', 'Add plugins'),
+      label: c.tr('插件中心', 'Plugin center'),
     ),
   ];
 
@@ -387,9 +387,9 @@ class _HomePageState extends State<HomePage> {
         await open(created, MediaQuery.sizeOf(context).width < 840);
       }
     } else if (MediaQuery.sizeOf(context).width < 840) {
-      pushPage(context, ExtensionsPage(client: c, kind: 'skills'));
+      pushPage(context, PluginCenterPage(client: c, kind: 'skills'));
     } else {
-      showExtensionsDialog(context, c);
+      showPluginCenter(context, c);
     }
   }
 
@@ -453,10 +453,10 @@ class _HomePageState extends State<HomePage> {
           children: [
             floatingRound(
               child: IconButton(
-                tooltip: c.tr('Skills 与插件', 'Skills & plugins'),
+                tooltip: c.tr('插件中心', 'Plugin center'),
                 onPressed: () => pushPage(
                   context,
-                  ExtensionsPage(client: c, kind: 'skills'),
+                  PluginCenterPage(client: c, kind: 'skills'),
                 ),
                 icon: const Icon(Icons.grid_view_rounded),
               ),

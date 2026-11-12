@@ -23,7 +23,9 @@ import { Spaces } from './spaces';
 
 import type { ConversationExecution } from './execution/sessions';
 import type { CommandOperations } from './command-operations';
+import type { McpServers } from './mcp';
 interface RpcFeatures {
+  mcp: McpServers;
   spaces: Spaces;
   secrets: BotSecrets;
   bots: BotService;
@@ -54,6 +56,14 @@ export class NodeRpc {
   ) {}
   async handle(request: RpcRequest): Promise<unknown> {
     switch (request.method) {
+      case 'mcp.list':
+        return this.features.mcp.list(request.params.botId);
+      case 'mcp.add':
+        return this.features.mcp.add(request.params);
+      case 'mcp.toggle':
+        return this.features.mcp.toggle(request.params);
+      case 'mcp.test':
+        return this.features.mcp.test(request.params);
       case 'spaces.list':
         return this.features.spaces.list();
       case 'spaces.get':

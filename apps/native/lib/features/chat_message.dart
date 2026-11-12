@@ -14,6 +14,8 @@ import '../ui/chat_notice.dart';
 import 'files.dart';
 import 'routines.dart';
 import 'secrets.dart';
+import 'connector_authorization.dart';
+import 'connector_approval.dart';
 import 'work.dart';
 import 'spaces.dart';
 
@@ -151,13 +153,20 @@ class _MessageTileState extends State<MessageTile> {
     ];
     final card = const {
       'secret',
+      'connector',
       'routine',
       'approval',
       'question',
     }.contains(kind);
     Widget? content;
     if (kind == 'approval' || kind == 'question') {
-      content = ControlCard(client: c, message: m);
+      content = ControlCard(client: c, message: m, bot: bot);
+    } else if (kind == 'connector') {
+      content = ConnectorChatCard(
+        key: ValueKey(m.messageId),
+        client: c,
+        content: body,
+      );
     } else if (kind == 'secret') {
       content = SecretCard(
         key: ValueKey(m.messageId),
@@ -431,7 +440,13 @@ class _CopyButtonState extends State<CopyButton> {
 class ControlCard extends StatefulWidget {
   final NekodotClient client;
   final ChatMessage message;
-  const ControlCard({super.key, required this.client, required this.message});
+  final Json? bot;
+  const ControlCard({
+    super.key,
+    required this.client,
+    required this.message,
+    this.bot,
+  });
   @override
   State<ControlCard> createState() => _ControlCardState();
 }
@@ -514,6 +529,24 @@ class _ControlCardState extends State<ControlCard> {
           );
 
     if (!question) {
+      if (data['connector'] != null) {
+        return ConnectorApprovalCard(
+          client: c,
+          bot: widget.bot,
+          details: object(data['connector']),
+          pending: pending,
+          sending: sending,
+          choices: choices.map((choice) => '$choice').toList(),
+          result: answered == null
+              ? c.tr('未回答', 'Not answered')
+              : label(answered),
+          denied: answered == 'deny',
+          unanswered: answered == null,
+          onRespond: respond,
+          error: error,
+          retry: retry,
+        );
+      }
       // Keep the original approval and its answer available in the chat.
       final command = firstLine(
         data['command'] == null ? '${data['prompt']}' : '${data['command']}',

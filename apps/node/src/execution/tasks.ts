@@ -27,6 +27,8 @@ interface TaskControl {
   start(run: RunRecord, input: string): Promise<void>;
   stop(conversationId: string, runId?: string): Promise<unknown>;
   answer(messageId: string, answer: string): Promise<unknown>;
+  connectionPending?(taskId: string): boolean;
+  cancelConnection?(taskId: string): boolean;
 }
 
 const requestSchema = z.object({
@@ -212,6 +214,10 @@ export class DotTasks {
       .runs()
       .find((run) => run.taskId === task!.taskId && run.role === 'execution');
     if (p.operation === 'stop') {
+      if (this.control.cancelConnection?.(task!.taskId)) {
+        task!.state = 'cancelled';
+        this.update(task!);
+      }
       if (current?.runId) await this.control.stop(task!.conversationId, current.runId);
       else if (activeStates.has(task!.state))
         throw new NodeFault('conflict', 'Task is starting; its native receipt is not ready');
@@ -379,7 +385,7 @@ export class DotTasks {
     return run;
   }
 
-  async secretContinue(taskId: string, submissionId: string, text: string) {
+  async continueExternalInput(taskId: string, submissionId: string, text: string) {
     const task = this.database.task(taskId)!;
     const previous = this.execution(task.executionId)!;
     const execution = this.execution(submissionId) ?? {
@@ -491,7 +497,10 @@ export class DotTasks {
     execution.resultMessageId = run.textMessageId;
     this.saveExecution(execution);
     if (task.executionId === execution.executionId) {
-      task.state = status;
+      task.state =
+        status === 'completed' && this.control.connectionPending?.(task.taskId)
+          ? 'waiting_question'
+          : status;
       task.resultMessageId = run.textMessageId;
       this.update(task);
     }

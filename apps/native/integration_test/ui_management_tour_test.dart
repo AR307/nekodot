@@ -14,7 +14,8 @@ import 'package:nekodot_native/features/auth.dart';
 import 'package:nekodot_native/features/bot_details.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
 import 'package:nekodot_native/features/bot_model.dart';
-import 'package:nekodot_native/features/extensions.dart';
+import 'package:nekodot_native/features/plugin_center.dart';
+import 'package:nekodot_native/features/plugin_catalog.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/features/hermes_settings.dart';
 import 'package:nekodot_native/features/pairing.dart';
@@ -181,12 +182,12 @@ void main() {
       }
       await open(
         'catalog-profile',
-        ExtensionsPage(client: c, kind: 'plugins'),
+        PluginCenterPage(client: c, kind: 'plugins'),
         inspect: () async {
-          final catalog = find.byType(ExtensionsPage);
+          final catalog = find.byType(PluginCenterPage);
           final entries = find.descendant(
             of: catalog,
-            matching: find.byType(ListTile),
+            matching: find.byType(PluginTile),
           );
           final search = find.descendant(
             of: catalog,
@@ -196,7 +197,10 @@ void main() {
           Future<void> scrollCatalog() async {
             for (var i = 0; i < 8; i++) {
               await tester.fling(
-                find.descendant(of: catalog, matching: find.byType(ListView)),
+                find.descendant(
+                  of: catalog,
+                  matching: find.byType(CustomScrollView),
+                ),
                 Offset(0, i < 4 ? -480 : 480),
                 900,
               );
@@ -213,7 +217,7 @@ void main() {
             await scrollCatalog();
           }
           if (focus == 'performance') return;
-          final context = tester.element(find.byType(ExtensionsPage));
+          final context = tester.element(find.byType(PluginCenterPage));
           final surface = MediaQuery.sizeOf(context);
           final density = MediaQuery.devicePixelRatioOf(context);
           tester.view.physicalSize =
@@ -303,7 +307,7 @@ void main() {
       );
       await open(
         'extensions',
-        ExtensionsPage(client: c, kind: 'skills'),
+        PluginCenterPage(client: c, kind: 'skills'),
         inspect: () async {
           await tap(find.text('Plugins'));
           final end = DateTime.now().add(const Duration(seconds: 25));

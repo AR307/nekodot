@@ -73,6 +73,7 @@ export class Routines {
   onSecret?: (input: unknown) => Promise<unknown>;
   onTask?: (input: unknown) => Promise<unknown>;
   onSpace?: (input: unknown) => Promise<unknown>;
+  onConnector?: (input: unknown) => Promise<unknown>;
   onExecution!: (
     routine: Routine,
     execution: RoutineExecution,
@@ -512,6 +513,10 @@ export class Routines {
     }, 5000);
   }
   private async local(value: unknown) {
+    if ((value as { action?: string })?.action === 'connector') {
+      if (!this.onConnector) throw new NodeFault('unavailable', 'Connectors are unavailable');
+      return this.onConnector(value);
+    }
     if (value && typeof value === 'object' && 'action' in value && value.action === 'space') {
       if (!this.onSpace) throw new NodeFault('unavailable', 'Spaces are unavailable');
       return this.onSpace(value);

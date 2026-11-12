@@ -14,7 +14,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/data/json.dart';
-import 'package:nekodot_native/features/extensions.dart';
+import 'package:nekodot_native/features/plugin_center.dart';
+import 'package:nekodot_native/features/plugin_catalog.dart';
 import 'package:nekodot_native/features/files.dart';
 import 'package:nekodot_native/features/secrets.dart';
 import 'package:nekodot_native/local/location.dart';
@@ -219,31 +220,29 @@ void main() {
 
     // Skills and plugins sit under the plus, nowhere else.
     await tap(find.byTooltip('新建'));
-    expect(find.text('添加插件'), findsOneWidget);
+    expect(find.text('插件中心'), findsOneWidget);
     await shot('create-menu');
-    await tap(find.text('添加插件'));
+    await tap(find.text('插件中心'));
     await until(
-      () => find.byType(ExtensionsPage).evaluate().isNotEmpty,
+      () => find.byType(PluginCenterPage).evaluate().isNotEmpty,
       what: 'plugins open',
     );
     await until(
       () => find
           .descendant(
-            of: find.byType(ExtensionsPage),
-            matching: find.byType(ListTile),
+            of: find.byType(PluginCenterPage),
+            matching: find.byType(PluginTile),
           )
           .evaluate()
           .isNotEmpty,
       what: 'skills listed',
     );
-    expect(find.widgetWithText(Segment<String>, 'Skills'), findsOneWidget);
+    expect(find.text('Skills'), findsOneWidget);
     await shot('plugins');
-    await tap(
-      find.descendant(
-        of: find.byType(Segment<String>),
-        matching: find.text('插件'),
-      ),
-    );
+    if (find.byKey(const ValueKey('plugin-kind-plugins')).evaluate().isEmpty) {
+      await tap(find.byKey(const ValueKey('plugin-kind-menu')));
+    }
+    await tap(find.byKey(const ValueKey('plugin-kind-plugins')));
     await settle(1200);
     if (android) {
       await tester.pageBack();
@@ -252,7 +251,7 @@ void main() {
     } else {
       await tap(find.byTooltip('关闭'));
       await tap(find.byTooltip('账户'));
-      expect(find.text('Skills 与插件'), findsNothing);
+      expect(find.text('插件中心'), findsNothing);
       expect(find.text('设置'), findsOneWidget);
       Navigator.of(tester.element(find.text('设置').last)).pop();
     }

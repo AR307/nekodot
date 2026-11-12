@@ -37,13 +37,16 @@ export const envelopeSchema = z
       'usage.ack',
       'usage.refresh',
       'usage.refreshed',
+      'connectors.req',
+      'connectors.res',
+      'connectors.changed',
     ]),
     nodeId: idSchema.optional(),
     replyTo: z.uuidv4().optional(),
     payload: z.unknown(),
   })
   .superRefine((value, ctx) => {
-    if ((value.type === 'rpc.res' || value.type === 'memory.user.res') && !value.replyTo)
+    if (['rpc.res', 'memory.user.res', 'connectors.res'].includes(value.type) && !value.replyTo)
       ctx.addIssue({
         code: 'custom',
         path: ['replyTo'],

@@ -11,7 +11,7 @@ import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/features/auth.dart';
 import 'package:nekodot_native/features/bot_details.dart';
 import 'package:nekodot_native/features/bot_editor.dart';
-import 'package:nekodot_native/features/extensions.dart';
+import 'package:nekodot_native/features/plugin_center.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/features/pairing.dart';
 import 'package:nekodot_native/features/settings.dart';
@@ -178,7 +178,7 @@ void main() {
           await tester.tap(find.byTooltip('新建').first);
           await run(const Duration(milliseconds: 400));
           await shot('$tag-create-menu');
-          await tester.tap(find.text('添加插件').last);
+          await tester.tap(find.text('插件中心').last);
           await shot('$tag-dialog');
           navigator.currentState!.pop();
           await run(const Duration(milliseconds: 300));
@@ -235,7 +235,7 @@ void main() {
         await open(SettingsPage(client: client), '$tag-settings');
         await open(SourcesPage(client: client), '$tag-sources');
         await open(
-          ExtensionsPage(client: client, kind: 'skills'),
+          PluginCenterPage(client: client, kind: 'skills'),
           '$tag-skills',
         );
         await open(PairingPage(client: client), '$tag-pairing');

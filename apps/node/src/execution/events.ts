@@ -6,6 +6,7 @@ import { NodeDatabase, type RunRecord } from '../database';
 import { FileLibrary } from '../files';
 import { Notifications } from '../notifications';
 import { ExecutionFlows } from '../flow';
+import { connectorApprovalContent } from '../connectors';
 
 import type { RunControls } from './controls';
 const now = () => new Date().toISOString();
@@ -171,6 +172,7 @@ export class RunEvents {
           ...(event.choices ? { choices: event.choices as ApprovalChoice[] } : {}),
           prompt: event.description ?? event.command ?? 'Approval required',
           ...(event.command ? { command: event.command } : {}),
+          ...connectorApprovalContent(event.command, event.description),
         },
       };
       run.state = 'waiting_approval';

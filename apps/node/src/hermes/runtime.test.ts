@@ -98,7 +98,13 @@ it.each(['null', '{}'])(
       expect(parse(await readFile(join(home, 'config.yaml'), 'utf8'))).toMatchObject({
         gateway: { multiplex_profiles: true },
         platform_toolsets: {
-          api_server: ['hermes-api-server', 'clarify', 'nekodot-secrets', 'nekodot-spaces'],
+          api_server: [
+            'hermes-api-server',
+            'clarify',
+            'nekodot-secrets',
+            'nekodot-spaces',
+            'nekodot-connectors',
+          ],
         },
       });
     } finally {

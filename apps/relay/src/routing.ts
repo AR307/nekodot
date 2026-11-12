@@ -19,6 +19,7 @@ import {
   usageBatchSchema,
   type RoutineDelivery,
   type RoutineReceipt,
+  connectorRequestSchema,
 } from '@nekodot/protocol';
 import { z } from 'zod';
 import { RoutineIngress } from './routines';
@@ -26,6 +27,7 @@ import type { RelayDatabase, NodeRow } from './database';
 import { HttpFault } from './auth';
 import { AccountUserMemory } from './user-memory';
 import { AccountUsage } from './usage';
+import { AccountConnectors, connectorFault } from './connectors/service';
 
 const frame = (type: Envelope['type'], payload: unknown, nodeId?: string): Envelope => ({
   v: 1,
@@ -49,6 +51,7 @@ export function registerRouting(
   notify: (userId: string, nodeId: string, signal: TaskNotification) => Promise<boolean>,
   latestRelease: () => Promise<NodeRelease | undefined>,
   publicUrl: string,
+  connectors: AccountConnectors,
 ) {
   const wss = new WebSocketServer({ noServer: true });
   const userMemory = new AccountUserMemory(database);
@@ -87,6 +90,14 @@ export function registerRouting(
   function broadcast(userId: string, value: Envelope) {
     for (const client of clients) if (client.userId === userId) send(client.socket, value);
   }
+  connectors.onChanged = (userId, authorization) => {
+    const payload = authorization ? { authorization } : {};
+    broadcast(userId, frame('connectors.changed', payload));
+    for (const owned of database.nodes(userId)) {
+      const socket = nodes.get(owned.node_id);
+      if (socket) send(socket, frame('connectors.changed', payload, owned.node_id));
+    }
+  };
   function clearPending(nodeId: string) {
     for (const [id, waiter] of usageRefresh)
       if (waiter.nodeId === nodeId) {
@@ -210,6 +221,27 @@ export function registerRouting(
           }, protocolTimings.rpcTimeoutMs);
           pending.set(envelope.id, { socket, nodeId, timer });
           send(nodes.get(nodeId)!, envelope);
+        } else if (node && envelope.type === 'connectors.req') {
+          try {
+            if (!database.owns(node.user_id, node.node_id))
+              throw new HttpFault('forbidden', 'Node unpaired', 403);
+            const input = connectorRequestSchema.parse(envelope.payload);
+            const result = await connectors.request(node.user_id, input, node.node_id);
+            send(socket, {
+              ...frame('connectors.res', { ok: true, result }, node.node_id),
+              replyTo: envelope.id,
+            });
+          } catch (error) {
+            const fault = connectorFault(error);
+            send(socket, {
+              ...frame(
+                'connectors.res',
+                { ok: false, error: { code: fault.code, message: fault.message } },
+                node.node_id,
+              ),
+              replyTo: envelope.id,
+            });
+          }
         } else if (node && envelope.type === 'usage.batch') {
           usage.ingest(node, usageBatchSchema.parse(envelope.payload).records);
           send(socket, { ...frame('usage.ack', {}, node.node_id), replyTo: envelope.id });
