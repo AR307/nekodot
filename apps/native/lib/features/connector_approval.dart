@@ -46,7 +46,8 @@ class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
   @override
   void didUpdateWidget(ConnectorApprovalCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.pending && !widget.pending) {
+    if ((oldWidget.sending == null && widget.sending != null) ||
+        (oldWidget.pending && !widget.pending)) {
       unfolded = false;
       expanded = false;
     }
@@ -58,6 +59,14 @@ class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
     final service = object(data['service']);
     final tone = context.tone;
     final text = Theme.of(context).textTheme;
+    final sending = widget.pending && widget.sending != null;
+    final choosing = widget.pending && !sending;
+    final sendingLabel = switch (widget.sending) {
+      'once' => c.tr('允许一次', 'Allow once'),
+      'always' => c.tr('总是允许', 'Always allow'),
+      'deny' => c.tr('拒绝', 'Deny'),
+      _ => widget.result,
+    };
     final height = DesktopHost.supported ? 36.0 : 48.0;
     final shape = RoundedSuperellipseBorder(
       borderRadius: BorderRadius.circular(10),
@@ -71,7 +80,7 @@ class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (widget.pending)
+              if (choosing)
                 Text(
                   '${data['title']}',
                   style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
@@ -90,7 +99,9 @@ class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
                       child: Row(
                         children: [
                           Icon(
-                            widget.unanswered
+                            sending
+                                ? Icons.more_horiz
+                                : widget.unanswered
                                 ? Icons.remove
                                 : widget.denied
                                 ? Icons.close
@@ -108,7 +119,13 @@ class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text(widget.result, style: text.bodySmall),
+                          if (sending)
+                            ShiningText(
+                              text: sendingLabel,
+                              style: text.bodySmall,
+                            )
+                          else
+                            Text(widget.result, style: text.bodySmall),
                           const SizedBox(width: 4),
                           Icon(
                             unfolded ? Icons.expand_less : Icons.expand_more,
@@ -120,7 +137,7 @@ class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
                     ),
                   ),
                 ),
-              if (widget.pending || unfolded) ...[
+              if (choosing || unfolded) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Row(
@@ -240,7 +257,7 @@ class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
                       ],
                     ),
                   ),
-                if (widget.pending)
+                if (choosing)
                   Row(
                     children: [
                       for (final (choice, label) in [
@@ -264,14 +281,10 @@ class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
                                 ),
                                 shape: shape,
                               ),
-                              onPressed:
-                                  widget.sending == null &&
-                                      widget.choices.contains(choice)
+                              onPressed: widget.choices.contains(choice)
                                   ? () => widget.onRespond(choice)
                                   : null,
-                              child: widget.sending == choice
-                                  ? ShiningText(text: label)
-                                  : Text(label),
+                              child: Text(label),
                             ),
                           ),
                         ),
