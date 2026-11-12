@@ -661,11 +661,12 @@ MarkdownStyleSheet markdownStyle(BuildContext context, {Color? color}) {
     code: body.copyWith(
       fontFamily: monoFont,
       fontSize: 13,
-      backgroundColor: tone.raised,
+      // Text-span backgrounds paint over the selection, so keep this tint translucent.
+      backgroundColor: ink.withValues(alpha: .08),
     ),
     codeblockPadding: const EdgeInsets.all(10),
     codeblockDecoration: ShapeDecoration(
-      color: tone.raised,
+      color: ink.withValues(alpha: .06),
       shape: RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(8)),
     ),
     blockquote: body.copyWith(color: tone.ink2),
