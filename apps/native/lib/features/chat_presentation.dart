@@ -46,6 +46,7 @@ class ChatPresentation {
           (row) =>
               row.taskRole != 'execution' ||
               row.kind == 'secret' ||
+              row.kind == 'connector' ||
               row.kind == 'approval',
         )
         .toList();

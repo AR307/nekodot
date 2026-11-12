@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { modelSettingsSchema } from './providers';
+import { connectorApprovalSchema } from './connectors';
 export const idSchema = z.string().min(1);
 export const seqSchema = z.number().int().nonnegative();
 export const timestampSchema = z.iso.datetime();
@@ -102,6 +103,26 @@ const textContent = z.strictObject({
 export const messageSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     ...messageBase,
+    kind: z.literal('connector'),
+    content: z.strictObject({
+      authorization: z.strictObject({
+        authorizationId: z.string(),
+        connectionId: z.string(),
+        service: z.strictObject({
+          serviceId: z.string(),
+          name: z.string(),
+          icon: z.string().optional(),
+          authMethods: z.array(z.string()),
+        }),
+        status: z.enum(['pending', 'active', 'failed', 'expired', 'disconnected', 'cancelled']),
+        url: z.string(),
+        expiresAt: z.string(),
+      }),
+      stopped: z.boolean(),
+    }),
+  }),
+  z.strictObject({
+    ...messageBase,
     kind: z.literal('secret'),
     content: z.strictObject({
       requestId: z.string(),
@@ -177,6 +198,7 @@ export const messageSchema = z.discriminatedUnion('kind', [
       executionGeneration: z.number().int().nonnegative(),
       prompt: z.string(),
       command: z.string().optional(),
+      connector: connectorApprovalSchema.optional(),
       choices: z.array(approvalChoiceSchema).optional(),
       choice: approvalChoiceSchema.optional(),
     }),

@@ -13,6 +13,7 @@ const { app } = await createRelay({
   distributionDirectory: resolve(process.env.DISTRIBUTION_DIR ?? 'dist/distribution'),
   clientOrigins: (process.env.CLIENT_ORIGINS ?? '').split(',').filter(Boolean),
   firebaseCredentials: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+  composioApiKey: process.env.COMPOSIO_API_KEY,
   smtp: process.env.SMTP_CONFIG
     ? smtpSchema.parse(JSON.parse(await readFile(process.env.SMTP_CONFIG, 'utf8')))
     : undefined,

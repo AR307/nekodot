@@ -23,6 +23,7 @@ import { Routines } from './routines';
 import { BotVoice } from './voice';
 import { ExecutionFlows } from './flow';
 import { Spaces } from './spaces';
+import { NodeConnectors } from './connectors';
 
 export class NodeApplication {
   readonly database: NodeDatabase;
@@ -42,6 +43,7 @@ export class NodeApplication {
     // Desktop state is retained on probe failure; desktop.status retries the probe.
     if (this.desktop) void this.desktopControl.refresh().catch(() => {});
     await this.execution.resume();
+    await this.connectors.recover();
   }
   async close() {
     this.secrets.close();
@@ -73,6 +75,7 @@ export class NodeApplication {
   readonly voice: BotVoice;
   readonly flow: ExecutionFlows;
   readonly spaces: Spaces;
+  readonly connectors: NodeConnectors;
 
   onEvent: (event: PersistedEvent) => void = () => {};
   onLive: (event: LiveEvent) => void = () => {};
@@ -90,6 +93,15 @@ export class NodeApplication {
     this.routines = new Routines(this.database, hermes, this.notifications);
     this.secrets = new BotSecrets(this.database, hermes);
     this.spaces = new Spaces(this.database, hermes);
+    this.connectors = new NodeConnectors(this.database, hermes);
+    this.routines.onConnector = (input) => this.connectors.local(input);
+    this.connectors.onRequest = (request) =>
+      this.notifications.send({
+        notificationId: 'connector:' + request.requestId,
+        taskId: request.taskId,
+        conversationId: request.conversationId,
+        kind: 'question',
+      });
     this.routines.onSpace = (input) => this.spaces.local(input);
     this.routines.scrub = (botId, value) => this.secrets.scrub(botId, value);
     this.secrets.onRequestCard = (request) =>
@@ -144,6 +156,7 @@ export class NodeApplication {
       this.flow,
       this.notifications,
       (event) => this.onLive(event),
+      this.connectors,
     );
     const commandOperations = new CommandOperations(
       this.bots,

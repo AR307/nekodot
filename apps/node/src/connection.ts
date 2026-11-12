@@ -6,6 +6,8 @@ import { NodeFault } from './fault';
 import { HermesGatewayError } from './hermes/gateway';
 import type { SharedUserMemory } from './user-memory';
 import type { NodeUsage } from './usage';
+import type { NodeConnectors } from './connectors';
+import type { ConnectorAuthorization } from '@nekodot/protocol';
 import {
   envelopeSchema,
   rpcRequestSchema,
@@ -43,6 +45,7 @@ export interface NodeConnectionOptions {
   userMemory?: SharedUserMemory;
   routines?: Routines;
   usage?: NodeUsage;
+  connectors?: NodeConnectors;
 }
 export function connectRelay(options: NodeConnectionOptions) {
   let socket: WebSocket;
@@ -58,12 +61,38 @@ export function connectRelay(options: NodeConnectionOptions) {
     string,
     { resolve(value: UserMemoryState): void; reject(error: Error): void }
   >();
+  const connectorRequests = new Map<
+    string,
+    {
+      resolve(value: unknown): void;
+      reject(error: Error): void;
+      timer: ReturnType<typeof setTimeout>;
+    }
+  >();
   function send(envelope: Envelope) {
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(envelope));
   }
   function frame(type: Envelope['type'], payload: unknown): Envelope {
     return { v: 1, id: randomUUID(), type, nodeId: options.credentials.nodeId, payload };
   }
+  if (options.connectors)
+    options.connectors.request = (input) => {
+      if (!ready) return Promise.reject(new NodeFault('unavailable', 'Relay is disconnected'));
+      const message = frame('connectors.req', input);
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          connectorRequests.delete(message.id);
+          reject(
+            new NodeFault(
+              'timeout',
+              'Connector response was not confirmed. Do not retry writes automatically.',
+            ),
+          );
+        }, 110_000);
+        connectorRequests.set(message.id, { resolve, reject, timer });
+        send(message);
+      });
+    };
   if (options.usage)
     options.usage.publish = (records) => {
       if (!ready) return Promise.reject(new NodeFault('unavailable', 'Relay is disconnected'));
@@ -168,6 +197,30 @@ export function connectRelay(options: NodeConnectionOptions) {
             () => false,
           );
           send({ ...frame('usage.refreshed', { ok }), replyTo: envelope.id });
+          return;
+        }
+        if (envelope.type === 'connectors.res') {
+          const response = envelope.payload as {
+            ok: boolean;
+            result?: unknown;
+            error?: { code: string; message: string };
+          };
+          const waiter = connectorRequests.get(envelope.replyTo!);
+          if (waiter) {
+            connectorRequests.delete(envelope.replyTo!);
+            clearTimeout(waiter.timer);
+            if (response.ok) waiter.resolve(response.result);
+            else
+              waiter.reject(
+                new NodeFault('unavailable', `${response.error?.code}: ${response.error?.message}`),
+              );
+          }
+          return;
+        }
+        if (envelope.type === 'connectors.changed') {
+          await options.connectors?.changed(
+            (envelope.payload as { authorization?: ConnectorAuthorization }).authorization,
+          );
           return;
         }
         if (envelope.type === 'routine.routes.ack' || envelope.type === 'usage.ack') {
@@ -283,6 +336,16 @@ export function connectRelay(options: NodeConnectionOptions) {
           new NodeFault('unavailable', 'Relay disconnected. User memory is kept locally.'),
         );
       memoryRequests.clear();
+      for (const waiter of connectorRequests.values()) {
+        clearTimeout(waiter.timer);
+        waiter.reject(
+          new NodeFault(
+            'unavailable',
+            'Relay disconnected. An uncertain connector write must not be retried automatically.',
+          ),
+        );
+      }
+      connectorRequests.clear();
       if (!closing) options.onError?.(`Relay connection closed (${code}): ${reason.toString()}`);
       options.onStatus?.(false);
       if (!closing && code !== 1008) {

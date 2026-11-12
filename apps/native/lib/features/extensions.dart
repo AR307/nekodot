@@ -13,6 +13,7 @@ import '../data/json.dart';
 import '../data/account.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
+import 'connectors.dart';
 
 Future<void> showExtensionsDialog(BuildContext context, NekodotClient client) =>
     openPage(context, ExtensionsPage(client: client, kind: 'skills'));
@@ -26,7 +27,9 @@ class ExtensionsPage extends StatefulWidget {
 }
 
 class _ExtensionsPageState extends State<ExtensionsPage> {
-  late String kind = widget.kind;
+  late String kind = widget.client.selectedNodeId == null
+      ? 'connectors'
+      : widget.kind;
   final search = TextEditingController();
   String query = '';
   int revision = 0;
@@ -50,104 +53,115 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
           options: {
             'skills': const Text('Skills'),
             'plugins': Text(c.tr('插件', 'Plugins')),
+            'connectors': Text(c.tr('连接器', 'Connectors')),
           },
           onChanged: (value) => setState(() => kind = value),
         ),
         actions: [
-          IconAction(
-            tooltip: c.tr('导入', 'Import'),
-            icon: Icons.add,
-            onPressed: () async {
-              await pushPage(context, ExtensionInstall(client: c, kind: kind));
-              setState(() => revision++);
-            },
-          ),
+          if (kind != 'connectors')
+            IconAction(
+              tooltip: c.tr('导入', 'Import'),
+              icon: Icons.add,
+              onPressed: () async {
+                await pushPage(
+                  context,
+                  ExtensionInstall(client: c, kind: kind),
+                );
+                setState(() => revision++);
+              },
+            ),
           const SizedBox(width: 8),
           SizedBox(width: WindowChrome.reserved(context)),
         ],
       ),
-      body: AsyncPane(
-        key: ValueKey('$kind:$revision'),
-        load: () => c.rpc('extensions.list', {'kind': kind}),
-        builder: (context, data, reload) {
-          final entries = objects(data['entries'])
-              .where(
-                (e) => '${e['name']} ${e['description']}'
-                    .toLowerCase()
-                    .contains(query),
-              )
-              .toList();
-          Widget tile(Json entry) => ListTile(
-            shape: RoundedSuperellipseBorder(
-              borderRadius: BorderRadius.circular(context.tone.corner),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-            leading: entry['icon'] == null ? null : ExtensionIcon(entry: entry),
-            title: Text(
-              '${entry['name']}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              '${entry['description']}',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            onTap: () async {
-              await pushPage(
-                context,
-                ExtensionPage(client: c, entry: entry, kind: kind),
-              );
-              reload();
-            },
-          );
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = !glass && constraints.maxWidth >= 720 ? 2 : 1;
-              final rows = (entries.length / columns).ceil();
-              return ListView.builder(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: EdgeInsets.fromLTRB(
-                  14,
-                  glass ? MediaQuery.paddingOf(context).top + 12 : 8,
-                  14,
-                  MediaQuery.paddingOf(context).bottom + 24,
-                ),
-                itemCount: rows + 1,
-                itemBuilder: (context, index) {
-                  if (index == 0) {
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
-                      child: TextField(
-                        controller: search,
-                        onChanged: (value) =>
-                            setState(() => query = value.toLowerCase()),
-                        decoration: InputDecoration(
-                          prefixIcon: const Icon(Icons.search),
-                          hintText: c.tr('搜索', 'Search'),
-                        ),
-                      ),
+      body: kind == 'connectors'
+          ? ConnectorsBody(client: c)
+          : AsyncPane(
+              key: ValueKey('$kind:$revision'),
+              load: () => c.rpc('extensions.list', {'kind': kind}),
+              builder: (context, data, reload) {
+                final entries = objects(data['entries'])
+                    .where(
+                      (e) => '${e['name']} ${e['description']}'
+                          .toLowerCase()
+                          .contains(query),
+                    )
+                    .toList();
+                Widget tile(Json entry) => ListTile(
+                  shape: RoundedSuperellipseBorder(
+                    borderRadius: BorderRadius.circular(context.tone.corner),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  leading: entry['icon'] == null
+                      ? null
+                      : ExtensionIcon(entry: entry),
+                  title: Text(
+                    '${entry['name']}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    '${entry['description']}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onTap: () async {
+                    await pushPage(
+                      context,
+                      ExtensionPage(client: c, entry: entry, kind: kind),
                     );
-                  }
-                  final at = (index - 1) * columns;
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (var i = at; i < at + columns; i++)
-                        Expanded(
-                          child: i < entries.length
-                              ? tile(entries[i])
-                              : const SizedBox.shrink(),
-                        ),
-                    ],
-                  );
-                },
-              );
-            },
-          );
-        },
-      ),
+                    reload();
+                  },
+                );
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final columns = !glass && constraints.maxWidth >= 720
+                        ? 2
+                        : 1;
+                    final rows = (entries.length / columns).ceil();
+                    return ListView.builder(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: EdgeInsets.fromLTRB(
+                        14,
+                        glass ? MediaQuery.paddingOf(context).top + 12 : 8,
+                        14,
+                        MediaQuery.paddingOf(context).bottom + 24,
+                      ),
+                      itemCount: rows + 1,
+                      itemBuilder: (context, index) {
+                        if (index == 0) {
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+                            child: TextField(
+                              controller: search,
+                              onChanged: (value) =>
+                                  setState(() => query = value.toLowerCase()),
+                              decoration: InputDecoration(
+                                prefixIcon: const Icon(Icons.search),
+                                hintText: c.tr('搜索', 'Search'),
+                              ),
+                            ),
+                          );
+                        }
+                        final at = (index - 1) * columns;
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (var i = at; i < at + columns; i++)
+                              Expanded(
+                                child: i < entries.length
+                                    ? tile(entries[i])
+                                    : const SizedBox.shrink(),
+                              ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
     );
   }
 }

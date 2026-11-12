@@ -130,6 +130,7 @@ async function main() {
         return app.handle(request);
       },
       userMemory: app.userMemory,
+      connectors: app.connectors,
       routines: app.routines,
       usage,
       handleTransfer: (request) => app.files.transfer(request),

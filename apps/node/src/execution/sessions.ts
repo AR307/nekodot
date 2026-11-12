@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { projectGatewayEvent } from '../hermes/events';
 import { RunMessages } from './messages';
 import { BotSecrets } from '../secrets';
+import type { NodeConnectors } from '../connectors';
 import type { LiveEvent, Message, RpcParams } from '@nekodot/protocol';
 import { NodeDatabase, type RunRecord } from '../database';
 import type { HermesRuntime } from '../hermes/runtime';
@@ -65,13 +66,19 @@ export class ConversationExecution {
     private readonly flow: ExecutionFlows,
     private readonly notifications: Notifications,
     onLive: (event: LiveEvent) => void,
+    private readonly connectors?: NodeConnectors,
   ) {
     this.onLive = onLive;
     this.tasks = new DotTasks(database, hermes, {
       start: (run, input) => this.startRun(run, input),
       stop: (conversationId, runId) => this.stop(conversationId, runId),
       answer: (messageId, answer) => this.controls.respondToQuestion({ messageId, answer }),
+      connectionPending: (taskId) => this.connectors?.pending(taskId) ?? false,
+      cancelConnection: (taskId) => this.connectors?.cancelTask(taskId) ?? false,
     });
+    if (this.connectors)
+      this.connectors.onContinue = (taskId, submissionId, text) =>
+        this.tasks.continueExternalInput(taskId, submissionId, text);
     this.routines.onTask = (value) => this.tasks.local(value);
     this.routines.onExecution = async (routine, execution, conversationId, prompts, generation) => {
       const run = this.tasks.background(routine, execution, conversationId, generation);
@@ -87,6 +94,7 @@ export class ConversationExecution {
         );
         this.end(run);
         await this.tasks.finished(run, execution.state as 'completed' | 'failed' | 'cancelled');
+        await this.connectors?.settled(run);
       } else {
         await this.controls.restoreNativePrompts(run, prompts);
         this.publishActivity(run);
@@ -94,7 +102,8 @@ export class ConversationExecution {
     };
     this.messages = new RunMessages(this.database, (event) => this.onLive(event));
     this.secrets.onContinue = async (request, submissionId, text) => {
-      if (request.taskId) return this.tasks.secretContinue(request.taskId, submissionId, text);
+      if (request.taskId)
+        return this.tasks.continueExternalInput(request.taskId, submissionId, text);
       const gateway = hermes.gateway(request.botId);
       const snapshot = await gateway.rpc<NativeSessionSnapshot>('session.resume', {
         session_id: request.sessionId,
@@ -1041,6 +1050,7 @@ export class ConversationExecution {
         )
       : this.current(conversationId);
     if (runId && !run) return {};
+    if (run?.taskId) this.connectors?.cancelTask(run.taskId);
     if (run?.background === 'cron' && run.runId && run.sessionId) {
       await this.hermes.gateway(run.botId).rpc('cron.cancel', {
         session_id: run.sessionId,
@@ -1127,6 +1137,12 @@ export class ConversationExecution {
             selected.some((task) => task.taskId === run.taskId) ||
             (!tasks.length && !target)),
       );
+    for (const task of selected) {
+      if (this.connectors?.cancelTask(task.taskId)) {
+        task.state = 'cancelled';
+        this.database.saveTask(task);
+      }
+    }
     for (const run of runs) {
       if (!run.runId)
         throw new NodeFault('conflict', 'Task is starting; its native receipt is not ready');
@@ -1229,7 +1245,14 @@ export class ConversationExecution {
     if (run.role === 'execution' || run.role === 'report') {
       this.end(run);
       await this.tasks.finished(run, status);
+      await this.connectors?.settled(run);
       if (run.role === 'execution') return;
+      if (
+        run.taskId &&
+        (this.connectors?.pending(run.taskId) ||
+          this.database.task(run.taskId)?.executionId !== run.executionId)
+      )
+        return;
       // A failed report keeps this handoff pending; recovery only submits the report.
       if (run.groupId && status === 'failed') return;
       if (run.groupId) {

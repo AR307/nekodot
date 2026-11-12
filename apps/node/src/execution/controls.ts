@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Message, RpcParams, ApprovalChoice } from '@nekodot/protocol';
+import { connectorApprovalContent } from '../connectors';
 import { NodeDatabase, type RunRecord } from '../database';
 import type { HermesRuntime } from '../hermes/runtime';
 import { NodeFault } from '../fault';
@@ -64,10 +65,16 @@ export class RunControls {
         continue;
       }
       if (!run.runId) continue;
+      const connector = connectorApprovalContent(pending.command, pending.description);
       const existing = this.database.approval(run.runId, pending.prompt_id);
       if (existing) {
-        if (existing.status === 'streaming')
+        if (existing.status === 'streaming') {
+          if (connector.connector) {
+            existing.content = { ...existing.content, ...connector };
+            this.database.putMessage(existing, { runId: run.runId }, run);
+          }
           this.flow.prompt(run, 'approval', pending.prompt_id, existing.messageId);
+        }
         continue;
       }
       run.state = 'waiting_approval';
@@ -87,6 +94,7 @@ export class RunControls {
             executionGeneration: pending.execution_generation,
             prompt: pending.description ?? pending.command ?? 'Approval required',
             ...(pending.command ? { command: pending.command } : {}),
+            ...connector,
             ...(pending.choices ? { choices: pending.choices as ApprovalChoice[] } : {}),
           },
         },
