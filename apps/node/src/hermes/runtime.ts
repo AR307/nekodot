@@ -14,6 +14,7 @@ import { installSecretsPlugin } from './secrets-plugin';
 import { installUsagePlugin } from './usage-plugin';
 import { installTaskPlugin } from './tasks-plugin';
 import { installSpacesPlugin } from './spaces-plugin';
+import { installConnectorsPlugin } from './connectors-plugin';
 
 export interface HermesRuntime {
   start(): Promise<void>;
@@ -204,6 +205,7 @@ export class ManagedHermes implements HermesRuntime {
           'clarify',
           'nekodot-secrets',
           'nekodot-spaces',
+          'nekodot-connectors',
         ]),
       ],
     );
@@ -223,6 +225,7 @@ export class ManagedHermes implements HermesRuntime {
     const usageChanged = await installUsagePlugin(directory);
     const taskChanged = await installTaskPlugin(directory);
     const spaceChanged = await installSpacesPlugin(directory);
+    const connectorsChanged = await installConnectorsPlugin(directory);
     const enabled = document.toJS().plugins?.enabled as string[] | undefined;
     document.setIn(
       ['plugins', 'enabled'],
@@ -234,6 +237,7 @@ export class ManagedHermes implements HermesRuntime {
           'nekodot-usage',
           'nekodot-tasks',
           'nekodot-spaces',
+          'nekodot-connectors',
         ]),
       ],
     );
@@ -241,9 +245,10 @@ export class ManagedHermes implements HermesRuntime {
     document.setIn(['plugins', 'entries', 'nekodot-secrets', 'socket'], this.bridge);
     document.setIn(['plugins', 'entries', 'nekodot-tasks', 'socket'], this.bridge);
     document.setIn(['plugins', 'entries', 'nekodot-spaces', 'socket'], this.bridge);
+    document.setIn(['plugins', 'entries', 'nekodot-connectors', 'socket'], this.bridge);
     if (document.hasIn(['secrets', 'nekodot'])) document.deleteIn(['secrets', 'nekodot']);
     await writeFile(path, document.toString(), { mode: 0o600 });
-    return usageChanged || taskChanged || spaceChanged;
+    return usageChanged || taskChanged || spaceChanged || connectorsChanged;
   }
   async configureBot(
     bot: Bot,
