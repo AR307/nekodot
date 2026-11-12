@@ -29,6 +29,11 @@ class ChatMessage {
       seq = value['seq'] as int,
       author = MessageAuthor.fromJson(object(value['author'])),
       content = object(value['content']);
+  bool get isPreview =>
+      taskRole != 'execution' &&
+      (kind == 'text' || kind == 'commentary') &&
+      '${content['text'] ?? ''}'.trim().isNotEmpty;
+
   Json toJson() => {
     'taskId': ?taskId,
     'taskRole': ?taskRole,

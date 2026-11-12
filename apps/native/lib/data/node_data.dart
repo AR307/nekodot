@@ -44,6 +44,14 @@ class NodeData extends ChangeNotifier {
   /// Each conversation's newest words as the node last reported them, so the
   /// list can preview a conversation whose messages are not loaded.
   Map<String, ChatMessage> latest = {};
+  ChatMessage? latestText(String id) {
+    final loaded = messages[id]?.where((m) => m.isPreview).lastOrNull;
+    final reported = latest[id];
+    return loaded == null || (reported != null && reported.seq > loaded.seq)
+        ? reported
+        : loaded;
+  }
+
   final Map<String, ConversationActivity> activities = {};
   final Map<String, ConversationActivity> taskActivities = {};
   final Map<String, Json> screens = {};
@@ -156,9 +164,7 @@ class NodeData extends ChangeNotifier {
               list[index] = message;
             }
           }
-          if (message.taskRole != 'execution' &&
-              (message.kind == 'text' || message.kind == 'commentary') &&
-              '${message.content['text'] ?? ''}'.trim().isNotEmpty &&
+          if (message.isPreview &&
               message.seq >= (latest[message.conversationId]?.seq ?? 0)) {
             latest[message.conversationId] = message;
           }

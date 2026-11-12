@@ -2,6 +2,42 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/node_data.dart';
 
 void main() {
+  test(
+    'worker replies never replace the chat list preview when opening a chat',
+    () {
+      final node = NodeData();
+      node.retainMessages('dm');
+      void receive(int seq, String? role, String text) => node.update({
+        'type': 'event',
+        'payload': {
+          'seq': seq,
+          'kind': 'message.upserted',
+          'data': {
+            'messageId': 'reply-$seq',
+            'conversationId': 'dm',
+            'seq': seq,
+            'createdAt': '2026-11-12T00:00:00Z',
+            'kind': 'text',
+            'taskRole': ?role,
+            'status': 'done',
+            'author': {'type': 'bot', 'id': 'dot'},
+            'content': {'text': text},
+          },
+        },
+      });
+      receive(1, null, '我来核对数据。');
+      receive(2, 'execution', 'Internal: raw file details');
+      expect(node.latestText('dm')!.content['text'], '我来核对数据。');
+      node.releaseMessages('dm');
+      expect(node.latestText('dm')!.content['text'], '我来核对数据。');
+      receive(3, 'report', '数据已核对。');
+      node.retainMessages('dm');
+      receive(4, 'execution', 'Internal: another work item');
+      expect(node.latestText('dm')!.content['text'], '数据已核对。');
+      node.dispose();
+    },
+  );
+
   test('unopened chats keep their sidebar preview, not a message history', () {
     final node = NodeData();
     for (var i = 1; i <= 100; i++) {
