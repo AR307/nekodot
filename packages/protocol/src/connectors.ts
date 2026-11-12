@@ -5,6 +5,13 @@ export interface ConnectorService {
   name: string;
   icon?: string;
   authMethods: string[];
+  description?: string;
+  categories?: { categoryId: string; name: string }[];
+  website?: string;
+  toolCount?: number;
+}
+export interface ConnectorCapabilities {
+  tools: { name: string; description: string }[];
 }
 export type ConnectorStatus = 'pending' | 'active' | 'failed' | 'expired' | 'disconnected';
 export interface ConnectorConnection {

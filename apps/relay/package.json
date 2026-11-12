@@ -8,6 +8,7 @@
     "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node24 --packages=external --outfile=dist/index.js"
   },
   "dependencies": {
+    "@composio/client": "2.1.0",
     "@composio/core": "0.29.0",
     "@fastify/cors": "^11.3.1",
     "@fastify/rate-limit": "^11.2.1",

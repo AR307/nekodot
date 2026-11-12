@@ -200,6 +200,9 @@ export class AccountConnectors {
       return this.authView(auth);
     }
     const matches = await this.active(auth.providerId).connections(userId);
+    // A visible authorization can be cancelled while the provider query is in flight.
+    const current = this.auth(userId, id);
+    if (current.status !== 'pending') return this.authView(current);
     const remote = matches.find(
       (r) => r.reference === auth.reference && r.serviceId === auth.service.serviceId,
     );
@@ -361,9 +364,28 @@ export class AccountConnectors {
       z.object({ id: z.string().uuid() }).parse(request.params).id;
     route('POST', '/catalog', (user, request) => {
       const p = z
-        .strictObject({ query: z.string().optional(), cursor: z.string().optional() })
+        .strictObject({
+          query: z.string().optional(),
+          cursor: z.string().optional(),
+          category: z.string().optional(),
+        })
         .parse(request.body ?? {});
-      return this.active().catalog(user, p.query, p.cursor);
+      return this.active().catalog(user, p.query, p.cursor, p.category);
+    });
+    route('GET', '/services/:serviceId', (_user, request) =>
+      this.active().service(
+        z.object({ serviceId: z.string().min(1) }).parse(request.params).serviceId,
+      ),
+    );
+    route('POST', '/services/:serviceId/tools', (_user, request) => {
+      const serviceId = z.object({ serviceId: z.string().min(1) }).parse(request.params).serviceId;
+      const p = z
+        .strictObject({
+          query: z.string().optional(),
+          limit: z.number().int().positive().optional(),
+        })
+        .parse(request.body ?? {});
+      return this.active().capabilities(serviceId, p.query, p.limit);
     });
     route('GET', '/connections', (user) => this.list(user));
     route('POST', '/refresh', async (user) => {
