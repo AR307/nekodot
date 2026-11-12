@@ -418,7 +418,8 @@ class _ConnectorAuthorizationViewState extends State<ConnectorAuthorizationView>
   late Json auth = widget.authorization;
   Timer? timer;
   StreamSubscription<Json>? changes;
-  bool busy = false, visible = true, foreground = true, failed = false;
+  bool refreshing = false, cancelling = false;
+  bool visible = true, foreground = true, failed = false;
   NekodotClient get c => widget.client;
   String get id => '${auth['authorizationId']}';
   @override
@@ -455,6 +456,7 @@ class _ConnectorAuthorizationViewState extends State<ConnectorAuthorizationView>
     timer?.cancel();
     if (visible &&
         foreground &&
+        !cancelling &&
         !widget.stopped &&
         auth['status'] == 'pending') {
       timer = Timer(const Duration(seconds: 4), () => unawaited(refresh()));
@@ -483,25 +485,51 @@ class _ConnectorAuthorizationViewState extends State<ConnectorAuthorizationView>
     }
   }
 
-  Future<void> refresh({bool cancel = false}) async {
-    if (busy || widget.stopped) return;
-    setState(() => busy = true);
+  Future<void> refresh() async {
+    if (refreshing ||
+        cancelling ||
+        widget.stopped ||
+        auth['status'] != 'pending')
+      return;
+    setState(() => refreshing = true);
     try {
-      final result = await c.account.request(
-        '/connectors/authorizations/$id${cancel ? '/cancel' : ''}',
-        method: cancel ? 'POST' : 'GET',
-      );
-      if (mounted) {
+      final result = await c.account.request('/connectors/authorizations/$id');
+      if (mounted && !cancelling && auth['status'] == 'pending') {
         setState(() {
           auth = result;
           failed = false;
         });
       }
     } catch (_) {
+      if (mounted && !cancelling && auth['status'] == 'pending')
+        setState(() => failed = true);
+    } finally {
+      if (mounted) {
+        setState(() => refreshing = false);
+        schedule();
+      }
+    }
+  }
+
+  Future<void> cancel() async {
+    if (cancelling) return;
+    timer?.cancel();
+    setState(() => cancelling = true);
+    try {
+      final result = await c.account.request(
+        '/connectors/authorizations/$id/cancel',
+        method: 'POST',
+      );
+      if (mounted)
+        setState(() {
+          auth = result;
+          failed = false;
+        });
+    } catch (_) {
       if (mounted) setState(() => failed = true);
     } finally {
       if (mounted) {
-        setState(() => busy = false);
+        setState(() => cancelling = false);
         schedule();
       }
     }
@@ -559,7 +587,7 @@ class _ConnectorAuthorizationViewState extends State<ConnectorAuthorizationView>
                 spacing: 8,
                 children: [
                   TextButton.icon(
-                    onPressed: busy
+                    onPressed: cancelling
                         ? null
                         : () async {
                             final opened = await launchUrl(
@@ -574,11 +602,11 @@ class _ConnectorAuthorizationViewState extends State<ConnectorAuthorizationView>
                     label: Text(c.tr('打开授权页面', 'Open authorization')),
                   ),
                   TextButton(
-                    onPressed: busy ? null : () => refresh(),
+                    onPressed: refreshing || cancelling ? null : refresh,
                     child: Text(c.tr('刷新', 'Refresh')),
                   ),
                   TextButton(
-                    onPressed: busy ? null : () => refresh(cancel: true),
+                    onPressed: cancelling ? null : cancel,
                     child: Text(c.tr('取消', 'Cancel')),
                   ),
                 ],
