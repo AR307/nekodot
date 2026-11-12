@@ -18,6 +18,7 @@ import 'endpoints.dart';
 import 'local_content.dart';
 import 'delivery_queue.dart';
 import 'read_positions.dart';
+import 'spaces.dart';
 part 'content_state.dart';
 
 class NekodotClient extends ChangeNotifier {
@@ -31,6 +32,7 @@ class NekodotClient extends ChangeNotifier {
   final _dirtyNodes = <String>{}, _dirtyMessages = <String>{};
   Timer? _saveTimer, _viewTimer;
   late final deliveries = DeliveryQueue(this);
+  late final spaces = SpaceStore(this);
   final contentRefresh = ValueNotifier<int>(0);
   final reading = ReadPositions();
   late final RelayTransport connection;
@@ -76,6 +78,7 @@ class NekodotClient extends ChangeNotifier {
   final Map<String, List<Json>> attachmentDrafts = {};
   final drafts = <String, String>{};
   final routineDrafts = <String, Json>{};
+  final spaceDrafts = <String, Json>{};
   final notifications = StreamController<Json>.broadcast();
   final foregroundNotice = ValueNotifier<Json?>(null);
   final destinations = StreamController<Json>.broadcast();
@@ -201,6 +204,7 @@ class NekodotClient extends ChangeNotifier {
       await synchronize(selectedNodeId!);
     }
     unawaited(deliveries.drain());
+    unawaited(spaces.drain());
     contentRefresh.value++;
   }
 
@@ -520,11 +524,15 @@ class NekodotClient extends ChangeNotifier {
         if (p['online'] == true) {
           contentRefresh.value++;
           unawaited(deliveries.drain());
+          unawaited(spaces.drain());
         }
       case 'event':
       case 'live':
         if (id == null) return;
         final n = nodes.putIfAbsent(id, NodeData.new);
+        if (p['kind'] == 'space.data.changed') {
+          spaces.changed(id, p['data']['spaceId'] as String);
+        }
         if (n.syncing || n.buffer.isNotEmpty) {
           n.buffer.add(frame);
         } else {
@@ -562,6 +570,7 @@ class NekodotClient extends ChangeNotifier {
     await connection.disconnect();
     deliveries.suspend();
     await deliveries.save();
+    await spaces.suspend();
     await pendingSave;
     _saveTimer?.cancel();
     _viewTimer?.cancel();
@@ -579,6 +588,7 @@ class NekodotClient extends ChangeNotifier {
     nodes.clear();
     drafts.clear();
     routineDrafts.clear();
+    spaceDrafts.clear();
     attachmentDrafts.clear();
     selectedNodeId = null;
     notifyListeners();
@@ -589,6 +599,7 @@ class NekodotClient extends ChangeNotifier {
     unawaited(flushContent());
     _viewTimer?.cancel();
     deliveries.dispose();
+    spaces.dispose();
     _closed = true;
     account.removeListener(notifyListeners);
     prefs.removeListener(notifyListeners);

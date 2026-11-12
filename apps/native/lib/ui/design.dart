@@ -14,6 +14,7 @@ import 'shining_text.dart';
 import 'connection_notice.dart';
 
 export 'entry_motion.dart';
+export 'menus.dart';
 export 'parts.dart';
 export 'shining_text.dart';
 export 'sheet.dart';
@@ -567,13 +568,13 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
     popupMenuTheme: PopupMenuThemeData(
       color: tone.menu,
       surfaceTintColor: Colors.transparent,
-      elevation: 8,
+      elevation: 6,
       shadowColor: Colors.black.withValues(alpha: dark ? .5 : .12),
       shape: RoundedSuperellipseBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: tone.line, width: .5),
       ),
-      menuPadding: const EdgeInsets.symmetric(vertical: 6),
+      menuPadding: const EdgeInsets.all(6),
       textStyle: text.bodyMedium,
     ),
     menuTheme: MenuThemeData(

@@ -546,6 +546,11 @@ export class ConversationExecution {
       if (!task) throw new NodeFault('not_found', 'Routine task not found in this chat');
       params = { ...params, taskId: task.taskId };
     }
+    if (
+      params.spaceId &&
+      this.database.space(params.spaceId)?.conversationId !== params.conversationId
+    )
+      throw new NodeFault('not_found', 'Space not found in this chat');
     if (conversation.kind === 'group')
       return this.groupExecution.sendGroupMessage(params, conversation, command);
     const bot = this.bots.get(conversation.botId);
@@ -570,6 +575,8 @@ export class ConversationExecution {
       ...(params.taskId ? { taskId: params.taskId } : {}),
       content: {
         text: params.text,
+        ...(params.spaceId ? { spaces: [params.spaceId] } : {}),
+        ...(params.createSpace ? { createSpace: true } : {}),
         ...(routine
           ? {
               routine: {
@@ -657,6 +664,25 @@ export class ConversationExecution {
             ? 'Carry out the full brief for the coordinating Dot using your native tools. You are not speaking directly to the user. Do not use nekodot_task. If a decision is missing, use native clarify: the main Dot will consider it, ask the user when necessary and return the answer. Preserve all supplied user constraints and attachments. Return verifiable findings, failures and actual deliverable references to the main Dot; it will compose the user-facing response. Preserve native memory and skills as usual.'
             : this.tasks.context(run.conversationId, run.botId, run.targetTaskId),
           snapshot.bootstrap,
+          (this.database.message(run.inputMessageId) as TextMessage | undefined)?.content
+            .createSpace
+            ? 'The user submitted this request through New Space. Use the nekodot-spaces skill to create and publish an interactive HTML space, and deliver it in this chat.'
+            : undefined,
+          ...(
+            (
+              this.database.message(
+                run.role === 'execution' && run.executionId
+                  ? this.tasks.execution(run.executionId)!.parentInputId
+                  : run.inputMessageId,
+              ) as TextMessage | undefined
+            )?.content.spaces ?? []
+          )
+            .map((id) => this.database.space(id))
+            .filter((space) => space !== undefined)
+            .map(
+              (space) =>
+                `The user selected the existing Space ${JSON.stringify(space.name)} (${space.spaceId}). Use nekodot_space get for its current content directory and records; publish this same ID to update it. Preserve user records.`,
+            ),
           instructions,
           input,
         ]

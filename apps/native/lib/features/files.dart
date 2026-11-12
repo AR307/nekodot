@@ -20,8 +20,12 @@ import '../ui/message_markdown.dart';
 import 'bot_editor.dart';
 import 'office_preview.dart';
 
-Future<Uint8List> downloadFile(NekodotClient c, String id) async {
-  final nodeId = c.selectedNodeId, token = c.account.token;
+Future<Uint8List> downloadFile(
+  NekodotClient c,
+  String id, {
+  String? targetNode,
+}) async {
+  final nodeId = targetNode ?? c.selectedNodeId, token = c.account.token;
   final cached = c.store?.file('files/$nodeId/$id');
   if (cached != null && await cached.exists()) return cached.readAsBytes();
   final response = await http
@@ -580,63 +584,49 @@ class _FileViewerState extends State<FileViewer> {
     }
   }
 
-  Future<void> openMenu(BuildContext anchor) async {
-    final button = anchor.findRenderObject()! as RenderBox;
-    final overlay =
-        Navigator.of(anchor).overlay!.context.findRenderObject()! as RenderBox;
-    final at = button.localToGlobal(
-      Offset(0, button.size.height + 4),
-      ancestor: overlay,
-    );
-    final action = await showMenu<String>(
-      context: anchor,
-      position: RelativeRect.fromRect(
-        Rect.fromLTWH(at.dx, at.dy, button.size.width, 0),
-        Offset.zero & overlay.size,
+  Widget fileMenu(bool enabled) => ActionMenu<String>(
+    key: const ValueKey('viewer-open'),
+    tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+    alignEnd: true,
+    width: 300,
+    enabled: enabled,
+    items: [
+      MenuAction(
+        value: 'share',
+        icon: Icons.ios_share_outlined,
+        label: client.tr('分享文件', 'Share file'),
       ),
-      constraints: menuConstraints,
-      items: [
-        menuItem(
-          anchor,
-          value: 'share',
-          icon: Icons.ios_share_outlined,
-          label: client.tr('分享文件', 'Share file'),
+      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) ...[
+        MenuAction(
+          key: const ValueKey('open-default'),
+          value: 'open',
+          icon: Icons.open_in_new,
+          label: client.tr('用默认应用打开', 'Open in default app'),
         ),
-        if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) ...[
-          menuItem(
-            anchor,
-            key: const ValueKey('open-default'),
-            value: 'open',
-            icon: Icons.open_in_new,
-            label: client.tr('用默认应用打开', 'Open in default app'),
+        if (Platform.isWindows) ...[
+          MenuAction(
+            key: const ValueKey('open-with'),
+            value: 'openWith',
+            icon: Icons.apps_outlined,
+            label: client.tr('打开方式…', 'Open with…'),
           ),
-          if (Platform.isWindows) ...[
-            menuItem(
-              anchor,
-              key: const ValueKey('open-with'),
-              value: 'openWith',
-              icon: Icons.apps_outlined,
-              label: client.tr('打开方式…', 'Open with…'),
-            ),
-            menuItem(
-              anchor,
-              key: const ValueKey('open-folder'),
-              value: 'reveal',
-              icon: Icons.folder_open_outlined,
-              label: client.tr('在文件夹中显示', 'Show in folder'),
-            ),
-          ],
+          MenuAction(
+            key: const ValueKey('open-folder'),
+            value: 'reveal',
+            icon: Icons.folder_open_outlined,
+            label: client.tr('在文件夹中显示', 'Show in folder'),
+          ),
         ],
       ],
-    );
-    if (action != null && mounted) {
+    ],
+    onSelected: (action) async {
       if (action == 'share') {
         await deliver(share: true);
       } else {
         await openOutside(action);
       }
-    }
-  }
+    },
+  );
 
   Future<void> deliver({required bool share}) async {
     setState(() {
@@ -740,16 +730,7 @@ class _FileViewerState extends State<FileViewer> {
                   icon: const Icon(Icons.ios_share_outlined),
                 )
               else
-                Builder(
-                  builder: (anchor) => IconButton(
-                    key: const ValueKey('viewer-open'),
-                    tooltip: MaterialLocalizations.of(context).showMenuTooltip,
-                    onPressed: available && !busy
-                        ? () => openMenu(anchor)
-                        : null,
-                    icon: const Icon(Icons.more_horiz),
-                  ),
-                ),
+                fileMenu(available && !busy),
               IconButton(
                 tooltip: client.tr('保存文件', 'Save file'),
                 onPressed: available && !busy

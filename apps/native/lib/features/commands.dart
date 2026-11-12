@@ -103,6 +103,8 @@ class CommandPalette extends StatelessWidget {
         .toList();
     Widget commandRow(Json entry) => ListTile(
       dense: true,
+      shape: RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(10)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
       title: Text('${entry['name']}'),
       subtitle: Text(
         commandText(client, entry),
@@ -118,66 +120,68 @@ class CommandPalette extends StatelessWidget {
       enabled: ['available', 'app'].contains(entry['availability']),
       onTap: () => onSelect('${entry['name']}'),
     );
-    return Panel(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              const SizedBox(width: 12),
-              const Expanded(child: Text('Hermes')),
-              IconButton(
-                tooltip: client.tr('刷新指令', 'Refresh commands'),
-                onPressed: loading ? null : onRefresh,
-                icon: const Icon(Icons.refresh, size: 18),
-              ),
-            ],
-          ),
-          if (members.length > 1)
-            MenuSelect<String>(
-              value: botId,
-              label: client.tr('执行指令的 Bot', 'Run command as'),
-              options: [
-                for (final bot in members)
-                  ('${bot['botId']}', '${bot['displayName']}'),
-              ],
-              onChanged: onBot,
-            ),
-          if (loading) const ShiningText(),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 230),
-            child: ListView(
-              shrinkWrap: true,
-              padding: EdgeInsets.zero,
+    return MenuEntrance(
+      child: MenuCard(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
               children: [
-                for (final entry in usable) commandRow(entry),
-                if (other.isNotEmpty)
-                  ExpansionTile(
-                    title: Text(
-                      client.tr(
-                        '其它指令 (${other.length})',
-                        'Other commands (${other.length})',
-                      ),
-                    ),
-                    subtitle: Text(
-                      client.tr(
-                        '仅适用于服务器终端，或仍需客户端适配。',
-                        'Server-terminal commands or client adapters not yet connected.',
-                      ),
-                    ),
-                    children: [for (final entry in other) commandRow(entry)],
-                  ),
-                if (!loading && filtered.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text(
-                      client.tr('没有匹配的原生命令', 'No matching native commands'),
-                    ),
-                  ),
+                const SizedBox(width: 12),
+                const Expanded(child: Text('Hermes')),
+                IconButton(
+                  tooltip: client.tr('刷新指令', 'Refresh commands'),
+                  onPressed: loading ? null : onRefresh,
+                  icon: const Icon(Icons.refresh, size: 18),
+                ),
               ],
             ),
-          ),
-        ],
+            if (members.length > 1)
+              MenuSelect<String>(
+                value: botId,
+                label: client.tr('执行指令的 Bot', 'Run command as'),
+                options: [
+                  for (final bot in members)
+                    ('${bot['botId']}', '${bot['displayName']}'),
+                ],
+                onChanged: onBot,
+              ),
+            if (loading) const ShiningText(),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 230),
+              child: ListView(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                children: [
+                  for (final entry in usable) commandRow(entry),
+                  if (other.isNotEmpty)
+                    ExpansionTile(
+                      title: Text(
+                        client.tr(
+                          '其它指令 (${other.length})',
+                          'Other commands (${other.length})',
+                        ),
+                      ),
+                      subtitle: Text(
+                        client.tr(
+                          '仅适用于服务器终端，或仍需客户端适配。',
+                          'Server-terminal commands or client adapters not yet connected.',
+                        ),
+                      ),
+                      children: [for (final entry in other) commandRow(entry)],
+                    ),
+                  if (!loading && filtered.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        client.tr('没有匹配的原生命令', 'No matching native commands'),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

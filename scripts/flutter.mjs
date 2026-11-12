@@ -17,9 +17,12 @@ const env = {
         ANDROID_HOME: process.env.ANDROID_HOME ?? resolve(process.env.LOCALAPPDATA, 'Android/Sdk'),
       }
     : {}),
-  PATH: [resolve(sdk, 'bin'), resolve(sdk, 'bin/cache/dart-sdk/bin'), process.env.PATH].join(
-    delimiter,
-  ),
+  PATH: [
+    resolve(root, '.runtime/tools'),
+    resolve(sdk, 'bin'),
+    resolve(sdk, 'bin/cache/dart-sdk/bin'),
+    process.env.PATH,
+  ].join(delimiter),
 };
 const [tool = 'flutter', ...args] = process.argv.slice(2);
 const command =

@@ -19,10 +19,12 @@ import { NativeExtras } from './native-extras';
 import { Routines } from './routines';
 import { BotVoice } from './voice';
 import { ExecutionFlows } from './flow';
+import { Spaces } from './spaces';
 
 import type { ConversationExecution } from './execution/sessions';
 import type { CommandOperations } from './command-operations';
 interface RpcFeatures {
+  spaces: Spaces;
   secrets: BotSecrets;
   bots: BotService;
   voice: BotVoice;
@@ -52,6 +54,18 @@ export class NodeRpc {
   ) {}
   async handle(request: RpcRequest): Promise<unknown> {
     switch (request.method) {
+      case 'spaces.list':
+        return this.features.spaces.list();
+      case 'spaces.get':
+        return this.features.spaces.get(request.params.spaceId);
+      case 'spaces.update':
+        return this.features.spaces.update(request.params);
+      case 'spaces.authorize':
+        return this.features.spaces.authorize(request.params);
+      case 'spaces.data.read':
+        return this.features.spaces.read(request.params.spaceId);
+      case 'spaces.data.write':
+        return this.features.spaces.write(request.params);
       case 'secrets.get':
         return this.features.secrets.get(request.params.botId, request.params.requestId);
       case 'secrets.submit':
@@ -261,6 +275,7 @@ export class NodeRpc {
           latest: this.features.database.latestTexts(),
           flows: this.features.flow.all(),
           tasks: this.features.database.tasks(),
+          spaces: this.features.spaces.list().spaces,
           headSeq: this.features.database.head(),
           node: this.features.desktopControl.capabilities(),
         } satisfies RpcResult<'sync.snapshot'>;

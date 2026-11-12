@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { spaceSchema, spaceRecordSchema, spaceDataSchema, spaceOriginSchema } from './spaces';
 import { flowSnapshotSchema } from './flow';
 import { secretRequestSchema, savedSecretSchema, secretEnvelopeSchema } from './secrets';
 import {
@@ -68,6 +69,29 @@ const groupCreate = z
   .strictObject(groupFields)
   .refine((g) => g.botIds.includes(g.leadBotId), 'Lead must be a member');
 export const rpcContracts = {
+  'spaces.list': { params: empty, result: z.strictObject({ spaces: z.array(spaceSchema) }) },
+  'spaces.get': { params: z.strictObject({ spaceId: z.uuid() }), result: spaceSchema },
+  'spaces.update': {
+    params: z.strictObject({
+      spaceId: z.uuid(),
+      name: z.string().trim().min(1).optional(),
+      archived: z.boolean().optional(),
+    }),
+    result: spaceSchema,
+  },
+  'spaces.authorize': {
+    params: z.strictObject({ spaceId: z.uuid(), origins: z.array(spaceOriginSchema) }),
+    result: spaceSchema,
+  },
+  'spaces.data.read': { params: z.strictObject({ spaceId: z.uuid() }), result: spaceDataSchema },
+  'spaces.data.write': {
+    params: z.strictObject({
+      spaceId: z.uuid(),
+      mutationId: z.uuid(),
+      records: z.array(spaceRecordSchema),
+    }),
+    result: spaceDataSchema,
+  },
   'secrets.get': {
     params: z.strictObject({ ...botTarget, requestId: idSchema }),
     result: z.strictObject({
@@ -389,6 +413,7 @@ export const rpcContracts = {
       latest: z.array(messageSchema),
       flows: z.array(flowSnapshotSchema),
       tasks: z.array(dotTaskSchema),
+      spaces: z.array(spaceSchema),
       headSeq: seqSchema,
       node: nodeCapabilitiesSchema,
     }),
@@ -418,6 +443,8 @@ export const rpcContracts = {
       text: z.string(),
       files: z.array(z.uuid()).optional(),
       routineExecutionId: z.string().min(1).optional(),
+      spaceId: z.uuid().optional(),
+      createSpace: z.boolean().optional(),
       clientMsgId: z.uuidv4(),
     }),
     result: z.strictObject({ messageId: idSchema }),

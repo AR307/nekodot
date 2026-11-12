@@ -22,6 +22,7 @@ import { NativeExtras } from './native-extras';
 import { Routines } from './routines';
 import { BotVoice } from './voice';
 import { ExecutionFlows } from './flow';
+import { Spaces } from './spaces';
 
 export class NodeApplication {
   readonly database: NodeDatabase;
@@ -71,6 +72,7 @@ export class NodeApplication {
   readonly secrets: BotSecrets;
   readonly voice: BotVoice;
   readonly flow: ExecutionFlows;
+  readonly spaces: Spaces;
 
   onEvent: (event: PersistedEvent) => void = () => {};
   onLive: (event: LiveEvent) => void = () => {};
@@ -87,6 +89,8 @@ export class NodeApplication {
     this.notifications = new Notifications(this.database);
     this.routines = new Routines(this.database, hermes, this.notifications);
     this.secrets = new BotSecrets(this.database, hermes);
+    this.spaces = new Spaces(this.database, hermes);
+    this.routines.onSpace = (input) => this.spaces.local(input);
     this.routines.scrub = (botId, value) => this.secrets.scrub(botId, value);
     this.secrets.onRequestCard = (request) =>
       this.notifications.send({
@@ -154,6 +158,7 @@ export class NodeApplication {
     this.rpc = new NodeRpc(
       {
         secrets: this.secrets,
+        spaces: this.spaces,
         bots: this.bots,
         voice: this.voice,
         operations: this.operations,

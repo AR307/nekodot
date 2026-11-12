@@ -2,12 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/delivery_queue.dart';
 import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/data/hermes_zh.dart';
 import 'package:nekodot_native/features/hermes_settings.dart';
 import 'package:nekodot_native/ui/design.dart';
 
 class SettingsClient extends NekodotClient {
+  SettingsClient() {
+    selectedNodeId = 'settings-node';
+  }
+  late final settingsDeliveries = SettingsDeliveries(this);
+  @override
+  DeliveryQueue get deliveries => settingsDeliveries;
   bool compressionEnabled = true;
   final saves = <Json>[];
 
@@ -66,6 +73,15 @@ class SettingsClient extends NekodotClient {
     }
     throw StateError('Unexpected RPC: $method');
   }
+}
+
+// This widget test checks the form's save intent. The native journeys exercise
+// the real durable queue and transport; the fixture must use the same entry.
+class SettingsDeliveries extends DeliveryQueue {
+  SettingsDeliveries(super.client);
+  @override
+  Future<Json> action(String method, Json params, String nodeId) =>
+      client.rpc(method, params, nodeId);
 }
 
 void main() {

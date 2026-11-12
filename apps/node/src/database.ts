@@ -11,6 +11,8 @@ import type {
   FlowSnapshot,
   FlowChange,
   DotTask,
+  Space,
+  SpaceRecord,
 } from '@nekodot/protocol';
 
 export interface NativeModelOverride {
@@ -91,6 +93,11 @@ export class NodeDatabase {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(join(directory, 'node.db'));
     this.db.exec('PRAGMA journal_mode=WAL');
+    this.db
+      .exec(`CREATE TABLE IF NOT EXISTS spaces(space_id TEXT PRIMARY KEY,bot_id TEXT NOT NULL,data TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS space_records(space_id TEXT NOT NULL,key TEXT NOT NULL,value TEXT NOT NULL,PRIMARY KEY(space_id,key));
+      CREATE TABLE IF NOT EXISTS space_mutations(mutation_id TEXT PRIMARY KEY,space_id TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS space_publications(submission_id TEXT NOT NULL,space_id TEXT NOT NULL,PRIMARY KEY(submission_id,space_id));`);
     let version = Number(this.db.prepare('PRAGMA user_version').get()!.user_version);
     if (version < 1) {
       this.db
@@ -394,6 +401,20 @@ export class NodeDatabase {
       message.taskRole = owner.role === 'execution' ? 'execution' : 'report';
     }
     if (metadata.clientMsgId) message.clientMsgId = metadata.clientMsgId;
+    if (message.kind === 'text' && message.author.type === 'bot' && message.status === 'done') {
+      const submission =
+        owner?.role === 'report'
+          ? owner.executionId
+          : (owner?.inputMessageId ??
+            (message.content.routine ? 'native:' + message.content.routine.sessionId : undefined));
+      if (submission) {
+        const spaces = this.db
+          .prepare('SELECT space_id FROM space_publications WHERE submission_id=?')
+          .all(submission)
+          .map((row) => String(row.space_id));
+        if (spaces.length) message.content.spaces = spaces;
+      }
+    }
     const event = this.write(
       'message.upserted',
       message,
@@ -432,6 +453,54 @@ export class NodeDatabase {
   setting<T>(key: string) {
     const row = this.db.prepare('SELECT value FROM settings WHERE key=?').get(key);
     return row ? (JSON.parse(row.value as string) as T) : undefined;
+  }
+  spaces(): Space[] {
+    return this.db
+      .prepare('SELECT data FROM spaces ORDER BY rowid DESC')
+      .all()
+      .map((row) => JSON.parse(String(row.data)) as Space);
+  }
+  space(id: string): Space | undefined {
+    const row = this.db.prepare('SELECT data FROM spaces WHERE space_id=?').get(id);
+    return row ? (JSON.parse(String(row.data)) as Space) : undefined;
+  }
+  putSpace(space: Space) {
+    this.write('space.upserted', space, () => {
+      this.db
+        .prepare(
+          'INSERT INTO spaces VALUES(?,?,?) ON CONFLICT(space_id) DO UPDATE SET data=excluded.data',
+        )
+        .run(space.spaceId, space.botId, JSON.stringify(space));
+    });
+    return space;
+  }
+  spaceData(id: string) {
+    return {
+      records: this.db
+        .prepare('SELECT key,value FROM space_records WHERE space_id=? ORDER BY key')
+        .all(id)
+        .map((row) => ({ key: String(row.key), value: JSON.parse(String(row.value)) })),
+      revision: this.setting<number>('space-data:' + id) ?? 0,
+    };
+  }
+  putSpaceRecords(id: string, mutationId: string, records: SpaceRecord[]) {
+    if (
+      !this.db
+        .prepare('SELECT mutation_id FROM space_mutations WHERE mutation_id=? AND space_id=?')
+        .get(mutationId, id)
+    ) {
+      this.write('space.data.changed', { spaceId: id }, (seq) => {
+        for (const record of records)
+          this.db
+            .prepare(
+              'INSERT INTO space_records VALUES(?,?,?) ON CONFLICT(space_id,key) DO UPDATE SET value=excluded.value',
+            )
+            .run(id, record.key, JSON.stringify(record.value));
+        this.db.prepare('INSERT INTO space_mutations VALUES(?,?)').run(mutationId, id);
+        this.setSetting('space-data:' + id, seq);
+      });
+    }
+    return this.spaceData(id);
   }
   setSetting(key: string, value: unknown) {
     this.db

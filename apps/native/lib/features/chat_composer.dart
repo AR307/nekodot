@@ -64,6 +64,7 @@ class ChatComposerState extends State<ChatComposer> {
   String get id => widget.conversationId;
   String get draftKey => '${c.selectedNodeId}:$id';
   Json? get routineDraft => c.routineDrafts[draftKey];
+  Json? get spaceDraft => c.spaceDrafts[draftKey];
   Json? get taskDraft =>
       quoted != null && c.workspace['taskQuote:$draftKey'] is Map
       ? object(c.workspace['taskQuote:$draftKey'])
@@ -163,6 +164,7 @@ class ChatComposerState extends State<ChatComposer> {
         .map((file) => Map<String, dynamic>.from(file))
         .toList();
     final routineId = routineDraft?['executionId'];
+    final spaceId = spaceDraft?['spaceId'];
     final taskId = taskDraft?['taskId'];
     setState(() {
       sending = true;
@@ -183,11 +185,15 @@ class ChatComposerState extends State<ChatComposer> {
           'clientMsgId': uid(),
           'taskId': ?taskId,
           if (!command && routineId != null) 'routineExecutionId': routineId,
+          if (!command && spaceId != null) 'spaceId': spaceId,
         },
         nodeId!,
         command ? [] : files,
       );
       if (!command) {
+        if (c.spaceDrafts[key]?['spaceId'] == spaceId) {
+          c.spaceDrafts.remove(key);
+        }
         if (c.routineDrafts[key]?['executionId'] == routineId) {
           c.routineDrafts.remove(key);
         }
@@ -633,6 +639,26 @@ class ChatComposerState extends State<ChatComposer> {
                                   c.saveContent();
                                 },
                         ),
+                      if (spaceDraft != null)
+                        InputChip(
+                          avatar: const Icon(
+                            Icons.web_asset_outlined,
+                            size: 16,
+                          ),
+                          label: Text(
+                            '${spaceDraft!['name']}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onDeleted: sending
+                              ? null
+                              : () {
+                                  setState(
+                                    () => c.spaceDrafts.remove(draftKey),
+                                  );
+                                  c.saveContent();
+                                },
+                        ),
                       if (uploading) ...[
                         const LinearProgressIndicator(minHeight: 2),
                         Text(
@@ -866,46 +892,31 @@ class MentionCard extends StatelessWidget {
             maxWidth: 320,
             maxHeight: (tone.glass ? 48.0 : 42.0) * 5 + 12,
           ),
-          child: Panel(
-            lifted: true,
-            child: ListView(
-              key: const ValueKey('mention-card'),
-              shrinkWrap: true,
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              children: [
-                for (final (handle, name, avatar) in rows)
-                  InkWell(
-                    key: ValueKey('mention-$handle'),
-                    onTap: () => onPick(handle),
-                    child: SizedBox(
-                      height: tone.glass ? 48 : 42,
-                      child: Row(
-                        children: [
-                          const SizedBox(width: 12),
-                          avatar,
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: text.titleMedium?.copyWith(fontSize: 14),
-                            ),
-                          ),
-                          if (handle != 'everyone')
-                            Text(
+          child: MenuEntrance(
+            child: MenuCard(
+              child: ListView(
+                key: const ValueKey('mention-card'),
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                children: [
+                  for (final (handle, name, avatar) in rows)
+                    MenuChoice(
+                      key: ValueKey('mention-$handle'),
+                      onPressed: () => onPick(handle),
+                      label: name,
+                      leading: avatar,
+                      trailing: handle != 'everyone'
+                          ? Text(
                               '@$handle',
                               style: text.bodySmall?.copyWith(
                                 fontSize: 12,
                                 color: tone.ink3,
                               ),
-                            ),
-                          const SizedBox(width: 14),
-                        ],
-                      ),
+                            )
+                          : null,
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

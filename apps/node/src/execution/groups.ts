@@ -49,7 +49,7 @@ export class GroupExecution {
       kind: 'text',
       status: 'done',
       createdAt: now(),
-      content: { text: params.text },
+      content: { text: params.text, ...(params.spaceId ? { spaces: [params.spaceId] } : {}) },
     };
     if (target) {
       userMessage.taskId = target.taskId;
