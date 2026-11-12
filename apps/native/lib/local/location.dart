@@ -5,7 +5,7 @@ import 'system.dart';
 
 const hermesVersion = 'v0.22.6';
 const hermesCommit = 'f0d94882e89ab8d4098b5bb2f166adfb9ee0a0ab';
-const hermesRuntimeVersion = 'v0.22.6-r1';
+const hermesRuntimeVersion = 'v0.22.6-r3';
 const nodeVersion = '24.22.1';
 
 /// Free space a fresh runtime needs (Python, Node, Chromium, computer-use driver, built products).
