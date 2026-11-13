@@ -143,3 +143,80 @@ class SheetFrame extends StatelessWidget {
     );
   }
 }
+
+/// Opens [child] as a sheet that rises from the bottom edge and covers
+/// [height] of the screen. Dragging its top down puts it away.
+Future<T?> openBottomSheet<T>(
+  BuildContext context,
+  Widget child, {
+  double height = .8,
+}) => showModalBottomSheet<T>(
+  context: context,
+  isScrollControlled: true,
+  useSafeArea: true,
+  backgroundColor: Colors.transparent,
+  elevation: 0,
+  clipBehavior: Clip.none,
+  barrierColor: Colors.black.withValues(alpha: .28),
+  sheetAnimationStyle: Motion.still(context)
+      ? AnimationStyle.noAnimation
+      : AnimationStyle(
+          curve: Motion.bottomSheet,
+          duration: Motion.bottomSheet.duration,
+          reverseCurve: const FlippedCurve(Motion.leave),
+          reverseDuration: Motion.bottomSheetLeave,
+        ),
+  builder: (context) => FractionallySizedBox(
+    heightFactor: height,
+    child: BottomSheetFrame(child: child),
+  ),
+);
+
+/// The surface of a bottom sheet: rounded at the top, with a handle. It is
+/// painted a little past the bottom edge, so that when the sheet springs past
+/// its place nothing behind it shows.
+class BottomSheetFrame extends StatelessWidget {
+  final Widget child;
+  const BottomSheetFrame({super.key, required this.child});
+  static const _shape = RoundedSuperellipseBorder(
+    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  );
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: -80,
+          child: DecoratedBox(
+            decoration: ShapeDecoration(color: tone.menu, shape: _shape),
+          ),
+        ),
+        Positioned.fill(
+          child: Column(
+            children: [
+              SizedBox(
+                height: 20,
+                child: Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: tone.line,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(child: child),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}

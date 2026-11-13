@@ -11,6 +11,7 @@ import '../ui/design.dart';
 import '../screen/viewer.dart';
 import 'bot_details.dart';
 import 'bot_editor.dart';
+import 'flow_inline.dart';
 import 'flowchart.dart';
 
 import 'chat_presentation.dart';
@@ -262,11 +263,7 @@ class _ChatPageState extends State<ChatPage>
     isSelected: widget.flowOpen,
     onPressed: () {
       FocusManager.instance.primaryFocus?.unfocus();
-      if (widget.onFlow != null) {
-        widget.onFlow!(focusFlowMessage);
-      } else {
-        unawaited(openFlowchart(context, c, id, focusFlowMessage));
-      }
+      widget.onFlow!(focusFlowMessage);
     },
     icon: const Icon(Icons.account_tree_outlined),
   );
@@ -309,7 +306,7 @@ class _ChatPageState extends State<ChatPage>
           if (widget.onDetails != null) {
             widget.onDetails!(bot);
           } else {
-            popPage(context, BotDetails(client: c, bot: bot));
+            openBottomSheet(context, BotDetails(client: c, bot: bot));
           }
         }
       }
@@ -415,7 +412,9 @@ class _ChatPageState extends State<ChatPage>
             ? titleRow
             : Tooltip(message: c.tr('详情', 'Details'), child: titleRow),
         actions: [
-          flowButton(),
+          // Beside a list there is room for a panel; a page of its own keeps
+          // the steps folded under the conversation instead.
+          if (widget.onFlow != null) flowButton(),
           IconButton(
             tooltip: c.tr('屏幕', 'Screen'),
             onPressed: bot == null
@@ -500,6 +499,13 @@ class _ChatPageState extends State<ChatPage>
                       composer.currentState?.quote(words, taskId: taskId),
                   fresh: fresh,
                   since: since,
+                  footer: widget.onFlow != null
+                      ? null
+                      : FlowFold(
+                          client: c,
+                          conversationId: id,
+                          onMessage: focusFlowMessage,
+                        ),
                 ),
               // While you read further up, what you last asked stays in sight
               // under the bar; tapping it returns to the latest.

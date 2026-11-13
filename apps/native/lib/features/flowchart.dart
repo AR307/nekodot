@@ -13,8 +13,8 @@ import '../ui/design.dart';
 import 'work.dart';
 
 typedef FlowMessageFocus = Future<void> Function(String messageId);
-const _rowExtent = 56.0;
-const _nodeExtent = 32.0;
+const _rowExtent = 48.0;
+const _nodeExtent = 28.0;
 
 const _copy = <String, (String, String)>{
   'title': ('Flow', 'Flow'),
@@ -43,68 +43,19 @@ const _copy = <String, (String, String)>{
 };
 String _text(String key, bool zh) => zh ? _copy[key]!.$1 : _copy[key]!.$2;
 
+/// The name of a kind of step, or of a state, in the app's language.
+String flowStepName(String key, bool zh) => _text(key, zh);
+
+// One ink for everything that moves or waits; only a failure takes colour.
 Color _stateColor(BuildContext context, String state) {
-  final dark = Theme.of(context).brightness == Brightness.dark;
+  final tone = context.tone;
   return switch (state) {
-    'done' => dark ? const Color(0xff66c98c) : const Color(0xff21834a),
-    'running' ||
-    'waiting' => dark ? const Color(0xff6aaeff) : const Color(0xff2375d4),
-    'failed' => dark ? const Color(0xffff7a80) : const Color(0xffcf3e48),
-    _ => context.tone.ink3,
+    'running' || 'waiting' => tone.ink,
+    'failed' => tone.danger,
+    'done' => tone.ink2,
+    _ => tone.ink3,
   };
 }
-
-Future<void> openFlowchart(
-  BuildContext context,
-  NekodotClient client,
-  String conversationId,
-  FlowMessageFocus focus, {
-  String? taskId,
-}) => Navigator.of(context).push<void>(
-  PageRouteBuilder<void>(
-    opaque: false,
-    barrierDismissible: true,
-    barrierLabel: _text('close', client.zh),
-    barrierColor: Colors.black26,
-    transitionDuration: MediaQuery.disableAnimationsOf(context)
-        ? Duration.zero
-        : const Duration(milliseconds: 240),
-    reverseTransitionDuration: MediaQuery.disableAnimationsOf(context)
-        ? Duration.zero
-        : const Duration(milliseconds: 180),
-    pageBuilder: (context, _, secondary) => Align(
-      alignment: Alignment.centerRight,
-      child: SizedBox(
-        width:
-            Theme.of(context).platform == TargetPlatform.android ||
-                MediaQuery.sizeOf(context).width < 840
-            ? MediaQuery.sizeOf(context).width
-            : 340,
-        child: FlowchartPanel(
-          client: client,
-          conversationId: conversationId,
-          taskId: taskId,
-          onClose: () => Navigator.pop(context),
-          onMessage: (id) async {
-            Navigator.pop(context);
-            await focus(id);
-          },
-        ),
-      ),
-    ),
-    transitionsBuilder: (context, animation, secondary, child) =>
-        SlideTransition(
-          position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(
-            CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-              reverseCurve: Curves.easeInCubic,
-            ),
-          ),
-          child: child,
-        ),
-  ),
-);
 
 class FlowchartPanel extends StatefulWidget {
   final NekodotClient client;
@@ -408,10 +359,19 @@ class _FlowchartPanelState extends State<FlowchartPanel>
           backgroundColor: tone.base,
           appBar: AppBar(
             automaticallyImplyLeading: false,
-            titleSpacing: 12,
+            toolbarHeight: 48,
+            flexibleSpace: const WindowDrag(),
+            leadingWidth: 48,
+            leading: IconButton(
+              key: const ValueKey('flow-close'),
+              tooltip: _text('close', c.zh),
+              onPressed: widget.onClose,
+              icon: const Icon(Icons.close),
+            ),
+            titleSpacing: 4,
             title: Text(
               _text('title', c.zh),
-              style: const TextStyle(fontSize: 14),
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             actions: [
               if (flow != null && steps.isNotEmpty && flow!.state != 'running')
@@ -446,12 +406,7 @@ class _FlowchartPanelState extends State<FlowchartPanel>
                   message: _text('disconnected', c.zh),
                   child: const Icon(Icons.cloud_off_outlined, size: 18),
                 ),
-              IconButton(
-                key: const ValueKey('flow-close'),
-                tooltip: _text('close', c.zh),
-                onPressed: widget.onClose,
-                icon: Icon(Icons.close, color: tone.ink),
-              ),
+              const SizedBox(width: 12),
               if (widget.reserveControls)
                 SizedBox(width: WindowChrome.reserved(context)),
             ],
@@ -690,12 +645,12 @@ class _FlowRow extends StatelessWidget {
                                 ]
                               : [],
                           shape: RoundedSuperellipseBorder(
-                            borderRadius: BorderRadius.circular(9),
+                            borderRadius: BorderRadius.circular(Tone.r8),
                             side: BorderSide(
                               color: active
                                   ? color.withValues(alpha: .65 + .35 * pulse)
-                                  : color.withValues(alpha: .5),
-                              width: active ? 1.8 : 1,
+                                  : tone.line,
+                              width: active ? 1.5 : 1,
                             ),
                           ),
                         ),
@@ -709,13 +664,13 @@ class _FlowRow extends StatelessWidget {
                                   ),
                                   child: CatAvatar.of(
                                     bot!,
-                                    size: 28,
+                                    size: 24,
                                     working: running,
                                   ),
                                 )
                               : Icon(
                                   flowIcons[step.kind],
-                                  size: 20,
+                                  size: 18,
                                   color: ink,
                                 ),
                         ),
@@ -737,18 +692,6 @@ class _FlowRow extends StatelessWidget {
                         ),
                       ),
                     ),
-                  if (mark != null)
-                    Positioned(
-                      right: 1,
-                      top: 1,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: tone.base,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(mark, size: 14, color: ink),
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -758,18 +701,35 @@ class _FlowRow extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: active ? tone.ink : tone.ink2),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontSize: 14,
+                  fontWeight: step.kind == 'bot' ? FontWeight.w600 : null,
+                  color: active || step.kind == 'bot' ? tone.ink : tone.ink2,
+                ),
               ),
             ),
-            if (onTap != null)
+            // How it stands, at the end of its line.
+            if (running)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 5),
+                child: Breathing(size: 8),
+              )
+            else if (mark != null)
               Icon(
-                step.kind == 'plan' && expanded
-                    ? Icons.expand_more
-                    : Icons.chevron_right,
-                size: 14,
-                color: tone.ink3,
+                mark,
+                size: 18,
+                color: step.state == 'failed' ? tone.danger : tone.ink3,
               ),
+            if (step.kind == 'plan')
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Icon(
+                  expanded ? Icons.expand_less : Icons.expand_more,
+                  size: 18,
+                  color: tone.ink3,
+                ),
+              ),
+            const SizedBox(width: 4),
           ],
         ),
       ),

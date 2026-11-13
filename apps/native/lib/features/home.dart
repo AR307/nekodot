@@ -36,7 +36,23 @@ class _HomePageState extends State<HomePage> {
   StreamSubscription<Json>? destinations;
   String? conversation;
   Json? details;
-  Json? previewFile;
+
+  /// Files open as tabs beside the conversation, and the one in front.
+  final previewFiles = <Json>[];
+  int previewAt = 0;
+  Json? get previewFile =>
+      previewFiles.isEmpty ? null : previewFiles[previewAt];
+  set previewFile(Json? file) {
+    if (file == null) {
+      previewFiles.clear();
+      previewAt = 0;
+      return;
+    }
+    final at = previewFiles.indexWhere((f) => f['fileId'] == file['fileId']);
+    if (at < 0) previewFiles.add(file);
+    previewAt = at < 0 ? previewFiles.length - 1 : at;
+  }
+
   bool expandedFile = false;
   FlowMessageFocus? flowFocus;
   String search = '';
@@ -1037,14 +1053,20 @@ class _HomePageState extends State<HomePage> {
         final flowShown = hasChat && flowFocus != null;
         final fileShown = hasChat && previewFile != null;
         final panelShown = fileShown || flowShown || panel != null;
+        // Bot details lie over the window as a drawer; Flow and files stand
+        // beside the conversation when there is room.
+        final drawer = !fileShown && !flowShown && panel != null;
         final panelWidth = fileShown
             ? (expandedFile
                   ? constraints.maxWidth
-                  : 560.0.clamp(0.0, constraints.maxWidth))
+                  : 500.0.clamp(0.0, constraints.maxWidth))
+            : drawer
+            ? 600.0.clamp(0.0, constraints.maxWidth - HomeRail.width)
             : 340.0;
         final inlinePanel =
             panelShown &&
-            constraints.maxWidth - HomeRail.width - sidebar - panelWidth >= 480;
+            !drawer &&
+            constraints.maxWidth - HomeRail.width - sidebar - panelWidth >= 400;
         void closePanel() => setState(() {
           details = null;
           c.workspace.remove('details:${c.selectedNodeId}');
@@ -1249,7 +1271,11 @@ class _HomePageState extends State<HomePage> {
                             Positioned.fill(
                               child: GestureDetector(
                                 onTap: closePanel,
-                                child: ColoredBox(color: tone.dim),
+                                child: ColoredBox(
+                                  color: drawer
+                                      ? tone.dim.withValues(alpha: 0)
+                                      : tone.dim,
+                                ),
                               ),
                             ),
                           Positioned(
@@ -1259,19 +1285,55 @@ class _HomePageState extends State<HomePage> {
                             right: 0,
                             child: SidePanel(
                               width: panelWidth,
+                              floating: drawer,
                               child: fileShown
                                   ? SafeArea(
-                                      child: FileViewer(
-                                        key: ValueKey(
-                                          '${c.selectedNodeId}:${previewFile!['fileId']}',
-                                        ),
-                                        client: c,
-                                        file: previewFile!,
-                                        onClose: closePanel,
-                                        expanded: expandedFile,
-                                        onExpand: () => setState(
-                                          () => expandedFile = !expandedFile,
-                                        ),
+                                      child: Column(
+                                        children: [
+                                          FileTabs(
+                                            files: previewFiles,
+                                            at: previewAt,
+                                            closeLabel: c.tr(
+                                              '关闭标签',
+                                              'Close tab',
+                                            ),
+                                            onSelect: (index) => setState(
+                                              () => previewAt = index,
+                                            ),
+                                            onClose: (index) => setState(() {
+                                              previewFiles.removeAt(index);
+                                              if (previewAt > index ||
+                                                  previewAt ==
+                                                      previewFiles.length) {
+                                                previewAt = (previewAt - 1)
+                                                    .clamp(0, previewAt);
+                                              }
+                                              if (previewFiles.isEmpty) {
+                                                expandedFile = false;
+                                              }
+                                            }),
+                                          ),
+                                          Expanded(
+                                            // Its bar is under the tabs, clear
+                                            // of the window's own controls.
+                                            child: WindowSheetScope(
+                                              child: FileViewer(
+                                                key: ValueKey(
+                                                  '${c.selectedNodeId}:${previewFile!['fileId']}',
+                                                ),
+                                                client: c,
+                                                file: previewFile!,
+                                                tabbed: true,
+                                                onClose: closePanel,
+                                                expanded: expandedFile,
+                                                onExpand: () => setState(
+                                                  () => expandedFile =
+                                                      !expandedFile,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     )
                                   : flowShown

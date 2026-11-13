@@ -306,28 +306,44 @@ class LabeledField extends StatelessWidget {
   );
 }
 
+/// Marks content laid out inside a longer page: a list in it takes its full
+/// height and leaves the scrolling to that page.
+class Unscrolled extends InheritedWidget {
+  const Unscrolled({super.key, required super.child});
+  static bool of(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<Unscrolled>() != null;
+  @override
+  bool updateShouldNotify(Unscrolled oldWidget) => false;
+}
+
 /// A centered column of content.
 class PageList extends StatelessWidget {
   final List<Widget> children;
   final double maxWidth;
   const PageList({super.key, required this.children, this.maxWidth = 560});
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final inset = MediaQuery.paddingOf(context);
-      final side = math.max(16.0, (constraints.maxWidth - maxWidth) / 2);
-      return ListView(
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: EdgeInsets.fromLTRB(
-          side,
-          inset.top + 12,
-          side,
-          inset.bottom + 28,
-        ),
-        children: children,
-      );
-    },
-  );
+  Widget build(BuildContext context) => Unscrolled.of(context)
+      ? Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: children,
+        )
+      : LayoutBuilder(
+          builder: (context, constraints) {
+            final inset = MediaQuery.paddingOf(context);
+            final side = math.max(16.0, (constraints.maxWidth - maxWidth) / 2);
+            return ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(
+                side,
+                inset.top + 12,
+                side,
+                inset.bottom + 28,
+              ),
+              children: children,
+            );
+          },
+        );
 }
 
 /// Related rows sharing one card, separated by hairlines.
@@ -612,7 +628,16 @@ class SizeMotion extends StatelessWidget {
 class SidePanel extends StatefulWidget {
   final Widget? child;
   final double width;
-  const SidePanel({super.key, this.child, this.width = 340});
+
+  /// Whether it lies over the page rather than beside it: it then casts a
+  /// shadow and settles as a drawer does.
+  final bool floating;
+  const SidePanel({
+    super.key,
+    this.child,
+    this.width = 340,
+    this.floating = false,
+  });
   @override
   State<SidePanel> createState() => _SidePanelState();
 }
@@ -632,6 +657,7 @@ class _SidePanelState extends State<SidePanel>
   );
   late Widget? shown = widget.child;
   late double shownWidth = widget.width;
+  late bool shownFloating = widget.floating;
 
   @override
   void didUpdateWidget(SidePanel old) {
@@ -639,6 +665,13 @@ class _SidePanelState extends State<SidePanel>
     final still = MediaQuery.disableAnimationsOf(context);
     if (widget.child != null) {
       shownWidth = widget.width;
+      shownFloating = widget.floating;
+      final spring = widget.floating ? Motion.drawer : Motion.side;
+      curve.curve = spring;
+      controller.duration = spring.duration;
+      controller.reverseDuration = widget.floating
+          ? Motion.drawerLeave
+          : Motion.sideLeave;
       final opening = shown == null;
       shown = widget.child;
       if (still) {
@@ -704,6 +737,7 @@ class _SidePanelState extends State<SidePanel>
           border: Border(
             left: BorderSide(color: tone.line, width: Tone.hair),
           ),
+          boxShadow: shownFloating ? tone.lift : null,
         ),
         child: TickerMode(
           enabled: widget.child != null,

@@ -421,6 +421,95 @@ class _LibraryPageState extends State<LibraryPage> {
   );
 }
 
+/// The files open beside a conversation, one tab each.
+class FileTabs extends StatelessWidget {
+  final List<Json> files;
+  final int at;
+  final ValueChanged<int> onSelect, onClose;
+  final String closeLabel;
+  const FileTabs({
+    super.key,
+    required this.files,
+    required this.at,
+    required this.onSelect,
+    required this.onClose,
+    required this.closeLabel,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone, text = Theme.of(context).textTheme;
+    return SizedBox(
+      height: 44,
+      child: Row(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(left: 8),
+              itemCount: files.length,
+              itemBuilder: (context, index) {
+                final file = files[index], on = index == at;
+                return InkWell(
+                  key: ValueKey('file-tab-${file['fileId']}'),
+                  onTap: () => onSelect(index),
+                  child: Container(
+                    padding: const EdgeInsets.only(left: 10, right: 4),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: on ? tone.ink : tone.ink.withValues(alpha: 0),
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          fileIcon('${file['name']}', '${file['mime']}'),
+                          size: 18,
+                          color: on ? tone.ink : tone.ink3,
+                        ),
+                        const SizedBox(width: 6),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 160),
+                          child: Text(
+                            '${file['name']}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: text.bodyMedium?.copyWith(
+                              fontSize: 14,
+                              color: on ? tone.ink : tone.ink2,
+                              fontWeight: on ? FontWeight.w600 : null,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: closeLabel,
+                          onPressed: () => onClose(index),
+                          iconSize: 14,
+                          visualDensity: VisualDensity.compact,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 28,
+                            height: 28,
+                          ),
+                          padding: EdgeInsets.zero,
+                          icon: Icon(Icons.close, color: tone.ink3),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          SizedBox(width: WindowChrome.reserved(context)),
+        ],
+      ),
+    );
+  }
+}
+
 /// Routes workspace files to the shared right-hand reader.
 class FilePreviewScope extends InheritedWidget {
   final ValueChanged<Json> open;
@@ -440,11 +529,25 @@ Future<void> showFileViewer(
     return;
   }
   if (context.tone.glass) {
-    await pushPage<void>(
+    // On a phone it rises over what it was opened from; from there it can
+    // take the whole screen.
+    await openBottomSheet<void>(
       context,
-      Scaffold(
-        body: SafeArea(
-          child: FileViewer(client: client, file: file),
+      Builder(
+        builder: (sheet) => FileViewer(
+          client: client,
+          file: file,
+          onExpand: () {
+            Navigator.pop(sheet);
+            pushPage<void>(
+              context,
+              Scaffold(
+                body: SafeArea(
+                  child: FileViewer(client: client, file: file),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -510,6 +613,10 @@ class FileViewer extends StatefulWidget {
   final Json file;
   final VoidCallback? onClose, onExpand;
   final bool expanded;
+
+  /// Whether its name is already on a tab above it; its bar then says how
+  /// large the file is.
+  final bool tabbed;
   const FileViewer({
     super.key,
     required this.client,
@@ -517,6 +624,7 @@ class FileViewer extends StatefulWidget {
     this.onClose,
     this.onExpand,
     this.expanded = false,
+    this.tabbed = false,
   });
   @override
   State<FileViewer> createState() => _FileViewerState();
@@ -672,23 +780,36 @@ class _FileViewerState extends State<FileViewer> {
           padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
           child: Row(
             children: [
-              Icon(
-                fileIcon('${file['name']}', '${file['mime']}'),
-                size: 20,
-                color: tone.ink3,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Tooltip(
-                  message: '${file['name']}',
+              if (widget.tabbed)
+                Expanded(
                   child: Text(
-                    '${file['name']}',
+                    file['size'] is num ? fileSize(file['size'] as num) : '',
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: tone.ink3,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                )
+              else ...[
+                Icon(
+                  fileIcon('${file['name']}', '${file['mime']}'),
+                  size: 20,
+                  color: tone.ink3,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Tooltip(
+                    message: '${file['name']}',
+                    child: Text(
+                      '${file['name']}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                   ),
                 ),
-              ),
+              ],
               const SizedBox(width: 8),
               if (RegExp(r'\.(tar\.gz|tgz)$').hasMatch('${file['name']}') &&
                   available)
