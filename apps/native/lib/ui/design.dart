@@ -8,6 +8,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../data/json.dart';
 import '../data/account.dart';
+import 'motion.dart';
 import 'parts.dart';
 import 'sheet.dart';
 import 'shining_text.dart';
@@ -15,6 +16,7 @@ import 'connection_notice.dart';
 
 export 'entry_motion.dart';
 export 'menus.dart';
+export 'motion.dart';
 export 'parts.dart';
 export 'shining_text.dart';
 export 'sheet.dart';
@@ -63,17 +65,26 @@ const _sansFallback = [
 
 /// Black and white on every device; the phone has larger controls. Bot avatars
 /// are the only hue on screen, so a speaker can be told apart at a glance.
+///
+/// Surfaces are flat and parted by hairlines. Only what floats over the window
+/// (menus, sheets, drawers, notices) casts a shadow.
 @immutable
 class Tone extends ThemeExtension<Tone> {
   final Color base, sidebar, surface, ink, ink2, ink3, line;
   final Color bubble, raised, hover, menu, danger;
 
-  /// Behind grouped cards (settings and other list pages): a step darker than
-  /// the cards on a light ground, so they read without borders.
+  /// Behind list pages. The same as [base]: groups are parted by hairlines and
+  /// space, not by a darker ground.
   final Color ground;
 
-  /// The chosen pill in a track: lighter than the track on either ground.
+  /// The chosen part of a track: the page's own colour, edged by a hairline.
   final Color thumb;
+
+  /// The navigation rail and the marker behind its chosen destination.
+  final Color rail, railMark;
+
+  /// The veil over the window behind a sheet.
+  final Color dim;
   final bool glass;
 
   /// Control height, control corner and icon size. A desktop is pointer-driven
@@ -84,8 +95,8 @@ class Tone extends ThemeExtension<Tone> {
   final double button;
   final Color bar, fieldFocus;
 
-  /// Depth is shadow alone: a resting card, and a lifted one (menus, the
-  /// selected row, the details panel). Dark grounds carry it as a lighter surface.
+  /// [rest] is empty: nothing resting on the page casts a shadow. [lift] is
+  /// for what floats over the window.
   final List<BoxShadow> rest, lift;
   const Tone({
     required this.base,
@@ -100,129 +111,125 @@ class Tone extends ThemeExtension<Tone> {
     required this.hover,
     required this.menu,
     required this.danger,
+    required this.rail,
+    required this.dim,
+    this.railMark = const Color(0x29ffffff),
     this.thumb = const Color(0xffffffff),
-    this.ground = const Color(0xfff4f4f5),
+    this.ground = const Color(0xffffffff),
     this.glass = false,
     this.control = 32,
     this.corner = 8,
-    this.icon = 18,
-    this.button = 28,
+    this.icon = 20,
+    this.button = 32,
     this.bar = Colors.transparent,
     this.fieldFocus = Colors.transparent,
     this.rest = const [],
     this.lift = const [],
   });
+
+  /// Corners: 4 for small marks, 8 for controls and inner blocks, 12 for
+  /// menus and sheets, 16 for bubbles, the composer and cards in the chat.
+  static const r4 = 4.0, r8 = 8.0, r12 = 12.0, r16 = 16.0;
+
+  /// A hairline.
+  static const hair = .5;
+
+  static const _liftLight = [
+    BoxShadow(color: Color(0x1f000000), spreadRadius: .5),
+    BoxShadow(color: Color(0x24000000), blurRadius: 32, offset: Offset(0, 12)),
+  ];
+  static const _liftDark = [
+    BoxShadow(color: Color(0xff383838), spreadRadius: .5),
+    BoxShadow(color: Color(0xb3000000), blurRadius: 32, offset: Offset(0, 12)),
+  ];
   static const light = Tone(
     base: Color(0xffffffff),
     sidebar: Color(0xfff7f7f7),
     surface: Color(0xffffffff),
     ink: Color(0xff000000),
-    ink2: Color(0xff5c5c5c),
-    ink3: Color(0xff767676),
-    line: Color(0xffe6e6e6),
+    ink2: Color(0xff555555),
+    ink3: Color(0xff6e6e6e),
+    line: Color(0xffdcdcdc),
     bubble: Color(0xfff2f2f2),
-    raised: Color(0xffeaeaea),
-    hover: Color(0xfff0f0f0),
+    raised: Color(0xffe9e9e9),
+    hover: Color(0xfff2f2f2),
     menu: Color(0xffffffff),
     danger: Color(0xffc22f2f),
-    rest: [
-      BoxShadow(color: Color(0x0f000000), blurRadius: 3, offset: Offset(0, 1)),
-      BoxShadow(color: Color(0x0d000000), blurRadius: 14, offset: Offset(0, 4)),
-    ],
-    lift: [
-      BoxShadow(color: Color(0x14000000), blurRadius: 4, offset: Offset(0, 1)),
-      BoxShadow(color: Color(0x1f000000), blurRadius: 24, offset: Offset(0, 8)),
-    ],
+    rail: Color(0xff000000),
+    dim: Color(0x47000000),
+    lift: _liftLight,
   );
   static const dark = Tone(
     base: Color(0xff000000),
-    sidebar: Color(0xff101010),
-    surface: Color(0xff161616),
+    sidebar: Color(0xff0c0c0c),
+    surface: Color(0xff000000),
     ink: Color(0xffffffff),
-    ink2: Color(0xffb0b0b0),
-    ink3: Color(0xff8c8c8c),
-    line: Color(0xff2a2a2a),
+    ink2: Color(0xffb4b4b4),
+    ink3: Color(0xff8e8e8e),
+    line: Color(0xff2c2c2c),
     bubble: Color(0xff1c1c1c),
-    raised: Color(0xff2a2a2a),
-    hover: Color(0xff1e1e1e),
-    menu: Color(0xff1c1c1c),
+    raised: Color(0xff262626),
+    hover: Color(0xff1a1a1a),
+    menu: Color(0xff000000),
     danger: Color(0xffff8a80),
-    thumb: Color(0xff3a3a3a),
+    rail: Color(0xff141414),
+    railMark: Color(0x24ffffff),
+    dim: Color(0x9e000000),
+    thumb: Color(0xff000000),
     ground: Color(0xff000000),
-    rest: [
-      BoxShadow(color: Color(0x66000000), blurRadius: 14, offset: Offset(0, 4)),
-    ],
-    lift: [
-      BoxShadow(
-        color: Color(0x99000000),
-        blurRadius: 28,
-        offset: Offset(0, 10),
-      ),
-    ],
+    lift: _liftDark,
   );
-  // The phone keeps its larger controls and bars over a plain black or white
-  // ground; cards are opaque, carried by shadow like the desktop's.
+  // The phone keeps the same flat black and white with larger controls.
   static const glassLight = Tone(
     glass: true,
-    control: 40,
-    corner: 10,
-    icon: 21,
-    button: 36,
+    control: 44,
+    corner: 12,
+    icon: 24,
+    button: 40,
     base: Color(0xffffffff),
     sidebar: Colors.transparent,
     surface: Color(0xffffffff),
     ink: Color(0xff000000),
-    ink2: Color(0xff5c5c5c),
-    ink3: Color(0xff767676),
-    line: Color(0xffe6e6e6),
+    ink2: Color(0xff555555),
+    ink3: Color(0xff6e6e6e),
+    line: Color(0xffdcdcdc),
     bubble: Color(0xfff2f2f2),
-    raised: Color(0xfff0f0f0),
-    hover: Color(0xfff0f0f0),
+    raised: Color(0xffe9e9e9),
+    hover: Color(0xfff2f2f2),
     menu: Color(0xffffffff),
     danger: Color(0xffc22f2f),
-    bar: Color(0xebffffff),
+    rail: Color(0xff000000),
+    dim: Color(0x47000000),
+    bar: Color(0xffffffff),
     fieldFocus: Color(0xffffffff),
-    rest: [
-      BoxShadow(color: Color(0x0f000000), blurRadius: 3, offset: Offset(0, 1)),
-      BoxShadow(color: Color(0x0d000000), blurRadius: 14, offset: Offset(0, 4)),
-    ],
-    lift: [
-      BoxShadow(color: Color(0x14000000), blurRadius: 4, offset: Offset(0, 1)),
-      BoxShadow(color: Color(0x1f000000), blurRadius: 24, offset: Offset(0, 8)),
-    ],
+    lift: _liftLight,
   );
   static const glassDark = Tone(
     glass: true,
-    control: 40,
-    corner: 10,
-    icon: 21,
-    button: 36,
+    control: 44,
+    corner: 12,
+    icon: 24,
+    button: 40,
     base: Color(0xff000000),
     sidebar: Colors.transparent,
-    surface: Color(0xff161616),
+    surface: Color(0xff000000),
     ink: Color(0xffffffff),
-    ink2: Color(0xffb0b0b0),
-    ink3: Color(0xff8c8c8c),
-    line: Color(0xff2a2a2a),
+    ink2: Color(0xffb4b4b4),
+    ink3: Color(0xff8e8e8e),
+    line: Color(0xff2c2c2c),
     bubble: Color(0xff1c1c1c),
-    raised: Color(0xff2a2a2a),
-    hover: Color(0xff1e1e1e),
-    menu: Color(0xff1c1c1c),
+    raised: Color(0xff262626),
+    hover: Color(0xff1a1a1a),
+    menu: Color(0xff000000),
     danger: Color(0xffff8a80),
-    thumb: Color(0xff3a3a3a),
+    rail: Color(0xff141414),
+    railMark: Color(0x24ffffff),
+    dim: Color(0x9e000000),
+    thumb: Color(0xff000000),
     ground: Color(0xff000000),
-    bar: Color(0xeb000000),
-    fieldFocus: Color(0xff1c1c1c),
-    rest: [
-      BoxShadow(color: Color(0x66000000), blurRadius: 14, offset: Offset(0, 4)),
-    ],
-    lift: [
-      BoxShadow(
-        color: Color(0x99000000),
-        blurRadius: 28,
-        offset: Offset(0, 10),
-      ),
-    ],
+    bar: Color(0xff000000),
+    fieldFocus: Color(0xff000000),
+    lift: _liftDark,
   );
   @override
   Tone copyWith() => this;
@@ -237,9 +244,9 @@ extension ToneOf on BuildContext {
 class _PageTransitions extends PageTransitionsBuilder {
   const _PageTransitions();
   @override
-  Duration get transitionDuration => const Duration(milliseconds: 200);
+  Duration get transitionDuration => Motion.push.duration;
   @override
-  Duration get reverseTransitionDuration => const Duration(milliseconds: 160);
+  Duration get reverseTransitionDuration => Motion.pushLeave;
   @override
   Widget buildTransitions<T>(
     PageRoute<T> route,
@@ -248,29 +255,40 @@ class _PageTransitions extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    if (MediaQuery.disableAnimationsOf(context)) return child;
-    final enter = CurvedAnimation(
-      parent: animation,
-      curve: Curves.easeOutCubic,
-    );
-    final page = FadeTransition(
-      opacity: enter,
-      child: SlideTransition(
-        position: Tween(
-          begin: const Offset(.03, 0),
-          end: Offset.zero,
-        ).animate(enter),
-        child: child,
+    if (Motion.still(context)) return child;
+    if (!context.tone.glass) {
+      // A desktop page takes the place of what was there: it rises a little
+      // and settles.
+      return FadeTransition(
+        opacity: Motion.fadeIn(animation),
+        child: SlideTransition(
+          position: Tween(
+            begin: const Offset(0, .02),
+            end: Offset.zero,
+          ).animate(Motion.spring(animation, Motion.swap)),
+          child: child,
+        ),
+      );
+    }
+    // A phone page slides over the last one, which steps back and dims.
+    return SlideTransition(
+      position: Tween(
+        begin: Offset.zero,
+        end: const Offset(-.22, 0),
+      ).animate(Motion.spring(secondaryAnimation, Motion.push)),
+      child: FadeTransition(
+        opacity: Tween<double>(
+          begin: 1,
+          end: .6,
+        ).animate(Motion.fadeIn(secondaryAnimation)),
+        child: SlideTransition(
+          position: Tween(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).animate(Motion.spring(animation, Motion.push)),
+          child: ColoredBox(color: context.tone.base, child: child),
+        ),
       ),
-    );
-    if (!context.tone.glass) return page;
-    // Glass pages share one backdrop, so the outgoing page fades instead of
-    // being covered.
-    return FadeTransition(
-      opacity: Tween<double>(begin: 1, end: 0).animate(
-        CurvedAnimation(parent: secondaryAnimation, curve: Curves.easeOutCubic),
-      ),
-      child: page,
     );
   }
 }
@@ -299,66 +317,73 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
         outlineVariant: tone.line,
         error: tone.danger,
       );
+  // Four sizes: 12 for marks and labels, 14 and 16 for reading and controls,
+  // 22 for the few large titles. A desktop reads at 14, a phone at 16. White
+  // text on black looks heavier than black on white, so dark steps one weight
+  // down.
+  final strong = dark ? FontWeight.w600 : FontWeight.w700;
+  final medium = dark ? FontWeight.w500 : FontWeight.w600;
+  final read = frosted ? 16.0 : 14.0;
   final text =
       (dark ? Typography.whiteMountainView : Typography.blackMountainView)
           .copyWith(
             headlineMedium: TextStyle(
               fontSize: 22,
-              fontWeight: FontWeight.w700,
-              height: 1.2,
+              fontWeight: strong,
+              height: 28 / 22,
               color: tone.ink,
             ),
             headlineSmall: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              height: 1.2,
+              fontSize: 22,
+              fontWeight: strong,
+              height: 28 / 22,
               color: tone.ink,
             ),
             titleLarge: TextStyle(
-              fontSize: frosted ? 17 : 15,
-              fontWeight: FontWeight.w700,
+              fontSize: 16,
+              fontWeight: strong,
+              height: 22 / 16,
               color: tone.ink,
             ),
             titleMedium: TextStyle(
-              fontSize: frosted ? 16 : 15,
-              fontWeight: FontWeight.w600,
+              fontSize: read,
+              fontWeight: medium,
+              height: frosted ? 22 / 16 : 20 / 14,
               color: tone.ink,
             ),
             titleSmall: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: tone.ink2,
+              fontWeight: FontWeight.w400,
+              height: 16 / 12,
+              color: tone.ink3,
             ),
             bodyLarge: TextStyle(
-              fontSize: frosted ? 16 : 15,
-              height: 1.45,
+              fontSize: read,
+              height: frosted ? 24 / 16 : 22 / 14,
               color: tone.ink,
             ),
             bodyMedium: TextStyle(
-              fontSize: frosted ? 16 : 15,
-              height: 1.45,
+              fontSize: read,
+              height: frosted ? 24 / 16 : 22 / 14,
               color: tone.ink,
             ),
             bodySmall: TextStyle(
-              fontSize: frosted ? 13 : 12.5,
-              height: 1.35,
+              fontSize: frosted ? 14 : 12,
+              height: frosted ? 20 / 14 : 16 / 12,
               color: tone.ink2,
             ),
-            labelLarge: TextStyle(
-              fontSize: frosted ? 14 : 13,
-              fontWeight: FontWeight.w600,
-            ),
+            labelLarge: TextStyle(fontSize: read, fontWeight: medium),
             // Statuses and counts change while you watch: steady-width
             // digits keep them from shaking, and nothing is under 12.
             labelMedium: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w400,
               color: tone.ink3,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
             labelSmall: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w400,
               color: tone.ink3,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
@@ -368,13 +393,15 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
     shape: RoundedSuperellipseBorder(
       borderRadius: BorderRadius.circular(tone.corner),
     ),
-    borderSide: frosted ? BorderSide.none : BorderSide(color: color, width: .5),
+    borderSide: BorderSide(color: color, width: Tone.hair),
   );
-  // Text buttons are pills and icon buttons circles; fields keep their corners.
-  const control = RoundedSuperellipseBorder(
-    borderRadius: BorderRadius.all(Radius.circular(999)),
+  // Buttons and fields share one corner; a phone's is larger, as its controls
+  // are. Icon buttons are rounded squares under a pointer and circles under
+  // a thumb.
+  final control = RoundedSuperellipseBorder(
+    borderRadius: BorderRadius.circular(tone.corner),
   );
-  final buttonSize = Size(0, tone.control - 2);
+  final buttonSize = Size(0, tone.control);
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
@@ -433,18 +460,16 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
         minimumSize: Size.square(tone.button),
         padding: EdgeInsets.zero,
         iconSize: tone.icon - 1,
-        shape: const CircleBorder(),
+        shape: frosted
+            ? const CircleBorder()
+            : const RoundedSuperellipseBorder(
+                borderRadius: BorderRadius.all(Radius.circular(Tone.r8)),
+              ),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: frosted
-          ? WidgetStateColor.resolveWith(
-              (states) => states.contains(WidgetState.focused)
-                  ? tone.fieldFocus
-                  : tone.surface,
-            )
-          : tone.surface,
+      fillColor: tone.surface,
       hoverColor: Colors.transparent,
       labelStyle: TextStyle(color: tone.ink2),
       floatingLabelStyle: TextStyle(color: tone.ink2),
@@ -459,8 +484,8 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       focusedErrorBorder: field(tone.danger),
       isDense: true,
       contentPadding: EdgeInsets.symmetric(
-        horizontal: frosted ? 12 : 10,
-        vertical: frosted ? 10 : 7,
+        horizontal: frosted ? 14 : 10,
+        vertical: frosted ? 12 : 7,
       ),
     ),
     textSelectionTheme: TextSelectionThemeData(
@@ -485,7 +510,7 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       style: OutlinedButton.styleFrom(
         foregroundColor: tone.ink,
         disabledForegroundColor: tone.ink3,
-        side: BorderSide(color: tone.line, width: .5),
+        side: BorderSide(color: tone.line, width: Tone.hair),
         visualDensity: VisualDensity.standard,
         minimumSize: buttonSize,
         padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -510,10 +535,10 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       selectedColor: tone.ink,
       selectedTileColor: tone.raised,
       subtitleTextStyle: text.bodySmall,
-      titleTextStyle: text.titleMedium?.copyWith(fontWeight: FontWeight.w500),
+      titleTextStyle: text.bodyMedium,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12),
       minVerticalPadding: frosted ? 8 : 6,
-      minTileHeight: frosted ? 52 : 38,
+      minTileHeight: frosted ? 52 : 40,
       minLeadingWidth: 0,
       horizontalTitleGap: 10,
     ),
@@ -551,16 +576,16 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
     ),
     tabBarTheme: TabBarThemeData(
       dividerColor: Colors.transparent,
-      indicatorSize: TabBarIndicatorSize.tab,
-      indicator: ShapeDecoration(
-        color: frosted ? tone.ink : tone.thumb,
-        shape: control,
-        shadows: frosted ? null : tone.rest,
+      indicatorSize: TabBarIndicatorSize.label,
+      indicator: UnderlineTabIndicator(
+        borderSide: BorderSide(color: tone.ink, width: 1.5),
       ),
-      labelColor: frosted ? tone.base : tone.ink,
-      unselectedLabelColor: tone.ink2,
+      labelColor: tone.ink,
+      unselectedLabelColor: tone.ink3,
       labelStyle: text.labelLarge,
-      unselectedLabelStyle: text.labelLarge,
+      unselectedLabelStyle: text.labelLarge?.copyWith(
+        fontWeight: FontWeight.w400,
+      ),
       splashFactory: NoSplash.splashFactory,
       overlayColor: const WidgetStatePropertyAll(Colors.transparent),
     ),
@@ -568,11 +593,14 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
     popupMenuTheme: PopupMenuThemeData(
       color: tone.menu,
       surfaceTintColor: Colors.transparent,
-      elevation: 6,
-      shadowColor: Colors.black.withValues(alpha: dark ? .5 : .12),
+      elevation: 8,
+      shadowColor: Colors.black.withValues(alpha: dark ? .7 : .14),
       shape: RoundedSuperellipseBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: tone.line, width: .5),
+        borderRadius: BorderRadius.circular(Tone.r12),
+        side: BorderSide(
+          color: dark ? const Color(0xff383838) : const Color(0x1f000000),
+          width: Tone.hair,
+        ),
       ),
       menuPadding: const EdgeInsets.all(6),
       textStyle: text.bodyMedium,
@@ -581,7 +609,9 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       style: MenuStyle(
         backgroundColor: WidgetStatePropertyAll(tone.menu),
         shape: WidgetStatePropertyAll(
-          RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(16)),
+          RoundedSuperellipseBorder(
+            borderRadius: BorderRadius.circular(Tone.r12),
+          ),
         ),
       ),
     ),
@@ -589,7 +619,7 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       backgroundColor: tone.menu,
       surfaceTintColor: Colors.transparent,
       shape: const RoundedSuperellipseBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       clipBehavior: Clip.antiAlias,
     ),
@@ -608,13 +638,17 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       behavior: SnackBarBehavior.floating,
       backgroundColor: tone.ink,
       contentTextStyle: text.bodyMedium?.copyWith(color: tone.base),
-      shape: RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(10)),
+      shape: RoundedSuperellipseBorder(
+        borderRadius: BorderRadius.circular(Tone.r12),
+      ),
       elevation: 0,
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: tone.menu,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedSuperellipseBorder(
+        borderRadius: BorderRadius.circular(Tone.r12),
+      ),
       titleTextStyle: text.titleLarge,
       contentTextStyle: text.bodyMedium,
     ),
@@ -629,7 +663,11 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       radius: const Radius.circular(4),
       thumbColor: WidgetStatePropertyAll(tone.raised),
     ),
-    dividerTheme: DividerThemeData(color: tone.line, thickness: 1, space: 1),
+    dividerTheme: DividerThemeData(
+      color: tone.line,
+      thickness: Tone.hair,
+      space: Tone.hair,
+    ),
   );
 }
 

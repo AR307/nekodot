@@ -475,14 +475,18 @@ class Segment<T> extends StatelessWidget {
     final keys = options.keys.toList();
     final selected = position ?? keys.indexOf(value).toDouble();
     final still = MediaQuery.disableAnimationsOf(context);
-    final fontSize = tone.glass ? 14.0 : 13.0;
+    final fontSize = tone.glass ? 16.0 : 14.0;
     final height = math.max(
-      tone.glass ? 32.0 : 28.0,
+      tone.glass ? 40.0 : 32.0,
       MediaQuery.textScalerOf(context).scale(fontSize) * 1.2 + 8,
     );
     final target = math.max(height, tone.glass ? 48.0 : height);
     const corners = RoundedSuperellipseBorder(
-      borderRadius: BorderRadius.all(Radius.circular(999)),
+      borderRadius: BorderRadius.all(Radius.circular(Tone.r8)),
+    );
+    final thumb = RoundedSuperellipseBorder(
+      borderRadius: const BorderRadius.all(Radius.circular(6)),
+      side: BorderSide(color: tone.line, width: Tone.hair),
     );
     return IntrinsicWidth(
       child: SizedBox(
@@ -494,7 +498,7 @@ class Segment<T> extends StatelessWidget {
               bottom: (target - height) / 2,
               child: DecoratedBox(
                 key: const ValueKey('segment-track'),
-                decoration: ShapeDecoration(color: tone.raised, shape: corners),
+                decoration: ShapeDecoration(color: tone.hover, shape: corners),
               ),
             ),
             Positioned.fill(
@@ -505,8 +509,8 @@ class Segment<T> extends StatelessWidget {
               child: AnimatedAlign(
                 duration: still || position != null
                     ? Duration.zero
-                    : const Duration(milliseconds: 160),
-                curve: Curves.easeOutCubic,
+                    : Motion.move.duration,
+                curve: Motion.move,
                 alignment: Alignment(
                   keys.length == 1 ? 0 : -1 + 2 * selected / (keys.length - 1),
                   0,
@@ -516,8 +520,8 @@ class Segment<T> extends StatelessWidget {
                   heightFactor: 1,
                   child: DecoratedBox(
                     decoration: ShapeDecoration(
-                      color: tone.ink,
-                      shape: corners,
+                      color: tone.thumb,
+                      shape: thumb,
                     ),
                   ),
                 ),
@@ -545,15 +549,18 @@ class Segment<T> extends StatelessWidget {
                               child: IconTheme(
                                 data: IconThemeData(
                                   size: tone.glass ? 17 : 15,
-                                  color: key == value ? tone.base : tone.ink2,
+                                  color: key == value ? tone.ink : tone.ink2,
                                 ),
                                 child: DefaultTextStyle.merge(
                                   style: Theme.of(context).textTheme.labelLarge
                                       ?.copyWith(
                                         fontSize: fontSize,
                                         height: 1.2,
+                                        fontWeight: key == value
+                                            ? null
+                                            : FontWeight.w400,
                                         color: key == value
-                                            ? tone.base
+                                            ? tone.ink
                                             : tone.ink2,
                                       ),
                                   child: options[key]!,
@@ -614,14 +621,14 @@ class _SidePanelState extends State<SidePanel>
     with SingleTickerProviderStateMixin {
   late final controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 240),
-    reverseDuration: const Duration(milliseconds: 180),
+    duration: Motion.side.duration,
+    reverseDuration: Motion.sideLeave,
     value: widget.child == null ? 0 : 1,
   );
   late final curve = CurvedAnimation(
     parent: controller,
-    curve: Curves.easeOutCubic,
-    reverseCurve: Curves.easeInCubic,
+    curve: Motion.side,
+    reverseCurve: const FlippedCurve(Motion.leave),
   );
   late Widget? shown = widget.child;
   late double shownWidth = widget.width;
@@ -671,15 +678,22 @@ class _SidePanelState extends State<SidePanel>
       builder: (context, child) {
         final t = curve.value;
         if (shown == null) return const SizedBox.shrink();
+        // The room it takes never passes its width; only the panel itself
+        // overshoots as it settles.
         return SizedBox(
-          width: shownWidth * t,
+          width: shownWidth * t.clamp(0.0, 1.0),
           child: OverflowBox(
             alignment: Alignment.centerLeft,
             minWidth: shownWidth,
             maxWidth: shownWidth,
             child: Transform.translate(
-              offset: Offset((1 - t) * 28, 0),
-              child: Opacity(opacity: t, child: child),
+              offset: Offset((1 - t) * 40, 0),
+              child: Opacity(
+                opacity: controller.status == AnimationStatus.reverse
+                    ? t.clamp(0.0, 1.0)
+                    : Motion.fade.transform(controller.value),
+                child: child,
+              ),
             ),
           ),
         );
@@ -687,10 +701,9 @@ class _SidePanelState extends State<SidePanel>
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: tone.base,
-          boxShadow: [
-            for (final shadow in tone.lift)
-              shadow.copyWith(offset: Offset(-shadow.offset.dy, 0)),
-          ],
+          border: Border(
+            left: BorderSide(color: tone.line, width: Tone.hair),
+          ),
         ),
         child: TickerMode(
           enabled: widget.child != null,
@@ -709,21 +722,19 @@ Future<T?> popPage<T>(BuildContext context, Widget page) =>
 class _PopRoute<T> extends PageRouteBuilder<T> {
   _PopRoute(Widget page)
     : super(
-        transitionDuration: const Duration(milliseconds: 240),
-        reverseTransitionDuration: const Duration(milliseconds: 180),
+        transitionDuration: Motion.pop.duration,
+        reverseTransitionDuration: Motion.popLeave,
         pageBuilder: (context, animation, secondary) => page,
         transitionsBuilder: (context, animation, secondary, child) {
-          if (MediaQuery.disableAnimationsOf(context)) return child;
-          final grow = CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-            reverseCurve: Curves.easeInCubic,
-          );
+          if (Motion.still(context)) return child;
           return FadeTransition(
-            opacity: grow,
+            opacity: Motion.fadeIn(animation),
             child: ScaleTransition(
               alignment: Alignment.topCenter,
-              scale: Tween<double>(begin: .94, end: 1).animate(grow),
+              scale: Tween<double>(
+                begin: .9,
+                end: 1,
+              ).animate(Motion.spring(animation, Motion.pop)),
               child: child,
             ),
           );

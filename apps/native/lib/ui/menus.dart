@@ -193,14 +193,13 @@ class MenuEntrance extends StatelessWidget {
       ? child
       : TweenAnimationBuilder<double>(
           tween: Tween(begin: 0, end: 1),
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutBack,
+          duration: Motion.pop.duration,
+          curve: Motion.pop,
           child: child,
           builder: (context, t, child) => Opacity(
             opacity: t.clamp(0, 1),
             child: Transform.scale(
-              scaleX: .97 + .03 * t,
-              scaleY: .84 + .16 * t,
+              scale: .9 + .1 * t,
               alignment: alignment,
               child: child,
             ),
@@ -305,8 +304,8 @@ class _MenuPopoverState extends State<MenuPopover>
   late final animation =
       AnimationController(
         vsync: this,
-        duration: const Duration(milliseconds: 300),
-        reverseDuration: const Duration(milliseconds: 180),
+        duration: Motion.pop.duration,
+        reverseDuration: Motion.popLeave,
       )..addStatusListener((status) {
         if (status == AnimationStatus.dismissed) {
           hideOverlay?.call();
@@ -316,8 +315,8 @@ class _MenuPopoverState extends State<MenuPopover>
       });
   late final eased = CurvedAnimation(
     parent: animation,
-    curve: Curves.easeOutBack,
-    reverseCurve: Curves.easeInCubic,
+    curve: Motion.pop,
+    reverseCurve: const FlippedCurve(Motion.leave),
   );
 
   @override
@@ -453,10 +452,12 @@ class _MenuPopoverState extends State<MenuPopover>
                               return Opacity(
                                 opacity: reduced
                                     ? 1
-                                    : Curves.easeOut.transform(animation.value),
+                                    : animation.status ==
+                                          AnimationStatus.reverse
+                                    ? animation.value
+                                    : Motion.fade.transform(animation.value),
                                 child: Transform.scale(
-                                  scaleX: .97 + .03 * t,
-                                  scaleY: .84 + .16 * t,
+                                  scale: .9 + .1 * t,
                                   alignment: alignment,
                                   child: child,
                                 ),

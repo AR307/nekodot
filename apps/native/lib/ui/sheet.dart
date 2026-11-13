@@ -44,15 +44,17 @@ class SheetRoute<T> extends PageRoute<T> {
   bool get barrierDismissible => first && !form;
   @override
   Color? get barrierColor =>
-      first ? Colors.black.withValues(alpha: .22) : Colors.transparent;
+      first ? Colors.black.withValues(alpha: .28) : Colors.transparent;
   @override
   String? get barrierLabel => null;
   @override
   bool get maintainState => true;
   @override
-  Duration get transitionDuration => Duration(milliseconds: first ? 220 : 200);
+  Duration get transitionDuration =>
+      first ? Motion.sheet.duration : Motion.swap.duration;
   @override
-  Duration get reverseTransitionDuration => const Duration(milliseconds: 180);
+  Duration get reverseTransitionDuration =>
+      first ? Motion.sheetLeave : Motion.swapLeave;
 
   @override
   Widget buildPage(
@@ -68,28 +70,32 @@ class SheetRoute<T> extends PageRoute<T> {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    if (MediaQuery.disableAnimationsOf(context)) return child;
-    final curve = CurvedAnimation(
-      parent: animation,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
-    );
+    if (Motion.still(context)) return child;
+    final fade = Motion.fadeIn(animation);
     if (first) {
+      // It grows a little and rises into place, passing it slightly.
+      final spring = Motion.spring(animation, Motion.sheet);
       return FadeTransition(
-        opacity: curve,
-        child: ScaleTransition(
-          scale: Tween(begin: .97, end: 1.0).animate(curve),
-          child: child,
+        opacity: fade,
+        child: SlideTransition(
+          position: Tween(
+            begin: const Offset(0, .02),
+            end: Offset.zero,
+          ).animate(spring),
+          child: ScaleTransition(
+            scale: Tween(begin: .92, end: 1.0).animate(spring),
+            child: child,
+          ),
         ),
       );
     }
     return FadeTransition(
-      opacity: curve,
+      opacity: fade,
       child: SlideTransition(
         position: Tween(
-          begin: const Offset(.02, 0),
+          begin: const Offset(.03, 0),
           end: Offset.zero,
-        ).animate(curve),
+        ).animate(Motion.spring(animation, Motion.swap)),
         child: child,
       ),
     );
@@ -101,7 +107,7 @@ class SheetRoute<T> extends PageRoute<T> {
 class SheetFrame extends StatelessWidget {
   final Widget child;
   const SheetFrame({super.key, required this.child});
-  static const radius = 18.0;
+  static const radius = Tone.r12;
   @override
   Widget build(BuildContext context) {
     final tone = context.tone;

@@ -32,7 +32,7 @@ void main() {
         final height = tester
             .getSize(find.byKey(const ValueKey('segment-track')))
             .height;
-        if (scale == 1) expect(height, phone ? 32 : 28);
+        if (scale == 1) expect(height, phone ? 40 : 32);
         if (phone) {
           for (final item in find.byType(InkWell).evaluate()) {
             expect(
@@ -84,7 +84,7 @@ void main() {
       expect(find.text('Settings page').hitTestable(), findsOneWidget);
       expect(
         tester.getSize(find.byKey(const ValueKey('segment-track'))).height,
-        32,
+        40,
       );
       expect(tester.takeException(), isNull);
     },
