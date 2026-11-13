@@ -452,36 +452,24 @@ void main() {
           matching: find.byKey(const ValueKey('command-fold')),
         );
         if (approvals++ == 0 && object(pending!.content)['command'] != null) {
-          // The command shows as one line until opened.
-          expect(fold, findsOneWidget);
-          expect(
-            tester
-                .widget<Text>(
-                  find.descendant(of: fold, matching: find.byType(Text)).first,
-                )
-                .maxLines,
-            1,
+          // While it waits, the whole command is there to read and select.
+          final whole = find.descendant(
+            of: find.byWidgetPredicate(
+              (w) =>
+                  w is MessageTile && w.message.messageId == pending.messageId,
+            ),
+            matching: find.byType(SelectableText),
           );
+          expect(fold, findsOneWidget);
+          expect(whole, findsOneWidget);
           await reveal(fold);
+          await shot('approval-open');
+          // A tap on its first line puts it away, and another brings it back.
+          await tap(fold);
+          expect(whole, findsNothing);
           await shot('approval-folded');
           await tap(fold);
-          // Opened, the whole command is there to read and select.
-          expect(
-            find.descendant(of: fold, matching: find.byType(SelectableText)),
-            findsNothing,
-          );
-          expect(
-            find.descendant(
-              of: find.byWidgetPredicate(
-                (w) =>
-                    w is MessageTile &&
-                    w.message.messageId == pending.messageId,
-              ),
-              matching: find.byType(SelectableText),
-            ),
-            findsOneWidget,
-          );
-          await shot('approval-open');
+          expect(whole, findsOneWidget);
         }
         await tap(allow);
         continue;

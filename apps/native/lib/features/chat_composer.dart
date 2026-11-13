@@ -143,6 +143,13 @@ class ChatComposerState extends State<ChatComposer> {
       ? text
       : '${quoted!.split('\n').map((line) => '> $line').join('\n')}\n\n$text';
 
+  /// Stops what this conversation is doing, as typing /stop would.
+  Future<void> stop() async {
+    input.text = '/stop';
+    await send();
+    if (mounted && input.text == '/stop') setState(input.clear);
+  }
+
   Future<void> send() async {
     final text = input.text.trim();
     final sentQuote = quoted;
@@ -465,7 +472,7 @@ class ChatComposerState extends State<ChatComposer> {
       fixedSize: Size.square(tone.glass ? 48 : 32),
       minimumSize: Size.square(tone.glass ? 48 : 32),
       padding: EdgeInsets.zero,
-      iconSize: 17,
+      iconSize: 18,
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       shape: const CircleBorder(),
       backgroundColor: tone.ink,
@@ -540,6 +547,16 @@ class ChatComposerState extends State<ChatComposer> {
                   ),
             icon: const Icon(Icons.mic_none),
           ),
+        if (running && !hasText) ...[
+          const SizedBox(width: 4),
+          IconButton.filled(
+            key: const ValueKey('composer-stop'),
+            tooltip: c.tr('停止', 'Stop'),
+            style: roundAction,
+            onPressed: sending ? null : stop,
+            icon: const Icon(Icons.stop_rounded),
+          ),
+        ],
         if (hasText || (!running && (group != null || bot == null))) ...[
           const SizedBox(width: 4),
           IconButton.filled(

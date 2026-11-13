@@ -119,7 +119,26 @@ class _ReasoningSliderState extends State<ReasoningSlider> {
     final options = levels;
     final at = selected == null ? -1 : options.indexOf(selected!);
     final disabled = saving || !widget.enabled;
-    String label(String? value) => value ?? '…';
+    // Hermes names the levels in English keys; the composer shows them in the
+    // language of the app. A level this list does not know keeps its key.
+    const names = {
+      'none': ('关', 'Off'),
+      'minimal': ('最低', 'Minimal'),
+      'low': ('低', 'Low'),
+      'medium': ('中', 'Medium'),
+      'high': ('高', 'High'),
+      'xhigh': ('极高', 'Extra high'),
+      'max': ('最高', 'Max'),
+    };
+    String label(String? value) {
+      final name = names[value];
+      return value == null
+          ? '…'
+          : name == null
+          ? value
+          : widget.client.tr(name.$1, name.$2);
+    }
+
     if (context.tone.glass) {
       return ActionMenu<String>(
         key: const ValueKey('reasoning-toggle'),

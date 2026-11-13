@@ -25,71 +25,78 @@ class _PromptCardState extends State<PromptCard> {
   Widget build(BuildContext context) {
     // Moving focus from the input to selected chat text must not move the
     // words under the pointer by collapsing the composer mid-selection.
-    expanded =
-        widget.hasContent || widget.running || (widget.holdSize && expanded);
-    final duration = MediaQuery.disableAnimationsOf(context)
-        ? Duration.zero
-        : const Duration(milliseconds: 180);
+    expanded = widget.hasContent || (widget.holdSize && expanded);
+    final tone = context.tone;
     final card = Focus(
       onFocusChange: (value) => setState(() => focused = value),
       child: AnimatedContainer(
-        duration: duration,
-        curve: Curves.easeOutCubic,
+        duration: Motion.still(context) ? Duration.zero : Motion.tint,
         constraints: const BoxConstraints(maxWidth: 720),
         decoration: ShapeDecoration(
-          color: context.tone.surface,
-          shadows: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: .04),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          color: tone.surface,
           shape: RoundedSuperellipseBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(tone.glass ? 28 : Tone.r16),
             side: BorderSide(
-              color: focused ? context.tone.ink3 : context.tone.line,
-              width: .5,
+              color: focused ? tone.ink3 : tone.line,
+              width: Tone.hair,
             ),
           ),
         ),
         child: SizeMotion(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
+          duration: Motion.fold.duration,
+          curve: Motion.fold,
           alignment: Alignment.bottomCenter,
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final toolbar = Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  widget.tools,
-                  Flexible(child: widget.action),
-                ],
-              );
+              // One line: attach, the field, then what sends. With words in
+              // it the field takes the first line and the controls the next.
+              // The field keeps its place in the tree either way, so typing
+              // is never interrupted by the change.
               return Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+                padding: EdgeInsets.fromLTRB(expanded ? 16 : 6, 4, 8, 4),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: 44),
-                  child: Flex(
-                    direction: expanded ? Axis.vertical : Axis.horizontal,
-                    mainAxisSize: MainAxisSize.min,
+                  child: Row(
                     children: [
-                      Flexible(
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: widget.field,
-                        ),
-                      ),
-                      SizedBox(height: expanded ? 4 : 0),
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: constraints.maxWidth * (expanded ? 1 : .6),
-                        ),
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          widthFactor: expanded ? null : 1,
-                          heightFactor: 1,
-                          child: toolbar,
+                      if (!expanded) widget.tools,
+                      Expanded(
+                        child: Flex(
+                          direction: expanded ? Axis.vertical : Axis.horizontal,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                  left: expanded ? 0 : 4,
+                                  right: 8,
+                                ),
+                                child: widget.field,
+                              ),
+                            ),
+                            SizedBox(height: expanded ? 4 : 0),
+                            ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth:
+                                    constraints.maxWidth * (expanded ? 1 : .6),
+                              ),
+                              child: expanded
+                                  ? Row(
+                                      children: [
+                                        Transform.translate(
+                                          offset: const Offset(-10, 0),
+                                          child: widget.tools,
+                                        ),
+                                        Expanded(
+                                          child: Align(
+                                            alignment: Alignment.centerRight,
+                                            child: widget.action,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : widget.action,
+                            ),
+                          ],
                         ),
                       ),
                     ],

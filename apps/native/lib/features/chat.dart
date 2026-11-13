@@ -315,88 +315,74 @@ class _ChatPageState extends State<ChatPage>
       }
 
       final textTheme = Theme.of(context).textTheme;
-      // Floating controls sit on the surface with a soft shadow, over the
-      // messages, which scroll beneath them and fade out under the bar.
-      Widget floating(Widget child) => DecoratedBox(
-        decoration: ShapeDecoration(
-          color: tone.surface,
-          shape: const RoundedSuperellipseBorder(
-            borderRadius: BorderRadius.all(Radius.circular(999)),
-          ),
-          shadows: tone.rest,
+      final role = group != null || bot == null
+          ? ''
+          : '${bot['role'] ?? ''}'.split('\n').first.trim();
+      // The header is flat: who this is on the left, what can be opened on
+      // the right. Messages scroll beneath it and fade out under it.
+      final titleRow = InkWell(
+        customBorder: const RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.all(Radius.circular(6)),
         ),
-        child: Material(type: MaterialType.transparency, child: child),
-      );
-      final titlePill = Tooltip(
-        message: c.tr('详情', 'Details'),
-        child: floating(
-          InkWell(
-            customBorder: const RoundedSuperellipseBorder(
-              borderRadius: BorderRadius.all(Radius.circular(999)),
-            ),
-            onTap: openDetails,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                8,
-                tone.glass ? 13 : 5,
-                14,
-                tone.glass ? 13 : 5,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (group != null)
-                    GroupAvatar(
-                      size: 22,
-                      working: working,
-                      avatars: memberAvatars,
-                    )
-                  else if (bot != null)
-                    CatAvatar.of(bot, size: 22, working: working),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontSize: tone.glass ? 15 : 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  if (chain != null) ...[
-                    const SizedBox(width: 8),
-                    ChainDots(count: chain.count, max: chain.max),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-      final actions = floating(
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
+        onTap: openDetails,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              flowButton(),
-              IconButton(
-                tooltip: c.tr('屏幕', 'Screen'),
-                onPressed: bot == null
-                    ? null
-                    : () => pushPage(
-                        context,
-                        ScreenPage(client: c, bot: bot, members: members),
-                      ),
-                icon: const Icon(Icons.desktop_windows_outlined),
+              // A desktop has the list beside it; a pushed page says who.
+              if (!widget.embedded) ...[
+                if (group != null)
+                  GroupAvatar(
+                    size: 28,
+                    working: working,
+                    avatars: memberAvatars,
+                  )
+                else if (bot != null)
+                  CatAvatar.of(bot, size: 28, working: working),
+                const SizedBox(width: 10),
+              ],
+              Flexible(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.titleLarge,
+                ),
               ),
+              if (role.isNotEmpty && widget.embedded) ...[
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    role,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodyMedium?.copyWith(color: tone.ink3),
+                  ),
+                ),
+              ],
+              if (group != null && widget.embedded) ...[
+                const SizedBox(width: 10),
+                for (final avatar in memberAvatars.take(4))
+                  Padding(
+                    padding: const EdgeInsets.only(right: 2),
+                    child: CatAvatar(
+                      color: '${avatar['color']}',
+                      shape: '${avatar['shape']}',
+                      size: 20,
+                    ),
+                  ),
+              ],
+              if (chain != null) ...[
+                const SizedBox(width: 8),
+                ChainDots(count: chain.count, max: chain.max),
+              ],
             ],
           ),
         ),
       );
       final header = AppBar(
+        toolbarHeight: tone.glass ? 56 : 48,
         flexibleSpace: DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -413,25 +399,40 @@ class _ChatPageState extends State<ChatPage>
           child: tone.glass ? const SizedBox.expand() : const WindowDrag(),
         ),
         automaticallyImplyLeading: false,
-        leadingWidth: widget.embedded ? 0 : 60,
+        leadingWidth: widget.embedded ? 0 : 52,
         leading: widget.embedded
             ? null
-            : Center(
-                child: floating(
-                  IconButton(
-                    tooltip: MaterialLocalizations.of(context)
-                        .backButtonTooltip,
-                    onPressed: () => Navigator.maybePop(context),
-                    icon: const Icon(Icons.arrow_back),
-                  ),
-                ),
+            : IconButton(
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onPressed: () => Navigator.maybePop(context),
+                icon: const Icon(Icons.arrow_back),
               ),
-        centerTitle: true,
-        titleSpacing: 8,
-        title: titlePill,
+        centerTitle: false,
+        titleSpacing: widget.embedded ? 14 : 0,
+        // One way to the details has the name 详情 in each layout: the title
+        // itself on a pushed page, the button at the end on a desktop.
+        title: widget.embedded
+            ? titleRow
+            : Tooltip(message: c.tr('详情', 'Details'), child: titleRow),
         actions: [
-          actions,
-          const SizedBox(width: 12),
+          flowButton(),
+          IconButton(
+            tooltip: c.tr('屏幕', 'Screen'),
+            onPressed: bot == null
+                ? null
+                : () => pushPage(
+                    context,
+                    ScreenPage(client: c, bot: bot, members: members),
+                  ),
+            icon: const Icon(Icons.desktop_windows_outlined),
+          ),
+          if (widget.embedded)
+            IconButton(
+              tooltip: c.tr('详情', 'Details'),
+              onPressed: openDetails,
+              icon: const Icon(Icons.view_sidebar_outlined),
+            ),
+          const SizedBox(width: 8),
           if (widget.reserveControls)
             SizedBox(width: WindowChrome.reserved(context)),
         ],
@@ -662,7 +663,7 @@ class AskedPill extends StatelessWidget {
           shape: const RoundedSuperellipseBorder(
             borderRadius: BorderRadius.all(Radius.circular(999)),
           ),
-          shadows: tone.rest,
+          shadows: tone.lift,
         ),
         child: Material(
           type: MaterialType.transparency,
