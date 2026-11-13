@@ -13,50 +13,52 @@ class LearningPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AppPage(
     title: client.tr('学习历程', 'Learning journey'),
-    body: AsyncPane(
-      load: () => client.rpc('learning.list', {'botId': botId}),
-      builder: (context, data, reload) => PageList(
-        children: [
-          Text(
-            client.tr(
-              '来自此 Bot 的原生记忆与学习技能。更改按 Hermes 原生时机生效，不重建当前对话。',
-              'Native memories and learned skills for this Bot. Changes follow Hermes timing; the current context is not rebuilt.',
-            ),
-          ),
-          for (final line in (data['summary'] as List? ?? [])) Text('$line'),
-          if (data['count'] == 0)
-            Text(client.tr('暂无学习记录', 'No learning entries yet')),
-          for (final bucket in objects(data['buckets'])) ...[
-            const SizedBox(height: 16),
+    body: MasterDetail(
+      master: AsyncPane(
+        load: () => client.rpc('learning.list', {'botId': botId}),
+        builder: (context, data, reload) => PageList(
+          children: [
             Text(
-              '${bucket['label']}',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            for (final entry in objects(bucket['nodes']))
-              ListTile(
-                key: ValueKey('learning-${entry['id']}'),
-                leading: Icon(
-                  '${entry['id']}'.startsWith('memory:')
-                      ? Icons.psychology_outlined
-                      : Icons.auto_awesome,
-                ),
-                title: Text('${entry['fullLabel'] ?? entry['label']}'),
-                subtitle: Text('${entry['meta'] ?? ''}'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () async {
-                  await pushPage(
-                    context,
-                    LearningEntryPage(
-                      client: client,
-                      botId: botId,
-                      entryId: '${entry['id']}',
-                    ),
-                  );
-                  reload();
-                },
+              client.tr(
+                '来自此 Bot 的原生记忆与学习技能。更改按 Hermes 原生时机生效，不重建当前对话。',
+                'Native memories and learned skills for this Bot. Changes follow Hermes timing; the current context is not rebuilt.',
               ),
+            ),
+            for (final line in (data['summary'] as List? ?? [])) Text('$line'),
+            if (data['count'] == 0)
+              Text(client.tr('暂无学习记录', 'No learning entries yet')),
+            for (final bucket in objects(data['buckets'])) ...[
+              const SizedBox(height: 16),
+              Text(
+                '${bucket['label']}',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              for (final entry in objects(bucket['nodes']))
+                ListTile(
+                  key: ValueKey('learning-${entry['id']}'),
+                  leading: Icon(
+                    '${entry['id']}'.startsWith('memory:')
+                        ? Icons.psychology_outlined
+                        : Icons.auto_awesome,
+                  ),
+                  title: Text('${entry['fullLabel'] ?? entry['label']}'),
+                  subtitle: Text('${entry['meta'] ?? ''}'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    await pushPage(
+                      context,
+                      LearningEntryPage(
+                        client: client,
+                        botId: botId,
+                        entryId: '${entry['id']}',
+                      ),
+                    );
+                    reload();
+                  },
+                ),
+            ],
           ],
-        ],
+        ),
       ),
     ),
   );

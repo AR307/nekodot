@@ -14,7 +14,10 @@ import 'sheet.dart';
 import 'shining_text.dart';
 import 'connection_notice.dart';
 
+import 'master_detail.dart';
+
 export 'entry_motion.dart';
+export 'master_detail.dart';
 export 'menus.dart';
 export 'motion.dart';
 export 'parts.dart';
@@ -1092,12 +1095,16 @@ class ErrorNotice extends StatelessWidget {
 
 /// The next step: a new page, or, inside a floating sheet, the sheet's next
 /// step in the same frame.
-Future<T?> pushPage<T>(BuildContext context, Widget page) =>
-    Navigator.of(context).push<T>(
-      InSheet.of(context)
-          ? SheetRoute<T>(page, first: false)
-          : MaterialPageRoute(builder: (_) => page),
-    );
+Future<T?> pushPage<T>(BuildContext context, Widget page) {
+  // From a list that has room beside it, the page opens there.
+  final pane = MasterDetail.paneOf(context);
+  if (pane != null) return pane.show<T>(page);
+  return Navigator.of(context).push<T>(
+    InSheet.of(context)
+        ? SheetRoute<T>(page, first: false)
+        : MaterialPageRoute(builder: (_) => page),
+  );
+}
 
 class AsyncPane extends StatefulWidget {
   final Json? initialData;

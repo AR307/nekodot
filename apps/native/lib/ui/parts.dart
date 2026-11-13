@@ -390,6 +390,46 @@ class SectionLabel extends StatelessWidget {
   );
 }
 
+/// One entry on a timeline: its mark on the line at the left, what happened
+/// beside it.
+class TimelineEntry extends StatelessWidget {
+  final Widget mark, child;
+
+  /// The last entry ends the line.
+  final bool last;
+  const TimelineEntry({
+    super.key,
+    required this.mark,
+    required this.child,
+    this.last = false,
+  });
+  @override
+  Widget build(BuildContext context) => IntrinsicHeight(
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: 24,
+          child: Column(
+            children: [
+              SizedBox(height: 48, child: Center(child: mark)),
+              if (!last)
+                Expanded(
+                  child: VerticalDivider(
+                    width: 1,
+                    thickness: 1,
+                    color: context.tone.line,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Expanded(child: child),
+      ],
+    ),
+  );
+}
+
 /// A dot that breathes beside a step that is under way.
 class Breathing extends StatefulWidget {
   final double size;

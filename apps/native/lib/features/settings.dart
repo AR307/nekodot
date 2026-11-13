@@ -17,6 +17,16 @@ import 'user_memory.dart';
 import 'statistics.dart';
 import 'source_models.dart';
 
+/// The parts of settings in order: id, title and icon. The page and the list
+/// that leads to its parts both read them here.
+List<(String, String, IconData)> settingsParts(NekodotClient c) => [
+  ('account', c.tr('账户', 'Account'), Icons.person_outline),
+  ('bots', c.tr('所有 Bot', 'All Bots'), Icons.smart_toy_outlined),
+  if (localRuntime?.location != null && localRuntime?.userId != null)
+    ('computer', c.tr('这台电脑', 'This computer'), Icons.computer_outlined),
+  ('app', c.tr('应用', 'App'), Icons.tune),
+];
+
 class SettingsPage extends StatefulWidget {
   final NekodotClient client;
   final String? sectionId;
@@ -99,11 +109,14 @@ class _SettingsPageState extends State<SettingsPage> {
         trailing: const Icon(Icons.chevron_right),
         onTap: () => pushPage(context, page),
       );
+      final parts = {
+        for (final (id, title, icon) in settingsParts(c)) id: (title, icon),
+      };
       final sections = <_Section>[
         (
           id: 'account',
-          title: c.tr('账户', 'Account'),
-          icon: Icons.person_outline,
+          title: parts['account']!.$1,
+          icon: parts['account']!.$2,
           children: [
             PanelGroup(
               children: [
@@ -148,8 +161,8 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         (
           id: 'bots',
-          title: c.tr('所有 Bot', 'All Bots'),
-          icon: Icons.smart_toy_outlined,
+          title: parts['bots']!.$1,
+          icon: parts['bots']!.$2,
           children: [
             PanelGroup(
               children: [
@@ -174,24 +187,24 @@ class _SettingsPageState extends State<SettingsPage> {
                     c.tr('共用 Hermes 设置', 'Shared Hermes settings'),
                     AppPage(
                       title: c.tr('共用 Hermes 设置', 'Shared Hermes settings'),
-                      body: HermesSettings(client: c),
+                      body: MasterDetail(master: HermesSettings(client: c)),
                     ),
                   ),
               ],
             ),
           ],
         ),
-        if (localRuntime?.location != null && localRuntime?.userId != null)
+        if (parts.containsKey('computer'))
           (
             id: 'computer',
-            title: c.tr('这台电脑', 'This computer'),
-            icon: Icons.computer_outlined,
+            title: parts['computer']!.$1,
+            icon: parts['computer']!.$2,
             children: [LocalComputerPanel(client: c)],
           ),
         (
           id: 'app',
-          title: c.tr('应用', 'App'),
-          icon: Icons.tune,
+          title: parts['app']!.$1,
+          icon: parts['app']!.$2,
           children: [
             PanelGroup(
               children: [
@@ -379,11 +392,13 @@ class SettingsNav extends StatelessWidget {
   final List<(String, String, IconData)> sections;
   final String current;
   final ValueChanged<String> onPick;
+  final EdgeInsets padding;
   const SettingsNav({
     super.key,
     required this.sections,
     required this.current,
     required this.onPick,
+    this.padding = const EdgeInsets.fromLTRB(12, 30, 8, 12),
   });
   @override
   Widget build(BuildContext context) {
@@ -391,20 +406,17 @@ class SettingsNav extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final still = MediaQuery.disableAnimationsOf(context);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 30, 8, 12),
+      padding: padding,
       children: [
         for (final (id, title, icon) in sections)
           Padding(
             padding: const EdgeInsets.only(bottom: 2),
             child: AnimatedContainer(
-              duration: still
-                  ? Duration.zero
-                  : const Duration(milliseconds: 180),
-              curve: Curves.easeOutCubic,
+              duration: still ? Duration.zero : Motion.tint,
               decoration: ShapeDecoration(
-                color: id == current ? tone.raised : Colors.transparent,
+                color: id == current ? tone.hover : Colors.transparent,
                 shape: RoundedSuperellipseBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(Tone.r8),
                 ),
               ),
               child: Material(
@@ -464,68 +476,31 @@ class _SourcesPageState extends State<SourcesPage> {
   @override
   Widget build(BuildContext context) => AppPage(
     title: widget.client.tr('模型来源', 'Model sources'),
-    body: AsyncPane(
-      key: ValueKey(revision),
-      load: () => widget.client.rpc('providers.list'),
-      builder: (context, data, reload) {
-        final custom = objects(data['sources'])
-            .where((s) => s['kind'] == 'custom')
-            .toList();
-        return PageList(
-          children: [
-            SectionLabel(widget.client.tr('授权登录', 'Authorized services')),
-            PanelGroup(
-              children: [
-                for (final provider in objects(data['oauth']))
-                  ListTile(
-                    title: Text('${provider['name'] ?? provider['id']}'),
-                    trailing: StatusDot(
-                      on: (provider['status'] as Map?)?['logged_in'] == true,
-                    ),
-                    onTap: () async {
-                      await pushPage(
-                        context,
-                        AuthorizationPage(
-                          client: widget.client,
-                          provider: provider,
-                        ),
-                      );
-                      reload();
-                    },
-                  ),
-              ],
-            ),
-            SectionLabel(
-              widget.client.tr('自定义 API', 'Custom APIs'),
-              trailing: IconButton(
-                tooltip: widget.client.tr('新增', 'Add'),
-                onPressed: () async {
-                  await pushPage(
-                    context,
-                    CustomSourcePage(client: widget.client),
-                  );
-                  reload();
-                },
-                icon: const Icon(Icons.add),
-              ),
-            ),
-            if (custom.isNotEmpty)
+    body: MasterDetail(
+      master: AsyncPane(
+        key: ValueKey(revision),
+        load: () => widget.client.rpc('providers.list'),
+        builder: (context, data, reload) {
+          final custom = objects(data['sources'])
+              .where((s) => s['kind'] == 'custom')
+              .toList();
+          return PageList(
+            children: [
+              SectionLabel(widget.client.tr('授权登录', 'Authorized services')),
               PanelGroup(
                 children: [
-                  for (final source in custom)
+                  for (final provider in objects(data['oauth']))
                     ListTile(
-                      title: Text('${source['name']}'),
-                      subtitle: Text(
-                        '${source['baseUrl']}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      title: Text('${provider['name'] ?? provider['id']}'),
+                      trailing: StatusDot(
+                        on: (provider['status'] as Map?)?['logged_in'] == true,
                       ),
                       onTap: () async {
                         await pushPage(
                           context,
-                          CustomSourcePage(
+                          AuthorizationPage(
                             client: widget.client,
-                            source: source,
+                            provider: provider,
                           ),
                         );
                         reload();
@@ -533,9 +508,48 @@ class _SourcesPageState extends State<SourcesPage> {
                     ),
                 ],
               ),
-          ],
-        );
-      },
+              SectionLabel(
+                widget.client.tr('自定义 API', 'Custom APIs'),
+                trailing: IconButton(
+                  tooltip: widget.client.tr('新增', 'Add'),
+                  onPressed: () async {
+                    await pushPage(
+                      context,
+                      CustomSourcePage(client: widget.client),
+                    );
+                    reload();
+                  },
+                  icon: const Icon(Icons.add),
+                ),
+              ),
+              if (custom.isNotEmpty)
+                PanelGroup(
+                  children: [
+                    for (final source in custom)
+                      ListTile(
+                        title: Text('${source['name']}'),
+                        subtitle: Text(
+                          '${source['baseUrl']}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        onTap: () async {
+                          await pushPage(
+                            context,
+                            CustomSourcePage(
+                              client: widget.client,
+                              source: source,
+                            ),
+                          );
+                          reload();
+                        },
+                      ),
+                  ],
+                ),
+            ],
+          );
+        },
+      ),
     ),
   );
 }

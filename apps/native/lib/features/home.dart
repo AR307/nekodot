@@ -8,6 +8,7 @@ import '../data/client.dart';
 import '../data/json.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
+import 'account_menu.dart';
 import 'bot_details.dart';
 import 'chat.dart';
 import 'bot_editor.dart';
@@ -24,6 +25,7 @@ import 'time_labels.dart';
 import '../data/spaces.dart';
 import 'space_gallery.dart';
 import 'spaces.dart';
+import 'statistics.dart';
 import 'home_rail.dart';
 
 class HomePage extends StatefulWidget {
@@ -37,6 +39,9 @@ class _HomePageState extends State<HomePage> {
   StreamSubscription<Json>? destinations;
   String? conversation;
   Json? details;
+
+  /// The part of settings shown beside the rail, when settings are open there.
+  String? settingsPart;
 
   /// Files open as tabs beside the conversation, and the one in front.
   final previewFiles = <Json>[];
@@ -205,7 +210,7 @@ class _HomePageState extends State<HomePage> {
         section: actions,
         title: c.tr('设置', 'Settings'),
         leading: icon(Icons.settings_outlined),
-        open: () => openPage(context, SettingsPage(client: c)),
+        open: openSettings,
       ),
     ]);
   }
@@ -232,6 +237,7 @@ class _HomePageState extends State<HomePage> {
         details = null;
         flowFocus = null;
         previewFile = null;
+        settingsPart = null;
       });
     }
   }
@@ -425,56 +431,69 @@ class _HomePageState extends State<HomePage> {
 
   /// Your initial in a round mark: you, and the way to your settings. On the
   /// rail it is white on black whatever the theme.
-  Widget accountMark(double size, {bool onRail = false}) {
-    final tone = context.tone;
-    final name = '${c.account.me?['user']['email'] ?? ''}'.split('@').first;
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: onRail ? Colors.white : tone.ink,
-      ),
-      child: Text(
-        name.isEmpty ? '' : name.characters.first.toUpperCase(),
-        style: TextStyle(
-          color: onRail ? Colors.black : tone.base,
-          fontSize: size * .42,
-          fontWeight: FontWeight.w700,
+  Widget accountMark(double size, {bool onRail = false}) =>
+      AccountMark(client: c, size: size, onRail: onRail);
+
+  /// Settings take the window beside the rail when there is room for their
+  /// list, and open as a page otherwise.
+  void openSettings() {
+    if (!context.tone.glass && MediaQuery.sizeOf(context).width >= 840) {
+      setState(() => settingsPart = settingsParts(c).first.$1);
+    } else {
+      openPage(context, SettingsPage(client: c));
+    }
+  }
+
+  /// You, and what belongs to you rather than to a conversation: a menu on a
+  /// desktop, a sheet on a phone.
+  Widget account(double size, {bool onRail = false}) {
+    Widget quick(VoidCallback close) => AccountQuick(
+      client: c,
+      close: close,
+      onSettings: openSettings,
+      onStatistics: () => openPage(context, StatisticsPage(client: c)),
+      onSignOut: signOut,
+    );
+    final mark = Padding(
+      padding: const EdgeInsets.all(8),
+      child: accountMark(size, onRail: onRail),
+    );
+    final label = c.tr('账户', 'Account');
+    if (context.tone.glass) {
+      return Tooltip(
+        message: label,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => openBottomSheet<void>(
+            context,
+            Builder(
+              builder: (sheet) => SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: quick(() => Navigator.pop(sheet)),
+              ),
+            ),
+            height: .56,
+          ),
+          child: mark,
+        ),
+      );
+    }
+    return MenuPopover(
+      width: 300,
+      menuBuilder: (context, close) => quick(close),
+      builder: (context, toggle, focus) => Tooltip(
+        message: label,
+        child: InkWell(
+          focusNode: focus,
+          onTap: toggle,
+          customBorder: RoundedSuperellipseBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: mark,
         ),
       ),
     );
   }
-
-  /// You, and what belongs to you rather than to a conversation.
-  Widget account(double size, {bool onRail = false}) => ActionMenu<String>(
-    tooltip: c.tr('账户', 'Account'),
-    onSelected: (value) {
-      if (value == 'settings') {
-        openPage(context, SettingsPage(client: c));
-      } else {
-        signOut();
-      }
-    },
-    items: [
-      MenuAction(
-        value: 'settings',
-        icon: Icons.settings_outlined,
-        label: c.tr('设置', 'Settings'),
-      ),
-      null,
-      MenuAction(
-        value: 'logout',
-        icon: Icons.logout,
-        label: c.tr('退出账号', 'Sign out'),
-      ),
-    ],
-    child: Padding(
-      padding: const EdgeInsets.all(8),
-      child: accountMark(size, onRail: onRail),
-    ),
-  );
 
   /// The header of a narrow window: you, the computer, search.
   Widget narrowTop() {
@@ -791,6 +810,7 @@ class _HomePageState extends State<HomePage> {
       details = null;
       flowFocus = null;
       previewFile = null;
+      settingsPart = null;
     });
     c.saveContent();
   }
@@ -804,6 +824,7 @@ class _HomePageState extends State<HomePage> {
       details = null;
       flowFocus = null;
       previewFile = null;
+      settingsPart = null;
     });
     if (MediaQuery.sizeOf(context).width < 840) {
       pushPage(
@@ -1032,14 +1053,19 @@ class _HomePageState extends State<HomePage> {
           if (active.any((x) => x['kind'] != 'group' && needs(x))) 'dot',
           if (active.any((x) => x['kind'] == 'group' && needs(x))) 'group',
         };
+        // Settings stand in for the section while they are open and there is
+        // room for their list.
+        final inSettings = settingsPart != null && !narrow;
         final hasChat =
+            !inSettings &&
             section != 'space' &&
             section != 'plugins' &&
             conversation != null &&
             active.any((x) => x['conversationId'] == conversation);
         final panel = hasChat ? details : null;
         // Spaces and plugins fill the window; the rest have a list beside them.
-        final listed = section != 'plugins' && section != 'space';
+        final listed =
+            inSettings || (section != 'plugins' && section != 'space');
         final widest = (constraints.maxWidth - HomeRail.width - 420).clamp(
           240.0,
           560.0,
@@ -1089,7 +1115,17 @@ class _HomePageState extends State<HomePage> {
             section == 'space' &&
             selectedSpace != null &&
             c.node.spaces[selectedSpace]?.archived == false;
-        final main = section == 'plugins'
+        final main = inSettings
+            // Its own navigator, so that what a setting opens stays in this
+            // part of the window with a way back.
+            ? Navigator(
+                key: ValueKey('settings:${c.selectedNodeId}:$settingsPart'),
+                onGenerateRoute: (_) => MaterialPageRoute<void>(
+                  builder: (_) =>
+                      SettingsPage(client: c, sectionId: settingsPart),
+                ),
+              )
+            : section == 'plugins'
             ? PluginCenterPage(
                 key: ValueKey('plugins:${c.selectedNodeId}'),
                 client: c,
@@ -1149,7 +1185,9 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               );
-        final mainKey = section == 'plugins'
+        final mainKey = inSettings
+            ? 'settings:$settingsPart'
+            : section == 'plugins'
             ? 'plugins'
             : spaceShown
             ? 'space:$selectedSpace'
@@ -1230,7 +1268,7 @@ class _HomePageState extends State<HomePage> {
                           Row(
                             children: [
                               HomeRail(
-                                section: section,
+                                section: inSettings ? '' : section,
                                 onSelect: selectCategory,
                                 waiting: waitingCount,
                                 marked: marked,
@@ -1243,16 +1281,67 @@ class _HomePageState extends State<HomePage> {
                                   child: Material(
                                     color: tone.sidebar,
                                     child: Column(
-                                      children: [
-                                        top(),
-                                        ...notices,
-                                        Expanded(
-                                          child: KeyedSubtree(
-                                            key: ValueKey('list:$section'),
-                                            child: conversations,
-                                          ),
-                                        ),
-                                      ],
+                                      children: inSettings
+                                          ? [
+                                              SizedBox(
+                                                height: 48,
+                                                child: Stack(
+                                                  children: [
+                                                    const Positioned.fill(
+                                                      child: WindowDrag(),
+                                                    ),
+                                                    Align(
+                                                      alignment:
+                                                          Alignment.centerLeft,
+                                                      child: Padding(
+                                                        padding:
+                                                            const EdgeInsets.only(
+                                                              left: 20,
+                                                            ),
+                                                        child: Text(
+                                                          c.tr(
+                                                            '设置',
+                                                            'Settings',
+                                                          ),
+                                                          style:
+                                                              Theme.of(context)
+                                                                  .textTheme
+                                                                  .titleLarge,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: SettingsNav(
+                                                  sections: settingsParts(c),
+                                                  current: settingsPart!,
+                                                  padding:
+                                                      const EdgeInsets.fromLTRB(
+                                                        8,
+                                                        4,
+                                                        8,
+                                                        12,
+                                                      ),
+                                                  onPick: (id) => setState(
+                                                    () => settingsPart = id,
+                                                  ),
+                                                ),
+                                              ),
+                                            ]
+                                          : [
+                                              top(),
+                                              ...notices,
+                                              Expanded(
+                                                child: KeyedSubtree(
+                                                  key: ValueKey(
+                                                    'list:$section',
+                                                  ),
+                                                  child: conversations,
+                                                ),
+                                              ),
+                                            ],
                                     ),
                                   ),
                                 ),
