@@ -77,6 +77,9 @@ class SpacePage extends StatefulWidget {
   final String nodeId, spaceId;
   final bool embedded, expanded;
   final VoidCallback? onExpand;
+
+  /// Where its back button leads when it was opened from the gallery.
+  final VoidCallback? onBack;
   const SpacePage({
     super.key,
     required this.client,
@@ -85,6 +88,7 @@ class SpacePage extends StatefulWidget {
     this.embedded = false,
     this.expanded = false,
     this.onExpand,
+    this.onBack,
   });
   @override
   State<SpacePage> createState() => _SpacePageState();
@@ -362,7 +366,9 @@ class _SpacePageState extends State<SpacePage> {
           leading: IconButton(
             tooltip: c.tr('返回', 'Back'),
             icon: const Icon(Icons.arrow_back),
-            onPressed: widget.embedded ? chat : () => Navigator.pop(context),
+            onPressed:
+                widget.onBack ??
+                (widget.embedded ? chat : () => Navigator.pop(context)),
           ),
           title: Text(
             space?.name ?? '',

@@ -175,10 +175,141 @@ class _BotEditorState extends State<BotEditor> {
     super.dispose();
   }
 
+  /// The Bot as it will appear: its face, its row in the list, its first
+  /// words in a conversation. It follows the form as it is filled in.
+  Widget preview(BuildContext context) {
+    final tone = context.tone, text = Theme.of(context).textTheme;
+    final hello = c.tr('你好，要我做什么？', 'Hi, what should I do?');
+    final now = TimeOfDay.now();
+    return SizedBox(
+      width: 240,
+      child: ListenableBuilder(
+        listenable: name,
+        builder: (context, _) {
+          final shown = name.text.trim().isEmpty
+              ? c.tr('新 Bot', 'New Bot')
+              : name.text.trim();
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 12, 8, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: AnimatedSwitcher(
+                    duration: Motion.span(context, Motion.tick),
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: ScaleTransition(
+                        scale: Tween(
+                          begin: .86,
+                          end: 1.0,
+                        ).animate(Motion.spring(animation, Motion.tick)),
+                        child: child,
+                      ),
+                    ),
+                    child: CatAvatar(
+                      key: ValueKey('$shape$color'),
+                      color: color,
+                      shape: shape,
+                      size: 96,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  shown,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.titleLarge,
+                ),
+                const SizedBox(height: 24),
+                Text(c.tr('列表', 'List'), style: text.titleSmall),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: tone.hover,
+                    borderRadius: BorderRadius.circular(Tone.r8),
+                  ),
+                  child: Row(
+                    children: [
+                      CatAvatar(color: color, shape: shape, size: 36),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    shown,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: text.titleMedium?.copyWith(
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: tone.ink3,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              hello,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: text.bodySmall?.copyWith(color: tone.ink2),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(c.tr('对话', 'Chat'), style: text.titleSmall),
+                const SizedBox(height: 6),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 9,
+                    ),
+                    decoration: ShapeDecoration(
+                      color: tone.bubble,
+                      shape: RoundedSuperellipseBorder(
+                        borderRadius: BorderRadius.circular(Tone.r16),
+                      ),
+                    ),
+                    child: Text(hello, style: text.bodyMedium),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tone = context.tone;
     const gap = SizedBox(height: 10);
+    // On a desktop a Bot's form stands beside what it will look like.
+    final beside = !widget.group && !tone.glass;
     return PopScope(
       canPop: !busy,
       child: AppPage(
@@ -189,395 +320,456 @@ class _BotEditorState extends State<BotEditor> {
             : widget.existing == null
             ? c.tr('新建 Bot', 'New Bot')
             : c.tr('编辑 Bot', 'Edit Bot'),
-        body: PageList(
-          children: [
-            if (widget.importProfile) ...[
-              Text(
-                c.tr(
-                  '从压缩包创建独立 Bot，保留导入的技能和设定。凭据不在可分享的压缩包中，请选择本节点已有模型来源。',
-                  'Create an independent Bot with the archive’s skills and settings. Shared archives exclude credentials; choose a model source on this Node.',
-                ),
-              ),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.folder_zip_outlined),
-                label: Text(
-                  '${archive?['name'] ?? c.tr('选择 .tar.gz 文件', 'Choose .tar.gz file')}',
-                ),
-                onPressed: busy
-                    ? null
-                    : () async {
-                        try {
-                          final dm = c.node.conversations.firstWhere(
-                            (row) => row['kind'] == 'dm',
-                          );
-                          final file = await pickChatFile(
-                            c,
-                            '${dm['conversationId']}',
-                            (_) {},
-                          );
-                          if (file != null && mounted) {
-                            setState(() => archive = file);
-                          }
-                        } catch (e) {
-                          if (mounted) setState(() => error = '$e');
-                        }
-                      },
-              ),
-              gap,
-            ],
-            if (!widget.group) ...[
-              Center(
-                child: AnimatedSwitcher(
-                  duration: MediaQuery.disableAnimationsOf(context)
-                      ? Duration.zero
-                      : const Duration(milliseconds: 180),
-                  transitionBuilder: (child, animation) => ScaleTransition(
-                    scale: CurvedAnimation(
-                      parent: animation,
-                      curve: Curves.easeOutBack,
-                    ),
-                    child: child,
-                  ),
-                  child: CatAvatar(
-                    key: ValueKey('$shape$color'),
-                    color: color,
-                    shape: shape,
-                    size: tone.glass ? 104 : 88,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Center(
-                child: Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 3,
-                  runSpacing: 3,
+        body: LayoutBuilder(
+          builder: (context, box) => Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (beside && box.maxWidth >= 620) preview(context),
+              Expanded(
+                child: PageList(
                   children: [
-                    for (final value in avatarShapes)
-                      Tooltip(
-                        message: switch (value) {
-                          'dot' => c.tr('猫', 'Cat'),
-                          'bear' => c.tr('熊', 'Bear'),
-                          'bunny' => c.tr('兔', 'Bunny'),
-                          'puppy' => c.tr('狗', 'Puppy'),
-                          'mochi' => c.tr('团子', 'Mochi'),
-                          'flower' => c.tr('花', 'Flower'),
-                          'ghost' => c.tr('幽灵', 'Ghost'),
-                          _ => c.tr('机器人', 'Robot'),
-                        },
-                        child: InkResponse(
-                          radius: 30,
-                          onTap: () => setState(() => shape = value),
-                          child: Semantics(
-                            button: true,
-                            selected: value == shape,
-                            child: AnimatedContainer(
-                              duration: MediaQuery.disableAnimationsOf(context)
-                                  ? Duration.zero
-                                  : const Duration(milliseconds: 160),
-                              width: tone.glass ? 52 : 44,
-                              height: tone.glass ? 52 : 44,
-                              padding: const EdgeInsets.all(7),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: value == shape
-                                      ? tone.ink
-                                      : Colors.transparent,
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: CatAvatar(color: color, shape: value),
-                            ),
-                          ),
+                    if (widget.importProfile) ...[
+                      Text(
+                        c.tr(
+                          '从压缩包创建独立 Bot，保留导入的技能和设定。凭据不在可分享的压缩包中，请选择本节点已有模型来源。',
+                          'Create an independent Bot with the archive’s skills and settings. Shared archives exclude credentials; choose a model source on this Node.',
                         ),
                       ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              Center(
-                child: SizedBox(
-                  width: 44 * 8 + 4 * 7,
-                  child: Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 4,
-                    runSpacing: 4,
-                    children: [
-                      for (final value in avatarColors)
-                        InkResponse(
-                          key: ValueKey('avatar-color-$value'),
-                          radius: 24,
-                          onTap: () => setState(() => color = value),
-                          child: Semantics(
-                            button: true,
-                            selected: value == color,
-                            label: value,
-                            child: SizedBox.square(
-                              dimension: 44,
-                              child: Center(
-                                child: AnimatedContainer(
-                                  duration:
-                                      MediaQuery.disableAnimationsOf(context)
-                                      ? Duration.zero
-                                      : const Duration(milliseconds: 160),
-                                  width: tone.glass ? 40 : 30,
-                                  height: tone.glass ? 40 : 30,
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: value == color
-                                          ? tone.ink
-                                          : Colors.transparent,
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: hexColor(value),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.folder_zip_outlined),
+                        label: Text(
+                          '${archive?['name'] ?? c.tr('选择 .tar.gz 文件', 'Choose .tar.gz file')}',
                         ),
+                        onPressed: busy
+                            ? null
+                            : () async {
+                                try {
+                                  final dm = c.node.conversations.firstWhere(
+                                    (row) => row['kind'] == 'dm',
+                                  );
+                                  final file = await pickChatFile(
+                                    c,
+                                    '${dm['conversationId']}',
+                                    (_) {},
+                                  );
+                                  if (file != null && mounted) {
+                                    setState(() => archive = file);
+                                  }
+                                } catch (e) {
+                                  if (mounted) setState(() => error = '$e');
+                                }
+                              },
+                      ),
+                      gap,
                     ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            LabeledField(
-              label: c.tr('名称', 'Name'),
-              child: TextField(
-                key: const ValueKey('bot-name'),
-                controller: name,
-                decoration: InputDecoration(),
-                onChanged: widget.group || widget.existing != null
-                    ? null
-                    : (value) {
-                        if (!handleEdited) {
-                          handle.text = value
-                              .trim()
-                              .toLowerCase()
-                              .replaceFirst(RegExp(r'^@'), '')
-                              .replaceAll(RegExp(r'\s+'), '-')
-                              .replaceAll(
-                                RegExp(r'[^a-z0-9\u3400-\u9fff_-]'),
-                                '-',
-                              )
-                              .replaceAll(RegExp(r'^-+|-+$'), '')
-                              .characters
-                              .take(24)
-                              .toString();
-                        }
-                      },
-              ),
-            ),
-            gap,
-            if (widget.group) ...[
-              SectionLabel(
-                c.tr('成员', 'Members'),
-                trailing: Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ChainDots(count: members.length, max: 6),
-                ),
-              ),
-              PanelGroup(
-                children: [
-                  for (final bot in c.node.bots.where(
-                    (b) => b['archived'] != true,
-                  ))
-                    CheckboxListTile(
-                      secondary: CatAvatar.of(bot),
-                      title: Text('${bot['displayName']}'),
-                      value: members.contains(bot['botId']),
-                      onChanged: (value) => setState(() {
-                        if (value == true) {
-                          members.add(bot['botId'] as String);
-                          lead ??= bot['botId'] as String;
-                        } else {
-                          members.remove(bot['botId']);
-                          if (lead == bot['botId']) lead = members.firstOrNull;
-                        }
-                      }),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              LabeledField(
-                label: c.tr('主答', 'Lead'),
-                child: MenuSelect<String>(
-                  value: lead,
-                  options: [
-                    for (final b in c.node.bots.where(
-                      (b) => members.contains(b['botId']),
-                    ))
-                      (b['botId'] as String, '${b['displayName']}'),
-                  ],
-                  onChanged: (value) => setState(() => lead = value),
-                ),
-              ),
-            ] else ...[
-              ModelSelection(
-                client: c,
-                sourceId: source,
-                model: model.text,
-                enabled: !busy,
-                onChanged: (selected, value) => setState(() {
-                  source = selected;
-                  model.text = value;
-                }),
-              ),
-              gap,
-              LabeledField(
-                label: c.tr('审批', 'Approval'),
-                child: MenuSelect<String>(
-                  key: const ValueKey('approval-mode'),
-                  value: mode,
-                  options: [
-                    ('manual', c.tr('每次询问', 'Ask each time')),
-                    ('smart', c.tr('智能审批', 'Smart approval')),
-                    ('off', c.tr('全部允许', 'Allow all')),
-                  ],
-                  onChanged: permissionsReady
-                      ? (value) => setState(() => mode = value)
-                      : null,
-                ),
-              ),
-              if (!permissionsReady)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: IconButton(
-                    tooltip: c.tr('重新读取审批设置', 'Reload approval settings'),
-                    onPressed: loadPermissions,
-                    icon: const Icon(Icons.refresh),
-                  ),
-                ),
-              ExpansionTile(
-                tilePadding: const EdgeInsets.symmetric(horizontal: 6),
-                childrenPadding: const EdgeInsets.only(bottom: 8),
-                title: Text(
-                  c.tr('高级', 'Advanced'),
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                children: [
-                  LabeledField(
-                    label: '@handle',
-                    child: TextField(
-                      controller: handle,
-                      onChanged: (_) => handleEdited = true,
-                      decoration: InputDecoration(
-                        helperText: c.tr(
-                          '默认与名称相同，支持中文；想换一个写法时再改',
-                          'Same as the name by default, Chinese included; change it only if you want another',
+                    if (!widget.group) ...[
+                      if (!beside || box.maxWidth < 620) ...[
+                        Center(
+                          child: AnimatedSwitcher(
+                            duration: Motion.span(context, Motion.tick),
+                            transitionBuilder: (child, animation) =>
+                                FadeTransition(
+                                  opacity: animation,
+                                  child: ScaleTransition(
+                                    scale: Tween(begin: .86, end: 1.0).animate(
+                                      Motion.spring(animation, Motion.tick),
+                                    ),
+                                    child: child,
+                                  ),
+                                ),
+                            child: CatAvatar(
+                              key: ValueKey('$shape$color'),
+                              color: color,
+                              shape: shape,
+                              size: tone.glass ? 104 : 88,
+                            ),
+                          ),
                         ),
-                        helperMaxLines: 3,
+                        const SizedBox(height: 12),
+                      ] else
+                        SectionLabel(c.tr('形象', 'Look')),
+                      Align(
+                        alignment: beside
+                            ? Alignment.centerLeft
+                            : Alignment.center,
+                        child: SizedBox(
+                          width: tone.glass ? 52 * 4 + 3 * 3 : null,
+                          child: Wrap(
+                            alignment: beside
+                                ? WrapAlignment.start
+                                : WrapAlignment.center,
+                            spacing: 3,
+                            runSpacing: 3,
+                            children: [
+                              for (final value in avatarShapes)
+                                Tooltip(
+                                  message: switch (value) {
+                                    'dot' => c.tr('猫', 'Cat'),
+                                    'bear' => c.tr('熊', 'Bear'),
+                                    'bunny' => c.tr('兔', 'Bunny'),
+                                    'puppy' => c.tr('狗', 'Puppy'),
+                                    'mochi' => c.tr('团子', 'Mochi'),
+                                    'flower' => c.tr('花', 'Flower'),
+                                    'ghost' => c.tr('幽灵', 'Ghost'),
+                                    _ => c.tr('机器人', 'Robot'),
+                                  },
+                                  child: InkResponse(
+                                    radius: 30,
+                                    onTap: () => setState(() => shape = value),
+                                    child: Semantics(
+                                      button: true,
+                                      selected: value == shape,
+                                      child: AnimatedContainer(
+                                        duration:
+                                            MediaQuery.disableAnimationsOf(
+                                              context,
+                                            )
+                                            ? Duration.zero
+                                            : const Duration(milliseconds: 160),
+                                        width: tone.glass ? 52 : 44,
+                                        height: tone.glass ? 52 : 44,
+                                        padding: const EdgeInsets.all(7),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: value == shape
+                                                ? tone.ink
+                                                : Colors.transparent,
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        child: CatAvatar(
+                                          color: color,
+                                          shape: value,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: beside
+                            ? Alignment.centerLeft
+                            : Alignment.center,
+                        child: SizedBox(
+                          width: 44 * 8 + 4 * 7,
+                          child: Wrap(
+                            alignment: beside
+                                ? WrapAlignment.start
+                                : WrapAlignment.center,
+                            spacing: 4,
+                            runSpacing: 4,
+                            children: [
+                              for (final value in avatarColors)
+                                InkResponse(
+                                  key: ValueKey('avatar-color-$value'),
+                                  radius: 24,
+                                  onTap: () => setState(() => color = value),
+                                  child: Semantics(
+                                    button: true,
+                                    selected: value == color,
+                                    label: value,
+                                    child: SizedBox.square(
+                                      dimension: 44,
+                                      child: Center(
+                                        child: AnimatedContainer(
+                                          duration:
+                                              MediaQuery.disableAnimationsOf(
+                                                context,
+                                              )
+                                              ? Duration.zero
+                                              : const Duration(
+                                                  milliseconds: 160,
+                                                ),
+                                          width: tone.glass ? 40 : 30,
+                                          height: tone.glass ? 40 : 30,
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: value == color
+                                                  ? tone.ink
+                                                  : Colors.transparent,
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                          child: DecoratedBox(
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: hexColor(value),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    LabeledField(
+                      label: c.tr('名称', 'Name'),
+                      child: TextField(
+                        key: const ValueKey('bot-name'),
+                        controller: name,
+                        decoration: InputDecoration(),
+                        onChanged: widget.group || widget.existing != null
+                            ? null
+                            : (value) {
+                                if (!handleEdited) {
+                                  handle.text = value
+                                      .trim()
+                                      .toLowerCase()
+                                      .replaceFirst(RegExp(r'^@'), '')
+                                      .replaceAll(RegExp(r'\s+'), '-')
+                                      .replaceAll(
+                                        RegExp(r'[^a-z0-9\u3400-\u9fff_-]'),
+                                        '-',
+                                      )
+                                      .replaceAll(RegExp(r'^-+|-+$'), '')
+                                      .characters
+                                      .take(24)
+                                      .toString();
+                                }
+                              },
                       ),
                     ),
-                  ),
-                  gap,
-                  LabeledField(
-                    label: c.tr('上下文覆盖', 'Context override'),
-                    child: TextField(
-                      controller: contextLength,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(),
+                    gap,
+                    if (widget.group) ...[
+                      SectionLabel(
+                        c.tr('成员', 'Members'),
+                        trailing: Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: ChainDots(count: members.length, max: 6),
+                        ),
+                      ),
+                      PanelGroup(
+                        children: [
+                          for (final bot in c.node.bots.where(
+                            (b) => b['archived'] != true,
+                          ))
+                            CheckboxListTile(
+                              secondary: CatAvatar.of(bot),
+                              title: Text('${bot['displayName']}'),
+                              value: members.contains(bot['botId']),
+                              onChanged: (value) => setState(() {
+                                if (value == true) {
+                                  members.add(bot['botId'] as String);
+                                  lead ??= bot['botId'] as String;
+                                } else {
+                                  members.remove(bot['botId']);
+                                  if (lead == bot['botId']) {
+                                    lead = members.firstOrNull;
+                                  }
+                                }
+                              }),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      LabeledField(
+                        label: c.tr('主答', 'Lead'),
+                        child: MenuSelect<String>(
+                          value: lead,
+                          options: [
+                            for (final b in c.node.bots.where(
+                              (b) => members.contains(b['botId']),
+                            ))
+                              (b['botId'] as String, '${b['displayName']}'),
+                          ],
+                          onChanged: (value) => setState(() => lead = value),
+                        ),
+                      ),
+                    ] else ...[
+                      ModelSelection(
+                        client: c,
+                        sourceId: source,
+                        model: model.text,
+                        enabled: !busy,
+                        onChanged: (selected, value) => setState(() {
+                          source = selected;
+                          model.text = value;
+                        }),
+                      ),
+                      gap,
+                      LabeledField(
+                        label: c.tr('审批', 'Approval'),
+                        // Three ways, all in sight; it waits for the Bot's own
+                        // setting before it can be changed.
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: IgnorePointer(
+                            ignoring: !permissionsReady,
+                            child: Opacity(
+                              opacity: permissionsReady ? 1 : .5,
+                              child: Segment<String>(
+                                key: const ValueKey('approval-mode'),
+                                value: mode,
+                                options: {
+                                  'manual': Text(c.tr('每次询问', 'Ask each time')),
+                                  'smart': Text(c.tr('智能审批', 'Smart approval')),
+                                  'off': Text(c.tr('全部允许', 'Allow all')),
+                                },
+                                onChanged: (value) =>
+                                    setState(() => mode = value),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (!permissionsReady)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: IconButton(
+                            tooltip: c.tr(
+                              '重新读取审批设置',
+                              'Reload approval settings',
+                            ),
+                            onPressed: loadPermissions,
+                            icon: const Icon(Icons.refresh),
+                          ),
+                        ),
+                      ExpansionTile(
+                        tilePadding: const EdgeInsets.symmetric(horizontal: 6),
+                        childrenPadding: const EdgeInsets.only(bottom: 8),
+                        title: Text(
+                          c.tr('高级', 'Advanced'),
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        children: [
+                          LabeledField(
+                            label: '@handle',
+                            child: TextField(
+                              controller: handle,
+                              onChanged: (_) => handleEdited = true,
+                              decoration: InputDecoration(
+                                helperText: c.tr(
+                                  '默认与名称相同，支持中文；想换一个写法时再改',
+                                  'Same as the name by default, Chinese included; change it only if you want another',
+                                ),
+                                helperMaxLines: 3,
+                              ),
+                            ),
+                          ),
+                          gap,
+                          LabeledField(
+                            label: c.tr('上下文覆盖', 'Context override'),
+                            child: TextField(
+                              controller: contextLength,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    ErrorNotice(error),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        if (widget.existing != null)
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              foregroundColor: tone.danger,
+                            ),
+                            onPressed: busy
+                                ? null
+                                : () async {
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: Text(
+                                          widget.group
+                                              ? c.tr(
+                                                  '归档此群聊？',
+                                                  'Archive this group?',
+                                                )
+                                              : c.tr(
+                                                  '归档此 Bot？',
+                                                  'Archive this Bot?',
+                                                ),
+                                        ),
+                                        content: Text(name.text),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, false),
+                                            child: Text(c.tr('取消', 'Cancel')),
+                                          ),
+                                          FilledButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, true),
+                                            child: Text(c.tr('归档', 'Archive')),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirmed != true || !mounted) return;
+                                    setState(() => busy = true);
+                                    try {
+                                      await c.rpc(
+                                        widget.group
+                                            ? 'groups.archive'
+                                            : 'bots.archive',
+                                        {
+                                          widget.group ? 'groupId' : 'botId':
+                                              widget.existing![widget.group
+                                                  ? 'groupId'
+                                                  : 'botId'],
+                                        },
+                                      );
+                                      if (context.mounted) {
+                                        setState(() => busy = false);
+                                        Navigator.pop(context);
+                                      }
+                                    } catch (e) {
+                                      if (mounted) {
+                                        setState(() {
+                                          error = '$e';
+                                          busy = false;
+                                        });
+                                      }
+                                    }
+                                  },
+                            child: Text(c.tr('归档', 'Archive')),
+                          ),
+                        const Spacer(),
+                        FilledButton(
+                          key: const ValueKey('bot-save'),
+                          onPressed:
+                              busy ||
+                                  !permissionsReady ||
+                                  (widget.existing == null && !c.online) ||
+                                  (!widget.group &&
+                                      widget.existing == null &&
+                                      source == null) ||
+                                  (widget.group &&
+                                      (members.length < 2 ||
+                                          members.length > 6))
+                              ? null
+                              : save,
+                          child: busy
+                              ? ShiningText(
+                                  text: widget.existing == null
+                                      ? c.tr('创建中…', 'Creating…')
+                                      : c.tr('正在保存…', 'Saving…'),
+                                )
+                              : Text(c.tr('保存', 'Save')),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
-            ErrorNotice(error),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                if (widget.existing != null)
-                  TextButton(
-                    style: TextButton.styleFrom(foregroundColor: tone.danger),
-                    onPressed: busy
-                        ? null
-                        : () async {
-                            final confirmed = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: Text(
-                                  widget.group
-                                      ? c.tr('归档此群聊？', 'Archive this group?')
-                                      : c.tr('归档此 Bot？', 'Archive this Bot?'),
-                                ),
-                                content: Text(name.text),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, false),
-                                    child: Text(c.tr('取消', 'Cancel')),
-                                  ),
-                                  FilledButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, true),
-                                    child: Text(c.tr('归档', 'Archive')),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (confirmed != true || !mounted) return;
-                            setState(() => busy = true);
-                            try {
-                              await c.rpc(
-                                widget.group
-                                    ? 'groups.archive'
-                                    : 'bots.archive',
-                                {
-                                  widget.group ? 'groupId' : 'botId':
-                                      widget.existing![widget.group
-                                          ? 'groupId'
-                                          : 'botId'],
-                                },
-                              );
-                              if (context.mounted) {
-                                setState(() => busy = false);
-                                Navigator.pop(context);
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                setState(() {
-                                  error = '$e';
-                                  busy = false;
-                                });
-                              }
-                            }
-                          },
-                    child: Text(c.tr('归档', 'Archive')),
-                  ),
-                const Spacer(),
-                FilledButton(
-                  key: const ValueKey('bot-save'),
-                  onPressed:
-                      busy ||
-                          !permissionsReady ||
-                          (widget.existing == null && !c.online) ||
-                          (!widget.group &&
-                              widget.existing == null &&
-                              source == null) ||
-                          (widget.group &&
-                              (members.length < 2 || members.length > 6))
-                      ? null
-                      : save,
-                  child: busy
-                      ? ShiningText(
-                          text: widget.existing == null
-                              ? c.tr('创建中…', 'Creating…')
-                              : c.tr('正在保存…', 'Saving…'),
-                        )
-                      : Text(c.tr('保存', 'Save')),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );

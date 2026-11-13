@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/client.dart';
 import '../data/json.dart';
 import '../local/runtime.dart';
+import '../platform/desktop.dart';
 import '../ui/design.dart';
 import 'connectors.dart';
 import 'extensions.dart';
@@ -16,10 +17,14 @@ Future<void> showPluginCenter(BuildContext context, NekodotClient client) =>
 class PluginCenterPage extends StatefulWidget {
   final NekodotClient client;
   final String kind;
+
+  /// Whether it fills the window beside the rail, with a bar of its own.
+  final bool embedded;
   const PluginCenterPage({
     super.key,
     required this.client,
     this.kind = 'skills',
+    this.embedded = false,
   });
   @override
   State<PluginCenterPage> createState() => _PluginCenterPageState();
@@ -133,18 +138,17 @@ class _PluginCenterPageState extends State<PluginCenterPage> {
                 ),
               ),
             );
-      return AppPage(
-        title: c.tr('插件中心', 'Plugin center'),
-        body: ColoredBox(
-          color: tone.base,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final wide =
-                  !tone.glass &&
-                  constraints.maxWidth >= 720 &&
-                  MediaQuery.textScalerOf(context).scale(14) <= 20;
-              final content = Column(
-                children: [
+      final body = ColoredBox(
+        color: tone.base,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final wide =
+                !tone.glass &&
+                constraints.maxWidth >= 720 &&
+                MediaQuery.textScalerOf(context).scale(14) <= 20;
+            final content = Column(
+              children: [
+                if (!widget.embedded || !wide)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
                     child: Row(
@@ -185,107 +189,155 @@ class _PluginCenterPageState extends State<PluginCenterPage> {
                           ),
                           const SizedBox(width: 16),
                         ],
+                        if (!widget.embedded)
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: scope,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: IndexedStack(
+                    index: icons.keys.toList().indexOf(kind),
+                    children: [
+                      for (final item in icons.keys)
+                        TickerMode(
+                          enabled: item == kind,
+                          child: !visited.contains(item)
+                              ? const SizedBox.shrink()
+                              : item == 'connectors'
+                              ? ConnectorsBody(
+                                  key: ValueKey(
+                                    c.account.me?['user']?['userId'],
+                                  ),
+                                  client: c,
+                                )
+                              : c.selectedNodeId == null
+                              ? Center(
+                                  child: TextButton.icon(
+                                    onPressed: addComputer,
+                                    icon: const Icon(
+                                      Icons.add_to_queue_outlined,
+                                    ),
+                                    label: Text(c.tr('添加电脑', 'Add computer')),
+                                  ),
+                                )
+                              : item == 'mcp'
+                              ? McpBody(
+                                  key: ValueKey(c.selectedNodeId),
+                                  client: c,
+                                )
+                              : ExtensionsBody(
+                                  key: ValueKey('$item:${c.selectedNodeId}'),
+                                  client: c,
+                                  kind: item,
+                                ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (wide)
+                  SizedBox(
+                    width: 176,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
+                      child: Column(
+                        children: [
+                          for (final entry in labels.entries)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: TextButton(
+                                key: ValueKey('plugin-kind-${entry.key}'),
+                                onPressed: () => select(entry.key),
+                                style: TextButton.styleFrom(
+                                  alignment: Alignment.centerLeft,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                  textStyle: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: kind == entry.key
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                  ),
+                                  foregroundColor: kind == entry.key
+                                      ? tone.ink
+                                      : tone.ink2,
+                                  backgroundColor: kind == entry.key
+                                      ? tone.hover
+                                      : Colors.transparent,
+                                  shape: RoundedSuperellipseBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      Tone.r8,
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(icons[entry.key], size: 18),
+                                    const SizedBox(width: 12),
+                                    Text(entry.value),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                Expanded(child: content),
+              ],
+            );
+          },
+        ),
+      );
+      if (!widget.embedded) {
+        return AppPage(title: c.tr('插件中心', 'Plugin center'), body: body);
+      }
+      return Material(
+        color: tone.base,
+        child: Column(
+          children: [
+            SizedBox(
+              height: 48,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  const Positioned.fill(child: WindowDrag()),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 24, right: 8),
+                    child: Row(
+                      children: [
+                        Text(
+                          c.tr('插件中心', 'Plugin center'),
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(width: 16),
                         Expanded(
                           child: Align(
                             alignment: Alignment.centerRight,
                             child: scope,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: IndexedStack(
-                      index: icons.keys.toList().indexOf(kind),
-                      children: [
-                        for (final item in icons.keys)
-                          TickerMode(
-                            enabled: item == kind,
-                            child: !visited.contains(item)
-                                ? const SizedBox.shrink()
-                                : item == 'connectors'
-                                ? ConnectorsBody(
-                                    key: ValueKey(
-                                      c.account.me?['user']?['userId'],
-                                    ),
-                                    client: c,
-                                  )
-                                : c.selectedNodeId == null
-                                ? Center(
-                                    child: TextButton.icon(
-                                      onPressed: addComputer,
-                                      icon: const Icon(
-                                        Icons.add_to_queue_outlined,
-                                      ),
-                                      label: Text(c.tr('添加电脑', 'Add computer')),
-                                    ),
-                                  )
-                                : item == 'mcp'
-                                ? McpBody(
-                                    key: ValueKey(c.selectedNodeId),
-                                    client: c,
-                                  )
-                                : ExtensionsBody(
-                                    key: ValueKey('$item:${c.selectedNodeId}'),
-                                    client: c,
-                                    kind: item,
-                                  ),
-                          ),
+                        const SizedBox(width: 8),
+                        SizedBox(width: WindowChrome.reserved(context)),
                       ],
                     ),
                   ),
                 ],
-              );
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (wide)
-                    SizedBox(
-                      width: 176,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
-                        child: Column(
-                          children: [
-                            for (final entry in labels.entries)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 4),
-                                child: TextButton(
-                                  key: ValueKey('plugin-kind-${entry.key}'),
-                                  onPressed: () => select(entry.key),
-                                  style: TextButton.styleFrom(
-                                    alignment: Alignment.centerLeft,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 12,
-                                    ),
-                                    foregroundColor: kind == entry.key
-                                        ? tone.ink
-                                        : tone.ink2,
-                                    backgroundColor: kind == entry.key
-                                        ? tone.hover
-                                        : Colors.transparent,
-                                    shape: RoundedSuperellipseBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(icons[entry.key], size: 18),
-                                      const SizedBox(width: 12),
-                                      Text(entry.value),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  Expanded(child: content),
-                ],
-              );
-            },
-          ),
+              ),
+            ),
+            Expanded(child: body),
+          ],
         ),
       );
     },

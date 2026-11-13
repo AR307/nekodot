@@ -22,6 +22,7 @@ import 'flowchart.dart';
 import 'search_palette.dart';
 import 'time_labels.dart';
 import '../data/spaces.dart';
+import 'space_gallery.dart';
 import 'spaces.dart';
 import 'home_rail.dart';
 
@@ -73,7 +74,6 @@ class _HomePageState extends State<HomePage> {
               : 'conversation:$node']
           as String?;
   String? selectedSpace;
-  bool expandedSpace = false;
 
   /// The sidebar's width while it is being dragged; saved when let go.
   double? dragging;
@@ -223,7 +223,6 @@ class _HomePageState extends State<HomePage> {
     c.saveContent();
     setState(() {
       conversation = id;
-      expandedSpace = false;
     });
     if (narrow) {
       await pushPage(context, ChatPage(client: c, conversationId: id));
@@ -259,7 +258,6 @@ class _HomePageState extends State<HomePage> {
               id,
             );
             selectedSpace = c.workspace['space:$id'] as String?;
-            expandedSpace = false;
             details = null;
             flowFocus = null;
             previewFile = null;
@@ -793,7 +791,6 @@ class _HomePageState extends State<HomePage> {
       details = null;
       flowFocus = null;
       previewFile = null;
-      expandedSpace = false;
     });
     c.saveContent();
   }
@@ -804,7 +801,6 @@ class _HomePageState extends State<HomePage> {
     c.saveContent();
     setState(() {
       selectedSpace = space.spaceId;
-      expandedSpace = false;
       details = null;
       flowFocus = null;
       previewFile = null;
@@ -1042,12 +1038,13 @@ class _HomePageState extends State<HomePage> {
             conversation != null &&
             active.any((x) => x['conversationId'] == conversation);
         final panel = hasChat ? details : null;
-        final listed = section != 'plugins';
+        // Spaces and plugins fill the window; the rest have a list beside them.
+        final listed = section != 'plugins' && section != 'space';
         final widest = (constraints.maxWidth - HomeRail.width - 420).clamp(
           240.0,
           560.0,
         );
-        final sidebar = !listed || (expandedSpace && section == 'space')
+        final sidebar = !listed
             ? 0.0
             : (dragging ?? c.prefs.sidebarWidth ?? 292.0).clamp(240.0, widest);
         final flowShown = hasChat && flowFocus != null;
@@ -1097,6 +1094,7 @@ class _HomePageState extends State<HomePage> {
                 key: ValueKey('plugins:${c.selectedNodeId}'),
                 client: c,
                 kind: 'skills',
+                embedded: true,
               )
             : spaceShown
             ? SpacePage(
@@ -1105,8 +1103,19 @@ class _HomePageState extends State<HomePage> {
                 nodeId: c.selectedNodeId!,
                 spaceId: selectedSpace!,
                 embedded: true,
-                expanded: expandedSpace,
-                onExpand: () => setState(() => expandedSpace = !expandedSpace),
+                onBack: () => setState(() {
+                  selectedSpace = null;
+                  c.workspace.remove('space:${c.selectedNodeId}');
+                  c.saveContent();
+                }),
+              )
+            : section == 'space'
+            ? SpaceGallery(
+                client: c,
+                spaces: spaces,
+                titled: true,
+                onOpen: showSpace,
+                onCreate: () => create('space'),
               )
             : hasChat
             ? ChatPage(
@@ -1144,6 +1153,8 @@ class _HomePageState extends State<HomePage> {
             ? 'plugins'
             : spaceShown
             ? 'space:$selectedSpace'
+            : section == 'space'
+            ? 'spaces'
             : hasChat
             ? 'chat:$conversation'
             : 'empty';
@@ -1177,7 +1188,14 @@ class _HomePageState extends State<HomePage> {
                                 Positioned.fill(
                                   child: KeyedSubtree(
                                     key: ValueKey('list:$section'),
-                                    child: conversations,
+                                    child: section == 'space'
+                                        ? SpaceGallery(
+                                            client: c,
+                                            spaces: spaces,
+                                            onOpen: showSpace,
+                                            onCreate: () => create('space'),
+                                          )
+                                        : conversations,
                                   ),
                                 ),
                                 Positioned(
