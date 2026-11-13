@@ -123,3 +123,72 @@ abstract final class Motion {
   static Duration span(BuildContext context, Spring spring) =>
       still(context) ? Duration.zero : spring.duration;
 }
+
+/// Something that has just come into view: it fades in and settles into place
+/// on a spring, once. [delay] lets the rows of a list arrive one after
+/// another.
+class Appear extends StatefulWidget {
+  final Widget child;
+  final Duration delay;
+  final Spring spring;
+  final Offset from;
+  const Appear({
+    super.key,
+    required this.child,
+    this.delay = Duration.zero,
+    this.spring = Motion.swap,
+    this.from = const Offset(0, 14),
+  });
+  @override
+  State<Appear> createState() => _AppearState();
+}
+
+class _AppearState extends State<Appear> with SingleTickerProviderStateMixin {
+  late final controller = AnimationController(
+    vsync: this,
+    duration: widget.delay + widget.spring.duration,
+  );
+  bool started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (started) return;
+    started = true;
+    if (Motion.still(context)) {
+      controller.value = 1;
+    } else {
+      controller.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: controller,
+    child: widget.child,
+    builder: (context, child) {
+      if (controller.value == 1) return child!;
+      final total = controller.duration!.inMicroseconds;
+      final waited = widget.delay.inMicroseconds;
+      final t = total == waited
+          ? 1.0
+          : ((controller.value * total - waited) / (total - waited)).clamp(
+              0.0,
+              1.0,
+            );
+      return Opacity(
+        opacity: Motion.fade.transform(t),
+        child: Transform.translate(
+          offset: widget.from * (1 - widget.spring.transform(t)),
+          child: child,
+        ),
+      );
+    },
+  );
+}
