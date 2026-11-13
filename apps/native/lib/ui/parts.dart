@@ -240,6 +240,10 @@ class AppPage extends StatelessWidget {
     extendBodyBehindAppBar: extendBodyBehindAppBar ?? false,
     appBar: AppBar(
       flexibleSpace: context.tone.glass ? const Frost() : const WindowDrag(),
+      // With no way back before it, the title keeps the page's own margin.
+      titleSpacing: ModalRoute.of(context)?.impliesAppBarDismissal ?? true
+          ? null
+          : 24,
       title: title == null ? null : Text(title!),
       actions: [
         ...?actions,
