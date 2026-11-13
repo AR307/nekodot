@@ -110,7 +110,7 @@ class _SharedUserMemoryPageState extends State<SharedUserMemoryPage> {
         IconButton(
           tooltip: c.tr('刷新', 'Refresh'),
           onPressed: busy ? null : load,
-          icon: const Icon(Icons.refresh),
+          icon: const Icon(Symbols.refresh),
         ),
       ],
       body: PageList(
@@ -166,7 +166,7 @@ class _SharedUserMemoryPageState extends State<SharedUserMemoryPage> {
                               ]);
                               edited = true;
                             },
-                            icon: const Icon(Icons.playlist_add),
+                            icon: const Icon(Symbols.playlist_add),
                           ),
                         ),
                       ],

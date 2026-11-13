@@ -116,7 +116,7 @@ class _ModelSelectionState extends State<ModelSelection> {
               key: const ValueKey('model-search'),
               autofocus: !phone,
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: const Icon(Symbols.search),
                 hintText: c.tr('搜索模型', 'Search models'),
               ),
               onChanged: (value) => update(() => query = value.toLowerCase()),
@@ -230,7 +230,7 @@ class _ModelSelectionState extends State<ModelSelection> {
                         ? loadSources()
                         : loadModels(refresh: true)
                   : null,
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Symbols.refresh),
             ),
           ],
         ),

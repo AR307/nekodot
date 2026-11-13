@@ -157,7 +157,7 @@ class _ConnectorsBodyState extends State<ConnectorsBody>
         key: const ValueKey('connector-search'),
         controller: search,
         decoration: InputDecoration(
-          prefixIcon: const Icon(Icons.search, size: 20),
+          prefixIcon: const Icon(Symbols.search, size: 20),
           hintText: c.tr('搜索', 'Search'),
         ),
         onChanged: (_) {
@@ -171,7 +171,7 @@ class _ConnectorsBodyState extends State<ConnectorsBody>
       ),
       actions: [
         IconAction(
-          icon: Icons.refresh,
+          icon: Symbols.refresh,
           tooltip: c.tr('刷新', 'Refresh'),
           onPressed: loading ? null : () => load(refresh: true),
         ),
@@ -207,7 +207,7 @@ class _ConnectorsBodyState extends State<ConnectorsBody>
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Icon(Icons.expand_more, size: 18),
+                  const Icon(Symbols.expand_more, size: 18),
                 ],
               ),
             ),
@@ -254,7 +254,7 @@ class _ConnectorsBodyState extends State<ConnectorsBody>
               ? Row(
                   children: [
                     Icon(
-                      linked > 0 ? Icons.check_circle_outline : Icons.schedule,
+                      linked > 0 ? Symbols.check_circle : Symbols.schedule,
                       size: 16,
                       color: tone.ink2,
                     ),

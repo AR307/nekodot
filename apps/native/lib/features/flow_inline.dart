@@ -73,11 +73,12 @@ class _FlowFoldState extends State<FlowFold> {
       child: Center(
         child: switch (state) {
           'running' => const Breathing(size: 8),
-          'done' => Icon(Icons.check, size: 18, color: tone.ink3),
-          'failed' => Icon(Icons.close, size: 18, color: tone.danger),
-          'cancelled' => Icon(Icons.block, size: 16, color: tone.ink3),
-          'waiting' || 'paused' => Icon(Icons.pause, size: 18, color: tone.ink),
-          'unknown' => Icon(Icons.question_mark, size: 16, color: tone.ink3),
+          'done' => Icon(Symbols.check, size: 18, color: tone.ink3),
+          'failed' => Icon(Symbols.close, size: 18, color: tone.danger),
+          'cancelled' => Icon(Symbols.block, size: 16, color: tone.ink3),
+          'waiting' ||
+          'paused' => Icon(Symbols.pause, size: 18, color: tone.ink),
+          'unknown' => Icon(Symbols.question_mark, size: 16, color: tone.ink3),
           _ => const SizedBox.shrink(),
         },
       ),
@@ -247,7 +248,7 @@ class _FlowFoldState extends State<FlowFold> {
                                 const SizedBox(width: 8),
                                 if (failed)
                                   Icon(
-                                    Icons.refresh,
+                                    Symbols.refresh,
                                     size: 18,
                                     color: tone.danger,
                                   )
@@ -258,7 +259,9 @@ class _FlowFoldState extends State<FlowFold> {
                                   ),
                                 const SizedBox(width: 4),
                                 Icon(
-                                  open ? Icons.expand_less : Icons.expand_more,
+                                  open
+                                      ? Symbols.expand_less
+                                      : Symbols.expand_more,
                                   size: 20,
                                   color: tone.ink3,
                                 ),

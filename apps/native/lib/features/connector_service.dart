@@ -263,7 +263,7 @@ class _ConnectorServicePageState extends State<ConnectorServicePage>
         flexibleSpace: tone.glass ? const Frost() : const WindowDrag(),
         actions: [
           IconAction(
-            icon: Icons.refresh,
+            icon: Symbols.refresh,
             tooltip: c.tr('刷新', 'Refresh'),
             onPressed: loading
                 ? null
@@ -293,7 +293,7 @@ class _ConnectorServicePageState extends State<ConnectorServicePage>
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.add, size: 18),
+                  : const Icon(Symbols.add, size: 18),
               label: Text(
                 connections.isEmpty
                     ? c.tr('连接', 'Connect')
@@ -369,8 +369,8 @@ class _ConnectorServicePageState extends State<ConnectorServicePage>
                               children: [
                                 Icon(
                                   row['status'] == 'active'
-                                      ? Icons.check_circle_outline
-                                      : Icons.link_off,
+                                      ? Symbols.check_circle
+                                      : Symbols.link_off,
                                   size: 14,
                                   color: tone.ink3,
                                 ),
@@ -392,19 +392,19 @@ class _ConnectorServicePageState extends State<ConnectorServicePage>
                             MenuAction(
                               value: 'label',
                               label: c.tr('账号备注', 'Account label'),
-                              icon: Icons.edit_outlined,
+                              icon: Symbols.edit,
                             ),
                             MenuAction(
                               value: 'reconnect',
                               label: c.tr('重新授权', 'Reconnect'),
-                              icon: Icons.refresh,
+                              icon: Symbols.refresh,
                               enabled: !connecting,
                             ),
                             null,
                             MenuAction(
                               value: 'disconnect',
                               label: c.tr('断开连接', 'Disconnect'),
-                              icon: Icons.link_off,
+                              icon: Symbols.link_off,
                             ),
                           ],
                         ),
@@ -426,7 +426,7 @@ class _ConnectorServicePageState extends State<ConnectorServicePage>
           TextField(
             controller: search,
             decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search, size: 20),
+              prefixIcon: const Icon(Symbols.search, size: 20),
               hintText: c.tr('搜索', 'Search'),
             ),
             onChanged: (_) {
@@ -490,8 +490,8 @@ class _ConnectorServicePageState extends State<ConnectorServicePage>
                 ),
                 trailing: Icon(
                   expanded.contains(tool['name'])
-                      ? Icons.expand_less
-                      : Icons.expand_more,
+                      ? Symbols.expand_less
+                      : Symbols.expand_more,
                   color: tone.ink3,
                   size: 18,
                 ),
@@ -615,7 +615,7 @@ class _ServiceHeader extends StatelessWidget {
                       website,
                       mode: LaunchMode.externalApplication,
                     ),
-                    icon: const Icon(Icons.open_in_new, size: 16),
+                    icon: const Icon(Symbols.open_in_new, size: 16),
                     label: Text(website.host),
                   ),
               ],

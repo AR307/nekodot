@@ -134,7 +134,7 @@ class _SourceModelsState extends State<SourceModels> {
             IconButton(
               tooltip: c.tr('刷新', 'Refresh'),
               onPressed: loading || testing ? null : load,
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Symbols.refresh),
             ),
           ],
         ),
@@ -142,7 +142,7 @@ class _SourceModelsState extends State<SourceModels> {
         TextField(
           key: const ValueKey('source-model-search'),
           decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.search),
+            prefixIcon: const Icon(Symbols.search),
             hintText: c.tr('搜索模型', 'Search models'),
           ),
           onChanged: (v) {
@@ -166,7 +166,7 @@ class _SourceModelsState extends State<SourceModels> {
               ),
               selected: selected == filtered[i],
               trailing: selected == filtered[i]
-                  ? const Icon(Icons.check, size: 18)
+                  ? const Icon(Symbols.check, size: 18)
                   : null,
               onTap: testing ? null : () => choose(filtered[i]),
             ),
@@ -184,7 +184,7 @@ class _SourceModelsState extends State<SourceModels> {
                       dimension: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.network_check, size: 18),
+                  : const Icon(Symbols.network_check, size: 18),
               label: Text(c.tr('测试连通性', 'Test connection')),
             ),
           ),

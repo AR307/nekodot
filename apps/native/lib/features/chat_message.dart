@@ -207,7 +207,7 @@ class _MessageTileState extends State<MessageTile> {
                     executionId: '${body['routine']['executionId']}',
                   ),
                 ),
-                icon: const Icon(Icons.webhook, size: 16),
+                icon: const Icon(Symbols.webhook, size: 16),
                 key: ValueKey('routine-result-${m.messageId}'),
                 style: user
                     ? TextButton.styleFrom(foregroundColor: tone.base)
@@ -257,7 +257,7 @@ class _MessageTileState extends State<MessageTile> {
                           }
                         }
                       },
-                icon: const Icon(Icons.refresh),
+                icon: const Icon(Symbols.refresh),
                 label: Text(c.tr('重试自我介绍', 'Retry introduction')),
               ),
           ],
@@ -435,7 +435,7 @@ class _CopyButtonState extends State<CopyButton> {
           });
         });
       },
-      icon: Icon(done ? Icons.check : Icons.content_copy_outlined),
+      icon: Icon(done ? Symbols.check : Symbols.content_copy),
     );
   }
 }
@@ -614,12 +614,12 @@ class _ControlCardState extends State<ControlCard> {
                         children: [
                           Icon(
                             pending
-                                ? Icons.schedule
+                                ? Symbols.schedule
                                 : answered == 'deny'
-                                ? Icons.close
+                                ? Symbols.close
                                 : answered == null
-                                ? Icons.remove
-                                : Icons.check,
+                                ? Symbols.remove
+                                : Symbols.check,
                             size: 18,
                             color: pending ? tone.ink : tone.ink2,
                           ),
@@ -646,7 +646,7 @@ class _ControlCardState extends State<ControlCard> {
                                   ),
                           ),
                           Icon(
-                            shown ? Icons.expand_less : Icons.expand_more,
+                            shown ? Symbols.expand_less : Symbols.expand_more,
                             size: 18,
                             color: tone.ink3,
                           ),
@@ -723,7 +723,7 @@ class _ControlCardState extends State<ControlCard> {
               child: Row(
                 children: [
                   Icon(
-                    answered == null ? Icons.remove : Icons.check,
+                    answered == null ? Symbols.remove : Symbols.check,
                     size: 16,
                     color: tone.ink3,
                   ),
@@ -785,7 +785,7 @@ class _ControlCardState extends State<ControlCard> {
                             onPressed: open && answer.text.trim().isNotEmpty
                                 ? answerWith
                                 : null,
-                            icon: const Icon(Icons.arrow_upward, size: 18),
+                            icon: const Icon(Symbols.arrow_upward, size: 18),
                           ),
                   ),
                 ),

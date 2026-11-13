@@ -62,7 +62,7 @@ class _McpBodyState extends State<McpBody> {
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(Icons.expand_more, size: 18),
+            const Icon(Symbols.expand_more, size: 18),
           ],
         ),
       ),
@@ -83,20 +83,20 @@ class _McpBodyState extends State<McpBody> {
           key: const ValueKey('mcp-search'),
           controller: search,
           decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.search, size: 20),
+            prefixIcon: const Icon(Symbols.search, size: 20),
             hintText: c.tr('搜索', 'Search'),
           ),
           onChanged: (value) => setState(() => query = value.toLowerCase()),
         ),
         actions: [
           IconAction(
-            icon: Icons.refresh,
+            icon: Symbols.refresh,
             tooltip: c.tr('刷新', 'Refresh'),
             onPressed: loading ? null : () => setState(() => revision++),
           ),
           IconAction(
             key: const ValueKey('mcp-add'),
-            icon: Icons.add,
+            icon: Symbols.add,
             tooltip: c.tr('添加 MCP', 'Add MCP'),
             onPressed: botId == null || !c.online
                 ? null
@@ -122,7 +122,7 @@ class _McpBodyState extends State<McpBody> {
           return PluginTile(
             key: ValueKey('mcp-server-${server['name']}'),
             wide: wide,
-            icon: const Icon(Icons.hub_outlined),
+            icon: const Icon(Symbols.hub),
             name: '${server['name']}',
             description: '${server['url'] ?? server['command'] ?? ''}',
             status: Text(
@@ -291,7 +291,7 @@ class _McpServerPageState extends State<McpServerPage> {
             child: FilledButton.icon(
               key: const ValueKey('mcp-test'),
               onPressed: busy || !c.online ? null : () => run(),
-              icon: const Icon(Icons.play_arrow_outlined, size: 18),
+              icon: const Icon(Symbols.play_arrow, size: 18),
               label: Text(c.tr('测试连接', 'Test connection')),
             ),
           ),
@@ -306,9 +306,7 @@ class _McpServerPageState extends State<McpServerPage> {
             Row(
               children: [
                 Icon(
-                  probe!['ok'] == true
-                      ? Icons.check_circle_outline
-                      : Icons.error_outline,
+                  probe!['ok'] == true ? Symbols.check_circle : Symbols.error,
                   size: 20,
                 ),
                 const SizedBox(width: 8),

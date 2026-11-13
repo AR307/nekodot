@@ -117,7 +117,7 @@ class AccountQuick extends StatelessWidget {
           ),
         ),
       );
-      final next = Icon(Icons.chevron_right, size: 18, color: tone.ink3);
+      final next = Icon(Symbols.chevron_right, size: 18, color: tone.ink3);
       return Material(
         type: MaterialType.transparency,
         child: Column(
@@ -155,7 +155,7 @@ class AccountQuick extends StatelessWidget {
             ),
             divider,
             pref(
-              Icons.language,
+              Symbols.language,
               c.tr('语言', 'Language'),
               Segment<String>(
                 value: c.prefs.language,
@@ -164,22 +164,22 @@ class AccountQuick extends StatelessWidget {
               ),
             ),
             pref(
-              Icons.contrast,
+              Symbols.contrast,
               c.tr('外观', 'Appearance'),
               Segment<String>(
                 value: c.prefs.theme,
                 options: {
                   'system': Tooltip(
                     message: c.tr('跟随系统', 'System'),
-                    child: const Icon(Icons.brightness_auto_outlined),
+                    child: const Icon(Symbols.brightness_auto),
                   ),
                   'light': Tooltip(
                     message: c.tr('浅色', 'Light'),
-                    child: const Icon(Icons.light_mode_outlined),
+                    child: const Icon(Symbols.light_mode),
                   ),
                   'dark': Tooltip(
                     message: c.tr('深色', 'Dark'),
-                    child: const Icon(Icons.dark_mode_outlined),
+                    child: const Icon(Symbols.dark_mode),
                   ),
                 },
                 onChanged: (value) => c.prefs.update(appearance: value),
@@ -187,7 +187,7 @@ class AccountQuick extends StatelessWidget {
             ),
             go(
               'account-notifications',
-              Icons.notifications_none,
+              Symbols.notifications,
               c.tr('通知', 'Notifications'),
               () async {
                 final opened = await FlutterLocalNotificationsPlugin()
@@ -211,7 +211,7 @@ class AccountQuick extends StatelessWidget {
             divider,
             go(
               'account-settings',
-              Icons.settings_outlined,
+              Symbols.settings,
               c.tr('设置', 'Settings'),
               () {
                 close();
@@ -221,7 +221,7 @@ class AccountQuick extends StatelessWidget {
             ),
             go(
               'account-statistics',
-              Icons.bar_chart,
+              Symbols.bar_chart,
               c.tr('统计', 'Statistics'),
               () {
                 close();
@@ -230,10 +230,15 @@ class AccountQuick extends StatelessWidget {
               end: next,
             ),
             divider,
-            go('account-sign-out', Icons.logout, c.tr('退出账号', 'Sign out'), () {
-              close();
-              onSignOut();
-            }),
+            go(
+              'account-sign-out',
+              Symbols.logout,
+              c.tr('退出账号', 'Sign out'),
+              () {
+                close();
+                onSignOut();
+              },
+            ),
             const SizedBox(height: 4),
           ],
         ),

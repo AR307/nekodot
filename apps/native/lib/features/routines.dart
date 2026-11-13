@@ -64,8 +64,8 @@ class RoutineList extends StatelessWidget {
               ListTile(
                 leading: Icon(
                   routine['trigger'] == 'schedule'
-                      ? Icons.schedule
-                      : Icons.webhook,
+                      ? Symbols.schedule
+                      : Symbols.webhook,
                 ),
                 title: Text(
                   '${routine['name']}',
@@ -76,7 +76,7 @@ class RoutineList extends StatelessWidget {
                   triggerLabel(client, routine),
                   routineStatus(client, routine),
                 ]),
-                trailing: const Icon(Icons.chevron_right, size: 18),
+                trailing: const Icon(Symbols.chevron_right, size: 18),
                 onTap: () async {
                   final botId = '${routine['botId']}',
                       routineId = '${routine['routineId']}';
@@ -179,9 +179,7 @@ class RoutineCard extends StatelessWidget {
     );
     final notice = ChatNotice(
       text: '$action ${content['name']}',
-      icon: content['card'] == 'credentials'
-          ? Icons.lock_outline
-          : Icons.schedule,
+      icon: content['card'] == 'credentials' ? Symbols.lock : Symbols.schedule,
       onTap: openRoutine,
     );
     if (content['action'] != 'created' || content['trigger'] == 'schedule') {
@@ -193,7 +191,7 @@ class RoutineCard extends StatelessWidget {
         notice,
         TextButton.icon(
           onPressed: openRoutine,
-          icon: const Icon(Icons.settings_outlined, size: 16),
+          icon: const Icon(Symbols.settings, size: 16),
           label: const Text('Webhook'),
         ),
       ],
@@ -366,7 +364,7 @@ class _RoutinePageState extends State<RoutinePage> {
         actions: [
           IconAction(
             tooltip: c.tr('刷新', 'Refresh'),
-            icon: Icons.refresh,
+            icon: Symbols.refresh,
             onPressed: busy ? null : load,
           ),
         ],
@@ -481,14 +479,14 @@ class _RoutinePageState extends State<RoutinePage> {
                                 );
                               }
                             },
-                            icon: const Icon(Icons.link),
+                            icon: const Icon(Symbols.link),
                             label: Text(c.tr('复制 URL', 'Copy URL')),
                           ),
                           OutlinedButton.icon(
                             onPressed: allowed
                                 ? () => action(copySecret)
                                 : null,
-                            icon: const Icon(Icons.key),
+                            icon: const Icon(Symbols.key),
                             label: Text(c.tr('复制密钥', 'Copy secret')),
                           ),
                           FilledButton.icon(
@@ -497,7 +495,7 @@ class _RoutinePageState extends State<RoutinePage> {
                                 : () => action(() async {
                                     await c.rpc('routines.grant', target);
                                   }),
-                            icon: const Icon(Icons.lock_outline),
+                            icon: const Icon(Symbols.lock),
                             label: Text(
                               c.tr('确认接入并保密交付', 'Connect & deliver securely'),
                             ),
@@ -627,7 +625,7 @@ class _RoutinePageState extends State<RoutinePage> {
                                   );
                                 }
                               },
-                        icon: const Icon(Icons.webhook),
+                        icon: const Icon(Symbols.webhook),
                         label: Text(
                           c.tr('添加 Webhook 触发', 'Add webhook trigger'),
                         ),
@@ -738,7 +736,7 @@ class _RoutinePageState extends State<RoutinePage> {
                                     ),
                                     onPressed: () =>
                                         continueExecution(execution),
-                                    icon: const Icon(Icons.reply),
+                                    icon: const Icon(Symbols.reply),
                                     label: Text(c.tr('继续对话', 'Discuss result')),
                                   ),
                                 TextButton(

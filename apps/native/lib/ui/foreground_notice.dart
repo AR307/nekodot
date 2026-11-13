@@ -91,10 +91,10 @@ class _ForegroundNoticeState extends State<ForegroundNotice> {
                             child: Row(
                               children: [
                                 Icon(switch (signal['kind']) {
-                                  'approval' => Icons.shield_outlined,
-                                  'question' => Icons.help_outline,
-                                  'failed' => Icons.error_outline,
-                                  _ => Icons.chat_bubble_outline,
+                                  'approval' => Symbols.shield,
+                                  'question' => Symbols.help,
+                                  'failed' => Symbols.error,
+                                  _ => Symbols.chat_bubble,
                                 }, size: 20),
                                 const SizedBox(width: 12),
                                 Expanded(

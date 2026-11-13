@@ -132,7 +132,7 @@ class CommandPalette extends StatelessWidget {
                 IconButton(
                   tooltip: client.tr('刷新指令', 'Refresh commands'),
                   onPressed: loading ? null : onRefresh,
-                  icon: const Icon(Icons.refresh, size: 18),
+                  icon: const Icon(Symbols.refresh, size: 18),
                 ),
               ],
             ),

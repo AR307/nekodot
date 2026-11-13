@@ -193,7 +193,7 @@ class _OfficePreviewState extends State<OfficePreview> {
                             onPressed: c.activeSlideIndex > 0
                                 ? () => c.setActiveSlide(c.activeSlideIndex - 1)
                                 : null,
-                            icon: const Icon(Icons.chevron_left, size: 18),
+                            icon: const Icon(Symbols.chevron_left, size: 18),
                           ),
                           Text(
                             '${c.activeSlideIndex + 1} / ${c.presentation.slides.length}',
@@ -214,7 +214,7 @@ class _OfficePreviewState extends State<OfficePreview> {
                                     c.presentation.slides.length
                                 ? () => c.setActiveSlide(c.activeSlideIndex + 1)
                                 : null,
-                            icon: const Icon(Icons.chevron_right, size: 18),
+                            icon: const Icon(Symbols.chevron_right, size: 18),
                           ),
                         ],
                         const Spacer(),
@@ -222,7 +222,7 @@ class _OfficePreviewState extends State<OfficePreview> {
                           key: const ValueKey('office-zoom-out'),
                           tooltip: widget.zoomOutLabel,
                           onPressed: () => zoom(1 / 1.2),
-                          icon: const Icon(Icons.remove, size: 18),
+                          icon: const Icon(Symbols.remove, size: 18),
                         ),
                         Text(
                           '${(c.viewport.scale * 100).round()}%',
@@ -238,7 +238,7 @@ class _OfficePreviewState extends State<OfficePreview> {
                           key: const ValueKey('office-zoom-in'),
                           tooltip: widget.zoomInLabel,
                           onPressed: () => zoom(1.2),
-                          icon: const Icon(Icons.add, size: 18),
+                          icon: const Icon(Symbols.add, size: 18),
                         ),
                       ],
                     ),

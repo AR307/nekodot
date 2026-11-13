@@ -429,14 +429,14 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
                       onPressed: widget.onWide,
                       iconSize: 16,
                       visualDensity: VisualDensity.compact,
-                      icon: const Icon(Icons.open_in_full),
+                      icon: const Icon(Symbols.open_in_full),
                     ),
                     IconButton(
                       tooltip: c.tr('关闭屏幕', 'Close screen'),
                       onPressed: widget.onClose,
                       iconSize: 16,
                       visualDensity: VisualDensity.compact,
-                      icon: const Icon(Icons.close),
+                      icon: const Icon(Symbols.close),
                     ),
                   ],
                 ),
@@ -457,7 +457,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
           tooltip: c.tr('键盘', 'Keyboard'),
           isSelected: typing,
           onPressed: () => setState(() => typing = !typing),
-          icon: const Icon(Icons.keyboard_outlined),
+          icon: const Icon(Symbols.keyboard),
         ),
       IconButton(
         tooltip: c.tr('重新连接', 'Reconnect'),
@@ -465,13 +465,13 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
           disconnect(intentional: false);
           connect();
         },
-        icon: const Icon(Icons.refresh),
+        icon: const Icon(Symbols.refresh),
       ),
       if (status?['running'] == true)
         IconButton(
           tooltip: c.tr('停止屏幕', 'Stop screen'),
           onPressed: busy ? null : () => action('screen.stop'),
-          icon: const Icon(Icons.power_settings_new_outlined),
+          icon: const Icon(Symbols.power_settings_new),
         ),
     ];
     final body = SafeArea(
@@ -854,7 +854,7 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
                 IconButton(
                   tooltip: c.tr('关闭屏幕', 'Close screen'),
                   onPressed: widget.onClose,
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(Symbols.close),
                 ),
                 const SizedBox(width: 4),
                 Expanded(

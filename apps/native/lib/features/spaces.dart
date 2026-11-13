@@ -62,7 +62,7 @@ class SpaceCard extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              trailing: const Icon(Icons.open_in_new, size: 18),
+              trailing: const Icon(Symbols.open_in_new, size: 18),
               onTap: () => openSpace(context, client, space),
             ),
           ),
@@ -365,7 +365,7 @@ class _SpacePageState extends State<SpacePage> {
           automaticallyImplyLeading: false,
           leading: IconButton(
             tooltip: c.tr('返回', 'Back'),
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(Symbols.arrow_back),
             onPressed:
                 widget.onBack ??
                 (widget.embedded ? chat : () => Navigator.pop(context)),
@@ -379,24 +379,24 @@ class _SpacePageState extends State<SpacePage> {
             if (pending)
               Tooltip(
                 message: c.tr('未同步', 'Not synced'),
-                child: const Icon(Icons.cloud_upload_outlined, size: 18),
+                child: const Icon(Symbols.cloud_upload, size: 18),
               ),
             if (update)
               Tooltip(
                 message: c.tr('有更新', 'Update available'),
-                child: const Icon(Icons.circle, size: 8),
+                child: const Icon(Symbols.circle, size: 8),
               ),
             IconAction(
               tooltip: c.tr('刷新', 'Refresh'),
-              icon: Icons.refresh,
+              icon: Symbols.refresh,
               onPressed: busy ? null : load,
             ),
             if (widget.onExpand != null)
               IconAction(
                 tooltip: c.tr('展开', 'Expand'),
                 icon: widget.expanded
-                    ? Icons.fullscreen_exit
-                    : Icons.fullscreen,
+                    ? Symbols.fullscreen_exit
+                    : Symbols.fullscreen,
                 onPressed: widget.onExpand,
               ),
             ActionMenu<String>(
@@ -407,23 +407,23 @@ class _SpacePageState extends State<SpacePage> {
               items: [
                 MenuAction(
                   value: 'edit',
-                  icon: Icons.edit_outlined,
+                  icon: Symbols.edit,
                   label: c.tr('请 Dot 修改', 'Edit with Dot'),
                 ),
                 MenuAction(
                   value: 'access',
-                  icon: Icons.language,
+                  icon: Symbols.language,
                   label: c.tr('网站访问', 'Website access'),
                 ),
                 MenuAction(
                   value: 'rename',
-                  icon: Icons.drive_file_rename_outline,
+                  icon: Symbols.drive_file_rename_outline,
                   label: c.tr('重命名', 'Rename'),
                 ),
                 null,
                 MenuAction(
                   value: 'archive',
-                  icon: Icons.archive_outlined,
+                  icon: Symbols.archive,
                   label: c.tr('归档', 'Archive'),
                 ),
               ],
@@ -606,7 +606,7 @@ class _CreateSpacePageState extends State<CreateSpacePage> {
                 IconButton(
                   tooltip: c.tr('关闭', 'Close'),
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, size: 18),
+                  icon: const Icon(Symbols.close, size: 18),
                 ),
               ],
             ),

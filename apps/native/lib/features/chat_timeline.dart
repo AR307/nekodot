@@ -145,7 +145,7 @@ class ChatTimeline extends StatelessWidget {
                   onError('$e');
                 }
               },
-              icon: const Icon(Icons.expand_less),
+              icon: const Icon(Symbols.expand_less),
             ),
           );
     return LayoutBuilder(

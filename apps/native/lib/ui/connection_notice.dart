@@ -101,7 +101,7 @@ class _ConnectionNoticeState extends State<ConnectionNotice> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.cloud_off_outlined,
+                          Symbols.cloud_off,
                           size: 16,
                           color: context.tone.ink3,
                         ),

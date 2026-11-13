@@ -491,7 +491,7 @@ class ChatComposerState extends State<ChatComposer> {
           visualDensity: tone.glass
               ? VisualDensity.standard
               : VisualDensity.compact,
-          icon: const Icon(Icons.add),
+          icon: const Icon(Symbols.add),
         ),
       ],
     );
@@ -545,7 +545,7 @@ class ChatComposerState extends State<ChatComposer> {
                       },
                     ),
                   ),
-            icon: const Icon(Icons.mic_none),
+            icon: const Icon(Symbols.mic),
           ),
         if (running && !hasText) ...[
           const SizedBox(width: 4),
@@ -554,7 +554,7 @@ class ChatComposerState extends State<ChatComposer> {
             tooltip: c.tr('停止', 'Stop'),
             style: roundAction,
             onPressed: sending ? null : stop,
-            icon: const Icon(Icons.stop_rounded),
+            icon: const Icon(Symbols.stop),
           ),
         ],
         if (hasText || (!running && (group != null || bot == null))) ...[
@@ -563,7 +563,7 @@ class ChatComposerState extends State<ChatComposer> {
             tooltip: c.tr('发送', 'Send'),
             style: roundAction,
             onPressed: canSend ? send : null,
-            icon: const Icon(Icons.arrow_upward),
+            icon: const Icon(Symbols.arrow_upward),
           ),
         ],
       ],
@@ -612,8 +612,8 @@ class ChatComposerState extends State<ChatComposer> {
                           children: [
                             Icon(
                               item['state'] == 'failed'
-                                  ? Icons.error_outline
-                                  : Icons.schedule,
+                                  ? Symbols.error
+                                  : Symbols.schedule,
                               size: 16,
                             ),
                             const SizedBox(width: 6),
@@ -626,7 +626,7 @@ class ChatComposerState extends State<ChatComposer> {
                             ),
                             IconButton(
                               tooltip: c.tr('取消', 'Cancel'),
-                              icon: const Icon(Icons.close, size: 16),
+                              icon: const Icon(Symbols.close, size: 16),
                               onPressed:
                                   item['state'] == 'sending' ||
                                       (item['submitted'] == true &&
@@ -641,7 +641,7 @@ class ChatComposerState extends State<ChatComposer> {
                       if (routineDraft != null)
                         InputChip(
                           key: const ValueKey('routine-followup-chip'),
-                          avatar: const Icon(Icons.schedule, size: 16),
+                          avatar: const Icon(Symbols.schedule, size: 16),
                           label: Text(
                             '${routineDraft!['name']}',
                             maxLines: 1,
@@ -658,10 +658,7 @@ class ChatComposerState extends State<ChatComposer> {
                         ),
                       if (spaceDraft != null)
                         InputChip(
-                          avatar: const Icon(
-                            Icons.web_asset_outlined,
-                            size: 16,
-                          ),
+                          avatar: const Icon(Symbols.web_asset, size: 16),
                           label: Text(
                             '${spaceDraft!['name']}',
                             maxLines: 1,
@@ -887,7 +884,7 @@ class MentionCard extends StatelessWidget {
               color: tone.raised,
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.groups_outlined, size: 17, color: tone.ink2),
+            child: Icon(Symbols.groups, size: 17, color: tone.ink2),
           ),
         ),
       for (final bot in members)
@@ -971,7 +968,7 @@ class QuoteChip extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(width: 12),
-                Icon(Icons.format_quote_rounded, size: 18, color: tone.ink3),
+                Icon(Symbols.format_quote, size: 18, color: tone.ink3),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
@@ -987,7 +984,7 @@ class QuoteChip extends StatelessWidget {
                   iconSize: 16,
                   visualDensity: VisualDensity.compact,
                   onPressed: onClear,
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(Symbols.close),
                 ),
               ],
             ),

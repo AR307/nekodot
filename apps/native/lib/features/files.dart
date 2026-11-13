@@ -101,9 +101,9 @@ IconData fileIcon(String name, String mime) {
   final format = officeFormat(name, mime);
   if (format != null) {
     return switch (format) {
-      OfficeFormat.word => Icons.article_outlined,
-      OfficeFormat.sheet => Icons.table_chart_outlined,
-      OfficeFormat.slides => Icons.slideshow_outlined,
+      OfficeFormat.word => Symbols.article,
+      OfficeFormat.sheet => Symbols.table_chart,
+      OfficeFormat.slides => Symbols.slideshow,
     };
   }
   if (mime.startsWith('image/') ||
@@ -111,12 +111,12 @@ IconData fileIcon(String name, String mime) {
         r'\.(png|jpe?g|gif|webp|svg)$',
         caseSensitive: false,
       ).hasMatch(name)) {
-    return Icons.image_outlined;
+    return Symbols.image;
   }
   if (mime == 'application/pdf' || name.toLowerCase().endsWith('.pdf')) {
-    return Icons.picture_as_pdf_outlined;
+    return Symbols.picture_as_pdf;
   }
-  return Icons.description_outlined;
+  return Symbols.description;
 }
 
 Future<Json?> pickChatFile(
@@ -304,7 +304,7 @@ class _FileCardState extends State<FileCard> {
               children: [
                 Icon(
                   value?['available'] == false
-                      ? Icons.broken_image_outlined
+                      ? Symbols.broken_image
                       : fileIcon(
                           '${value?['name'] ?? ''}',
                           '${value?['mime'] ?? ''}',
@@ -374,7 +374,7 @@ class _LibraryPageState extends State<LibraryPage> {
         children: [
           TextField(
             decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: const Icon(Symbols.search),
               hintText: widget.client.tr('搜索', 'Search'),
             ),
             onSubmitted: (value) => setState(() => search = value),
@@ -406,8 +406,8 @@ class _LibraryPageState extends State<LibraryPage> {
                   ListTile(
                     leading: Icon(
                       file['available'] == true
-                          ? Icons.description_outlined
-                          : Icons.broken_image_outlined,
+                          ? Symbols.description
+                          : Symbols.broken_image,
                     ),
                     title: Text('${file['name']}'),
                     subtitle: Text(fileSize(file['size'] as num)),
@@ -494,7 +494,7 @@ class FileTabs extends StatelessWidget {
                             height: 28,
                           ),
                           padding: EdgeInsets.zero,
-                          icon: Icon(Icons.close, color: tone.ink3),
+                          icon: Icon(Symbols.close, color: tone.ink3),
                         ),
                       ],
                     ),
@@ -701,27 +701,27 @@ class _FileViewerState extends State<FileViewer> {
     items: [
       MenuAction(
         value: 'share',
-        icon: Icons.ios_share_outlined,
+        icon: Symbols.ios_share,
         label: client.tr('分享文件', 'Share file'),
       ),
       if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) ...[
         MenuAction(
           key: const ValueKey('open-default'),
           value: 'open',
-          icon: Icons.open_in_new,
+          icon: Symbols.open_in_new,
           label: client.tr('用默认应用打开', 'Open in default app'),
         ),
         if (Platform.isWindows) ...[
           MenuAction(
             key: const ValueKey('open-with'),
             value: 'openWith',
-            icon: Icons.apps_outlined,
+            icon: Symbols.apps,
             label: client.tr('打开方式…', 'Open with…'),
           ),
           MenuAction(
             key: const ValueKey('open-folder'),
             value: 'reveal',
-            icon: Icons.folder_open_outlined,
+            icon: Symbols.folder_open,
             label: client.tr('在文件夹中显示', 'Show in folder'),
           ),
         ],
@@ -815,7 +815,7 @@ class _FileViewerState extends State<FileViewer> {
                   available)
                 IconButton(
                   tooltip: client.tr('作为新 Bot 导入', 'Import as a new Bot'),
-                  icon: const Icon(Icons.person_add_alt_1_outlined),
+                  icon: const Icon(Symbols.person_add),
                   onPressed: () {
                     final navigator = Navigator.of(context);
                     if (widget.onClose != null) {
@@ -840,7 +840,7 @@ class _FileViewerState extends State<FileViewer> {
                       ? client.tr('查看图片', 'Show picture')
                       : client.tr('查看源码', 'Show source'),
                   onPressed: () => setState(() => source = !source),
-                  icon: Icon(source ? Icons.image_outlined : Icons.code),
+                  icon: Icon(source ? Symbols.image : Symbols.code),
                 ),
               if (tone.glass)
                 IconButton(
@@ -848,7 +848,7 @@ class _FileViewerState extends State<FileViewer> {
                   onPressed: available && !busy
                       ? () => deliver(share: true)
                       : null,
-                  icon: const Icon(Icons.ios_share_outlined),
+                  icon: const Icon(Symbols.ios_share),
                 )
               else
                 fileMenu(available && !busy),
@@ -857,7 +857,7 @@ class _FileViewerState extends State<FileViewer> {
                 onPressed: available && !busy
                     ? () => deliver(share: false)
                     : null,
-                icon: const Icon(Icons.download_outlined),
+                icon: const Icon(Symbols.download),
               ),
               if (widget.onExpand != null)
                 IconButton(
@@ -867,13 +867,15 @@ class _FileViewerState extends State<FileViewer> {
                       : client.tr('展开', 'Expand'),
                   onPressed: widget.onExpand,
                   icon: Icon(
-                    widget.expanded ? Icons.fullscreen_exit : Icons.fullscreen,
+                    widget.expanded
+                        ? Symbols.fullscreen_exit
+                        : Symbols.fullscreen,
                   ),
                 ),
               IconButton(
                 tooltip: client.tr('关闭', 'Close'),
                 onPressed: widget.onClose ?? () => Navigator.pop(context),
-                icon: const Icon(Icons.close),
+                icon: const Icon(Symbols.close),
               ),
               SizedBox(width: WindowChrome.reserved(context)),
             ],
@@ -900,7 +902,7 @@ class _FileViewerState extends State<FileViewer> {
             child: !available
                 ? Center(
                     child: Icon(
-                      Icons.broken_image_outlined,
+                      Symbols.broken_image,
                       size: 48,
                       color: tone.ink3,
                     ),
@@ -1004,7 +1006,7 @@ class _FileViewerState extends State<FileViewer> {
                       }
                       return Center(
                         child: Icon(
-                          Icons.description_outlined,
+                          Symbols.description,
                           size: 48,
                           color: tone.ink3,
                         ),

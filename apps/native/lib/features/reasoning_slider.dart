@@ -110,7 +110,7 @@ class _ReasoningSliderState extends State<ReasoningSlider> {
     if (error != null) {
       return IconButton(
         tooltip: widget.client.tr('目录获取失败', 'Catalog unavailable'),
-        icon: const Icon(Icons.refresh, size: 18),
+        icon: const Icon(Symbols.refresh, size: 18),
         onPressed: widget.enabled ? load : null,
       );
     }

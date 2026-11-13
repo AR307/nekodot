@@ -195,7 +195,7 @@ class _SearchPaletteState extends State<SearchPalette> {
                             '搜索 Bot、群聊、操作',
                             'Search Bots, groups, actions',
                           ),
-                          prefixIcon: const Icon(Icons.search),
+                          prefixIcon: const Icon(Symbols.search),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,

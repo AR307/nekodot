@@ -36,10 +36,10 @@ class _PluginCenterPageState extends State<PluginCenterPage> {
       : widget.kind;
   late final visited = <String>{kind};
   static const icons = {
-    'skills': Icons.auto_awesome_outlined,
-    'plugins': Icons.extension_outlined,
-    'mcp': Icons.hub_outlined,
-    'connectors': Icons.link,
+    'skills': Symbols.auto_awesome,
+    'plugins': Symbols.extension,
+    'mcp': Symbols.hub,
+    'connectors': Symbols.link,
   };
   void select(String value) => setState(() {
     kind = value;
@@ -72,7 +72,7 @@ class _PluginCenterPageState extends State<PluginCenterPage> {
           ? Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.person_outline, size: 16, color: tone.ink2),
+                Icon(Symbols.person, size: 16, color: tone.ink2),
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
@@ -102,7 +102,7 @@ class _PluginCenterPageState extends State<PluginCenterPage> {
                 MenuAction(
                   value: '',
                   label: c.tr('添加电脑', 'Add computer'),
-                  icon: Icons.add_to_queue_outlined,
+                  icon: Symbols.add_to_queue,
                 ),
               ],
               onSelected: (id) {
@@ -132,7 +132,7 @@ class _PluginCenterPageState extends State<PluginCenterPage> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Icon(Icons.expand_more, size: 16),
+                      const Icon(Symbols.expand_more, size: 16),
                     ],
                   ),
                 ),
@@ -182,7 +182,7 @@ class _PluginCenterPageState extends State<PluginCenterPage> {
                                         .titleMedium,
                                   ),
                                   const SizedBox(width: 4),
-                                  const Icon(Icons.expand_more, size: 16),
+                                  const Icon(Symbols.expand_more, size: 16),
                                 ],
                               ),
                             ),
@@ -219,9 +219,7 @@ class _PluginCenterPageState extends State<PluginCenterPage> {
                               ? Center(
                                   child: TextButton.icon(
                                     onPressed: addComputer,
-                                    icon: const Icon(
-                                      Icons.add_to_queue_outlined,
-                                    ),
+                                    icon: const Icon(Symbols.add_to_queue),
                                     label: Text(c.tr('添加电脑', 'Add computer')),
                                   ),
                                 )

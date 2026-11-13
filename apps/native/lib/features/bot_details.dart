@@ -58,7 +58,7 @@ class BotDetails extends StatelessWidget {
         key: ValueKey(key),
         leading: Icon(icon),
         title: Text(title),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: const Icon(Symbols.chevron_right),
         onTap: () => pushPage(context, page()),
       );
       final about = AsyncPane(
@@ -86,7 +86,7 @@ class BotDetails extends StatelessWidget {
                 children: [
                   link(
                     'bot-learning',
-                    Icons.auto_stories_outlined,
+                    Symbols.auto_stories,
                     c.tr('学习历程', 'Learning journey'),
                     () => LearningPage(client: c, botId: botId),
                   ),
@@ -111,7 +111,7 @@ class BotDetails extends StatelessWidget {
                 doc['limit'] != null &&
                 nearMemoryLimit('${doc['content']}', doc['limit'] as int),
           );
-          const refineIcon = Icon(Icons.auto_fix_high_outlined, size: 18);
+          const refineIcon = Icon(Symbols.auto_fix_high, size: 18);
           final refineLabel = Text(c.tr('整理记忆', 'Refine memory'));
           return PageList(
             children: [
@@ -204,7 +204,7 @@ class BotDetails extends StatelessWidget {
           'security': [
             link(
               'bot-secrets',
-              Icons.lock_outline,
+              Symbols.lock,
               c.tr('保密资料', 'Confidential information'),
               () => BotSecretsPage(client: c, botId: botId),
             ),
@@ -212,7 +212,7 @@ class BotDetails extends StatelessWidget {
           'voice': [
             link(
               'bot-voice',
-              Icons.mic_none,
+              Symbols.mic,
               c.tr('语音与唤醒', 'Voice & wake word'),
               () => VoicePage(client: c, botId: botId),
             ),
@@ -229,13 +229,13 @@ class BotDetails extends StatelessWidget {
       final actions = [
         IconAction(
           tooltip: c.tr('屏幕', 'Screen'),
-          icon: Icons.desktop_windows_outlined,
+          icon: Symbols.desktop_windows,
           onPressed: () => pushPage(context, ScreenPage(client: c, bot: bot)),
         ),
         const SizedBox(width: 4),
         IconAction(
           tooltip: c.tr('编辑', 'Edit'),
-          icon: Icons.edit_outlined,
+          icon: Symbols.edit,
           onPressed: () => openPage(
             context,
             BotEditor(client: c, existing: bot),
@@ -283,7 +283,7 @@ class BotDetails extends StatelessWidget {
                     const SizedBox(width: 8),
                     IconAction(
                       tooltip: c.tr('关闭', 'Close'),
-                      icon: Icons.close,
+                      icon: Symbols.close,
                       onPressed: onClose,
                     ),
                     const Expanded(child: WindowDrag()),

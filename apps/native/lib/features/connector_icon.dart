@@ -2,6 +2,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+
+import '../ui/symbols.dart';
+
 import 'package:http/http.dart' as http;
 
 /// Catalog logos can be SVGs at extensionless URLs. Cache by actual resource URL.
@@ -24,14 +27,14 @@ class ConnectorIcon extends StatelessWidget {
     width: size,
     height: size,
     child: url == null
-        ? const Icon(Icons.link, size: 24)
+        ? const Icon(Symbols.link, size: 24)
         : FutureBuilder<({Uint8List bytes, bool svg})>(
             future: _images.putIfAbsent(url!, () => _load(url!)),
             builder: (context, snapshot) {
               final data = snapshot.data;
               if (data == null) {
                 return snapshot.hasError
-                    ? const Icon(Icons.link, size: 24)
+                    ? const Icon(Symbols.link, size: 24)
                     : const SizedBox.shrink();
               }
               final logo = data.svg

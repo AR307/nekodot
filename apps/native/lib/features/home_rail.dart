@@ -6,11 +6,11 @@ import '../ui/design.dart';
 /// Where home can go. `recent` mixes every conversation and space by when it
 /// last moved; the rest show one kind each.
 const homeSections = [
-  (id: 'recent', icon: Icons.schedule, zh: '最近', en: 'Recent'),
-  (id: 'dot', icon: Icons.chat_bubble_outline, zh: 'Dot', en: 'Dot'),
-  (id: 'group', icon: Icons.forum_outlined, zh: '群聊', en: 'Groups'),
-  (id: 'space', icon: Icons.space_dashboard_outlined, zh: '空间', en: 'Spaces'),
-  (id: 'plugins', icon: Icons.extension_outlined, zh: '插件', en: 'Plugins'),
+  (id: 'recent', icon: Symbols.schedule, zh: '最近', en: 'Recent'),
+  (id: 'dot', icon: Symbols.chat_bubble, zh: 'Dot', en: 'Dot'),
+  (id: 'group', icon: Symbols.forum, zh: '群聊', en: 'Groups'),
+  (id: 'space', icon: Symbols.space_dashboard, zh: '空间', en: 'Spaces'),
+  (id: 'plugins', icon: Symbols.extension, zh: '插件', en: 'Plugins'),
 ];
 
 /// What needs you, drawn on a destination: a count on Recent, a dot elsewhere.

@@ -191,25 +191,25 @@ class _HomePageState extends State<HomePage> {
       SearchEntry(
         section: actions,
         title: c.tr('新建 Bot', 'New Bot'),
-        leading: icon(Icons.smart_toy_outlined),
+        leading: icon(Symbols.smart_toy),
         open: () => create('bot'),
       ),
       SearchEntry(
         section: actions,
         title: c.tr('新建群组', 'New group'),
-        leading: icon(Icons.groups_outlined),
+        leading: icon(Symbols.groups),
         open: () => create('group'),
       ),
       SearchEntry(
         section: actions,
         title: c.tr('插件中心', 'Plugin center'),
-        leading: icon(Icons.extension_outlined),
+        leading: icon(Symbols.extension),
         open: () => create('plugins'),
       ),
       SearchEntry(
         section: actions,
         title: c.tr('设置', 'Settings'),
-        leading: icon(Icons.settings_outlined),
+        leading: icon(Symbols.settings),
         open: openSettings,
       ),
     ]);
@@ -282,7 +282,7 @@ class _HomePageState extends State<HomePage> {
         if (nodes.isNotEmpty) null,
         MenuAction(
           value: '',
-          icon: Icons.add_to_queue_outlined,
+          icon: Symbols.add_to_queue,
           label: c.tr('添加电脑', 'Add computer'),
         ),
       ],
@@ -313,7 +313,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(width: 4),
-            Icon(Icons.expand_more, size: 16, color: context.tone.ink3),
+            Icon(Symbols.expand_more, size: 16, color: context.tone.ink3),
           ],
         ),
       ),
@@ -337,7 +337,7 @@ class _HomePageState extends State<HomePage> {
               ),
               IconAction(
                 tooltip: c.tr('搜索 (Ctrl+K)', 'Search (Ctrl+K)'),
-                icon: Icons.search,
+                icon: Symbols.search,
                 onPressed: openSearch,
               ),
               const SizedBox(width: 4),
@@ -352,13 +352,13 @@ class _HomePageState extends State<HomePage> {
   Widget createMenu() => category == 'space'
       ? IconButton(
           tooltip: c.tr('新建空间', 'New space'),
-          icon: const Icon(Icons.add),
+          icon: const Icon(Symbols.add),
           onPressed: () => create('space'),
         )
       : ActionMenu<String>(
           tooltip: c.tr('新建', 'Create'),
           alignEnd: true,
-          icon: const Icon(Icons.add),
+          icon: const Icon(Symbols.add),
           onSelected: create,
           items: createItems(),
         );
@@ -367,23 +367,23 @@ class _HomePageState extends State<HomePage> {
   List<MenuAction<String>?> createItems() => [
     MenuAction(
       value: 'space',
-      icon: Icons.web_asset_outlined,
+      icon: Symbols.web_asset,
       label: c.tr('新建空间', 'New space'),
     ),
     MenuAction(
       value: 'bot',
-      icon: Icons.smart_toy_outlined,
+      icon: Symbols.smart_toy,
       label: c.tr('新建 Bot', 'New Bot'),
     ),
     MenuAction(
       value: 'group',
-      icon: Icons.groups_outlined,
+      icon: Symbols.groups,
       label: c.tr('新建群组', 'New group'),
     ),
     null,
     MenuAction(
       value: 'plugins',
-      icon: Icons.extension_outlined,
+      icon: Symbols.extension,
       label: c.tr('插件中心', 'Plugin center'),
     ),
   ];
@@ -547,7 +547,7 @@ class _HomePageState extends State<HomePage> {
                           }
                         })
                       : openSearch,
-                  icon: Icon(searching ? Icons.close : Icons.search),
+                  icon: Icon(searching ? Symbols.close : Symbols.search),
                 ),
               ],
             ),
@@ -570,7 +570,7 @@ class _HomePageState extends State<HomePage> {
         ),
         shadows: tone.lift,
       ),
-      child: Icon(Icons.add, size: 28, color: tone.base),
+      child: Icon(Symbols.add, size: 28, color: tone.base),
     );
     return category == 'space'
         ? Tooltip(
@@ -1030,7 +1030,7 @@ class _HomePageState extends State<HomePage> {
                   IconButton(
                     tooltip: c.tr('重新连接', 'Reconnect'),
                     onPressed: () => c.bootstrap(),
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(Symbols.refresh),
                   ),
                 ],
               ),

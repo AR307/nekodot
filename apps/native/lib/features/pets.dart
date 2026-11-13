@@ -239,11 +239,7 @@ class _PetThumbnailState extends State<_PetThumbnail> {
               height: 48,
               fit: BoxFit.contain,
             )
-          : const SizedBox(
-              width: 48,
-              height: 48,
-              child: Icon(Icons.pets_outlined),
-            );
+          : const SizedBox(width: 48, height: 48, child: Icon(Symbols.pets));
     },
   );
 }

@@ -366,7 +366,7 @@ class _FlowchartPanelState extends State<FlowchartPanel>
               key: const ValueKey('flow-close'),
               tooltip: _text('close', c.zh),
               onPressed: widget.onClose,
-              icon: const Icon(Icons.close),
+              icon: const Icon(Symbols.close),
             ),
             titleSpacing: 4,
             title: Text(
@@ -379,11 +379,11 @@ class _FlowchartPanelState extends State<FlowchartPanel>
                   message: _text(flow!.state, c.zh),
                   child: Icon(
                     switch (flow!.state) {
-                      'done' => Icons.check_circle_outline,
-                      'failed' => Icons.error_outline,
-                      'unknown' => Icons.help_outline,
-                      'cancelled' => Icons.block,
-                      _ => Icons.pause_circle_outline,
+                      'done' => Symbols.check_circle,
+                      'failed' => Symbols.error,
+                      'unknown' => Symbols.help,
+                      'cancelled' => Symbols.block,
+                      _ => Symbols.pause_circle,
                     },
                     size: 18,
                     color: _stateColor(context, flow!.state),
@@ -399,12 +399,12 @@ class _FlowchartPanelState extends State<FlowchartPanel>
                 IconButton(
                   tooltip: _text('retry', c.zh),
                   onPressed: load,
-                  icon: Icon(Icons.refresh, color: tone.danger),
+                  icon: Icon(Symbols.refresh, color: tone.danger),
                 ),
               if (!connected && !loading)
                 Tooltip(
                   message: _text('disconnected', c.zh),
-                  child: const Icon(Icons.cloud_off_outlined, size: 18),
+                  child: const Icon(Symbols.cloud_off, size: 18),
                 ),
               const SizedBox(width: 12),
               if (widget.reserveControls)
@@ -532,7 +532,7 @@ class _FlowchartPanelState extends State<FlowchartPanel>
                         child: IconButton.filledTonal(
                           key: const ValueKey('flow-follow'),
                           tooltip: _text('follow', c.zh),
-                          icon: const Icon(Icons.my_location),
+                          icon: const Icon(Symbols.my_location),
                           onPressed: () {
                             setState(() {
                               follow = true;
@@ -557,18 +557,18 @@ class _FlowchartPanelState extends State<FlowchartPanel>
 }
 
 const flowIcons = <String, IconData>{
-  'plan': Icons.checklist_outlined,
-  'thinking': Icons.psychology_outlined,
-  'reply': Icons.chat_bubble_outline,
-  'browser': Icons.web_asset_outlined,
-  'search': Icons.search,
-  'read': Icons.description_outlined,
-  'write': Icons.description_outlined,
-  'code': Icons.code,
-  'terminal': Icons.terminal,
-  'approval': Icons.shield_outlined,
-  'question': Icons.help_outline,
-  'tool': Icons.build_outlined,
+  'plan': Symbols.checklist,
+  'thinking': Symbols.psychology,
+  'reply': Symbols.chat_bubble,
+  'browser': Symbols.web_asset,
+  'search': Symbols.search,
+  'read': Symbols.description,
+  'write': Symbols.description,
+  'code': Symbols.code,
+  'terminal': Symbols.terminal,
+  'approval': Symbols.shield,
+  'question': Symbols.help,
+  'tool': Symbols.build,
 };
 
 class _FlowRow extends StatelessWidget {
@@ -601,11 +601,11 @@ class _FlowRow extends StatelessWidget {
         ? step.tool!
         : _text(step.kind, zh);
     final mark = switch (step.state) {
-      'done' => Icons.check,
-      'failed' => Icons.close,
-      'cancelled' => Icons.block,
-      'waiting' || 'paused' => Icons.pause,
-      'unknown' => Icons.question_mark,
+      'done' => Symbols.check,
+      'failed' => Symbols.close,
+      'cancelled' => Symbols.block,
+      'waiting' || 'paused' => Symbols.pause,
+      'unknown' => Symbols.question_mark,
       _ => null,
     };
     final ink = color;
@@ -685,8 +685,8 @@ class _FlowRow extends StatelessWidget {
                         color: tone.base,
                         child: Icon(
                           step.kind == 'read'
-                              ? Icons.visibility_outlined
-                              : Icons.edit_outlined,
+                              ? Symbols.visibility
+                              : Symbols.edit,
                           size: 13,
                           color: ink,
                         ),
@@ -724,7 +724,7 @@ class _FlowRow extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(left: 4),
                 child: Icon(
-                  expanded ? Icons.expand_less : Icons.expand_more,
+                  expanded ? Symbols.expand_less : Symbols.expand_more,
                   size: 18,
                   color: tone.ink3,
                 ),

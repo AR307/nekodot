@@ -270,7 +270,7 @@ class _ChatPageState extends State<ChatPage>
       FocusManager.instance.primaryFocus?.unfocus();
       widget.onFlow!(focusFlowMessage);
     },
-    icon: const Icon(Icons.account_tree_outlined),
+    icon: const Icon(Symbols.account_tree),
   );
 
   @override
@@ -407,7 +407,7 @@ class _ChatPageState extends State<ChatPage>
             : IconButton(
                 tooltip: MaterialLocalizations.of(context).backButtonTooltip,
                 onPressed: () => Navigator.maybePop(context),
-                icon: const Icon(Icons.arrow_back),
+                icon: const Icon(Symbols.arrow_back),
               ),
         centerTitle: false,
         titleSpacing: widget.embedded ? 14 : 0,
@@ -429,13 +429,13 @@ class _ChatPageState extends State<ChatPage>
                     screenOpen = !screenOpen;
                     screenWide = false;
                   }),
-            icon: const Icon(Icons.desktop_windows_outlined),
+            icon: const Icon(Symbols.desktop_windows),
           ),
           if (widget.embedded)
             IconButton(
               tooltip: c.tr('详情', 'Details'),
               onPressed: openDetails,
-              icon: const Icon(Icons.view_sidebar_outlined),
+              icon: const Icon(Symbols.right_panel_open),
             ),
           const SizedBox(width: 8),
           if (widget.reserveControls)
@@ -706,7 +706,7 @@ class LatestButton extends StatelessWidget {
             key: const ValueKey('chat-latest'),
             tooltip: tooltip,
             onPressed: onPressed,
-            icon: const Icon(Icons.arrow_downward),
+            icon: const Icon(Symbols.arrow_downward),
           ),
         ),
         Positioned(
@@ -764,7 +764,7 @@ class AskedPill extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.south_rounded, size: 14, color: tone.ink3),
+                  Icon(Symbols.south, size: 14, color: tone.ink3),
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(

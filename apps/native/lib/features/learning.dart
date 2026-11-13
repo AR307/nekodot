@@ -38,12 +38,12 @@ class LearningPage extends StatelessWidget {
                   key: ValueKey('learning-${entry['id']}'),
                   leading: Icon(
                     '${entry['id']}'.startsWith('memory:')
-                        ? Icons.psychology_outlined
-                        : Icons.auto_awesome,
+                        ? Symbols.psychology
+                        : Symbols.auto_awesome,
                   ),
                   title: Text('${entry['fullLabel'] ?? entry['label']}'),
                   subtitle: Text('${entry['meta'] ?? ''}'),
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: const Icon(Symbols.chevron_right),
                   onTap: () async {
                     await pushPage(
                       context,

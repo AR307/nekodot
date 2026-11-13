@@ -125,12 +125,12 @@ class _PairingPageState extends State<PairingPage> {
               onPressed: busy || code == null
                   ? null
                   : () => generate(extend: true),
-              icon: const Icon(Icons.more_time),
+              icon: const Icon(Symbols.more_time),
             ),
             IconButton(
               tooltip: c.tr('生成新码', 'Generate new code'),
               onPressed: busy ? null : generate,
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Symbols.refresh),
             ),
           ],
         ),
@@ -165,7 +165,7 @@ class _PairingPageState extends State<PairingPage> {
                           );
                           if (mounted) setState(() => copied = true);
                         },
-                  icon: Icon(copied ? Icons.check : Icons.copy_outlined),
+                  icon: Icon(copied ? Symbols.check : Symbols.content_copy),
                 ),
               ],
             ),

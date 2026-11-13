@@ -685,7 +685,7 @@ void main() {
     await tap(copy);
     expect(copied, words);
     expect(
-      find.descendant(of: copy, matching: find.byIcon(Icons.check)),
+      find.descendant(of: copy, matching: find.byIcon(Symbols.check)),
       findsOneWidget,
     );
     await shot('copied');

@@ -163,20 +163,20 @@ class _RunLocationPageState extends State<RunLocationPage> {
                 children: [
                   ListTile(
                     key: const ValueKey('run-here'),
-                    leading: const Icon(Icons.laptop_outlined),
+                    leading: const Icon(Symbols.laptop),
                     title: Text(c.tr('在这台电脑运行', 'Run on this computer')),
                     subtitle: local.support.supported
                         ? null
                         : Text(c.tr('此系统暂不支持', 'Not supported on this system')),
                     enabled: local.support.supported,
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: const Icon(Symbols.chevron_right),
                     onTap: () => setState(() => way = 'local'),
                   ),
                   ListTile(
                     key: const ValueKey('connect-server'),
-                    leading: const Icon(Icons.dns_outlined),
+                    leading: const Icon(Symbols.dns),
                     title: Text(c.tr('连接远程服务器', 'Connect a remote server')),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: const Icon(Symbols.chevron_right),
                     onTap: () => setState(() => way = 'remote'),
                   ),
                 ],
@@ -228,7 +228,7 @@ class _RunLocationPageState extends State<RunLocationPage> {
                                 ),
                         ),
                         child: i < now
-                            ? Icon(Icons.check, size: 14, color: tone.ink)
+                            ? Icon(Symbols.check, size: 14, color: tone.ink)
                             : Text(
                                 '${i + 1}',
                                 style: TextStyle(
@@ -427,10 +427,10 @@ class _LocalSetupPageState extends State<LocalSetupPage> {
   Widget _step(LocalStep step) {
     final tone = context.tone;
     final icon = switch (step.state) {
-      'done' => Icon(Icons.check, size: 18, color: tone.ink),
+      'done' => Icon(Symbols.check, size: 18, color: tone.ink),
       'running' => const ShiningText(style: TextStyle(fontSize: 12)),
       'failed' => Icon(
-        Icons.close,
+        Symbols.close,
         size: 18,
         color: Theme.of(context).colorScheme.error,
       ),
@@ -573,7 +573,7 @@ class LocalComputerPanel extends StatelessWidget {
           subtitle: Text(path),
           trailing: IconButton(
             tooltip: c.tr('打开', 'Open'),
-            icon: const Icon(Icons.folder_open_outlined),
+            icon: const Icon(Symbols.folder_open),
             onPressed: () => launchUrl(Uri.file(path)),
           ),
         );

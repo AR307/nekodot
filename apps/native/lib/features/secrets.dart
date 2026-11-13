@@ -194,7 +194,7 @@ class _SecretCardState extends State<SecretCard>
     final ready = c.online && !busy;
     final title = Row(
       children: [
-        Icon(Icons.lock_outline, size: 16, color: tone.ink2),
+        Icon(Symbols.lock, size: 16, color: tone.ink2),
         const SizedBox(width: 8),
         Flexible(
           child: Text(
@@ -215,7 +215,11 @@ class _SecretCardState extends State<SecretCard>
           runSpacing: 4,
           children: [
             Text('${request['service']}', style: text.bodyMedium),
-            Icon(done ? Icons.check : Icons.remove, size: 16, color: tone.ink3),
+            Icon(
+              done ? Symbols.check : Symbols.remove,
+              size: 16,
+              color: tone.ink3,
+            ),
             Text(secretState(c, '${request['state']}'), style: text.bodySmall),
           ],
         ),
@@ -426,7 +430,7 @@ class BotSecretsPage extends StatelessWidget {
                   children: [
                     for (final entry in entries)
                       ListTile(
-                        leading: const Icon(Icons.lock_outline),
+                        leading: const Icon(Symbols.lock),
                         title: Text(
                           '${entry['service']}',
                           key: ValueKey(
@@ -440,7 +444,7 @@ class BotSecretsPage extends StatelessWidget {
                               ? client.tr('已保存', 'Saved')
                               : client.tr('已停用', 'Disabled'),
                         ),
-                        trailing: const Icon(Icons.chevron_right, size: 18),
+                        trailing: const Icon(Symbols.chevron_right, size: 18),
                         onTap: () =>
                             pushPage(context, entryPage(entry, reload)),
                       ),

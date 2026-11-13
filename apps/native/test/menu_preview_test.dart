@@ -28,6 +28,9 @@ void main() {
         await (FontLoader(
           'MaterialIcons',
         )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
+        await (FontLoader('Material Symbols')
+              ..addFont(rootBundle.load('assets/fonts/material-symbols.ttf')))
+            .load();
         if (Platform.isWindows) {
           await tester.runAsync(() async {
             await (FontLoader('Microsoft YaHei UI')..addFont(

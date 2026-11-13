@@ -304,7 +304,7 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
             ),
             trailing: IconButton(
               onPressed: busy ? null : refresh,
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Symbols.refresh),
             ),
           ),
           if (error.isNotEmpty)
@@ -316,7 +316,7 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
                 : listenerId == null
                 ? startWake
                 : stop,
-            icon: Icon(listenerId == null ? Icons.hearing : Icons.stop),
+            icon: Icon(listenerId == null ? Symbols.hearing : Symbols.stop),
             label: Text(
               listenerId == null
                   ? c.tr('启用本机语音唤醒', 'Listen for wake word')
@@ -330,7 +330,7 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
                 : recording
                 ? transcribe
                 : startRecording,
-            icon: Icon(recording ? Icons.stop : Icons.mic),
+            icon: Icon(recording ? Symbols.stop : Symbols.mic),
             label: Text(
               recording
                   ? c.tr('停止并识别', 'Stop & transcribe')

@@ -94,7 +94,7 @@ class ActionMenu<T> extends StatelessWidget {
               tooltip: tooltip,
               focusNode: focus,
               onPressed: enabled ? toggle : null,
-              icon: icon ?? const Icon(Icons.more_horiz, size: 20),
+              icon: icon ?? const Icon(Symbols.more_horiz, size: 20),
             )
           : Tooltip(
               message: tooltip,
@@ -170,7 +170,7 @@ class MenuChoice extends StatelessWidget {
       ),
       leadingIcon: leading,
       trailingIcon: selected
-          ? Icon(Icons.check_rounded, size: tone.glass ? 20 : 17)
+          ? Icon(Symbols.check, size: tone.glass ? 20 : 17)
           : trailing,
       child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
     );
@@ -247,7 +247,7 @@ class MenuSelect<T> extends StatelessWidget {
           decoration: InputDecoration(
             labelText: label,
             enabled: enabled,
-            suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+            suffixIcon: const Icon(Symbols.keyboard_arrow_down, size: 20),
           ),
           child: Row(
             children: [

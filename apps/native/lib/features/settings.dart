@@ -20,11 +20,11 @@ import 'source_models.dart';
 /// The parts of settings in order: id, title and icon. The page and the list
 /// that leads to its parts both read them here.
 List<(String, String, IconData)> settingsParts(NekodotClient c) => [
-  ('account', c.tr('账户', 'Account'), Icons.person_outline),
-  ('bots', c.tr('所有 Bot', 'All Bots'), Icons.smart_toy_outlined),
+  ('account', c.tr('账户', 'Account'), Symbols.person),
+  ('bots', c.tr('所有 Bot', 'All Bots'), Symbols.smart_toy),
   if (localRuntime?.location != null && localRuntime?.userId != null)
-    ('computer', c.tr('这台电脑', 'This computer'), Icons.computer_outlined),
-  ('app', c.tr('应用', 'App'), Icons.tune),
+    ('computer', c.tr('这台电脑', 'This computer'), Symbols.computer),
+  ('app', c.tr('应用', 'App'), Symbols.tune),
 ];
 
 class SettingsPage extends StatefulWidget {
@@ -106,7 +106,7 @@ class _SettingsPageState extends State<SettingsPage> {
       Widget link(String key, String title, Widget page) => ListTile(
         key: ValueKey(key),
         title: Text(title),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: const Icon(Symbols.chevron_right),
         onTap: () => pushPage(context, page),
       );
       final parts = {
@@ -143,7 +143,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 ListTile(
                   title: Text(c.tr('修改密码', 'Change password')),
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: const Icon(Symbols.chevron_right),
                   onTap: () => pushPage(context, PasswordPage(client: c)),
                 ),
                 link(
@@ -223,15 +223,15 @@ class _SettingsPageState extends State<SettingsPage> {
                     options: {
                       'system': Tooltip(
                         message: c.tr('跟随系统', 'System'),
-                        child: const Icon(Icons.brightness_auto_outlined),
+                        child: const Icon(Symbols.brightness_auto),
                       ),
                       'light': Tooltip(
                         message: c.tr('浅色', 'Light'),
-                        child: const Icon(Icons.light_mode_outlined),
+                        child: const Icon(Symbols.light_mode),
                       ),
                       'dark': Tooltip(
                         message: c.tr('深色', 'Dark'),
-                        child: const Icon(Icons.dark_mode_outlined),
+                        child: const Icon(Symbols.dark_mode),
                       ),
                     },
                     onChanged: (value) => c.prefs.update(appearance: value),
@@ -345,7 +345,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               key: ValueKey('settings-category-${section.id}'),
                               leading: Icon(section.icon),
                               title: Text(section.title),
-                              trailing: const Icon(Icons.chevron_right),
+                              trailing: const Icon(Symbols.chevron_right),
                               onTap: () => pushPage(
                                 context,
                                 SettingsPage(client: c, sectionId: section.id),
@@ -519,7 +519,7 @@ class _SourcesPageState extends State<SourcesPage> {
                     );
                     reload();
                   },
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(Symbols.add),
                 ),
               ),
               if (custom.isNotEmpty)
@@ -757,7 +757,7 @@ class _AuthorizationPageState extends State<AuthorizationPage> {
               Uri.parse(docs),
               mode: LaunchMode.externalApplication,
             ),
-            icon: const Icon(Icons.open_in_new),
+            icon: const Icon(Symbols.open_in_new),
           ),
       ],
       body: PageList(
@@ -825,20 +825,20 @@ class _AuthorizationPageState extends State<AuthorizationPage> {
                       Uri.parse(session!['verification_url'] as String),
                       mode: LaunchMode.externalApplication,
                     ),
-                    icon: const Icon(Icons.open_in_browser),
+                    icon: const Icon(Symbols.open_in_browser),
                   ),
                 IconButton(
                   tooltip: widget.client.tr('检查状态', 'Check status'),
                   onPressed: busy || session?['session_id'] == null
                       ? null
                       : () => action('poll'),
-                  icon: const Icon(Icons.refresh),
+                  icon: const Icon(Symbols.refresh),
                 ),
                 if (session?['status'] == 'pending')
                   IconButton(
                     tooltip: widget.client.tr('取消', 'Cancel'),
                     onPressed: busy ? null : () => action('cancel'),
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Symbols.close),
                   ),
               ],
             ),

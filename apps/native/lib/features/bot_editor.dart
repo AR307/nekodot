@@ -336,7 +336,7 @@ class _BotEditorState extends State<BotEditor> {
                         ),
                       ),
                       OutlinedButton.icon(
-                        icon: const Icon(Icons.folder_zip_outlined),
+                        icon: const Icon(Symbols.folder_zip),
                         label: Text(
                           '${archive?['name'] ?? c.tr('选择 .tar.gz 文件', 'Choose .tar.gz file')}',
                         ),
@@ -633,7 +633,7 @@ class _BotEditorState extends State<BotEditor> {
                               'Reload approval settings',
                             ),
                             onPressed: loadPermissions,
-                            icon: const Icon(Icons.refresh),
+                            icon: const Icon(Symbols.refresh),
                           ),
                         ),
                       ExpansionTile(

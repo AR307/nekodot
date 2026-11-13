@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../ui/symbols.dart';
+
 class DesktopHost with WindowListener {
   static bool get supported =>
       Platform.isWindows || Platform.isMacOS || Platform.isLinux;
@@ -201,13 +203,13 @@ class WindowChrome extends StatelessWidget {
               type: MaterialType.transparency,
               child: Row(
                 children: [
-                  control(Icons.remove, windowManager.minimize, 15),
-                  control(Icons.crop_square, () async {
+                  control(Symbols.remove, windowManager.minimize, 15),
+                  control(Symbols.crop_square, () async {
                     await windowManager.isMaximized()
                         ? await windowManager.unmaximize()
                         : await windowManager.maximize();
                   }, 14),
-                  control(Icons.close, windowManager.close, 15),
+                  control(Symbols.close, windowManager.close, 15),
                 ],
               ),
             ),

@@ -11,6 +11,7 @@ import '../data/account.dart';
 import 'motion.dart';
 import 'parts.dart';
 import 'sheet.dart';
+import 'symbols.dart';
 import 'shining_text.dart';
 import 'connection_notice.dart';
 
@@ -23,6 +24,7 @@ export 'motion.dart';
 export 'parts.dart';
 export 'shining_text.dart';
 export 'sheet.dart';
+export 'symbols.dart';
 
 final nativeRoutes = RouteObserver<ModalRoute<void>>();
 
@@ -405,6 +407,16 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
     borderRadius: BorderRadius.circular(tone.corner),
   );
   final buttonSize = Size(0, tone.control);
+  // Material Symbols are drawn light, as the outlines of the type are: one
+  // weight for every icon, its optical size that of the size it is drawn at.
+  final icons = IconThemeData(
+    color: tone.ink,
+    size: tone.icon,
+    weight: 300,
+    fill: 0,
+    grade: 0,
+    opticalSize: tone.icon,
+  );
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
@@ -439,8 +451,8 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
       centerTitle: false,
       toolbarHeight: frosted ? 52 : 44,
       titleSpacing: 4,
-      iconTheme: IconThemeData(color: tone.ink, size: tone.icon),
-      actionsIconTheme: IconThemeData(color: tone.ink, size: tone.icon),
+      iconTheme: icons,
+      actionsIconTheme: icons,
       titleTextStyle: text.titleLarge,
       systemOverlayStyle: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -452,7 +464,14 @@ ThemeData appTheme(Brightness brightness, {bool? glass}) {
             : Brightness.dark,
       ),
     ),
-    iconTheme: IconThemeData(color: tone.ink, size: tone.icon),
+    iconTheme: icons,
+    // The buttons the framework draws itself take the same face.
+    actionIconTheme: ActionIconThemeData(
+      backButtonIconBuilder: (context) => const Icon(Symbols.arrow_back),
+      closeButtonIconBuilder: (context) => const Icon(Symbols.close),
+      drawerButtonIconBuilder: (context) => const Icon(Symbols.menu),
+      endDrawerButtonIconBuilder: (context) => const Icon(Symbols.menu),
+    ),
     iconButtonTheme: IconButtonThemeData(
       style: IconButton.styleFrom(
         foregroundColor: tone.ink,
@@ -1155,7 +1174,7 @@ class _AsyncPaneState extends State<AsyncPane> {
                 IconButton(
                   tooltip: '重试 / Retry',
                   onPressed: reload,
-                  icon: const Icon(Icons.refresh),
+                  icon: const Icon(Symbols.refresh),
                 ),
               ],
             ),
