@@ -491,6 +491,10 @@ class _SourcesPageState extends State<SourcesPage> {
                 children: [
                   for (final provider in objects(data['oauth']))
                     ListTile(
+                      selected: MasterDetail.shows(
+                        context,
+                        'service:${provider['id'] ?? provider['provider']}',
+                      ),
                       title: Text('${provider['name'] ?? provider['id']}'),
                       trailing: StatusDot(
                         on: (provider['status'] as Map?)?['logged_in'] == true,
@@ -502,6 +506,8 @@ class _SourcesPageState extends State<SourcesPage> {
                             client: widget.client,
                             provider: provider,
                           ),
+                          row:
+                              'service:${provider['id'] ?? provider['provider']}',
                         );
                         reload();
                       },
@@ -527,6 +533,10 @@ class _SourcesPageState extends State<SourcesPage> {
                   children: [
                     for (final source in custom)
                       ListTile(
+                        selected: MasterDetail.shows(
+                          context,
+                          'source:${source['sourceId']}',
+                        ),
                         title: Text('${source['name']}'),
                         subtitle: Text(
                           '${source['baseUrl']}',
@@ -540,6 +550,7 @@ class _SourcesPageState extends State<SourcesPage> {
                               client: widget.client,
                               source: source,
                             ),
+                            row: 'source:${source['sourceId']}',
                           );
                           reload();
                         },

@@ -36,6 +36,7 @@ class LearningPage extends StatelessWidget {
               for (final entry in objects(bucket['nodes']))
                 ListTile(
                   key: ValueKey('learning-${entry['id']}'),
+                  selected: MasterDetail.shows(context, '${entry['id']}'),
                   leading: Icon(
                     '${entry['id']}'.startsWith('memory:')
                         ? Symbols.psychology
@@ -52,6 +53,7 @@ class LearningPage extends StatelessWidget {
                         botId: botId,
                         entryId: '${entry['id']}',
                       ),
+                      row: '${entry['id']}',
                     );
                     reload();
                   },

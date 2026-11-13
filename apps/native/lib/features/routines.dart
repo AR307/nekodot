@@ -62,6 +62,10 @@ class RoutineList extends StatelessWidget {
           children: [
             for (final routine in routines)
               ListTile(
+                selected: MasterDetail.shows(
+                  context,
+                  '${routine['routineId']}',
+                ),
                 leading: Icon(
                   routine['trigger'] == 'schedule'
                       ? Symbols.schedule
@@ -100,6 +104,7 @@ class RoutineList extends StatelessWidget {
                             botId: botId,
                             routineId: routineId,
                           ),
+                    row: routineId,
                   );
                   reload();
                 },
@@ -128,6 +133,7 @@ class RoutinesPage extends StatelessWidget {
       initial: routineId == null
           ? null
           : RoutinePage(client: client, botId: botId, routineId: routineId!),
+      initialRow: routineId,
       master: AsyncPane(
         initialData: const {},
         load: () => client.rpc('routines.list', {'botId': botId}),

@@ -1113,11 +1113,12 @@ class ErrorNotice extends StatelessWidget {
 }
 
 /// The next step: a new page, or, inside a floating sheet, the sheet's next
-/// step in the same frame.
-Future<T?> pushPage<T>(BuildContext context, Widget page) {
+/// step in the same frame. [row] names the row that opened it, for a list
+/// that keeps its pages beside it to mark.
+Future<T?> pushPage<T>(BuildContext context, Widget page, {Object? row}) {
   // From a list that has room beside it, the page opens there.
   final pane = MasterDetail.paneOf(context);
-  if (pane != null) return pane.show<T>(page);
+  if (pane != null) return pane.show<T>(page, row: row);
   return Navigator.of(context).push<T>(
     InSheet.of(context)
         ? SheetRoute<T>(page, first: false)

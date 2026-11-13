@@ -430,6 +430,10 @@ class BotSecretsPage extends StatelessWidget {
                   children: [
                     for (final entry in entries)
                       ListTile(
+                        selected: MasterDetail.shows(
+                          context,
+                          '${entry['credentialId']}',
+                        ),
                         leading: const Icon(Symbols.lock),
                         title: Text(
                           '${entry['service']}',
@@ -445,8 +449,11 @@ class BotSecretsPage extends StatelessWidget {
                               : client.tr('已停用', 'Disabled'),
                         ),
                         trailing: const Icon(Symbols.chevron_right, size: 18),
-                        onTap: () =>
-                            pushPage(context, entryPage(entry, reload)),
+                        onTap: () => pushPage(
+                          context,
+                          entryPage(entry, reload),
+                          row: '${entry['credentialId']}',
+                        ),
                       ),
                   ],
                 ),

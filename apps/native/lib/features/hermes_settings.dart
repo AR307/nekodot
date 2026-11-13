@@ -240,6 +240,7 @@ class _HermesSettingsState extends State<HermesSettings> {
     ];
     return ListTile(
       key: ValueKey('settings-group-$group'),
+      selected: MasterDetail.shows(context, group),
       title: Text(title ?? c.tr('Hermes 设置', 'Hermes settings')),
       subtitle: Text(
         names.join(c.tr('、', ', ')),
@@ -263,6 +264,7 @@ class _HermesSettingsState extends State<HermesSettings> {
           title: settingGroupName(c, group),
           body: HermesSettings(client: c, botId: widget.botId, group: group),
         ),
+        row: group,
       ),
     );
   }
