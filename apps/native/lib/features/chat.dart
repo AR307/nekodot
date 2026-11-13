@@ -49,6 +49,11 @@ class _ChatPageState extends State<ChatPage>
   late final NodeData data;
   late final String nodeId;
   final composer = GlobalKey<ChatComposerState>();
+
+  /// The Bot's screen, open over this conversation; and whether it has been
+  /// given room beside it. Its key keeps it connected as it moves.
+  bool screenOpen = false, screenWide = false;
+  final screenKey = GlobalKey();
   double composerHeight = 76;
   bool historyFocused = false;
   String? focusedMessage;
@@ -417,12 +422,13 @@ class _ChatPageState extends State<ChatPage>
           if (widget.onFlow != null) flowButton(),
           IconButton(
             tooltip: c.tr('屏幕', 'Screen'),
+            isSelected: screenOpen,
             onPressed: bot == null
                 ? null
-                : () => pushPage(
-                    context,
-                    ScreenPage(client: c, bot: bot, members: members),
-                  ),
+                : () => setState(() {
+                    screenOpen = !screenOpen;
+                    screenWide = false;
+                  }),
             icon: const Icon(Icons.desktop_windows_outlined),
           ),
           if (widget.embedded)
@@ -465,134 +471,208 @@ class _ChatPageState extends State<ChatPage>
                 .replaceAll(RegExp(r'\s+'), ' ')
                 .trim();
       WidgetsBinding.instance.addPostFrameCallback((_) => markViewed());
+      // One screen, kept connected as it goes from the small window over
+      // the conversation to its place beside it.
+      final screen = screenOpen && bot != null
+          ? ScreenPage(
+              key: screenKey,
+              client: c,
+              bot: bot,
+              members: members,
+              floating: !screenWide,
+              onClose: () => setState(() {
+                screenOpen = false;
+                screenWide = false;
+              }),
+              onWide: () => setState(() => screenWide = true),
+              onOwn: (own) => setState(() => screenWide = own),
+            )
+          : null;
       return Scaffold(
         extendBodyBehindAppBar: false,
         appBar: header,
-        body: ChatFileDrop(
-          enabled: widget.readingVisible,
-          onFiles: (files) async =>
-              composer.currentState?.attachDroppedFiles(files),
-          child: Stack(
-            children: [
-              if (messages.isEmpty)
-                Center(
-                  child: bot == null
-                      ? null
-                      : group == null
-                      ? CatAvatar.of(bot, size: 56)
-                      : GroupAvatar(size: 56, avatars: memberAvatars),
-                )
-              else
-                ChatTimeline(
-                  client: c,
-                  conversationId: id,
-                  view: view,
-                  scroll: scroll,
-                  composerHeight: composerHeight,
-                  onFocusChanged: (value) =>
-                      setState(() => historyFocused = value),
-                  focusedMessage: focusedMessage,
-                  focusedKey: focusedKey,
-                  onRetry: (text) => composer.currentState?.editDraft(text),
-                  onError: (value) => composer.currentState?.showError(value),
-                  onQuote: (words, taskId) =>
-                      composer.currentState?.quote(words, taskId: taskId),
-                  fresh: fresh,
-                  since: since,
-                  footer: widget.onFlow != null
-                      ? null
-                      : FlowFold(
-                          client: c,
-                          conversationId: id,
-                          onMessage: focusFlowMessage,
+        body: beside(
+          screen,
+          ChatFileDrop(
+            enabled: widget.readingVisible,
+            onFiles: (files) async =>
+                composer.currentState?.attachDroppedFiles(files),
+            child: Stack(
+              children: [
+                if (messages.isEmpty)
+                  Center(
+                    child: bot == null
+                        ? null
+                        : group == null
+                        ? CatAvatar.of(bot, size: 56)
+                        : GroupAvatar(size: 56, avatars: memberAvatars),
+                  )
+                else
+                  ChatTimeline(
+                    client: c,
+                    conversationId: id,
+                    view: view,
+                    scroll: scroll,
+                    composerHeight: composerHeight,
+                    onFocusChanged: (value) =>
+                        setState(() => historyFocused = value),
+                    focusedMessage: focusedMessage,
+                    focusedKey: focusedKey,
+                    onRetry: (text) => composer.currentState?.editDraft(text),
+                    onError: (value) => composer.currentState?.showError(value),
+                    onQuote: (words, taskId) =>
+                        composer.currentState?.quote(words, taskId: taskId),
+                    fresh: fresh,
+                    since: since,
+                    footer: widget.onFlow != null
+                        ? null
+                        : FlowFold(
+                            client: c,
+                            conversationId: id,
+                            onMessage: focusFlowMessage,
+                          ),
+                  ),
+                // While you read further up, what you last asked stays in sight
+                // under the bar; tapping it returns to the latest.
+                if (lastAsked != null)
+                  Builder(
+                    builder: (context) => Positioned(
+                      top: MediaQuery.paddingOf(context).top + 4,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: IgnorePointer(
+                          ignoring: !away,
+                          child: AnimatedOpacity(
+                            opacity: away ? 1 : 0,
+                            duration: still
+                                ? Duration.zero
+                                : const Duration(milliseconds: 180),
+                            child: AnimatedSlide(
+                              offset: away ? Offset.zero : const Offset(0, -.3),
+                              duration: still
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 220),
+                              curve: Curves.easeOutCubic,
+                              child: AskedPill(
+                                text: lastAsked,
+                                onTap: toLatest,
+                              ),
+                            ),
+                          ),
                         ),
-                ),
-              // While you read further up, what you last asked stays in sight
-              // under the bar; tapping it returns to the latest.
-              if (lastAsked != null)
-                Builder(
-                  builder: (context) => Positioned(
-                    top: MediaQuery.paddingOf(context).top + 4,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: IgnorePointer(
-                        ignoring: !away,
-                        child: AnimatedOpacity(
-                          opacity: away ? 1 : 0,
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: composerHeight + 6,
+                  child: Center(
+                    child: IgnorePointer(
+                      ignoring: !away,
+                      child: AnimatedOpacity(
+                        opacity: away ? 1 : 0,
+                        duration: still
+                            ? Duration.zero
+                            : const Duration(milliseconds: 180),
+                        child: AnimatedScale(
+                          scale: away ? 1 : .8,
                           duration: still
                               ? Duration.zero
                               : const Duration(milliseconds: 180),
-                          child: AnimatedSlide(
-                            offset: away ? Offset.zero : const Offset(0, -.3),
-                            duration: still
-                                ? Duration.zero
-                                : const Duration(milliseconds: 220),
-                            curve: Curves.easeOutCubic,
-                            child: AskedPill(text: lastAsked, onTap: toLatest),
+                          curve: Curves.easeOutCubic,
+                          child: LatestButton(
+                            tooltip: c.tr('回到最新', 'Jump to latest'),
+                            missed: missed,
+                            onPressed: toLatest,
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: composerHeight + 6,
-                child: Center(
-                  child: IgnorePointer(
-                    ignoring: !away,
-                    child: AnimatedOpacity(
-                      opacity: away ? 1 : 0,
-                      duration: still
-                          ? Duration.zero
-                          : const Duration(milliseconds: 180),
-                      child: AnimatedScale(
-                        scale: away ? 1 : .8,
-                        duration: still
-                            ? Duration.zero
-                            : const Duration(milliseconds: 180),
-                        curve: Curves.easeOutCubic,
-                        child: LatestButton(
-                          tooltip: c.tr('回到最新', 'Jump to latest'),
-                          missed: missed,
-                          onPressed: toLatest,
-                        ),
-                      ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: MeasureHeight(
+                    onChange: (height) {
+                      if (mounted && height != composerHeight) {
+                        setState(() => composerHeight = height);
+                      }
+                    },
+                    child: ChatComposer(
+                      key: composer,
+                      historyFocused: historyFocused,
+                      client: c,
+                      conversationId: id,
+                      view: view,
+                      onSent: () {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (scroll.hasClients) {
+                            scroll.jumpTo(scroll.position.minScrollExtent);
+                          }
+                        });
+                      },
                     ),
                   ),
                 ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: MeasureHeight(
-                  onChange: (height) {
-                    if (mounted && height != composerHeight) {
-                      setState(() => composerHeight = height);
-                    }
-                  },
-                  child: ChatComposer(
-                    key: composer,
-                    historyFocused: historyFocused,
-                    client: c,
-                    conversationId: id,
-                    view: view,
-                    onSent: () {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (scroll.hasClients) {
-                          scroll.jumpTo(scroll.position.minScrollExtent);
-                        }
-                      });
-                    },
+                if (screen != null && !screenWide)
+                  Positioned(
+                    top: 8,
+                    right: 12,
+                    width: tone.glass ? 220 : 340,
+                    child: Appear(
+                      key: const ValueKey('screen-small'),
+                      spring: Motion.pop,
+                      from: const Offset(0, -8),
+                      child: screen,
+                    ),
                   ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
+      );
+    },
+  );
+
+  /// The conversation, with the screen given room once it is wanted large:
+  /// at the side where the window is wide, above where it is not. The
+  /// conversation keeps its place in the tree either way.
+  Widget beside(Widget? screen, Widget conversation) => LayoutBuilder(
+    builder: (context, box) {
+      final wide = screen != null && screenWide;
+      final sideways = box.maxWidth >= 720;
+      final tone = context.tone;
+      final room = !wide
+          ? null
+          : sideways
+          ? SizedBox(
+              key: const ValueKey('screen-room'),
+              width: (box.maxWidth * .5).clamp(360.0, 640.0),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: tone.line, width: Tone.hair),
+                  ),
+                ),
+                child: screen,
+              ),
+            )
+          : SizedBox(
+              key: const ValueKey('screen-room'),
+              height: (box.maxHeight * .5).clamp(300.0, 440.0),
+              child: screen,
+            );
+      return Flex(
+        direction: sideways ? Axis.horizontal : Axis.vertical,
+        children: [
+          if (room != null && !sideways) room,
+          Expanded(key: const ValueKey('conversation'), child: conversation),
+          if (room != null && sideways) room,
+        ],
       );
     },
   );

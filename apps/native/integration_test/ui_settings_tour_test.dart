@@ -107,6 +107,10 @@ void main() {
     const routineName = '仓库有新提交';
     await tester.runAsync(() async {
       try {
+        // The Node has to be reachable before it is asked anything.
+        for (var i = 0; i < 100 && !client.online; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        }
         var routines = objects(
           (await client.rpc('routines.list', {'botId': botId}))['routines'],
         );
@@ -136,6 +140,25 @@ void main() {
           );
         }
         notes['routines'] = routines.length;
+        // A routine with no run yet is run once, so its timeline has an entry.
+        final existing = routines.firstWhere((r) => r['name'] == routineName);
+        final target = {'botId': botId, 'routineId': existing['routineId']};
+        final detail = await client.rpc('routines.get', target);
+        if (objects(detail['executions']).isEmpty) {
+          await client.rpc('routines.test', {
+            ...target,
+            'payload': {'event_type': 'push', 'message': '首页改为导轨加最近列表'},
+            'requestId': uid(),
+          });
+          for (var i = 0; i < 60; i++) {
+            await Future<void>.delayed(const Duration(seconds: 2));
+            final now = await client.rpc('routines.get', target);
+            if (objects(now['executions']).isNotEmpty) break;
+          }
+        }
+        notes['runs'] = objects(
+          (await client.rpc('routines.get', target))['executions'],
+        ).length;
       } catch (e) {
         notes['routineError'] = '$e';
       }
@@ -211,6 +234,11 @@ void main() {
     if (routine.evaluate().isNotEmpty) {
       await tester.tap(routine.first);
       await shot('desk-light-routines', settle: 4000);
+      // Its runs are at the end of the page beside the list.
+      await tester.dragFrom(const Offset(900, 600), const Offset(0, -4000));
+      await shot('desk-light-routines-runs', settle: 1200);
+      await tester.dragFrom(const Offset(900, 300), const Offset(0, 4000));
+      await run(const Duration(milliseconds: 500));
       await dark('desk-dark-routines');
       navigator.currentState!.pop();
       await run(const Duration(milliseconds: 700));

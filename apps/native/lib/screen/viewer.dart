@@ -16,11 +16,25 @@ class ScreenPage extends StatefulWidget {
   final NekodotClient client;
   final Json bot;
   final List<Json> members;
+
+  /// As a small window over a conversation it shows the screen, who holds
+  /// it, and the one thing to do with it.
+  final bool floating;
+
+  /// Set when it is shown over or beside a conversation rather than as a
+  /// page: closes it. [onWide] asks for room beside the conversation, and
+  /// [onOwn] says when control is taken or handed back.
+  final VoidCallback? onClose, onWide;
+  final ValueChanged<bool>? onOwn;
   const ScreenPage({
     super.key,
     required this.client,
     required this.bot,
     this.members = const [],
+    this.floating = false,
+    this.onClose,
+    this.onWide,
+    this.onOwn,
   });
   @override
   State<ScreenPage> createState() => _ScreenPageState();
@@ -40,6 +54,17 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
   int attempts = 0, buttons = 0;
   final keyboard = TextEditingController(), focus = FocusNode();
   NekodotClient get c => widget.client;
+
+  /// Whether control was the viewer's when [ScreenPage.onOwn] was last told.
+  bool told = false;
+  void tell() {
+    if (own == told) return;
+    told = own;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onOwn?.call(told);
+    });
+  }
+
   bool get own =>
       active &&
       connected &&
@@ -319,9 +344,114 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
   }
 
   @override
-  Widget build(BuildContext context) => AppPage(
-    title: '${bot['displayName']}',
-    actions: [
+  Widget build(BuildContext context) {
+    tell();
+    return widget.floating ? small(context) : full(context);
+  }
+
+  /// The screen as a small window: what is on it, who holds it, and the one
+  /// thing to do.
+  Widget small(BuildContext context) {
+    final tone = context.tone;
+    final running = status?['running'] == true;
+    final shape = RoundedSuperellipseBorder(
+      borderRadius: BorderRadius.circular(Tone.r12),
+      side: BorderSide(color: tone.line, width: Tone.hair),
+    );
+    return Container(
+      key: const ValueKey('screen-window'),
+      clipBehavior: Clip.antiAlias,
+      decoration: ShapeDecoration(
+        color: tone.menu,
+        shape: shape,
+        shadows: tone.lift,
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AspectRatio(
+              aspectRatio: 16 / 10,
+              child: ColoredBox(
+                color: Colors.black,
+                child: image == null
+                    ? const Center(
+                        child: Opacity(
+                          opacity: .25,
+                          child: CatAvatar(color: '#FFFFFF', size: 36),
+                        ),
+                      )
+                    : FittedBox(
+                        child: RawImage(
+                          image: image,
+                          width: image!.width.toDouble(),
+                          height: image!.height.toDouble(),
+                          filterQuality: FilterQuality.medium,
+                        ),
+                      ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 10, right: 2),
+              child: SizedBox(
+                height: 40,
+                child: Row(
+                  children: [
+                    connected && status?['holder'] != 'human'
+                        ? const ShiningText(style: TextStyle(fontSize: 12))
+                        : StatusDot(on: connected),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        !connected
+                            ? c.tr('未连接', 'Disconnected')
+                            : status?['holder'] == 'human'
+                            ? c.tr('他处控制中', 'Controlled elsewhere')
+                            : c.tr('Bot 控制中', 'Bot is in control'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: tone.ink2),
+                      ),
+                    ),
+                    if (running)
+                      TextButton(
+                        key: const ValueKey('screen-take'),
+                        onPressed: busy || !connected
+                            ? null
+                            : () => control('take'),
+                        child: Text(c.tr('接管', 'Take control')),
+                      ),
+                    IconButton(
+                      key: const ValueKey('screen-wide'),
+                      tooltip: c.tr('展开', 'Expand'),
+                      onPressed: widget.onWide,
+                      iconSize: 16,
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(Icons.open_in_full),
+                    ),
+                    IconButton(
+                      tooltip: c.tr('关闭屏幕', 'Close screen'),
+                      onPressed: widget.onClose,
+                      iconSize: 16,
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The screen with its controls: a page of its own, or the part of the
+  /// window beside a conversation.
+  Widget full(BuildContext context) {
+    final actions = <Widget>[
       if (status?['running'] == true)
         IconButton(
           tooltip: c.tr('键盘', 'Keyboard'),
@@ -343,8 +473,8 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
           onPressed: busy ? null : () => action('screen.stop'),
           icon: const Icon(Icons.power_settings_new_outlined),
         ),
-    ],
-    body: SafeArea(
+    ];
+    final body = SafeArea(
       child: Column(
         children: [
           if (widget.members.length > 1)
@@ -703,6 +833,46 @@ class _ScreenPageState extends State<ScreenPage> with WidgetsBindingObserver {
             ),
         ],
       ),
-    ),
-  );
+    );
+    if (widget.onClose == null) {
+      return AppPage(
+        title: '${bot['displayName']}',
+        actions: actions,
+        body: body,
+      );
+    }
+    return Material(
+      key: const ValueKey('screen-beside'),
+      color: context.tone.base,
+      child: Column(
+        children: [
+          SizedBox(
+            height: 44,
+            child: Row(
+              children: [
+                const SizedBox(width: 4),
+                IconButton(
+                  tooltip: c.tr('关闭屏幕', 'Close screen'),
+                  onPressed: widget.onClose,
+                  icon: const Icon(Icons.close),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    '${bot['displayName']}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                ...actions,
+                const SizedBox(width: 4),
+              ],
+            ),
+          ),
+          Expanded(child: body),
+        ],
+      ),
+    );
+  }
 }
