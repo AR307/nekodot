@@ -746,7 +746,7 @@ MarkdownStyleSheet markdownStyle(BuildContext context, {Color? color}) {
   );
 }
 
-/// A round bot face. A null color draws the brand mark in the current ink.
+/// A round bot face. A null color draws it in the current ink.
 /// While working its ears move and its eyes scan; idle, it blinks now and then.
 class CatAvatar extends StatefulWidget {
   final String? color;

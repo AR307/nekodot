@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'brand_mark.dart';
 import 'design.dart';
 
 /// Shared account-page composition; authentication remains in the feature.
@@ -78,7 +79,7 @@ class AuthWordmark extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      const CatAvatar(size: 28),
+      const BrandMark(size: 28),
       const SizedBox(width: 10),
       Text(
         'nekodot',

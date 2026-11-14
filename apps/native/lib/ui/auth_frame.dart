@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'brand_mark.dart';
 import 'design.dart';
 
 class AuthFrame extends StatelessWidget {
@@ -30,7 +31,7 @@ class AuthFrame extends StatelessWidget {
                         children: [
                           const Row(
                             children: [
-                              CatAvatar(size: 30),
+                              BrandMark(size: 30),
                               SizedBox(width: 10),
                               Text(
                                 'nekodot',

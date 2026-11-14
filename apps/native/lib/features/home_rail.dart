@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../platform/desktop.dart';
+import '../ui/brand_mark.dart';
 import '../ui/design.dart';
 
 /// Where home can go. `recent` mixes every conversation and space by when it
@@ -85,7 +86,7 @@ class HomeRail extends StatelessWidget {
               const SizedBox(height: 12),
               const SizedBox(
                 height: 34,
-                child: Center(child: CatAvatar(color: '#ffffff', size: 26)),
+                child: Center(child: BrandMark(size: 26, color: Colors.white)),
               ),
               const SizedBox(height: 8),
               SizedBox(
