@@ -1,7 +1,7 @@
 name: nekodot-product
 services:
   relay:
-    image: ${NEKODOT_RELAY_IMAGE:-nekodot-relay:product-0.3.7-b15}
+    image: ${NEKODOT_RELAY_IMAGE:-nekodot-relay:product-0.3.8-b16}
     container_name: nekodot-product-relay
     restart: unless-stopped
     env_file: .env
