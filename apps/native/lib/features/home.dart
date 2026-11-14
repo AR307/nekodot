@@ -24,6 +24,7 @@ import 'search_palette.dart';
 import 'time_labels.dart';
 import '../data/spaces.dart';
 import 'space_gallery.dart';
+import 'space_mark.dart';
 import 'spaces.dart';
 import 'statistics.dart';
 import 'home_rail.dart';
@@ -850,7 +851,7 @@ class _HomePageState extends State<HomePage> {
     c.saveContent();
   });
 
-  /// A space: what it is called and whose it is.
+  /// A space: its own mark, what it is called and whose it is.
   Widget spaceRow(Space space, bool narrow, {bool mixed = false}) {
     final bot = c.node.bots.where((b) => b['botId'] == space.botId).firstOrNull;
     return rowFrame(
@@ -858,13 +859,7 @@ class _HomePageState extends State<HomePage> {
       id: 'space:${space.spaceId}',
       selected:
           !narrow && category == 'space' && selectedSpace == space.spaceId,
-      avatar: CatAvatar.of(
-        bot ??
-            const {
-              'avatar': {'color': '#8C8376', 'shape': 'dot'},
-            },
-        size: context.tone.glass ? 44 : 36,
-      ),
+      avatar: SpaceMark(space: space, size: context.tone.glass ? 44 : 36),
       name: space.name,
       kind: mixed ? c.tr('空间', 'Space') : '',
       time: rowTime(c, DateTime.parse(space.updatedAt).toLocal()),

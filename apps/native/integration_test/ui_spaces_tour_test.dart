@@ -7,6 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nekodot_native/data/client.dart';
+import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/platform/desktop.dart';
 import 'package:nekodot_native/ui/design.dart';
@@ -94,6 +95,38 @@ void main() {
     final nodeId = client.selectedNodeId!;
     Finder key(String name) => find.byKey(ValueKey(name));
     Finder section(String id) => key('home-section-$id');
+    // A space made now carries an icon its Dot drew. With none yet, a Dot is
+    // really asked to make one.
+    bool marked() => client.node.spaces.values.any(
+      (space) => !space.archived && space.version > 0 && space.icon != null,
+    );
+    if (!marked()) {
+      final asking = client.node.conversations.firstWhere(
+        (c) =>
+            c['kind'] != 'group' &&
+            c['conversationId'] !=
+                const String.fromEnvironment('QA_CONVERSATION'),
+      );
+      await tester.runAsync(
+        () => client.deliveries.enqueue(
+          'messages.send',
+          {
+            'conversationId': asking['conversationId'],
+            'text': '做一个喝水打卡的小页面：点一下记一杯水，显示今天喝了几杯。',
+            'createSpace': true,
+            'clientMsgId': uid(),
+          },
+          nodeId,
+          [],
+        ),
+      );
+      final making = Stopwatch()..start();
+      notes['iconMade'] = await until(marked, seconds: 720);
+      notes['iconMadeSeconds'] = making.elapsed.inSeconds;
+    }
+    notes['withIcon'] = client.node.spaces.values
+        .where((space) => space.icon != null)
+        .length;
     final built = client.node.spaces.values
         .where((space) => !space.archived && space.version > 0)
         .toList();
@@ -125,6 +158,8 @@ void main() {
     client.workspace.remove('space:$nodeId');
     await tester.pumpWidget(app());
     await run(const Duration(milliseconds: 600));
+    // Recent: a space is listed under its own mark.
+    await shot('desk-light-recent', settle: 900);
 
     await tester.tap(section('space'));
     notes['picturedBefore'] = pictured();
@@ -198,6 +233,8 @@ void main() {
     await run(const Duration(milliseconds: 600));
     navigator.currentState!.popUntil((route) => route.isFirst);
     await run(const Duration(milliseconds: 500));
+    await tester.tap(section('recent'));
+    await shot('phone-light-recent', settle: 900);
     await tester.tap(section('space'));
     await shot('phone-light-spaces', settle: 1500);
     await dark('phone-dark-spaces');
@@ -217,5 +254,5 @@ void main() {
     client.dispose();
     // ignore: avoid_print
     print('TOUR ${jsonEncode({'done': true, ...notes})}');
-  }, timeout: const Timeout(Duration(minutes: 10)));
+  }, timeout: const Timeout(Duration(minutes: 25)));
 }

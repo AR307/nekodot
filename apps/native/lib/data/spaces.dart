@@ -9,6 +9,9 @@ import 'local_content.dart';
 class Space {
   final String spaceId, botId, conversationId, name, createdAt, updatedAt;
   final String? fileId;
+
+  /// The icon its Dot drew for it, as SVG.
+  final String? icon;
   final int version;
   final bool archived;
   final List<String> origins, allowedOrigins;
@@ -20,6 +23,7 @@ class Space {
       createdAt = value['createdAt'] as String,
       updatedAt = value['updatedAt'] as String,
       fileId = value['fileId'] as String?,
+      icon = value['icon'] as String?,
       version = value['version'] as int,
       archived = value['archived'] as bool,
       origins = List<String>.from(value['origins']),
@@ -32,6 +36,7 @@ class Space {
     'name': name,
     'version': version,
     'fileId': ?fileId,
+    'icon': ?icon,
     'archived': archived,
     'origins': origins,
     'allowedOrigins': allowedOrigins,

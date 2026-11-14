@@ -11,6 +11,7 @@ import '../data/spaces.dart';
 import '../ui/design.dart';
 import '../platform/desktop.dart';
 import 'files.dart';
+import 'space_mark.dart';
 import 'space_webview.dart';
 
 class SpaceScope extends InheritedWidget {
@@ -42,9 +43,6 @@ class SpaceCard extends StatelessWidget {
     builder: (context, _) {
       final space = client.node.spaces[spaceId];
       if (space == null) return const SizedBox.shrink();
-      final bot = client.node.bots
-          .where((b) => b['botId'] == space.botId)
-          .firstOrNull;
       return Align(
         alignment: Alignment.centerLeft,
         child: ConstrainedBox(
@@ -56,7 +54,7 @@ class SpaceCard extends StatelessWidget {
             ),
             clipBehavior: Clip.antiAlias,
             child: ListTile(
-              leading: CatAvatar.of(bot ?? {}, size: 32),
+              leading: SpaceMark(space: space, size: 32),
               title: Text(
                 space.name,
                 maxLines: 1,

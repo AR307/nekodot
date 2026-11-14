@@ -10,6 +10,7 @@ import '../data/spaces.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
 import 'files.dart';
+import 'space_mark.dart';
 import 'space_webview.dart';
 import 'time_labels.dart';
 
@@ -202,7 +203,7 @@ class _SpaceGalleryState extends State<SpaceGallery> {
                       key: ValueKey('space-tile-${space.spaceId}'),
                       delay: Motion.delay(index),
                       child: _Tile(
-                        name: space.name,
+                        space: space,
                         time: rowTime(
                           c,
                           DateTime.parse(space.updatedAt).toLocal(),
@@ -258,18 +259,19 @@ class _SpaceGalleryState extends State<SpaceGallery> {
 }
 
 class _Tile extends StatefulWidget {
-  /// The line under the picture: whose space it is, its name and when it
-  /// last changed.
+  /// The line under the picture: the space's mark and whose space it is,
+  /// its name and when it last changed.
   static const foot = 40.0;
-  final String name, time;
+  final Space space;
+  final String time;
   final Map<String, dynamic>? bot;
 
-  /// What the space last looked like; the Dot's face stands in until there
-  /// is a picture.
+  /// What the space last looked like; its mark stands in until there is a
+  /// picture.
   final Uint8List? picture;
   final ValueChanged<Rect> onOpen;
   const _Tile({
-    required this.name,
+    required this.space,
     required this.time,
     required this.bot,
     required this.picture,
@@ -328,7 +330,7 @@ class _TileState extends State<_Tile> {
                 child: AnimatedSwitcher(
                   duration: Motion.span(context, Motion.swap),
                   child: picture == null
-                      ? Center(child: CatAvatar.of(bot, size: 44))
+                      ? Center(child: SpaceMark(space: widget.space, size: 44))
                       : LayoutBuilder(
                           key: const ValueKey('space-tile-picture'),
                           builder: (context, box) => Image.memory(
@@ -352,11 +354,18 @@ class _TileState extends State<_Tile> {
               height: _Tile.foot,
               child: Row(
                 children: [
+                  SpaceMark(space: widget.space, size: 20),
+                  Container(
+                    width: 1,
+                    height: 12,
+                    margin: const EdgeInsets.symmetric(horizontal: 6),
+                    color: tone.line,
+                  ),
                   CatAvatar.of(bot, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      widget.name,
+                      widget.space.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: text.titleMedium?.copyWith(fontSize: 14),
