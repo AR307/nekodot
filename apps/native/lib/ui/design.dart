@@ -18,6 +18,7 @@ import 'connection_notice.dart';
 import 'master_detail.dart';
 
 export 'entry_motion.dart';
+export 'grow.dart';
 export 'master_detail.dart';
 export 'menus.dart';
 export 'motion.dart';

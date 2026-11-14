@@ -1,17 +1,28 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import '../data/client.dart';
 import '../data/spaces.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
+import 'files.dart';
+import 'space_webview.dart';
 import 'time_labels.dart';
 
-/// Spaces as a gallery, one tile each, in the order given. A tile opens its
-/// space; with none yet, the one thing to do is make the first.
-class SpaceGallery extends StatelessWidget {
+/// Spaces as a gallery, one tile each, in the order given. A tile shows what
+/// its space last looked like and opens it; with none yet, the one thing to
+/// do is make the first.
+class SpaceGallery extends StatefulWidget {
   final NekodotClient client;
   final List<Space> spaces;
-  final ValueChanged<Space> onOpen;
+
+  /// Opens a space; the rectangle is where its tile's picture is in the
+  /// window, for the page to grow out of.
+  final void Function(Space space, Rect from) onOpen;
   final VoidCallback onCreate;
 
   /// Whether it fills the window beside the rail, with a bar of its own.
@@ -24,20 +35,118 @@ class SpaceGallery extends StatelessWidget {
     required this.onCreate,
     this.titled = false,
   });
+  @override
+  State<SpaceGallery> createState() => _SpaceGalleryState();
+}
+
+class _SpaceGalleryState extends State<SpaceGallery> {
+  NekodotClient get c => widget.client;
+
+  /// The versions of spaces whose picture has been tried here: each once.
+  final tried = <String>{};
+  bool taking = false;
+
+  /// The room a space has when it is open: its picture is taken at this size.
+  Size room = Size.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(take()));
+  }
+
+  @override
+  void didUpdateWidget(SpaceGallery old) {
+    super.didUpdateWidget(old);
+    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(take()));
+  }
+
+  /// Takes the pictures that are missing or older than their space, one
+  /// after another and out of sight. A space loaded for its picture reaches
+  /// nothing but its own files, and only reads its records.
+  Future<void> take() async {
+    if (taking || !mounted || !(Platform.isWindows || Platform.isAndroid)) {
+      return;
+    }
+    taking = true;
+    WebViewEnvironment? environment;
+    try {
+      while (mounted && !room.isEmpty) {
+        final storage = c.store, nodeId = c.selectedNodeId;
+        if (storage == null ||
+            nodeId == null ||
+            !c.connection.ready ||
+            c.nodes[nodeId]?.online != true) {
+          break;
+        }
+        final space = widget.spaces
+            .where(
+              (s) =>
+                  s.fileId != null &&
+                  c.spaces.thumbs.version(nodeId, s.spaceId) != s.version &&
+                  !tried.contains('${s.spaceId}:${s.version}'),
+            )
+            .firstOrNull;
+        if (space == null) break;
+        tried.add('${space.spaceId}:${space.version}');
+        try {
+          if (Platform.isWindows && environment == null) {
+            if (await WebViewEnvironment.getAvailableVersion() == null) break;
+            environment = await createSpaceEnvironment(
+              storage.file('spaces/browser').path,
+            );
+          }
+          final bundle = SpaceBundle(
+            await downloadFile(c, space.fileId!, targetNode: nodeId),
+          );
+          await c.spaces.sync(nodeId, space.spaceId);
+          final picture = await pictureOf(
+            SpaceSite(
+              client: c,
+              nodeId: nodeId,
+              space: Space.fromJson({
+                ...space.toJson(),
+                'allowedOrigins': const <String>[],
+              }),
+              bundle: bundle,
+              writes: false,
+            ),
+            room,
+            environment,
+          );
+          if (picture != null) {
+            await c.spaces.thumbs.keep(
+              nodeId,
+              space.spaceId,
+              space.version,
+              picture,
+            );
+          }
+        } catch (_) {
+          // A picture that does not come out leaves the Dot's face in place.
+        }
+      }
+    } finally {
+      await environment?.dispose();
+      taking = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final c = client, tone = context.tone, text = Theme.of(context).textTheme;
+    final tone = context.tone, text = Theme.of(context).textTheme;
+    final spaces = widget.spaces, titled = widget.titled;
     final grid = spaces.isEmpty
         ? Center(
             child: OutlinedButton(
               key: const ValueKey('space-create-first'),
-              onPressed: onCreate,
+              onPressed: widget.onCreate,
               child: Text(c.tr('新建空间', 'New space')),
             ),
           )
         : LayoutBuilder(
             builder: (context, box) {
+              room = box.biggest;
               final side = titled ? 24.0 : 16.0,
                   gap = titled ? 20.0 : 16.0,
                   columns = titled
@@ -47,34 +156,41 @@ class SpaceGallery extends StatelessWidget {
                       : 2,
                   width =
                       (box.maxWidth - side * 2 - gap * (columns - 1)) / columns;
-              return GridView.builder(
-                padding: EdgeInsets.fromLTRB(side, 8, side, 28),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: columns,
-                  crossAxisSpacing: gap,
-                  mainAxisSpacing: gap,
-                  mainAxisExtent: width * 10 / 16 + 40,
-                ),
-                itemCount: spaces.length,
-                itemBuilder: (context, index) {
-                  final space = spaces[index];
-                  final bot = c.node.bots
-                      .where((b) => b['botId'] == space.botId)
-                      .firstOrNull;
-                  return Appear(
-                    key: ValueKey('space-tile-${space.spaceId}'),
-                    delay: Motion.delay(index),
-                    child: _Tile(
-                      name: space.name,
-                      time: rowTime(
-                        c,
-                        DateTime.parse(space.updatedAt).toLocal(),
+              return ListenableBuilder(
+                listenable: c.spaces.thumbs,
+                builder: (context, _) => GridView.builder(
+                  padding: EdgeInsets.fromLTRB(side, 8, side, 28),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    crossAxisSpacing: gap,
+                    mainAxisSpacing: gap,
+                    mainAxisExtent: width * 10 / 16 + _Tile.foot,
+                  ),
+                  itemCount: spaces.length,
+                  itemBuilder: (context, index) {
+                    final space = spaces[index];
+                    final bot = c.node.bots
+                        .where((b) => b['botId'] == space.botId)
+                        .firstOrNull;
+                    return Appear(
+                      key: ValueKey('space-tile-${space.spaceId}'),
+                      delay: Motion.delay(index),
+                      child: _Tile(
+                        name: space.name,
+                        time: rowTime(
+                          c,
+                          DateTime.parse(space.updatedAt).toLocal(),
+                        ),
+                        bot: bot,
+                        picture: c.spaces.thumbs.picture(
+                          c.selectedNodeId!,
+                          space.spaceId,
+                        ),
+                        onOpen: (from) => widget.onOpen(space, from),
                       ),
-                      bot: bot,
-                      onTap: () => onOpen(space),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               );
             },
           );
@@ -97,7 +213,7 @@ class SpaceGallery extends StatelessWidget {
                       const Spacer(),
                       OutlinedButton(
                         key: const ValueKey('space-create'),
-                        onPressed: onCreate,
+                        onPressed: widget.onCreate,
                         child: Text(c.tr('新建空间', 'New space')),
                       ),
                       const SizedBox(width: 8),
@@ -116,14 +232,22 @@ class SpaceGallery extends StatelessWidget {
 }
 
 class _Tile extends StatefulWidget {
+  /// The line under the picture: whose space it is, its name and when it
+  /// last changed.
+  static const foot = 40.0;
   final String name, time;
   final Map<String, dynamic>? bot;
-  final VoidCallback onTap;
+
+  /// What the space last looked like; the Dot's face stands in until there
+  /// is a picture.
+  final Uint8List? picture;
+  final ValueChanged<Rect> onOpen;
   const _Tile({
     required this.name,
     required this.time,
     required this.bot,
-    required this.onTap,
+    required this.picture,
+    required this.onOpen,
   });
   @override
   State<_Tile> createState() => _TileState();
@@ -139,30 +263,67 @@ class _TileState extends State<_Tile> {
         const {
           'avatar': {'color': '#8C8376', 'shape': 'dot'},
         };
+    final picture = widget.picture;
     return MouseRegion(
       onEnter: (_) => setState(() => hovered = true),
       onExit: (_) => setState(() => hovered = false),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
+        onTap: () {
+          final box = context.findRenderObject()! as RenderBox;
+          widget.onOpen(
+            box.localToGlobal(Offset.zero) &
+                Size(box.size.width, box.size.height - _Tile.foot),
+          );
+        },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
               child: AnimatedContainer(
                 duration: Motion.still(context) ? Duration.zero : Motion.tint,
+                clipBehavior: Clip.antiAlias,
+                // The line sits over the picture, so its edge stays crisp.
+                foregroundDecoration: ShapeDecoration(
+                  shape: RoundedSuperellipseBorder(
+                    borderRadius: BorderRadius.circular(Tone.r12),
+                    side: BorderSide(
+                      color: hovered ? tone.ink3 : tone.line,
+                      width: Tone.hair,
+                    ),
+                  ),
+                ),
                 decoration: ShapeDecoration(
                   color: hovered ? tone.raised : tone.bubble,
                   shape: RoundedSuperellipseBorder(
                     borderRadius: BorderRadius.circular(Tone.r12),
-                    side: BorderSide(color: tone.line, width: Tone.hair),
                   ),
                 ),
-                child: Center(child: CatAvatar.of(bot, size: 44)),
+                child: AnimatedSwitcher(
+                  duration: Motion.span(context, Motion.swap),
+                  child: picture == null
+                      ? Center(child: CatAvatar.of(bot, size: 44))
+                      : LayoutBuilder(
+                          key: const ValueKey('space-tile-picture'),
+                          builder: (context, box) => Image.memory(
+                            picture,
+                            width: box.maxWidth,
+                            height: box.maxHeight,
+                            fit: BoxFit.cover,
+                            alignment: Alignment.topCenter,
+                            cacheWidth:
+                                (box.maxWidth *
+                                        MediaQuery.devicePixelRatioOf(context))
+                                    .round(),
+                            filterQuality: FilterQuality.medium,
+                            gaplessPlayback: true,
+                          ),
+                        ),
+                ),
               ),
             ),
             SizedBox(
-              height: 40,
+              height: _Tile.foot,
               child: Row(
                 children: [
                   CatAvatar.of(bot, size: 20),

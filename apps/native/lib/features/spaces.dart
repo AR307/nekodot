@@ -104,6 +104,9 @@ class _SpacePageState extends State<SpacePage> {
       failed = false,
       missingRuntime = false,
       notDownloaded = false;
+
+  /// The site has drawn itself. Until then its last picture stands in.
+  bool live = false;
   int generation = 0;
   Space? get current => c.nodes[widget.nodeId]?.spaces[widget.spaceId];
   String get cacheKey => 'spaces/open/${widget.nodeId}/${widget.spaceId}';
@@ -131,6 +134,7 @@ class _SpacePageState extends State<SpacePage> {
       busy = true;
       failed = false;
       notDownloaded = false;
+      live = false;
     });
     try {
       if (Platform.isWindows && environment == null) {
@@ -342,9 +346,25 @@ class _SpacePageState extends State<SpacePage> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: Listenable.merge([c.nodes[widget.nodeId], c.spaces]),
+    listenable: Listenable.merge([
+      c.nodes[widget.nodeId],
+      c.spaces,
+      c.spaces.thumbs,
+    ]),
     builder: (context, _) {
       final space = current ?? loaded;
+      final picture = c.spaces.thumbs.picture(widget.nodeId, widget.spaceId);
+      final last = picture == null
+          ? null
+          : SizedBox.expand(
+              key: const ValueKey('space-last-picture'),
+              child: Image.memory(
+                picture,
+                fit: BoxFit.fitWidth,
+                alignment: Alignment.topCenter,
+                gaplessPlayback: true,
+              ),
+            );
       final pending = c.spaces
           .data(widget.nodeId, widget.spaceId)
           .pending
@@ -363,6 +383,9 @@ class _SpacePageState extends State<SpacePage> {
       return Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
+          // Beside the rail its bar is as tall as the gallery's, so the
+          // space has the room the gallery had.
+          toolbarHeight: widget.embedded && !context.tone.glass ? 48 : null,
           leading: IconButton(
             tooltip: c.tr('返回', 'Back'),
             icon: const Icon(Symbols.arrow_back),
@@ -450,7 +473,10 @@ class _SpacePageState extends State<SpacePage> {
                 ),
               )
             : busy
-            ? const Center(child: CircularProgressIndicator())
+            ? SafeArea(
+                top: false,
+                child: last ?? const Center(child: CircularProgressIndicator()),
+              )
             : notDownloaded
             ? Center(child: Text(c.tr('尚未下载', 'Not downloaded')))
             : failed
@@ -462,18 +488,34 @@ class _SpacePageState extends State<SpacePage> {
               )
             : SafeArea(
                 top: false,
-                child: SpaceWebView(
-                  key: ValueKey(
-                    '$generation:${shown!.allowedOrigins.join(',')}',
-                  ),
-                  client: c,
-                  nodeId: widget.nodeId,
-                  space: shown,
-                  bundle: bundle!,
-                  environment: environment,
-                  onError: () {
-                    if (mounted) setState(() => failed = true);
-                  },
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    SpaceWebView(
+                      key: ValueKey(
+                        '$generation:${shown!.allowedOrigins.join(',')}',
+                      ),
+                      client: c,
+                      nodeId: widget.nodeId,
+                      space: shown,
+                      bundle: bundle!,
+                      environment: environment,
+                      onError: () {
+                        if (mounted) setState(() => failed = true);
+                      },
+                      onDrawn: () => setState(() => live = true),
+                    ),
+                    // Gone from the tree once the site shows: nothing is left
+                    // lying over the web view.
+                    IgnorePointer(
+                      child: AnimatedSwitcher(
+                        duration: Motion.span(context, Motion.swap),
+                        child: live || last == null
+                            ? const SizedBox.shrink()
+                            : last,
+                      ),
+                    ),
+                  ],
                 ),
               ),
       );

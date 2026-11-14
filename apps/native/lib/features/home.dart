@@ -80,6 +80,9 @@ class _HomePageState extends State<HomePage> {
           as String?;
   String? selectedSpace;
 
+  /// Where the tile that opened the space is, for the page to grow out of.
+  Rect? spaceFrom;
+
   /// The sidebar's width while it is being dragged; saved when let go.
   double? dragging;
   NekodotClient get c => widget.client;
@@ -815,24 +818,37 @@ class _HomePageState extends State<HomePage> {
     c.saveContent();
   }
 
-  void showSpace(Space space) {
+  void showSpace(Space space, [Rect? from]) {
     c.workspace['category:${c.selectedNodeId}'] = 'space';
     c.workspace['space:${c.selectedNodeId}'] = space.spaceId;
     c.saveContent();
     setState(() {
       selectedSpace = space.spaceId;
+      spaceFrom = from;
       details = null;
       flowFocus = null;
       previewFile = null;
       settingsPart = null;
     });
     if (MediaQuery.sizeOf(context).width < 840) {
-      pushPage(
-        context,
-        SpacePage(client: c, nodeId: c.selectedNodeId!, spaceId: space.spaceId),
+      final page = SpacePage(
+        client: c,
+        nodeId: c.selectedNodeId!,
+        spaceId: space.spaceId,
       );
+      if (from == null) {
+        pushPage(context, page);
+      } else {
+        Navigator.of(context).push(GrowRoute<void>(page, from: from));
+      }
     }
   }
+
+  void closeSpace() => setState(() {
+    selectedSpace = null;
+    c.workspace.remove('space:${c.selectedNodeId}');
+    c.saveContent();
+  });
 
   /// A space: what it is called and whose it is.
   Widget spaceRow(Space space, bool narrow, {bool mixed = false}) {
@@ -1132,26 +1148,41 @@ class _HomePageState extends State<HomePage> {
                 kind: 'skills',
                 embedded: true,
               )
-            : spaceShown
-            ? SpacePage(
-                key: ValueKey('${c.selectedNodeId}:$selectedSpace'),
-                client: c,
-                nodeId: c.selectedNodeId!,
-                spaceId: selectedSpace!,
-                embedded: true,
-                onBack: () => setState(() {
-                  selectedSpace = null;
-                  c.workspace.remove('space:${c.selectedNodeId}');
-                  c.saveContent();
-                }),
-              )
             : section == 'space'
-            ? SpaceGallery(
-                client: c,
-                spaces: spaces,
-                titled: true,
-                onOpen: showSpace,
-                onCreate: () => create('space'),
+            // The gallery, and over it the space that is open: it grows out
+            // of its tile and goes back into it.
+            ? Navigator(
+                key: ValueKey('spaces:${c.selectedNodeId}'),
+                pages: [
+                  GrowPage<void>(
+                    key: const ValueKey('gallery'),
+                    child: SpaceGallery(
+                      client: c,
+                      spaces: spaces,
+                      titled: true,
+                      onOpen: showSpace,
+                      onCreate: () => create('space'),
+                    ),
+                  ),
+                  if (spaceShown)
+                    GrowPage<void>(
+                      key: ValueKey('space:$selectedSpace'),
+                      from: spaceFrom,
+                      child: SpacePage(
+                        key: ValueKey('${c.selectedNodeId}:$selectedSpace'),
+                        client: c,
+                        nodeId: c.selectedNodeId!,
+                        spaceId: selectedSpace!,
+                        embedded: true,
+                        onBack: closeSpace,
+                      ),
+                    ),
+                ],
+                onDidRemovePage: (page) {
+                  if (page.key == ValueKey('space:$selectedSpace')) {
+                    closeSpace();
+                  }
+                },
               )
             : hasChat
             ? ChatPage(
@@ -1189,8 +1220,6 @@ class _HomePageState extends State<HomePage> {
             ? 'settings:$settingsPart'
             : section == 'plugins'
             ? 'plugins'
-            : spaceShown
-            ? 'space:$selectedSpace'
             : section == 'space'
             ? 'spaces'
             : hasChat
