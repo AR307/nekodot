@@ -8,158 +8,116 @@
 <h1 align="center">nekodot</h1>
 
 <p align="center">
-  <strong>A team of Bots, working on your own computer.</strong><br>
-  Research, reports, spreadsheets, and browser tasks—give each Bot a role.<br>
-  They work with your files and browser, collaborate in group chats, and follow your approval settings.<br>
-  Each Bot is a native <a href="https://hermes-agent.nousresearch.com">Hermes Agent</a> profile.
+  <strong>Your new-generation personal AI assistant.</strong><br>
+  Your own model, your own computer, in reach from Windows and Android.<br>
+  Ask a Dot to research, work with files, use a browser, or build a small tool you can keep.
 </p>
 
 <p align="center">
   <a href="https://github.com/AR307/nekodot/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AR307/nekodot/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="Node 24 LTS" src="https://img.shields.io/badge/node-24%20LTS-000000">
   <a href="https://github.com/AR307/nekodot/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/AR307/nekodot?label=release&color=000000"></a>
 </p>
 
 <p align="center">
   English · <a href="README.zh-CN.md">简体中文</a><br>
   <a href="https://www.nekodot.com">Website</a> ·
-  <a href="https://www.nekodot.com/#start">Download</a> ·
-  <a href="LICENSE">MIT License</a><br>
-  <a href="#what-you-can-do">What you can do</a> ·
-  <a href="#features">Features</a> ·
-  <a href="#how-it-works">How it works</a> ·
-  <a href="#quick-start">Quick start</a> ·
-  <a href="#development">Development</a>
+  <a href="https://www.nekodot.com/en/#start">Download</a> ·
+  <a href="deploy/README.md">Self-hosting</a> ·
+  <a href="LICENSE">MIT License</a>
 </p>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/desk-group-dark.webp">
-  <img src=".github/assets/desk-group-light.webp" alt="nekodot for Windows: Bot sidebar and a collaborative group chat">
+  <img src=".github/assets/desk-group-light.webp" alt="nekodot for Windows: a conversation with a Dot, the rail and Recent list">
 </picture>
 
-<p align="center"><sub>A weekly-report team: one Bot drafts, another checks the sources. The screenshot uses demo data.</sub></p>
+<p align="center"><sub>The native client, using a demonstration account.</sub></p>
 
-> [!NOTE]
-> The product uses native Flutter clients. See [Releases](https://github.com/AR307/nekodot/releases) for changes and platform-specific validation. Screenshots may show features newer than the latest published version.
+## Talk to your Dot
 
-## What you can do
+Give your Dot a task. It can search, browse, read and write files, run tools, and hand back a result. When it delegates work, your conversation stays with that Dot: it brings back the result and asks any necessary questions in the chat.
 
-### Let Bots work together
+Approvals and questions appear in the conversation. Add instructions while it works, queue another request, or stop the current task. The activity line stays above the composer; Flow shows the actual steps of the current or latest task.
 
-Create a group, choose its lead Bot, and assign each member a role. Without a mention, the lead responds; mention a Bot to select it, or use @everyone to include the group. Bots can hand work to one another.
+For a team, create a group, choose its lead Dot, and give each member a role. Mention a member or use `@everyone`; Dots can hand work to one another. A group runs one Dot at a time and pauses after six handoff turns.
 
-> @bibi, draft this week's report, then ask @xiaoyan to check the sources.
+## Build a Space
 
-- One Bot works at a time within a group; separate groups can run independently.
-- The default relay limit is six turns and can be configured.
-- Follow the actual tool activity and handoffs in the live Flowchart.
+Ask for a ledger, word cards, a packing list, or another small tool. Your Dot builds a page with its own icon and publishes it to **Spaces**. Open it from the preview gallery, use it on desktop or phone, and ask the Dot for changes.
 
-### Run on your own computer
+Space records sync through your Node. Downloaded pages and cached records remain available offline; features that use a remote service still need a connection.
 
-On Windows, choose **This computer** when adding a computer. The app prepares an isolated Node and Hermes installation in your selected directory and pairs it with your account. Bots can work with local files. For an always-on setup, install a node on a Linux server instead.
+## What is included
 
-Nodes connect outbound to the Relay, so you do not need to expose inbound ports on the computer running your Bots.
+| Area           | Capabilities                                                                                                                            |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Models         | Select a source and model for each Dot; use the model catalog and supported reasoning controls.                                         |
+| Files          | Attach files and images; read Markdown, PDF and supported Office documents inside the app.                                              |
+| Plugin center  | Manage Skills, plugins, MCP servers and account connectors. Connector access requires your authorization.                               |
+| Memory         | Edit Dot memory and instructions; share your account-level user memory across your computers.                                           |
+| Routines       | Schedule tasks or trigger them through Webhooks; inspect runs and follow up on their results.                                           |
+| Secret handoff | Enter credentials in encrypted chat cards. The Dot receives a reference; reusable credentials stay scoped to that Dot and approved use. |
+| Screen         | View and take over supported Linux browser/desktop sessions. Windows desktop control is enabled separately per Dot.                     |
+| Statistics     | View the usage calendar, input/output/cache tokens and conversation/task shares; export CSV.                                            |
+| Native clients | Windows and Android, light/dark themes, English/Chinese, desktop side panels and mobile navigation.                                     |
 
-### Stay in control
+## Get started
 
-Tool use follows Hermes approval rules. When approval is required, respond in chat. You can answer native questions, steer an active task, or stop it. Group-wide stop also clears queued handoffs.
+1. Install [Windows x64](https://github.com/AR307/nekodot/releases/latest/download/nekodot-windows-x64.exe) or [Android arm64](https://github.com/AR307/nekodot/releases/latest/download/nekodot-android-arm64.apk).
+2. Create and verify your account, then sign in.
+3. Connect a computer. On Windows, choose **This computer** to install the managed runtime. For a Linux x64 server or WSL2 Ubuntu with systemd, run the pairing command provided by the app.
+4. Add a model source, select its model, and create a Dot.
+5. Start a conversation, build a Space, or add a group for collaboration.
 
-Messages, tool activity, and execution state sync across devices. Previously loaded history and drafts remain available during a connection interruption; reconnecting restores the live state.
+The computer running your Dots must stay on. Nodes connect outward to the Relay, so no inbound port is required on that computer. Phone notifications depend on system permissions and background delivery.
 
-### Use your phone away from your desk
-
-The Android app connects to the same nodes as the desktop client. Read replies, respond to questions, and handle approvals from your phone. Notifications depend on system permission and the platform's background-delivery behavior.
-
-## Features
-
-| Feature                      | What it does                                                                                                                                                                                                        |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Bots and models**          | Give each Bot a name, avatar, role, model source, and model. Browse the model catalog and use supported reasoning controls.                                                                                         |
-| **Sessions**                 | Create, browse, and switch native Hermes sessions.                                                                                                                                                                  |
-| **Files**                    | Attach files and images; drag files into desktop chat. Preview supported documents, including DOCX, XLSX, and PPTX, without leaving the app.                                                                        |
-| **Screen access**            | View and take over a supported Linux browser or desktop. On Windows, desktop control is separately enabled per Bot and follows approvals.                                                                           |
-| **Memory**                   | Edit SOUL.md, MEMORY.md, and USER.md; use native memory refinement. Account-level user memory can sync across nodes.                                                                                                |
-| **Skills, plugins, and MCP** | Browse, install, enable, and configure extensions through the Hermes integration. Availability depends on the environment and extension.                                                                            |
-| **Secret handoff**           | Submit keys and passwords through encrypted chat cards. The requesting Bot receives a credential reference, not the secret in ordinary chat. Optional saved credentials remain scoped to that Bot and approved use. |
-| **Routines**                 | Create scheduled and Webhook-triggered tasks in chat, inspect their runs, and follow up on selected results.                                                                                                        |
-| **Statistics**               | View the usage calendar, token categories, Bot/group and routine shares, and export CSV. Records start when collection is enabled.                                                                                  |
-| **Multiple computers**       | Pair several nodes with one account and switch between them.                                                                                                                                                        |
-| **Updates**                  | Check client versions in the app. Node updates switch when idle and retain rollback support.                                                                                                                        |
-| **Native UI**                | Flutter Windows and Android clients, light/dark themes, English/Chinese, native screen rendering, and no embedded web client.                                                                                       |
-
-nekodot does not implement a second Agent engine. Hermes owns the model/tool loop, profiles, sessions, memory, and extensions; nekodot provides the interface, connectivity, and group coordination.
+Published installers target Windows 10/11 x64 and Android 10+ arm64. The Android APK is signed; the Windows installer is not Authenticode-signed. Android physical-device and macOS/Linux desktop validation remain outstanding. See [release notes](https://github.com/AR307/nekodot/releases) for the actual validation scope.
 
 ## How it works
 
     Flutter app (Windows / Android)
-          | HTTPS / WebSocket
-          v
-        Relay — accounts, pairing, routing, usage metadata
-          ^
-          | outbound connection from your node
-          |
-        Node — chat history, Bot settings, files, group coordination
-          | local Hermes management API and canonical WebSocket
-          v
-        Hermes — a separate profile for each Bot
+        │ HTTPS / WebSocket
+        ▼
+      Relay — accounts, pairing, routing, usage statistics, updates
+        ▲ outbound connection
+      Node — chat history, files, Spaces, Dot settings, group coordination
+        │ local management API and canonical WebSocket
+      Hermes — a separate profile for each Dot
 
-| Component      | Stored data                                                                                                                                                        |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| App            | Login state, preferences, and account-scoped local history/draft caches.                                                                                           |
-| Relay          | Accounts, pairing and routing records, release metadata, and synchronized usage statistics. Chat and file traffic is forwarded rather than stored as chat history. |
-| Node           | Chat history, run records, Bot configuration, delivered files, and encrypted product credentials.                                                                  |
-| Hermes profile | Native sessions, memory, skills, plugins, and Hermes-managed model credentials.                                                                                    |
+Hermes owns the model/tool loop, native sessions, memory and extensions. nekodot supplies the interface, connectivity and coordination, without a second Agent execution engine. The managed runtime remains Hermes v0.22.6 / v0.22.6-r3.
 
-The Flutter app is the client; a locally installed Node/Hermes runs separately. Model requests go to the provider you configure. This is not an offline model runtime, and ordinary chat traffic is not end-to-end encrypted. Secret cards use their separate encrypted delivery path.
+The app stores login state, preferences and local caches. The Relay stores account, pairing and usage metadata and forwards chat/file traffic. Your Node and Hermes profiles keep conversations, delivered files, Space records and credentials.
 
-## Quick start
+Model requests go to the provider you choose. Ordinary chat is not end-to-end encrypted; secret cards use a separate encrypted handoff. Official website: **www.nekodot.com**. API, WebSocket, installation and download endpoints: **api.nekodot.com**.
 
-1. **Install the app:** [Windows x64](https://github.com/AR307/nekodot/releases/latest/download/nekodot-windows-x64.exe) (Windows 10/11; no Authenticode signature) or [Android arm64](https://github.com/AR307/nekodot/releases/latest/download/nekodot-android-arm64.apk) (Android 10+; signed APK).
-2. **Create an account** with email verification, then sign in with your password.
-3. **Connect a computer.** On Windows, choose **This computer**. Alternatively, run the command generated by the app on Linux x64 or WSL2 Ubuntu 24.04 with systemd. The installer prepares the managed Node 24/Hermes runtime and node service.
-4. **Add a model source** using a supported account login or a custom API endpoint and key.
-5. **Create a Bot:** choose its appearance, role, source, and model. Add a group when you want Bots to collaborate.
+## Development and self-hosting
 
-The website is **www.nekodot.com**. Official API, WebSocket, download, and installation endpoints use **api.nekodot.com**.
-
-### Self-hosting
-
-Use a Linux x64 server with Docker for the Relay. Build tooling uses Node 24 and pnpm 10.34.5. Bots may run on that server or on other paired computers.
-
-Build the Relay image, deploy it with Docker Compose, and point the client at your Relay. See [deployment instructions](deploy/README.md).
-
-## Development
-
-Stack: Flutter, TypeScript, Fastify, WebSocket, node:sqlite, Zod, and Hermes Agent, with native platform integrations.
+Flutter clients; TypeScript, Fastify, WebSocket and SQLite services. Build with Node 24 and pnpm 10.34.5:
 
     pnpm install --frozen-lockfile
     pnpm lint && pnpm typecheck && pnpm test
     pnpm build
     pnpm native:analyze && pnpm native:test
 
-Recorded-event and component tests supplement real-client validation; they do not prove real model or device behavior. Native client setup and build instructions are in [apps/native](apps/native/README.md).
+See [native client setup](apps/native/README.md) and [Relay deployment](deploy/README.md).
 
-    apps/native            Native Flutter product clients and screen UI
-    apps/relay             Accounts, pairing, routing, files, usage, and updates
-    apps/node              Persistence, Hermes integration, group routing, updates
-    packages/protocol      Shared protocol and validation schemas
-    packages/fake-hermes   Test-only recorded Hermes event replay
-    third_party            Pinned native document preview dependencies
-    deploy                 Relay image, installers, and service definitions
-    scripts                Build, package, release, and validation tooling
-    tests                  Test helpers and recorded Hermes events
+    apps/native          Flutter clients and native platform integrations
+    apps/relay           Accounts, pairing, routing, usage and releases
+    apps/node            Persistence, Hermes integration and coordination
+    packages/protocol    Shared protocol and validation schemas
+    packages/fake-hermes Test-only recorded event replay
+    third_party          Native document preview dependencies and notices
+    deploy               Images, installers and service definitions
+    scripts              Build, package and release tooling
+    tests                Test helpers and recorded events
 
-## Platform status
+Component and replay tests supplement real-client validation; they do not prove model or device behavior.
 
-Published installers target Windows x64 and Android arm64. The managed server runtime supports Linux x64. macOS/Linux desktop and other architectures are not implied to be release-tested merely because source support exists. Consult each release for tested journeys and outstanding device-specific checks.
+## Credits and license
 
-## Credits
+- [Hermes Agent](https://hermes-agent.nousresearch.com) by Nous Research powers the Dots.
+- [Nunito](https://fonts.google.com/specimen/Nunito) and [JetBrains Mono](https://www.jetbrains.com/lp/mono/) use the SIL Open Font License 1.1.
+- [Material Symbols](https://fonts.google.com/icons) uses the Apache License 2.0.
+- See [third-party notices](third_party/README.md) for native Office preview dependencies.
 
-- [Hermes Agent](https://hermes-agent.nousresearch.com) by Nous Research powers the Bots.
-- [Nunito](https://fonts.google.com/specimen/Nunito) and [JetBrains Mono](https://www.jetbrains.com/lp/mono/) are licensed under the SIL Open Font License 1.1.
-- [Material Symbols](https://fonts.google.com/icons) by Google supplies the icons, licensed under the Apache License 2.0.
-- See [third-party notices](third_party/README.md) for the pinned native Office preview dependencies and their licenses.
-
-## License
-
-[MIT License](LICENSE). Third-party dependencies and fonts retain their own licenses.
+[MIT License](LICENSE). Third-party dependencies retain their own licenses.
