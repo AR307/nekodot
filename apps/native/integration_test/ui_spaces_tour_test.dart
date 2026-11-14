@@ -150,6 +150,10 @@ void main() {
     });
 
     // Out of its tile, frame by frame.
+    final openedId = (tester.widget(tiles.first).key! as ValueKey<String>).value
+        .substring('space-tile-'.length);
+    final keptFile = client.store!.file('spaces/thumbs/$nodeId/$openedId.jpg');
+    final before = await tester.runAsync(keptFile.lastModified);
     await tester.tap(tiles.first);
     await shot('desk-grow-1', settle: 50);
     await shot('desk-grow-2', settle: 70);
@@ -162,6 +166,16 @@ void main() {
     await shot('desk-shrink-1', settle: 50);
     await shot('desk-shrink-2', settle: 70);
     await shot('desk-spaces-back', settle: 900);
+    // It has been open: its picture is taken again, out of sight.
+    final again = Stopwatch()..start();
+    var retaken = false;
+    while (!retaken && again.elapsed < const Duration(seconds: 30)) {
+      await run(const Duration(milliseconds: 300));
+      retaken = (await tester.runAsync(keptFile.lastModified))!
+          .isAfter(before!);
+    }
+    notes['retakenAfterClose'] = retaken;
+    notes['retakenMs'] = again.elapsedMilliseconds;
     // The second tile, in the dark.
     mode.value = ThemeMode.dark;
     await run(const Duration(milliseconds: 400));

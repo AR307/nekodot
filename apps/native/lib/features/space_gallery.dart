@@ -42,9 +42,14 @@ class SpaceGallery extends StatefulWidget {
 class _SpaceGalleryState extends State<SpaceGallery> {
   NekodotClient get c => widget.client;
 
-  /// The versions of spaces whose picture has been tried here: each once.
-  final tried = <String>{};
+  /// The versions of spaces whose picture did not come out here; they are
+  /// not tried again.
+  final failed = <String>{};
   bool taking = false;
+
+  /// Whether the gallery is what is looked at. Under an open space or
+  /// another page no picture is taken.
+  bool current = true;
 
   /// The room a space has when it is open: its picture is taken at this size.
   Size room = Size.zero;
@@ -52,26 +57,45 @@ class _SpaceGalleryState extends State<SpaceGallery> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(take()));
+    c.spaces.thumbs.addListener(due);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    current = ModalRoute.of(context)?.isCurrent ?? true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => due());
   }
 
   @override
   void didUpdateWidget(SpaceGallery old) {
     super.didUpdateWidget(old);
-    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(take()));
+    WidgetsBinding.instance.addPostFrameCallback((_) => due());
   }
 
-  /// Takes the pictures that are missing or older than their space, one
-  /// after another and out of sight. A space loaded for its picture reaches
-  /// nothing but its own files, and only reads its records.
+  @override
+  void dispose() {
+    c.spaces.thumbs.removeListener(due);
+    super.dispose();
+  }
+
+  void due() => unawaited(take());
+
+  /// Takes the pictures that are missing, older than their space, or due
+  /// again because the space has been open, one after another and out of
+  /// sight. A space loaded for its picture reaches nothing but its own
+  /// files, and only reads its records.
   Future<void> take() async {
-    if (taking || !mounted || !(Platform.isWindows || Platform.isAndroid)) {
+    if (taking ||
+        !mounted ||
+        !current ||
+        !(Platform.isWindows || Platform.isAndroid)) {
       return;
     }
     taking = true;
     WebViewEnvironment? environment;
     try {
-      while (mounted && !room.isEmpty) {
+      while (mounted && current && !room.isEmpty) {
         final storage = c.store, nodeId = c.selectedNodeId;
         if (storage == null ||
             nodeId == null ||
@@ -84,11 +108,10 @@ class _SpaceGalleryState extends State<SpaceGallery> {
               (s) =>
                   s.fileId != null &&
                   c.spaces.thumbs.version(nodeId, s.spaceId) != s.version &&
-                  !tried.contains('${s.spaceId}:${s.version}'),
+                  !failed.contains('${s.spaceId}:${s.version}'),
             )
             .firstOrNull;
         if (space == null) break;
-        tried.add('${space.spaceId}:${space.version}');
         try {
           if (Platform.isWindows && environment == null) {
             if (await WebViewEnvironment.getAvailableVersion() == null) break;
@@ -114,7 +137,9 @@ class _SpaceGalleryState extends State<SpaceGallery> {
             room,
             environment,
           );
-          if (picture != null) {
+          if (picture == null) {
+            failed.add('${space.spaceId}:${space.version}');
+          } else {
             await c.spaces.thumbs.keep(
               nodeId,
               space.spaceId,
@@ -123,7 +148,8 @@ class _SpaceGalleryState extends State<SpaceGallery> {
             );
           }
         } catch (_) {
-          // A picture that does not come out leaves the Dot's face in place.
+          // What the tile showed stays: the last picture, or the Dot's face.
+          failed.add('${space.spaceId}:${space.version}');
         }
       }
     } finally {

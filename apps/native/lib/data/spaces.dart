@@ -59,18 +59,23 @@ class SpaceData {
 }
 
 /// What each space last looked like on this device: one picture a space,
-/// taken while it is shown, for the gallery and for the moment it opens. It
-/// is its own listenable, since a new picture is not a change of records.
+/// for the gallery and for the moment it opens. It is its own listenable,
+/// since a new picture is not a change of records.
 class SpaceThumbs extends ChangeNotifier {
   LocalContent? _storage;
   Json _versions = {};
   final _pictures = <String, Uint8List?>{};
+
+  /// Spaces that have been open since their picture was taken: it may no
+  /// longer be what they show.
+  final _stale = <String>{};
 
   Future<void> open(LocalContent storage) async {
     final saved = await storage.read('spaces/thumbs');
     _storage = storage;
     _versions = saved ?? {};
     _pictures.clear();
+    _stale.clear();
     notifyListeners();
   }
 
@@ -78,11 +83,21 @@ class SpaceThumbs extends ChangeNotifier {
     _storage = null;
     _versions = {};
     _pictures.clear();
+    _stale.clear();
   }
 
-  /// The version of the space its picture shows; null with no picture.
-  int? version(String nodeId, String spaceId) =>
-      _versions['$nodeId/$spaceId'] as int?;
+  /// The version of the space its picture shows; null with no picture, or
+  /// with one that is due again.
+  int? version(String nodeId, String spaceId) {
+    final key = '$nodeId/$spaceId';
+    return _stale.contains(key) ? null : _versions[key] as int?;
+  }
+
+  /// The space has been open: its picture is due again. The one kept stays
+  /// in place until then.
+  void stale(String nodeId, String spaceId) {
+    if (_storage != null && _stale.add('$nodeId/$spaceId')) notifyListeners();
+  }
 
   /// The picture, once it has been read. Asking for it is what reads it.
   Uint8List? picture(String nodeId, String spaceId) {
@@ -115,6 +130,7 @@ class SpaceThumbs extends ChangeNotifier {
     await file.writeAsBytes(picture, flush: true);
     if (!identical(storage, _storage)) return;
     _pictures[key] = picture;
+    _stale.remove(key);
     // A newer picture of the same version changes nothing in the index.
     if (_versions[key] != version) {
       _versions[key] = version;

@@ -109,6 +109,20 @@ void main() {
             0,
     };
 
+    // When the newest of the kept pictures was written.
+    Future<DateTime?> newest() => tester.runAsync<DateTime?>(() async {
+      DateTime? latest;
+      for (final space in built) {
+        final file = client.store!.file(
+          'spaces/thumbs/$nodeId/${space.spaceId}.jpg',
+        );
+        if (!await file.exists()) continue;
+        final at = await file.lastModified();
+        if (latest == null || at.isAfter(latest)) latest = at;
+      }
+      return latest;
+    });
+
     client.workspace.remove('space:$nodeId');
     await tester.pumpWidget(
       MaterialApp(
@@ -153,22 +167,31 @@ void main() {
     await shot('grow-4', settle: 140);
     await shot('space-open', settle: 400);
     await shot('space-live', settle: 5000);
-    // Open, the space has taken its own picture.
-    notes['keptOpen'] = await kept();
+    final open = await newest();
+    navigator.currentState!.pop();
+    await shot('shrink-1', settle: 50);
+    await shot('shrink-2', settle: 70);
+    await shot('spaces-back', settle: 900);
+    // It has been open: its picture is taken again, out of sight.
+    final again = Stopwatch()..start();
+    var retaken = false;
+    while (!retaken && again.elapsed < const Duration(seconds: 30)) {
+      await run(const Duration(milliseconds: 300));
+      retaken = (await newest())!.isAfter(open!);
+    }
+    notes['retakenAfterClose'] = retaken;
+    notes['retakenMs'] = again.elapsedMilliseconds;
+    notes['keptAfterClose'] = await kept();
     await tester.runAsync(() async {
       for (final (index, space) in built.indexed) {
         final file = client.store!.file(
           'spaces/thumbs/$nodeId/${space.spaceId}.jpg',
         );
         if (await file.exists()) {
-          await file.copy('${out.path}/kept-open-$index.jpg');
+          await file.copy('${out.path}/kept-after-close-$index.jpg');
         }
       }
     });
-    navigator.currentState!.pop();
-    await shot('shrink-1', settle: 50);
-    await shot('shrink-2', settle: 70);
-    await shot('spaces-back', settle: 900);
 
     // Held open for the device's own screenshot.
     await tester.tap(tiles.first);

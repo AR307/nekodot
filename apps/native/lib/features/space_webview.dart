@@ -342,7 +342,6 @@ class _SpaceWebViewState extends State<SpaceWebView>
     bundle: widget.bundle,
   );
   Timer? settling;
-  bool loaded = false, drawn = false;
   bool visible = true;
   bool desktopVisible = true;
   bool pageVisible = true;
@@ -363,39 +362,7 @@ class _SpaceWebViewState extends State<SpaceWebView>
           source: 'window.dispatchEvent(new Event("nekodotspacechange"));',
         ),
       );
-      if (loaded) settle();
     }
-  }
-
-  /// Once the site has had time to draw, its picture is taken; the first
-  /// time, the page is told that it can be seen.
-  void settle() {
-    settling?.cancel();
-    settling = Timer(_settle, () {
-      if (!drawn) {
-        drawn = true;
-        widget.onDrawn();
-      }
-      unawaited(snap());
-    });
-  }
-
-  /// Keeps what the site shows now as its picture in the gallery.
-  Future<void> snap() async {
-    final view = controller;
-    if (view == null || !visible) return;
-    final picture = await view.takeScreenshot(screenshotConfiguration: _shot);
-    if (picture == null ||
-        !mounted ||
-        !identical(site.owner, widget.client.store)) {
-      return;
-    }
-    await widget.client.spaces.thumbs.keep(
-      widget.nodeId,
-      widget.space.spaceId,
-      widget.space.version,
-      picture,
-    );
   }
 
   @override
@@ -489,11 +456,8 @@ class _SpaceWebViewState extends State<SpaceWebView>
     onCreateWindow: (_, _) async => false,
     onPermissionRequest: SpaceSite.deny,
     onGeolocationPermissionsShowPrompt: SpaceSite.nowhere,
-    onLoadStop: (_, _) {
-      if (!mounted) return;
-      loaded = true;
-      settle();
-    },
+    // Loaded, and given time to read its records and draw, it can be seen.
+    onLoadStop: (_, _) => settling ??= Timer(_settle, widget.onDrawn),
     onReceivedError: (_, request, _) {
       if (request.isForMainFrame == true && mounted) widget.onError();
     },

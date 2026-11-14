@@ -122,6 +122,14 @@ class _SpacePageState extends State<SpacePage> {
   void dispose() {
     // Flutter unmounts the child WebView before this parent state.
     unawaited(environment?.dispose());
+    // It has been open, so what its tile shows is due again. Said once the
+    // tree has settled: the gallery listens.
+    if (loaded != null) {
+      final thumbs = c.spaces.thumbs,
+          nodeId = widget.nodeId,
+          spaceId = widget.spaceId;
+      scheduleMicrotask(() => thumbs.stale(nodeId, spaceId));
+    }
     super.dispose();
   }
 
