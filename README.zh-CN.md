@@ -196,6 +196,7 @@ tests                  测试辅助与录制的 Hermes 事件
 
 - [Hermes Agent](https://hermes-agent.nousresearch.com)（Nous Research）：每个 Bot 背后的 agent 引擎。
 - 界面字体 [Nunito](https://fonts.google.com/specimen/Nunito) 与 [JetBrains Mono](https://www.jetbrains.com/lp/mono/)，以 SIL Open Font License 1.1 授权。
+- 图标 [Material Symbols](https://fonts.google.com/icons)（Google），以 Apache License 2.0 授权。
 
 ## 许可证
 

@@ -157,6 +157,7 @@ Published installers target Windows x64 and Android arm64. The managed server ru
 
 - [Hermes Agent](https://hermes-agent.nousresearch.com) by Nous Research powers the Bots.
 - [Nunito](https://fonts.google.com/specimen/Nunito) and [JetBrains Mono](https://www.jetbrains.com/lp/mono/) are licensed under the SIL Open Font License 1.1.
+- [Material Symbols](https://fonts.google.com/icons) by Google supplies the icons, licensed under the Apache License 2.0.
 - See [third-party notices](third_party/README.md) for the pinned native Office preview dependencies and their licenses.
 
 ## License
