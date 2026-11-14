@@ -23,6 +23,8 @@ export const spaceSchema = z.strictObject({
   name: z.string().trim().min(1),
   version: z.number().int().nonnegative(),
   fileId: z.uuid().optional(),
+  // The icon its Dot drew for it: one small SVG document.
+  icon: z.string().max(8192).optional(),
   origins: z.array(spaceOriginSchema),
   allowedOrigins: z.array(spaceOriginSchema),
   archived: z.boolean(),

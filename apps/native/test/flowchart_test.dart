@@ -173,7 +173,7 @@ void main() {
       client.node.online = false;
       client.notifyListeners();
       await tester.pump();
-      expect(find.byIcon(Icons.cloud_off_outlined), findsOneWidget);
+      expect(find.byIcon(Symbols.cloud_off), findsOneWidget);
       expect(find.text('执行代码'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());

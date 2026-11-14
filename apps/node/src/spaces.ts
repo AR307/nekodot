@@ -3,7 +3,7 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join, extname } from 'node:path';
 import { zipSync } from 'fflate';
 import { z } from 'zod';
-import { spaceOriginSchema, type RpcParams, type Attachment } from '@nekodot/protocol';
+import { spaceOriginSchema, type RpcParams, type Attachment, type Space } from '@nekodot/protocol';
 import type { NodeDatabase } from './database';
 import type { HermesRuntime } from './hermes/runtime';
 import { NodeFault } from './fault';
@@ -42,6 +42,40 @@ const assetTypes = new Set([
   '.mp4',
   '.webm',
 ]);
+
+/**
+ * The icon a Dot drew for its space, as the apps draw it beside the space's
+ * name: one small square SVG that needs nothing outside itself.
+ */
+export function spaceIcon(bytes: Uint8Array | undefined): string {
+  const refuse = (why: string) =>
+    new NodeFault(
+      'invalid_params',
+      `Space needs icon.svg at the top of its directory, an icon you design for this space: ${why}`,
+    );
+  if (!bytes) throw refuse('the file is missing');
+  if (bytes.length > 8192) throw refuse('keep it under 8 KB');
+  let text: string;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes).trim();
+  } catch {
+    throw refuse('it must be UTF-8 text');
+  }
+  if (
+    !/^(<\?xml[^>]*\?>\s*)?<svg\b[^>]*\bviewBox\s*=\s*["']\s*0[\s,]+0[\s,]+(\d+(?:\.\d+)?)[\s,]+\2\s*["'][^>]*>[\s\S]*<\/svg>$/.test(
+      text,
+    )
+  )
+    throw refuse('it must be one <svg> element with a square viewBox such as "0 0 64 64"');
+  if (/<\s*(script|foreignObject|image|style|text)\b/i.test(text))
+    throw refuse('draw plain shapes only: no text, style, script or image elements');
+  if (/\son\w+\s*=/i.test(text) || /(href\s*=\s*["']|url\(\s*["']?)(?!#)/i.test(text))
+    throw refuse('it may not refer to anything outside itself or handle events');
+  return text;
+}
+
+/** A space as its Dot is told about it: the icon's text is not repeated back. */
+const told = (space: Space) => ({ ...space, icon: undefined });
 
 export class Spaces {
   constructor(
@@ -105,7 +139,10 @@ export class Spaces {
         ?.conversationId;
     if (!conversation) throw new NodeFault('not_found', 'Space needs an owning chat');
     if (p.operation === 'list')
-      return this.database.spaces().filter((space) => space.botId === p.botId);
+      return this.database
+        .spaces()
+        .filter((space) => space.botId === p.botId)
+        .map(told);
     let space = p.spaceId ? this.get(p.spaceId) : undefined;
     if (space && space.botId !== p.botId)
       throw new NodeFault('forbidden', 'Space belongs to another Dot');
@@ -129,11 +166,12 @@ export class Spaces {
     }
     const directory = join(this.hermes.profileHome(p.botId), 'spaces', space.spaceId, 'site');
     let result: unknown;
-    if (p.operation === 'get') return { space, directory, data: this.read(space.spaceId) };
+    if (p.operation === 'get')
+      return { space: told(space), directory, data: this.read(space.spaceId) };
     if (p.operation === 'prepare') {
       await mkdir(directory, { recursive: true });
       this.database.putSpace(space);
-      result = { space, directory };
+      result = { space: told(space), directory };
     } else {
       if (space.archived) throw new NodeFault('invalid_params', 'Space is archived');
       const files: Record<string, Uint8Array> = {};
@@ -150,6 +188,7 @@ export class Spaces {
       };
       await visit(directory);
       if (!files['index.html']) throw new NodeFault('invalid_params', 'Space needs index.html');
+      const icon = spaceIcon(files['icon.svg']);
       const fileId = randomUUID(),
         storage = join(this.database.directory, 'library', fileId);
       const bytes = zipSync(files);
@@ -182,6 +221,7 @@ export class Spaces {
         name: p.name ?? space.name,
         version: space.version + 1,
         fileId,
+        icon,
         origins: [...new Set(origins)],
         allowedOrigins: space.allowedOrigins.filter((origin) => origins.includes(origin)),
         updatedAt: new Date().toISOString(),
@@ -190,7 +230,7 @@ export class Spaces {
       this.database.db
         .prepare('INSERT OR IGNORE INTO space_publications VALUES(?,?)')
         .run(run?.inputMessageId ?? 'native:' + p.sessionId, space.spaceId);
-      result = { space, published: true };
+      result = { space: told(space), published: true };
     }
     this.database.setSetting(receipt, { result });
     return result;

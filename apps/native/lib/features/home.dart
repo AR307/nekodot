@@ -8,6 +8,7 @@ import '../data/client.dart';
 import '../data/json.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
+import 'account_menu.dart';
 import 'bot_details.dart';
 import 'chat.dart';
 import 'bot_editor.dart';
@@ -22,7 +23,11 @@ import 'flowchart.dart';
 import 'search_palette.dart';
 import 'time_labels.dart';
 import '../data/spaces.dart';
+import 'space_gallery.dart';
+import 'space_mark.dart';
 import 'spaces.dart';
+import 'statistics.dart';
+import 'home_rail.dart';
 
 class HomePage extends StatefulWidget {
   final NekodotClient client;
@@ -35,17 +40,49 @@ class _HomePageState extends State<HomePage> {
   StreamSubscription<Json>? destinations;
   String? conversation;
   Json? details;
-  Json? previewFile;
+
+  /// The part of settings shown beside the rail, when settings are open there.
+  String? settingsPart;
+
+  /// Files open as tabs beside the conversation, and the one in front.
+  final previewFiles = <Json>[];
+  int previewAt = 0;
+  Json? get previewFile =>
+      previewFiles.isEmpty ? null : previewFiles[previewAt];
+  set previewFile(Json? file) {
+    if (file == null) {
+      previewFiles.clear();
+      previewAt = 0;
+      return;
+    }
+    final at = previewFiles.indexWhere((f) => f['fileId'] == file['fileId']);
+    if (at < 0) previewFiles.add(file);
+    previewAt = at < 0 ? previewFiles.length - 1 : at;
+  }
+
   bool expandedFile = false;
   FlowMessageFocus? flowFocus;
   String search = '';
   String? hovered;
   Json? creatingBot;
   final searchField = TextEditingController();
+  bool searching = false;
+
+  /// The section the rail or the bottom bar shows.
   String get category =>
-      c.workspace['category:${c.selectedNodeId}'] as String? ?? 'dot';
+      c.workspace['category:${c.selectedNodeId}'] as String? ?? 'recent';
+
+  /// The conversation a section was left on: Dot and groups remember their
+  /// own, everything else the last one opened.
+  String? savedConversation(String section, String? node) =>
+      c.workspace[section == 'dot' || section == 'group'
+              ? 'conversation:$section:$node'
+              : 'conversation:$node']
+          as String?;
   String? selectedSpace;
-  bool expandedSpace = false;
+
+  /// Where the tile that opened the space is, for the page to grow out of.
+  Rect? spaceFrom;
 
   /// The sidebar's width while it is being dragged; saved when let go.
   double? dragging;
@@ -53,8 +90,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    conversation =
-        c.workspace['conversation:$category:${c.selectedNodeId}'] as String?;
+    conversation = savedConversation(category, c.selectedNodeId);
     selectedSpace = c.workspace['space:${c.selectedNodeId}'] as String?;
     final savedDetails = c.workspace['details:${c.selectedNodeId}'];
     if (savedDetails is Map) details = object(savedDetails);
@@ -159,26 +195,26 @@ class _HomePageState extends State<HomePage> {
       SearchEntry(
         section: actions,
         title: c.tr('新建 Bot', 'New Bot'),
-        leading: icon(Icons.smart_toy_outlined),
+        leading: icon(Symbols.smart_toy),
         open: () => create('bot'),
       ),
       SearchEntry(
         section: actions,
         title: c.tr('新建群组', 'New group'),
-        leading: icon(Icons.groups_outlined),
+        leading: icon(Symbols.groups),
         open: () => create('group'),
       ),
       SearchEntry(
         section: actions,
         title: c.tr('插件中心', 'Plugin center'),
-        leading: icon(Icons.extension_outlined),
+        leading: icon(Symbols.extension),
         open: () => create('plugins'),
       ),
       SearchEntry(
         section: actions,
         title: c.tr('设置', 'Settings'),
-        leading: icon(Icons.settings_outlined),
-        open: () => openPage(context, SettingsPage(client: c)),
+        leading: icon(Symbols.settings),
+        open: openSettings,
       ),
     ]);
   }
@@ -186,14 +222,16 @@ class _HomePageState extends State<HomePage> {
   Future<void> open(Json value, bool narrow) async {
     final id = value['conversationId'] as String;
     final kind = value['kind'] == 'group' ? 'group' : 'dot';
-    c.workspace['category:${c.selectedNodeId}'] = kind;
+    // Recent holds everything, so opening from it stays there; from a section
+    // of another kind, Recent is where the conversation is found.
+    c.workspace['category:${c.selectedNodeId}'] =
+        category == 'recent' || category == kind ? category : 'recent';
     c.workspace['conversation:$kind:${c.selectedNodeId}'] = id;
     c.workspace['conversation:${c.selectedNodeId}'] = id;
     c.workspace.remove('details:${c.selectedNodeId}');
     c.saveContent();
     setState(() {
       conversation = id;
-      expandedSpace = false;
     });
     if (narrow) {
       await pushPage(context, ChatPage(client: c, conversationId: id));
@@ -203,6 +241,7 @@ class _HomePageState extends State<HomePage> {
         details = null;
         flowFocus = null;
         previewFile = null;
+        settingsPart = null;
       });
     }
   }
@@ -224,10 +263,11 @@ class _HomePageState extends State<HomePage> {
           openPage(context, _addComputer());
         } else {
           setState(() {
-            final kind = c.workspace['category:$id'] as String? ?? 'dot';
-            conversation = c.workspace['conversation:$kind:$id'] as String?;
+            conversation = savedConversation(
+              c.workspace['category:$id'] as String? ?? 'recent',
+              id,
+            );
             selectedSpace = c.workspace['space:$id'] as String?;
-            expandedSpace = false;
             details = null;
             flowFocus = null;
             previewFile = null;
@@ -246,7 +286,7 @@ class _HomePageState extends State<HomePage> {
         if (nodes.isNotEmpty) null,
         MenuAction(
           value: '',
-          icon: Icons.add_to_queue_outlined,
+          icon: Symbols.add_to_queue,
           label: c.tr('添加电脑', 'Add computer'),
         ),
       ],
@@ -277,7 +317,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(width: 4),
-            Icon(Icons.expand_more, size: 16, color: context.tone.ink3),
+            Icon(Symbols.expand_more, size: 16, color: context.tone.ink3),
           ],
         ),
       ),
@@ -288,9 +328,9 @@ class _HomePageState extends State<HomePage> {
     children: [
       const Positioned.fill(child: WindowDrag()),
       SizedBox(
-        height: 56,
+        height: 48,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 12, 0),
+          padding: const EdgeInsets.fromLTRB(14, 0, 8, 0),
           child: Row(
             children: [
               Expanded(
@@ -301,7 +341,7 @@ class _HomePageState extends State<HomePage> {
               ),
               IconAction(
                 tooltip: c.tr('搜索 (Ctrl+K)', 'Search (Ctrl+K)'),
-                icon: Icons.search,
+                icon: Symbols.search,
                 onPressed: openSearch,
               ),
               const SizedBox(width: 4),
@@ -316,13 +356,13 @@ class _HomePageState extends State<HomePage> {
   Widget createMenu() => category == 'space'
       ? IconButton(
           tooltip: c.tr('新建空间', 'New space'),
-          icon: const Icon(Icons.add),
+          icon: const Icon(Symbols.add),
           onPressed: () => create('space'),
         )
       : ActionMenu<String>(
           tooltip: c.tr('新建', 'Create'),
           alignEnd: true,
-          icon: const Icon(Icons.add),
+          icon: const Icon(Symbols.add),
           onSelected: create,
           items: createItems(),
         );
@@ -331,23 +371,23 @@ class _HomePageState extends State<HomePage> {
   List<MenuAction<String>?> createItems() => [
     MenuAction(
       value: 'space',
-      icon: Icons.web_asset_outlined,
+      icon: Symbols.web_asset,
       label: c.tr('新建空间', 'New space'),
     ),
     MenuAction(
       value: 'bot',
-      icon: Icons.smart_toy_outlined,
+      icon: Symbols.smart_toy,
       label: c.tr('新建 Bot', 'New Bot'),
     ),
     MenuAction(
       value: 'group',
-      icon: Icons.groups_outlined,
+      icon: Symbols.groups,
       label: c.tr('新建群组', 'New group'),
     ),
     null,
     MenuAction(
       value: 'plugins',
-      icon: Icons.extension_outlined,
+      icon: Symbols.extension,
       label: c.tr('插件中心', 'Plugin center'),
     ),
   ];
@@ -393,131 +433,161 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  /// Your initial in a round mark: you, and the way to your settings.
-  Widget accountMark(double size) {
-    final tone = context.tone;
-    final name = '${c.account.me?['user']['email'] ?? ''}'.split('@').first;
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: tone.ink),
-      child: Text(
-        name.isEmpty ? '' : name.characters.first.toUpperCase(),
-        style: TextStyle(
-          color: tone.base,
-          fontSize: size * .4,
-          fontWeight: FontWeight.w700,
+  /// Your initial in a round mark: you, and the way to your settings. On the
+  /// rail it is white on black whatever the theme.
+  Widget accountMark(double size, {bool onRail = false}) =>
+      AccountMark(client: c, size: size, onRail: onRail);
+
+  /// Settings take the window beside the rail when there is room for their
+  /// list, and open as a page otherwise.
+  void openSettings() {
+    if (!context.tone.glass && MediaQuery.sizeOf(context).width >= 840) {
+      setState(() => settingsPart = settingsParts(c).first.$1);
+    } else {
+      openPage(context, SettingsPage(client: c));
+    }
+  }
+
+  /// You, and what belongs to you rather than to a conversation: a menu on a
+  /// desktop, a sheet on a phone.
+  Widget account(double size, {bool onRail = false}) {
+    Widget quick(VoidCallback close) => AccountQuick(
+      client: c,
+      close: close,
+      onSettings: openSettings,
+      onStatistics: () => openPage(context, StatisticsPage(client: c)),
+      onSignOut: signOut,
+    );
+    final mark = Padding(
+      padding: const EdgeInsets.all(8),
+      child: accountMark(size, onRail: onRail),
+    );
+    final label = c.tr('账户', 'Account');
+    if (context.tone.glass) {
+      return Tooltip(
+        message: label,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => openBottomSheet<void>(
+            context,
+            Builder(
+              builder: (sheet) => SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: quick(() => Navigator.pop(sheet)),
+              ),
+            ),
+            height: .56,
+          ),
+          child: mark,
+        ),
+      );
+    }
+    return MenuPopover(
+      width: 300,
+      menuBuilder: (context, close) => quick(close),
+      builder: (context, toggle, focus) => Tooltip(
+        message: label,
+        child: InkWell(
+          focusNode: focus,
+          onTap: toggle,
+          customBorder: RoundedSuperellipseBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: mark,
         ),
       ),
     );
   }
 
-  /// A round control floating on the ground with a soft shadow.
-  Widget floatingRound({required Widget child}) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: context.tone.surface,
-      shape: BoxShape.circle,
-      boxShadow: context.tone.rest,
-    ),
-    child: Material(type: MaterialType.transparency, child: child),
-  );
-
-  /// Phone header: you on the left, the computer in the middle, new on the
-  /// right. Search lives at the bottom, under the thumb.
-  Widget glassTop() => Padding(
-    padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
-    child: Row(
-      children: [
-        IconButton(
-          tooltip: c.tr('设置', 'Settings'),
-          padding: const EdgeInsets.all(4),
-          onPressed: () => pushPage(context, SettingsPage(client: c)),
-          icon: accountMark(34),
-        ),
-        Expanded(child: Center(child: nodePicker())),
-        floatingRound(child: createMenu()),
-      ],
-    ),
-  );
-
-  /// Phone bottom: plugins, and a search field the thumb reaches.
-  Widget dock() {
+  /// The header of a narrow window: you, the computer, search.
+  Widget narrowTop() {
     final tone = context.tone;
-    final text = Theme.of(context).textTheme;
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
-        child: Row(
-          children: [
-            floatingRound(
-              child: IconButton(
-                tooltip: c.tr('插件中心', 'Plugin center'),
-                onPressed: () => pushPage(
-                  context,
-                  PluginCenterPage(client: c, kind: 'skills'),
-                ),
-                icon: const Icon(Icons.grid_view_rounded),
-              ),
+    return SizedBox(
+      height: 56,
+      child: Stack(
+        children: [
+          if (!tone.glass) const Positioned.fill(child: WindowDrag()),
+          Padding(
+            padding: EdgeInsets.only(
+              left: 4,
+              right: 4 + (tone.glass ? 0 : WindowChrome.reserved(context)),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  color: tone.surface,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: tone.lift,
-                ),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 16),
-                    Icon(Icons.search, size: 20, color: tone.ink2),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        key: const ValueKey('home-search'),
-                        controller: searchField,
-                        style: text.bodyLarge,
-                        textInputAction: TextInputAction.search,
-                        decoration: InputDecoration(
-                          hintText: c.tr('搜索', 'Search'),
-                          isDense: true,
-                          filled: false,
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          contentPadding: EdgeInsets.zero,
+            child: Row(
+              children: [
+                account(32),
+                Expanded(
+                  child: searching
+                      ? TextField(
+                          key: const ValueKey('home-search'),
+                          controller: searchField,
+                          autofocus: true,
+                          textInputAction: TextInputAction.search,
+                          decoration: InputDecoration(
+                            hintText: c.tr('搜索', 'Search'),
+                            filled: false,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          onChanged: (value) =>
+                              setState(() => search = value.toLowerCase()),
+                        )
+                      : Align(
+                          alignment: Alignment.centerLeft,
+                          child: nodePicker(),
                         ),
-                        onChanged: (value) =>
-                            setState(() => search = value.toLowerCase()),
-                      ),
-                    ),
-                    AnimatedSwitcher(
-                      duration: MediaQuery.disableAnimationsOf(context)
-                          ? Duration.zero
-                          : const Duration(milliseconds: 160),
-                      child: search.isEmpty
-                          ? const SizedBox(width: 12)
-                          : IconButton(
-                              tooltip: c.tr('清除', 'Clear'),
-                              onPressed: () {
-                                searchField.clear();
-                                FocusManager.instance.primaryFocus?.unfocus();
-                                setState(() => search = '');
-                              },
-                              icon: const Icon(Icons.close, size: 20),
-                            ),
-                    ),
-                  ],
                 ),
-              ),
+                IconButton(
+                  tooltip: searching
+                      ? c.tr('清除', 'Clear')
+                      : c.tr('搜索', 'Search'),
+                  onPressed: tone.glass
+                      ? () => setState(() {
+                          searching = !searching;
+                          if (!searching) {
+                            searchField.clear();
+                            search = '';
+                          }
+                        })
+                      : openSearch,
+                  icon: Icon(searching ? Symbols.close : Symbols.search),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+  }
+
+  /// The one thing to start from a narrow window, under the thumb.
+  Widget createButton() {
+    final tone = context.tone;
+    final face = Container(
+      width: 56,
+      height: 56,
+      decoration: ShapeDecoration(
+        color: tone.ink,
+        shape: const RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.all(Radius.circular(Tone.r16)),
+        ),
+        shadows: tone.lift,
+      ),
+      child: Icon(Symbols.add, size: 28, color: tone.base),
+    );
+    return category == 'space'
+        ? Tooltip(
+            message: c.tr('新建空间', 'New space'),
+            child: GestureDetector(onTap: () => create('space'), child: face),
+          )
+        : ActionMenu<String>(
+            tooltip: c.tr('新建', 'Create'),
+            alignEnd: true,
+            onSelected: create,
+            items: createItems(),
+            child: face,
+          );
   }
 
   /// When anything was last said there.
@@ -546,182 +616,96 @@ class _HomePageState extends State<HomePage> {
     return speaker == null ? text : c.tr('$speaker：$text', '$speaker: $text');
   }
 
-  Widget row(Json value, bool narrow) {
+  static const _rowDesktop = 64.0, _rowPhone = 72.0;
+
+  /// One row of the list: who, when, and what follows from [second].
+  Widget rowFrame({
+    required Key key,
+    required String id,
+    required Widget avatar,
+    required String name,
+    required String time,
+    required List<Widget> second,
+    required VoidCallback onTap,
+    String kind = '',
+    bool selected = false,
+  }) {
     final tone = context.tone;
     final glass = tone.glass;
     final text = Theme.of(context).textTheme;
-    final isGroup = value['kind'] == 'group';
-    final entity = isGroup
-        ? c.node.groups.firstWhere((x) => x['groupId'] == value['groupId'])
-        : c.node.bots.firstWhere((x) => x['botId'] == value['botId']);
-    final id = value['conversationId'] as String;
-    final state = c.node.activities[id]?.state;
-    final working = state != null && state != 'idle';
-    final selected = !narrow && conversation == id;
-    // Hover is flat and immediate, with no trailing lift or motion.
-    final hoveredRow = !glass && hovered == id;
-    // A phone shows when it last spoke; a desktop, what the Bot is for.
-    final note = glass || isGroup
-        ? ''
-        : '${entity['role'] ?? ''}'.split('\n').first.trim();
-    final last = preview(value, isGroup);
-    final lastAt = glass ? lastActivity(id) : null;
-    // Something in there is waiting for your answer.
-    final waiting = c.node.flows[id]?.state == 'waiting';
-    final unread = c.reading.unread(
-      c.selectedNodeId!,
-      id,
-      c.incomingSequence(id),
+    const corners = RoundedSuperellipseBorder(
+      borderRadius: BorderRadius.all(Radius.circular(Tone.r8)),
     );
-    final size = glass ? 44.0 : 40.0;
-    final corners = BorderRadius.circular(12);
+    final small = text.labelSmall?.copyWith(height: 16 / 12);
     return MouseRegion(
       onEnter: (_) => setState(() => hovered = id),
       onExit: (_) => setState(() => hovered = null),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 1),
-        child: Container(
+        child: AnimatedContainer(
+          duration: Motion.tint,
           decoration: ShapeDecoration(
-            color: selected
-                ? tone.raised
-                : hoveredRow
-                ? tone.hover
+            // Hover is flat and immediate; the chosen row is marked behind.
+            color: !glass && !selected && hovered == id
+                ? tone.raised.withValues(alpha: .6)
                 : Colors.transparent,
-            shape: RoundedSuperellipseBorder(borderRadius: corners),
+            shape: corners,
           ),
           child: Material(
             type: MaterialType.transparency,
             child: InkWell(
-              key: ValueKey('conversation-$id'),
-              customBorder: RoundedSuperellipseBorder(borderRadius: corners),
+              key: key,
+              customBorder: corners,
               hoverColor: Colors.transparent,
-              highlightColor: tone.hover,
-              onTap: () => open(value, narrow),
+              highlightColor: tone.raised.withValues(alpha: .6),
+              onTap: onTap,
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: glass ? 20 : 8),
                 child: Row(
                   children: [
-                    if (isGroup)
-                      GroupAvatar(
-                        size: size,
-                        working: working,
-                        avatars: [
-                          for (final bot in c.node.bots)
-                            if ((entity['botIds'] as List).contains(
-                              bot['botId'],
-                            ))
-                              object(bot['avatar']),
-                        ],
-                      )
-                    else
-                      CatAvatar.of(
-                        entity,
-                        size: size,
-                        working: working,
-                        twitch: hovered == id,
-                      ),
-                    const SizedBox(width: 12),
+                    avatar,
+                    SizedBox(width: glass ? 14 : 12),
                     Expanded(
                       child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
                             children: [
-                              Flexible(
-                                flex: 2,
-                                fit: FlexFit.tight,
+                              Expanded(
                                 child: Text(
-                                  '${entity[isGroup ? 'name' : 'displayName']}',
+                                  name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: text.titleMedium?.copyWith(
-                                    fontSize: glass ? 16 : 15,
-                                  ),
+                                  style: text.titleMedium,
                                 ),
                               ),
-                              if (lastAt != null) ...[
+                              if (kind.isNotEmpty) ...[
                                 const SizedBox(width: 8),
-                                Text(
-                                  rowTime(c, lastAt),
-                                  style: text.bodySmall?.copyWith(
-                                    fontSize: 12,
-                                    color: tone.ink3,
-                                    fontFeatures: const [
-                                      FontFeature.tabularFigures(),
-                                    ],
-                                  ),
-                                ),
+                                Text(kind, style: small),
                               ],
-                              if (note.isNotEmpty) ...[
-                                Container(
-                                  width: 1,
-                                  height: 12,
-                                  margin: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                  ),
-                                  color: tone.line,
-                                ),
-                                Expanded(
-                                  child: Text(
-                                    note,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: text.bodySmall?.copyWith(
-                                      fontSize: 13,
-                                      color: tone.ink3,
-                                    ),
-                                  ),
-                                ),
+                              if (time.isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                Text(time, style: small),
                               ],
                             ],
                           ),
-                          if (last != null || waiting || unread) ...[
-                            const SizedBox(height: 3),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    last ?? '',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: text.bodySmall?.copyWith(
-                                      fontSize: glass ? 14 : 13.5,
-                                      color: tone.ink2,
-                                    ),
-                                  ),
-                                ),
-                                if (unread && !waiting)
-                                  Container(
-                                    key: ValueKey('unread-$id'),
-                                    width: 8,
-                                    height: 8,
-                                    margin: const EdgeInsets.only(left: 8),
-                                    decoration: BoxDecoration(
-                                      color: tone.ink,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                if (waiting)
-                                  Semantics(
-                                    label: c.tr('等你确认', 'Needs your OK'),
-                                    child: Container(
-                                      key: ValueKey('waiting-$id'),
-                                      width: 8,
-                                      height: 8,
-                                      margin: const EdgeInsets.only(left: 8),
-                                      decoration: BoxDecoration(
-                                        color: tone.ink,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ),
-                              ],
+                          const SizedBox(height: 2),
+                          SizedBox(
+                            height: 20,
+                            child: DefaultTextStyle.merge(
+                              style: TextStyle(
+                                fontSize: 14,
+                                height: 20 / 14,
+                                color: tone.ink2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              child: Row(children: second),
                             ),
-                          ],
+                          ),
                         ],
                       ),
                     ),
@@ -735,52 +719,152 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// A conversation: the last thing said in it. A ring while its Dot works,
+  /// the words 等你确认 and a dot when it waits for you, a dot when unread.
+  Widget row(Json value, bool narrow) {
+    final tone = context.tone;
+    final isGroup = value['kind'] == 'group';
+    final entity = isGroup
+        ? c.node.groups.firstWhere((x) => x['groupId'] == value['groupId'])
+        : c.node.bots.firstWhere((x) => x['botId'] == value['botId']);
+    final id = value['conversationId'] as String;
+    final state = c.node.activities[id]?.state;
+    final working = state != null && state != 'idle';
+    final last = preview(value, isGroup);
+    final lastAt = lastActivity(id);
+    // Something in there is waiting for your answer.
+    final waiting = c.node.flows[id]?.state == 'waiting';
+    final unread = c.reading.unread(
+      c.selectedNodeId!,
+      id,
+      c.incomingSequence(id),
+    );
+    final size = tone.glass ? 44.0 : 36.0;
+    Widget dot(String key) => Container(
+      key: ValueKey('$key-$id'),
+      width: 8,
+      height: 8,
+      margin: const EdgeInsets.only(left: 8),
+      decoration: BoxDecoration(color: tone.ink, shape: BoxShape.circle),
+    );
+    return rowFrame(
+      key: ValueKey('conversation-$id'),
+      id: id,
+      selected: !narrow && conversation == id,
+      avatar: isGroup
+          ? GroupAvatar(
+              size: size,
+              working: working,
+              avatars: [
+                for (final bot in c.node.bots)
+                  if ((entity['botIds'] as List).contains(bot['botId']))
+                    object(bot['avatar']),
+              ],
+            )
+          : CatAvatar.of(
+              entity,
+              size: size,
+              working: working,
+              twitch: hovered == id,
+            ),
+      name: '${entity[isGroup ? 'name' : 'displayName']}',
+      time: lastAt == null ? '' : rowTime(c, lastAt),
+      onTap: () => open(value, narrow),
+      second: [
+        if (waiting) ...[
+          Text(
+            c.tr('等你确认', 'Needs your OK'),
+            style: TextStyle(
+              color: tone.ink,
+              fontWeight: Theme.of(context).textTheme.titleMedium?.fontWeight,
+            ),
+          ),
+          const SizedBox(width: 8),
+        ] else if (working) ...[
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: tone.ink, width: 1.5),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+        Expanded(child: Text(last ?? '')),
+        if (unread && !waiting) dot('unread'),
+        if (waiting)
+          Semantics(
+            label: c.tr('等你确认', 'Needs your OK'),
+            child: dot('waiting'),
+          ),
+      ],
+    );
+  }
+
   void selectCategory(String value) {
+    if (value == 'plugins' && MediaQuery.sizeOf(context).width < 840) {
+      // A narrow window has no room to keep the list beside it.
+      pushPage(context, PluginCenterPage(client: c, kind: 'skills'));
+      return;
+    }
     setState(() {
       c.workspace['category:${c.selectedNodeId}'] = value;
-      conversation =
-          c.workspace['conversation:$value:${c.selectedNodeId}'] as String?;
+      conversation = savedConversation(value, c.selectedNodeId);
       details = null;
       flowFocus = null;
       previewFile = null;
-      expandedSpace = false;
+      settingsPart = null;
     });
     c.saveContent();
   }
 
-  void showSpace(Space space) {
+  void showSpace(Space space, [Rect? from]) {
     c.workspace['category:${c.selectedNodeId}'] = 'space';
     c.workspace['space:${c.selectedNodeId}'] = space.spaceId;
     c.saveContent();
     setState(() {
       selectedSpace = space.spaceId;
-      expandedSpace = false;
+      spaceFrom = from;
       details = null;
       flowFocus = null;
       previewFile = null;
+      settingsPart = null;
     });
     if (MediaQuery.sizeOf(context).width < 840) {
-      pushPage(
-        context,
-        SpacePage(client: c, nodeId: c.selectedNodeId!, spaceId: space.spaceId),
+      final page = SpacePage(
+        client: c,
+        nodeId: c.selectedNodeId!,
+        spaceId: space.spaceId,
       );
+      if (from == null) {
+        pushPage(context, page);
+      } else {
+        Navigator.of(context).push(GrowRoute<void>(page, from: from));
+      }
     }
   }
 
-  Widget spaceRow(Space space, bool narrow) {
+  void closeSpace() => setState(() {
+    selectedSpace = null;
+    c.workspace.remove('space:${c.selectedNodeId}');
+    c.saveContent();
+  });
+
+  /// A space: its own mark, what it is called and whose it is.
+  Widget spaceRow(Space space, bool narrow, {bool mixed = false}) {
     final bot = c.node.bots.where((b) => b['botId'] == space.botId).firstOrNull;
-    return ListTile(
-      shape: RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(12)),
-      selected: !narrow && selectedSpace == space.spaceId,
-      selectedTileColor: context.tone.raised,
-      leading: CatAvatar.of(bot ?? {}, size: context.tone.glass ? 44 : 40),
-      title: Text(space.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        '${bot?['displayName'] ?? ''}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
+    return rowFrame(
+      key: ValueKey('space-${space.spaceId}'),
+      id: 'space:${space.spaceId}',
+      selected:
+          !narrow && category == 'space' && selectedSpace == space.spaceId,
+      avatar: SpaceMark(space: space, size: context.tone.glass ? 44 : 36),
+      name: space.name,
+      kind: mixed ? c.tr('空间', 'Space') : '',
+      time: rowTime(c, DateTime.parse(space.updatedAt).toLocal()),
       onTap: () => showSpace(space),
+      second: [Expanded(child: Text('${bot?['displayName'] ?? ''}'))],
     );
   }
 
@@ -795,88 +879,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Widget bottom(bool narrow) {
-    final tone = context.tone;
-    final email = '${c.account.me?['user']['email'] ?? ''}';
-    final name = email.split('@').first;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-      child: SizedBox(
-        height: 56,
-        child: Row(
-          children: [
-            Expanded(
-              child: ActionMenu<String>(
-                tooltip: c.tr('账户', 'Account'),
-                onSelected: (value) {
-                  if (value == 'settings') {
-                    openPage(context, SettingsPage(client: c));
-                  } else {
-                    signOut();
-                  }
-                },
-                items: [
-                  for (final (value, icon, label) in [
-                    (
-                      'settings',
-                      Icons.settings_outlined,
-                      c.tr('设置', 'Settings'),
-                    ),
-                    ('logout', Icons.logout, c.tr('退出账号', 'Sign out')),
-                  ]) ...[
-                    if (value == 'logout') null,
-                    MenuAction(value: value, icon: icon, label: label),
-                  ],
-                ],
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: tone.ink,
-                        ),
-                        child: Text(
-                          name.isEmpty
-                              ? ''
-                              : name.characters.first.toUpperCase(),
-                          style: TextStyle(
-                            color: tone.base,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          name,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontSize: 14),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            IconAction(
-              tooltip: c.tr('设置', 'Settings'),
-              icon: Icons.settings_outlined,
-              onPressed: () => openPage(context, SettingsPage(client: c)),
-            ),
-            const SizedBox(width: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: Listenable.merge([c, c.node, c.reading]),
@@ -884,152 +886,221 @@ class _HomePageState extends State<HomePage> {
       builder: (context, constraints) {
         final tone = context.tone;
         final narrow = constraints.maxWidth < 840;
+        final section = category;
         final updateCommand =
             objects(c.account.me?['nodes'])
                     .where((n) => n['nodeId'] == c.selectedNodeId)
                     .firstOrNull?['updateCommand']
                 as String?;
-        final active = c.node.conversations.where(
-          (x) => x['kind'] == 'dm'
-              ? c.node.bots.any(
-                  (b) => b['botId'] == x['botId'] && b['archived'] != true,
-                )
-              : c.node.groups.any(
-                  (g) => g['groupId'] == x['groupId'] && g['archived'] != true,
-                ),
-        );
-        final shown = active.where((value) {
-          if ((value['kind'] == 'group' ? 'group' : 'dot') != category) {
-            return false;
-          }
+        final active = c.node.conversations
+            .where(
+              (x) => x['kind'] == 'dm'
+                  ? c.node.bots.any(
+                      (b) => b['botId'] == x['botId'] && b['archived'] != true,
+                    )
+                  : c.node.groups.any(
+                      (g) =>
+                          g['groupId'] == x['groupId'] && g['archived'] != true,
+                    ),
+            )
+            .toList();
+        String nameOf(Json value) {
           final entity = value['kind'] == 'group'
               ? c.node.groups.firstWhere(
                   (x) => x['groupId'] == value['groupId'],
                 )
               : c.node.bots.firstWhere((x) => x['botId'] == value['botId']);
-          return '${entity['name'] ?? entity['displayName']}'
-              .toLowerCase()
-              .contains(search);
-        }).toList();
+          return '${entity['name'] ?? entity['displayName']}'.toLowerCase();
+        }
+
+        final spaces = c.node.spaces.values
+            .where(
+              (s) =>
+                  s.version > 0 &&
+                  !s.archived &&
+                  s.name.toLowerCase().contains(search),
+            )
+            .toList();
+        // What the section lists, by id: conversations, spaces, or both by
+        // when they last moved.
+        Map<String, Widget Function()> rowsNow() {
+          final rows = <String, Widget Function()>{};
+          if (section == 'recent') {
+            final mixed =
+                <({String id, DateTime? at, Widget Function() build})>[
+                  for (final x in active)
+                    if (nameOf(x).contains(search))
+                      (
+                        id: x['conversationId'] as String,
+                        at: lastActivity(x['conversationId'] as String),
+                        build: () => row(x, narrow),
+                      ),
+                  for (final s in spaces)
+                    (
+                      id: 'space:${s.spaceId}',
+                      at: DateTime.parse(s.updatedAt).toLocal(),
+                      build: () => spaceRow(s, narrow, mixed: true),
+                    ),
+                ]..sort(
+                  (a, b) =>
+                      (b.at ?? DateTime(0)).compareTo(a.at ?? DateTime(0)),
+                );
+            for (final item in mixed) {
+              rows[item.id] = item.build;
+            }
+          } else if (section == 'space') {
+            for (final s in spaces) {
+              rows['space:${s.spaceId}'] = () => spaceRow(s, narrow);
+            }
+          } else {
+            for (final x in active) {
+              if ((x['kind'] == 'group' ? 'group' : 'dot') == section &&
+                  nameOf(x).contains(search)) {
+                rows[x['conversationId'] as String] = () => row(x, narrow);
+              }
+            }
+          }
+          return rows;
+        }
+
+        final creating =
+            (section == 'dot' || section == 'recent') &&
+            creatingBot != null &&
+            creatingBot?['nodeId'] == c.selectedNodeId;
         final conversations = ListenableBuilder(
           listenable: c.node.summaries,
-          builder: (context, _) =>
-              active.isEmpty && creatingBot == null && category != 'space'
-              ? Center(
-                  child: IconButton(
-                    tooltip: c.selectedNodeId == null
-                        ? c.tr('添加电脑', 'Add computer')
-                        : c.tr('新建 Bot', 'New Bot'),
-                    onPressed: () => c.selectedNodeId == null
-                        ? openPage(context, _addComputer(), form: true)
-                        : create('bot'),
-                    icon: const CatAvatar(size: 56),
-                  ),
-                )
-              : ListView(
-                  key: PageStorageKey(
-                    '${c.account.me?['user']?['userId']}:${c.selectedNodeId}:$category',
-                  ),
-                  padding: EdgeInsets.fromLTRB(8, 0, 8, tone.glass ? 92 : 8),
-                  children: [
-                    if (category == 'dot' &&
-                        creatingBot?['nodeId'] == c.selectedNodeId &&
-                        creatingBot != null)
-                      ListTile(
-                        key: const ValueKey('bot-creating'),
-                        leading: CatAvatar.of(creatingBot!),
-                        title: Text(
-                          '${creatingBot!['displayName']}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: ShiningText(text: c.tr('创建中…', 'Creating…')),
-                      ),
-                    for (final x in shown) row(x, narrow),
-                    if (category == 'space')
-                      for (final space in c.node.spaces.values.where(
-                        (s) =>
-                            s.version > 0 &&
-                            !s.archived &&
-                            s.name.toLowerCase().contains(search),
-                      ))
-                        spaceRow(space, narrow),
-                  ],
-                ),
+          builder: (context, _) {
+            // A new message changes the order, so it is read here.
+            final rows = rowsNow();
+            return active.isEmpty &&
+                    creatingBot == null &&
+                    (section != 'space' || spaces.isEmpty) &&
+                    (section != 'recent' || spaces.isEmpty)
+                ? Center(
+                    child: IconButton(
+                      tooltip: c.selectedNodeId == null
+                          ? c.tr('添加电脑', 'Add computer')
+                          : section == 'space'
+                          ? c.tr('新建空间', 'New space')
+                          : c.tr('新建 Bot', 'New Bot'),
+                      onPressed: () => c.selectedNodeId == null
+                          ? openPage(context, _addComputer(), form: true)
+                          : create(section == 'space' ? 'space' : 'bot'),
+                      icon: const CatAvatar(size: 56),
+                    ),
+                  )
+                : GlideList(
+                    key: PageStorageKey(
+                      '${c.account.me?['user']?['userId']}:${c.selectedNodeId}:$section',
+                    ),
+                    padding: EdgeInsets.fromLTRB(
+                      tone.glass ? 0 : 8,
+                      tone.glass ? 2 : 0,
+                      tone.glass ? 0 : 8,
+                      narrow ? 88 : 8,
+                    ),
+                    extent: tone.glass ? _rowPhone : _rowDesktop,
+                    selected: narrow
+                        ? null
+                        : section == 'space'
+                        ? (selectedSpace == null
+                              ? null
+                              : 'space:$selectedSpace')
+                        : conversation,
+                    ids: [if (creating) 'creating', ...rows.keys],
+                    builder: (context, id) => id == 'creating'
+                        ? ListTile(
+                            key: const ValueKey('bot-creating'),
+                            leading: CatAvatar.of(creatingBot!),
+                            title: Text(
+                              '${creatingBot!['displayName']}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: ShiningText(
+                              text: c.tr('创建中…', 'Creating…'),
+                            ),
+                          )
+                        : rows[id]!(),
+                  );
+          },
         );
-        final list = Column(
-          children: [
-            tone.glass ? glassTop() : top(),
+        final notices = [
+          if (c.online && updateCommand != null)
+            NodeUpdateNotice(
+              key: ValueKey('${c.selectedNodeId}:$updateCommand'),
+              client: c,
+              command: updateCommand,
+            ),
+          if (c.error.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
               child: Row(
                 children: [
-                  Expanded(
-                    child: Segment<String>(
-                      value: category,
-                      options: {
-                        'dot': const Text('Dot'),
-                        'group': Text(c.tr('群聊', 'Groups')),
-                        'space': Text(c.tr('空间', 'Spaces')),
-                      },
-                      onChanged: selectCategory,
-                    ),
+                  Expanded(child: ErrorNotice(c.error)),
+                  IconButton(
+                    tooltip: c.tr('重新连接', 'Reconnect'),
+                    onPressed: () => c.bootstrap(),
+                    icon: const Icon(Symbols.refresh),
                   ),
                 ],
               ),
             ),
-            if (c.online && updateCommand != null)
-              NodeUpdateNotice(
-                key: ValueKey('${c.selectedNodeId}:$updateCommand'),
-                client: c,
-                command: updateCommand,
-              ),
-            if (c.error.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
-                child: Row(
-                  children: [
-                    Expanded(child: ErrorNotice(c.error)),
-                    IconButton(
-                      tooltip: c.tr('重新连接', 'Reconnect'),
-                      onPressed: () => c.bootstrap(),
-                      icon: const Icon(Icons.refresh),
-                    ),
-                  ],
-                ),
-              ),
-            Expanded(
-              child: tone.glass
-                  ? Stack(
-                      children: [
-                        Positioned.fill(child: conversations),
-                        Positioned(left: 0, right: 0, bottom: 0, child: dock()),
-                      ],
-                    )
-                  : conversations,
-            ),
-            if (!tone.glass) bottom(narrow),
-          ],
-        );
+        ];
+        // What waits for you: a count on Recent, a dot on the kind it is in.
+        bool needs(Json x) {
+          final id = x['conversationId'] as String;
+          return c.node.flows[id]?.state == 'waiting' ||
+              (c.selectedNodeId != null &&
+                  c.reading.unread(
+                    c.selectedNodeId!,
+                    id,
+                    c.incomingSequence(id),
+                  ));
+        }
+
+        final waitingCount = active.where(needs).length;
+        final marked = {
+          if (active.any((x) => x['kind'] != 'group' && needs(x))) 'dot',
+          if (active.any((x) => x['kind'] == 'group' && needs(x))) 'group',
+        };
+        // Settings stand in for the section while they are open and there is
+        // room for their list.
+        final inSettings = settingsPart != null && !narrow;
         final hasChat =
-            category != 'space' &&
+            !inSettings &&
+            section != 'space' &&
+            section != 'plugins' &&
             conversation != null &&
             active.any((x) => x['conversationId'] == conversation);
         final panel = hasChat ? details : null;
-        final widest = (constraints.maxWidth - 420).clamp(240.0, 560.0);
-        final sidebar = expandedSpace && category == 'space'
+        // Spaces and plugins fill the window; the rest have a list beside them.
+        final listed =
+            inSettings || (section != 'plugins' && section != 'space');
+        final widest = (constraints.maxWidth - HomeRail.width - 420).clamp(
+          240.0,
+          560.0,
+        );
+        final sidebar = !listed
             ? 0.0
-            : (dragging ?? c.prefs.sidebarWidth ?? 280.0).clamp(240.0, widest);
+            : (dragging ?? c.prefs.sidebarWidth ?? 292.0).clamp(240.0, widest);
         final flowShown = hasChat && flowFocus != null;
         final fileShown = hasChat && previewFile != null;
         final panelShown = fileShown || flowShown || panel != null;
+        // Bot details lie over the window as a drawer; Flow and files stand
+        // beside the conversation when there is room.
+        final drawer = !fileShown && !flowShown && panel != null;
         final panelWidth = fileShown
             ? (expandedFile
                   ? constraints.maxWidth
-                  : 560.0.clamp(0.0, constraints.maxWidth))
+                  : 500.0.clamp(0.0, constraints.maxWidth))
+            : drawer
+            ? 600.0.clamp(0.0, constraints.maxWidth - HomeRail.width)
             : 340.0;
         final inlinePanel =
-            panelShown && constraints.maxWidth - sidebar - panelWidth >= 480;
+            panelShown &&
+            !drawer &&
+            constraints.maxWidth - HomeRail.width - sidebar - panelWidth >= 400;
         void closePanel() => setState(() {
           details = null;
           c.workspace.remove('details:${c.selectedNodeId}');
@@ -1050,6 +1121,105 @@ class _HomePageState extends State<HomePage> {
             await focus(id);
           },
         );
+        // What fills the window beside the list. A new one rises into place.
+        final spaceShown =
+            section == 'space' &&
+            selectedSpace != null &&
+            c.node.spaces[selectedSpace]?.archived == false;
+        final main = inSettings
+            // Its own navigator, so that what a setting opens stays in this
+            // part of the window with a way back.
+            ? Navigator(
+                key: ValueKey('settings:${c.selectedNodeId}:$settingsPart'),
+                onGenerateRoute: (_) => MaterialPageRoute<void>(
+                  builder: (_) =>
+                      SettingsPage(client: c, sectionId: settingsPart),
+                ),
+              )
+            : section == 'plugins'
+            ? PluginCenterPage(
+                key: ValueKey('plugins:${c.selectedNodeId}'),
+                client: c,
+                kind: 'skills',
+                embedded: true,
+              )
+            : section == 'space'
+            // The gallery, and over it the space that is open: it grows out
+            // of its tile and goes back into it.
+            ? Navigator(
+                key: ValueKey('spaces:${c.selectedNodeId}'),
+                pages: [
+                  GrowPage<void>(
+                    key: const ValueKey('gallery'),
+                    child: SpaceGallery(
+                      client: c,
+                      spaces: spaces,
+                      titled: true,
+                      onOpen: showSpace,
+                      onCreate: () => create('space'),
+                    ),
+                  ),
+                  if (spaceShown)
+                    GrowPage<void>(
+                      key: ValueKey('space:$selectedSpace'),
+                      from: spaceFrom,
+                      child: SpacePage(
+                        key: ValueKey('${c.selectedNodeId}:$selectedSpace'),
+                        client: c,
+                        nodeId: c.selectedNodeId!,
+                        spaceId: selectedSpace!,
+                        embedded: true,
+                        onBack: closeSpace,
+                      ),
+                    ),
+                ],
+                onDidRemovePage: (page) {
+                  if (page.key == ValueKey('space:$selectedSpace')) {
+                    closeSpace();
+                  }
+                },
+              )
+            : hasChat
+            ? ChatPage(
+                key: ValueKey('${c.selectedNodeId}:$conversation'),
+                client: c,
+                conversationId: conversation!,
+                embedded: true,
+                readingVisible: !panelShown || inlinePanel,
+                reserveControls: !panelShown,
+                onDetails: (bot) => setState(() {
+                  details = bot;
+                  c.workspace['details:${c.selectedNodeId}'] = bot;
+                  c.saveContent();
+                  flowFocus = null;
+                  previewFile = null;
+                }),
+                flowOpen: flowShown,
+                onFlow: (focus) => setState(() {
+                  details = null;
+                  c.workspace.remove('details:${c.selectedNodeId}');
+                  c.saveContent();
+                  previewFile = null;
+                  flowFocus = flowFocus == null ? focus : null;
+                }),
+              )
+            : Stack(
+                children: const [
+                  Positioned.fill(child: WindowDrag()),
+                  Center(
+                    child: Opacity(opacity: .08, child: CatAvatar(size: 72)),
+                  ),
+                ],
+              );
+        final mainKey = inSettings
+            ? 'settings:$settingsPart'
+            : section == 'plugins'
+            ? 'plugins'
+            : section == 'space'
+            ? 'spaces'
+            : hasChat
+            ? 'chat:$conversation'
+            : 'empty';
         return PopScope(
           canPop:
               !Platform.isAndroid ||
@@ -1068,7 +1238,46 @@ class _HomePageState extends State<HomePage> {
             open: showSpace,
             child: Scaffold(
               body: narrow
-                  ? SafeArea(child: list)
+                  ? SafeArea(
+                      bottom: false,
+                      child: Column(
+                        children: [
+                          narrowTop(),
+                          ...notices,
+                          Expanded(
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: KeyedSubtree(
+                                    key: ValueKey('list:$section'),
+                                    child: section == 'space'
+                                        ? SpaceGallery(
+                                            client: c,
+                                            spaces: spaces,
+                                            onOpen: showSpace,
+                                            onCreate: () => create('space'),
+                                          )
+                                        : conversations,
+                                  ),
+                                ),
+                                Positioned(
+                                  right: 16,
+                                  bottom: 16,
+                                  child: createButton(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          HomeNav(
+                            section: section,
+                            onSelect: selectCategory,
+                            waiting: waitingCount,
+                            marked: marked,
+                            tr: c.tr,
+                          ),
+                        ],
+                      ),
+                    )
                   : FilePreviewScope(
                       open: (file) => setState(() {
                         previewFile = file;
@@ -1082,94 +1291,109 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           Row(
                             children: [
+                              HomeRail(
+                                section: inSettings ? '' : section,
+                                onSelect: selectCategory,
+                                waiting: waitingCount,
+                                marked: marked,
+                                account: account(30, onRail: true),
+                                tr: c.tr,
+                              ),
                               if (sidebar > 0)
                                 SizedBox(
                                   width: sidebar,
                                   child: Material(
                                     color: tone.sidebar,
-                                    child: list,
+                                    child: Column(
+                                      children: inSettings
+                                          ? [
+                                              SizedBox(
+                                                height: 48,
+                                                child: Stack(
+                                                  children: [
+                                                    const Positioned.fill(
+                                                      child: WindowDrag(),
+                                                    ),
+                                                    Align(
+                                                      alignment:
+                                                          Alignment.centerLeft,
+                                                      child: Padding(
+                                                        padding:
+                                                            const EdgeInsets.only(
+                                                              left: 20,
+                                                            ),
+                                                        child: Text(
+                                                          c.tr(
+                                                            '设置',
+                                                            'Settings',
+                                                          ),
+                                                          style:
+                                                              Theme.of(context)
+                                                                  .textTheme
+                                                                  .titleLarge,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: SettingsNav(
+                                                  sections: settingsParts(c),
+                                                  current: settingsPart!,
+                                                  padding:
+                                                      const EdgeInsets.fromLTRB(
+                                                        8,
+                                                        4,
+                                                        8,
+                                                        12,
+                                                      ),
+                                                  onPick: (id) => setState(
+                                                    () => settingsPart = id,
+                                                  ),
+                                                ),
+                                              ),
+                                            ]
+                                          : [
+                                              top(),
+                                              ...notices,
+                                              Expanded(
+                                                child: KeyedSubtree(
+                                                  key: ValueKey(
+                                                    'list:$section',
+                                                  ),
+                                                  child: conversations,
+                                                ),
+                                              ),
+                                            ],
+                                    ),
                                   ),
                                 ),
-                              if (sidebar > 0) const VerticalDivider(width: 1),
+                              if (sidebar > 0)
+                                VerticalDivider(
+                                  width: Tone.hair,
+                                  thickness: Tone.hair,
+                                  color: tone.line,
+                                ),
                               Expanded(
                                 child: AnimatedPadding(
-                                  duration:
-                                      MediaQuery.disableAnimationsOf(context)
+                                  duration: Motion.still(context)
                                       ? Duration.zero
-                                      : Duration(
-                                          milliseconds: panelShown ? 240 : 180,
-                                        ),
-                                  curve: Curves.easeOutCubic,
+                                      : panelShown
+                                      ? Motion.side.duration
+                                      : Motion.sideLeave,
+                                  curve: panelShown
+                                      ? Motion.leave
+                                      : Motion.leave,
                                   padding: EdgeInsets.only(
                                     right: inlinePanel ? panelWidth : 0,
                                   ),
-                                  child:
-                                      category == 'space' &&
-                                          selectedSpace != null &&
-                                          c
-                                                  .node
-                                                  .spaces[selectedSpace]
-                                                  ?.archived ==
-                                              false
-                                      ? SpacePage(
-                                          key: ValueKey(
-                                            '${c.selectedNodeId}:$selectedSpace',
-                                          ),
-                                          client: c,
-                                          nodeId: c.selectedNodeId!,
-                                          spaceId: selectedSpace!,
-                                          embedded: true,
-                                          expanded: expandedSpace,
-                                          onExpand: () => setState(
-                                            () =>
-                                                expandedSpace = !expandedSpace,
-                                          ),
-                                        )
-                                      : hasChat
-                                      ? ChatPage(
-                                          key: ValueKey(
-                                            '${c.selectedNodeId}:$conversation',
-                                          ),
-                                          client: c,
-                                          conversationId: conversation!,
-                                          embedded: true,
-                                          readingVisible:
-                                              !panelShown || inlinePanel,
-                                          reserveControls: !panelShown,
-                                          onDetails: (bot) => setState(() {
-                                            details = bot;
-                                            c.workspace['details:${c.selectedNodeId}'] =
-                                                bot;
-                                            c.saveContent();
-                                            flowFocus = null;
-                                            previewFile = null;
-                                          }),
-                                          flowOpen: flowShown,
-                                          onFlow: (focus) => setState(() {
-                                            details = null;
-                                            c.workspace.remove(
-                                              'details:${c.selectedNodeId}',
-                                            );
-                                            c.saveContent();
-                                            previewFile = null;
-                                            flowFocus = flowFocus == null
-                                                ? focus
-                                                : null;
-                                          }),
-                                        )
-                                      : Stack(
-                                          children: const [
-                                            Positioned.fill(
-                                              child: WindowDrag(),
-                                            ),
-                                            Center(
-                                              child: Opacity(
-                                                opacity: .08,
-                                                child: CatAvatar(size: 72),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                  child: Appear(
+                                    key: ValueKey(
+                                      'main:${c.selectedNodeId}:$mainKey',
+                                    ),
+                                    child: main,
+                                  ),
                                 ),
                               ),
                             ],
@@ -1178,7 +1402,11 @@ class _HomePageState extends State<HomePage> {
                             Positioned.fill(
                               child: GestureDetector(
                                 onTap: closePanel,
-                                child: const ColoredBox(color: Colors.black26),
+                                child: ColoredBox(
+                                  color: drawer
+                                      ? tone.dim.withValues(alpha: 0)
+                                      : tone.dim,
+                                ),
                               ),
                             ),
                           Positioned(
@@ -1188,19 +1416,55 @@ class _HomePageState extends State<HomePage> {
                             right: 0,
                             child: SidePanel(
                               width: panelWidth,
+                              floating: drawer,
                               child: fileShown
                                   ? SafeArea(
-                                      child: FileViewer(
-                                        key: ValueKey(
-                                          '${c.selectedNodeId}:${previewFile!['fileId']}',
-                                        ),
-                                        client: c,
-                                        file: previewFile!,
-                                        onClose: closePanel,
-                                        expanded: expandedFile,
-                                        onExpand: () => setState(
-                                          () => expandedFile = !expandedFile,
-                                        ),
+                                      child: Column(
+                                        children: [
+                                          FileTabs(
+                                            files: previewFiles,
+                                            at: previewAt,
+                                            closeLabel: c.tr(
+                                              '关闭标签',
+                                              'Close tab',
+                                            ),
+                                            onSelect: (index) => setState(
+                                              () => previewAt = index,
+                                            ),
+                                            onClose: (index) => setState(() {
+                                              previewFiles.removeAt(index);
+                                              if (previewAt > index ||
+                                                  previewAt ==
+                                                      previewFiles.length) {
+                                                previewAt = (previewAt - 1)
+                                                    .clamp(0, previewAt);
+                                              }
+                                              if (previewFiles.isEmpty) {
+                                                expandedFile = false;
+                                              }
+                                            }),
+                                          ),
+                                          Expanded(
+                                            // Its bar is under the tabs, clear
+                                            // of the window's own controls.
+                                            child: WindowSheetScope(
+                                              child: FileViewer(
+                                                key: ValueKey(
+                                                  '${c.selectedNodeId}:${previewFile!['fileId']}',
+                                                ),
+                                                client: c,
+                                                file: previewFile!,
+                                                tabbed: true,
+                                                onClose: closePanel,
+                                                expanded: expandedFile,
+                                                onExpand: () => setState(
+                                                  () => expandedFile =
+                                                      !expandedFile,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     )
                                   : flowShown
@@ -1217,7 +1481,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           if (sidebar > 0)
                             Positioned(
-                              left: sidebar - 4,
+                              left: HomeRail.width + sidebar - 4,
                               top: 0,
                               bottom: 0,
                               width: 9,

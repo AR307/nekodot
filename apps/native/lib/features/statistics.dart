@@ -169,12 +169,12 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     key: const ValueKey('usage-refresh'),
                     tooltip: c.tr('刷新', 'Refresh'),
                     onPressed: busy ? null : () => load(refresh: true),
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(Symbols.refresh),
                   ),
                   TextButton.icon(
                     key: const ValueKey('usage-export'),
                     onPressed: busy || data == null ? null : export,
-                    icon: const Icon(Icons.file_download_outlined),
+                    icon: const Icon(Symbols.file_download),
                     label: Text(c.tr('导出 CSV', 'Export CSV')),
                   ),
                 ],
@@ -216,7 +216,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                           onPressed: year > selected.from.year
                               ? () => setState(() => year--)
                               : null,
-                          icon: const Icon(Icons.chevron_left),
+                          icon: const Icon(Symbols.chevron_left),
                         ),
                         Text('$year'),
                         IconButton(
@@ -224,7 +224,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                           onPressed: year < selected.to.year
                               ? () => setState(() => year++)
                               : null,
-                          icon: const Icon(Icons.chevron_right),
+                          icon: const Icon(Symbols.chevron_right),
                         ),
                       ],
                     ],
@@ -260,7 +260,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                               '部分调用未返回用量',
                               'Some calls did not report usage',
                             ),
-                            child: const Icon(Icons.info_outline, size: 16),
+                            child: const Icon(Symbols.info, size: 16),
                           ),
                         ),
                     ],

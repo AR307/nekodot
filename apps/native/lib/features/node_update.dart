@@ -49,7 +49,7 @@ class _NodeUpdateNoticeState extends State<NodeUpdateNotice> {
                   copied ? '已复制' : '复制命令',
                   copied ? 'Copied' : 'Copy command',
                 ),
-                icon: copied ? Icons.check : Icons.copy_outlined,
+                icon: copied ? Symbols.check : Symbols.content_copy,
                 onPressed: () async {
                   await Clipboard.setData(ClipboardData(text: widget.command));
                   if (mounted) setState(() => copied = true);

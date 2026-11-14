@@ -130,12 +130,12 @@ class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
                               children: [
                                 Icon(
                                   sending
-                                      ? Icons.more_horiz
+                                      ? Symbols.more_horiz
                                       : widget.unanswered
-                                      ? Icons.remove
+                                      ? Symbols.remove
                                       : widget.denied
-                                      ? Icons.close_rounded
-                                      : Icons.check_rounded,
+                                      ? Symbols.close
+                                      : Symbols.check,
                                   size: 14,
                                   color: tone.ink2,
                                 ),
@@ -161,7 +161,7 @@ class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
                         turns: unfolded ? .5 : 0,
                         duration: motion,
                         child: Icon(
-                          Icons.expand_more,
+                          Symbols.expand_more,
                           size: 18,
                           color: tone.ink2,
                         ),
@@ -210,7 +210,7 @@ class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         child: Icon(
-                          Icons.arrow_forward_rounded,
+                          Symbols.arrow_forward,
                           size: 16,
                           color: tone.ink3,
                         ),
@@ -258,7 +258,7 @@ class _ConnectorApprovalCardState extends State<ConnectorApprovalCard> {
                           AnimatedRotation(
                             turns: expanded ? .5 : 0,
                             duration: motion,
-                            child: const Icon(Icons.expand_more, size: 18),
+                            child: const Icon(Symbols.expand_more, size: 18),
                           ),
                         ],
                       ),

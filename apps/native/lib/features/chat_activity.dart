@@ -19,9 +19,9 @@ class ThinkingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tone = context.tone;
     final style = Theme.of(context).textTheme.bodyMedium!
-        .copyWith(fontSize: tone.glass ? 14 : 13, color: tone.ink2);
+        .copyWith(fontSize: 14, height: 20 / 14, color: tone.ink2);
     return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: tone.glass ? 48 : 40),
+      constraints: BoxConstraints(minHeight: tone.glass ? 44 : 36),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Row(

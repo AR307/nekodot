@@ -226,7 +226,7 @@ class _ConnectorAuthorizationViewState extends State<ConnectorAuthorizationView>
                               setState(() => failed = true);
                             }
                           },
-                    icon: const Icon(Icons.open_in_new, size: 18),
+                    icon: const Icon(Symbols.open_in_new, size: 18),
                     label: Text(c.tr('打开授权页面', 'Open authorization')),
                   ),
                   TextButton(

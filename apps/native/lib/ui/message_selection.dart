@@ -90,7 +90,7 @@ class _MessageSelectionState extends State<MessageSelection> {
               TextButton.icon(
                 key: const ValueKey('selection-quote-bubble'),
                 onPressed: _quote,
-                icon: const Icon(Icons.format_quote_rounded, size: 18),
+                icon: const Icon(Symbols.format_quote, size: 18),
                 label: Text(widget.quoteLabel),
                 style: TextButton.styleFrom(
                   minimumSize: Size(48, context.tone.glass ? 48 : 36),

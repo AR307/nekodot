@@ -79,7 +79,7 @@ class _DesktopControlTileState extends State<DesktopControlTile> {
       children: [
         SwitchListTile(
           key: const ValueKey('bot-desktop-control'),
-          secondary: const Icon(Icons.mouse_outlined),
+          secondary: const Icon(Symbols.mouse),
           title: Text(c.tr('操作这台电脑', 'Operate this computer')),
           subtitle: Text(
             '${c.tr('用鼠标和键盘操作运行它的电脑上你正在使用的桌面，按审批设置确认，可随时停止。', 'Uses the mouse and keyboard on the desktop you are using on its computer, following approval settings; stop at any time.')}\n$readiness',

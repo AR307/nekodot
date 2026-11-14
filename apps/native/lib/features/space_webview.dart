@@ -87,6 +87,227 @@ class SpaceBundle {
       };
 }
 
+/// A space served as a site of its own: where it lives, what it may load,
+/// and the bridge to its records. The page shows it; the picture of a space
+/// nobody has opened is taken through the same door.
+class SpaceSite {
+  final NekodotClient client;
+  final String nodeId;
+  final Space space;
+  final SpaceBundle bundle;
+
+  /// Whether the site may change its records.
+  final bool writes;
+
+  /// The account it was opened under; it stops answering under another.
+  final Object? owner;
+  SpaceSite({
+    required this.client,
+    required this.nodeId,
+    required this.space,
+    required this.bundle,
+    this.writes = true,
+  }) : owner = client.store;
+
+  String get origin => 'https://s-${space.spaceId}.nekodot.invalid';
+  // Opaque sandbox origins have no persistent web storage. Only our SDK can
+  // persist data. Explicit resource origins keep local modules/fetch working.
+  String get csp =>
+      "default-src 'none'; sandbox allow-scripts allow-forms; "
+      "script-src $origin 'unsafe-inline'; style-src $origin 'unsafe-inline'; "
+      "img-src $origin data: blob: ${space.allowedOrigins.join(' ')}; "
+      "font-src $origin; media-src $origin blob: ${space.allowedOrigins.join(' ')}; "
+      "connect-src $origin ${space.allowedOrigins.join(' ')}; "
+      "frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
+
+  URLRequest get home => URLRequest(url: WebUri('$origin/index.html'));
+  UnmodifiableListView<UserScript> get scripts => UnmodifiableListView([
+    UserScript(
+      source: _sdk,
+      injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+      forMainFrameOnly: true,
+    ),
+  ]);
+  InAppWebViewSettings get settings => InAppWebViewSettings(
+    useShouldInterceptRequest: true,
+    useShouldOverrideUrlLoading: true,
+    javaScriptEnabled: true,
+    javaScriptCanOpenWindowsAutomatically: false,
+    supportMultipleWindows: true,
+    allowFileAccess: false,
+    allowContentAccess: false,
+    allowFileAccessFromFileURLs: false,
+    allowUniversalAccessFromFileURLs: false,
+    domStorageEnabled: false,
+    databaseEnabled: false,
+    thirdPartyCookiesEnabled: false,
+    incognito: true,
+    mediaPlaybackRequiresUserGesture: true,
+    disableDefaultErrorPage: true,
+  );
+
+  Future<WebResourceResponse?> resource(WebResourceRequest request) async {
+    final uri = Uri.parse(request.url.toString());
+    if (uri.scheme != 'https') {
+      return WebResourceResponse(
+        statusCode: 403,
+        reasonPhrase: 'Forbidden',
+        headers: {},
+        data: Uint8List(0),
+      );
+    }
+    if (uri.origin != origin) {
+      if (uri.scheme == 'https' && space.allowedOrigins.contains(uri.origin)) {
+        return null;
+      }
+      return WebResourceResponse(
+        statusCode: 403,
+        reasonPhrase: 'Forbidden',
+        headers: {},
+        data: Uint8List(0),
+      );
+    }
+    final path = Uri.decodeComponent(uri.path.substring(1));
+    final bytes = bundle.files[path.isEmpty ? 'index.html' : path];
+    return WebResourceResponse(
+      contentType: Platform.isWindows
+          ? '${SpaceBundle.mime(path)}; charset=utf-8'
+          : SpaceBundle.mime(path),
+      contentEncoding: Platform.isWindows ? null : 'utf-8',
+      data: bytes ?? Uint8List(0),
+      statusCode: bytes == null ? 404 : 200,
+      reasonPhrase: bytes == null ? 'Not Found' : 'OK',
+      headers: {
+        'Content-Security-Policy': csp,
+        'Access-Control-Allow-Origin': '*',
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'no-store',
+      },
+    );
+  }
+
+  Future<Json> bridge(List<dynamic> args) async {
+    if (owner == null || !identical(owner, client.store)) {
+      return {'error': 'Space closed'};
+    }
+    final request = args.length == 1 && args.first is Map
+        ? object(args.first)
+        : <String, dynamic>{};
+    final operation = request['operation'], key = request['key'];
+    if (!const ['get', 'list', 'set'].contains(operation) ||
+        (operation != 'list' &&
+            (key is! String || key.isEmpty || key.length > 256))) {
+      return {'error': 'Invalid record operation'};
+    }
+    final store = client.spaces, data = store.data(nodeId, space.spaceId);
+    if (operation == 'list') return {'value': data.records};
+    if (operation == 'get') return {'value': data.records[key]};
+    if (!writes) return {'error': 'Record was not saved'};
+    try {
+      // Method-channel JSON is the only external boundary; no IDs or RPC names
+      // supplied by the page are accepted by the native store.
+      final value = jsonDecode(jsonEncode(request['value']));
+      await store.set(nodeId, space.spaceId, key as String, value);
+      return {'value': true};
+    } catch (_) {
+      return {'error': 'Record was not saved'};
+    }
+  }
+
+  /// The site stays on its own pages.
+  NavigationActionPolicy navigation(NavigationAction action) {
+    final uri = Uri.tryParse(action.request.url.toString());
+    return uri?.scheme == 'https' && uri?.origin == origin
+        ? NavigationActionPolicy.ALLOW
+        : NavigationActionPolicy.CANCEL;
+  }
+
+  static Future<PermissionResponse> deny(
+    InAppWebViewController _,
+    PermissionRequest request,
+  ) async => PermissionResponse(
+    resources: request.resources,
+    action: PermissionResponseAction.DENY,
+  );
+  static Future<GeolocationPermissionShowPromptResponse> nowhere(
+    InAppWebViewController _,
+    String origin,
+  ) async => GeolocationPermissionShowPromptResponse(
+    origin: origin,
+    allow: false,
+    retain: false,
+  );
+}
+
+/// What a picture of a space is kept as.
+final _shot = ScreenshotConfiguration(
+  compressFormat: CompressFormat.JPEG,
+  quality: 72,
+);
+
+/// How long a site is given to read its records and draw after it loads.
+const _settle = Duration(milliseconds: 600);
+
+/// What [site] draws when it is loaded out of sight at [size]: null when it
+/// does not load in time. Nothing of it is ever shown.
+Future<Uint8List?> pictureOf(
+  SpaceSite site,
+  Size size,
+  WebViewEnvironment? environment,
+) async {
+  const patience = Duration(seconds: 20);
+  final loaded = Completer<bool>();
+  final view = HeadlessInAppWebView(
+    webViewEnvironment: environment,
+    initialSize: size,
+    initialUrlRequest: site.home,
+    initialUserScripts: site.scripts,
+    initialSettings: site.settings,
+    onWebViewCreated: (view) => view.addJavaScriptHandler(
+      handlerName: 'spaceData',
+      callback: site.bridge,
+    ),
+    shouldInterceptRequest: (_, request) => site.resource(request),
+    shouldOverrideUrlLoading: (_, action) async => site.navigation(action),
+    onCreateWindow: (_, _) async => false,
+    onPermissionRequest: SpaceSite.deny,
+    onGeolocationPermissionsShowPrompt: SpaceSite.nowhere,
+    onLoadStop: (_, _) {
+      if (!loaded.isCompleted) loaded.complete(true);
+    },
+    onReceivedError: (_, request, _) {
+      if (request.isForMainFrame == true && !loaded.isCompleted) {
+        loaded.complete(false);
+      }
+    },
+  );
+  await view.run();
+  try {
+    if (!await loaded.future.timeout(patience, onTimeout: () => false)) {
+      return null;
+    }
+    if (Platform.isWindows) {
+      // WebView2 out of sight sits in a window with a frame and is sized in
+      // raw pixels: the page is told it has exactly the room asked for.
+      await view.webViewController?.callDevToolsProtocolMethod(
+        methodName: 'Emulation.setDeviceMetricsOverride',
+        parameters: {
+          'width': size.width.round(),
+          'height': size.height.round(),
+          'deviceScaleFactor': 0,
+          'mobile': false,
+        },
+      );
+    }
+    await Future<void>.delayed(_settle);
+    return await view.webViewController
+        ?.takeScreenshot(screenshotConfiguration: _shot)
+        .timeout(patience, onTimeout: () => null);
+  } finally {
+    await view.dispose();
+  }
+}
+
 class SpaceWebView extends StatefulWidget {
   final NekodotClient client;
   final String nodeId;
@@ -94,6 +315,9 @@ class SpaceWebView extends StatefulWidget {
   final SpaceBundle bundle;
   final WebViewEnvironment? environment;
   final VoidCallback onError;
+
+  /// The site has loaded and had time to draw.
+  final VoidCallback onDrawn;
   const SpaceWebView({
     super.key,
     required this.client,
@@ -102,6 +326,7 @@ class SpaceWebView extends StatefulWidget {
     required this.bundle,
     this.environment,
     required this.onError,
+    required this.onDrawn,
   });
   @override
   State<SpaceWebView> createState() => _SpaceWebViewState();
@@ -110,21 +335,17 @@ class SpaceWebView extends StatefulWidget {
 class _SpaceWebViewState extends State<SpaceWebView>
     with WidgetsBindingObserver, WindowListener {
   InAppWebViewController? controller;
-  late final owner = widget.client.store;
+  late final site = SpaceSite(
+    client: widget.client,
+    nodeId: widget.nodeId,
+    space: widget.space,
+    bundle: widget.bundle,
+  );
+  Timer? settling;
   bool visible = true;
   bool desktopVisible = true;
   bool pageVisible = true;
   bool appActive = true;
-  String get origin => 'https://s-${widget.space.spaceId}.nekodot.invalid';
-  // Opaque sandbox origins have no persistent web storage. Only our SDK can
-  // persist data. Explicit resource origins keep local modules/fetch working.
-  String get csp =>
-      "default-src 'none'; sandbox allow-scripts allow-forms; "
-      "script-src $origin 'unsafe-inline'; style-src $origin 'unsafe-inline'; "
-      "img-src $origin data: blob: ${widget.space.allowedOrigins.join(' ')}; "
-      "font-src $origin; media-src $origin blob: ${widget.space.allowedOrigins.join(' ')}; "
-      "connect-src $origin ${widget.space.allowedOrigins.join(' ')}; "
-      "frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 
   @override
   void initState() {
@@ -202,117 +423,26 @@ class _SpaceWebViewState extends State<SpaceWebView>
     WidgetsBinding.instance.removeObserver(this);
     widget.client.spaces.removeListener(recordsChanged);
     if (Platform.isWindows) windowManager.removeListener(this);
+    settling?.cancel();
     // Android timers are process-wide; do not leave the next space paused.
     if (!visible && Platform.isAndroid) unawaited(controller?.resumeTimers());
     controller = null;
     super.dispose();
   }
 
-  Future<WebResourceResponse?> resource(WebResourceRequest request) async {
-    final uri = Uri.parse(request.url.toString());
-    if (uri.scheme != 'https') {
-      return WebResourceResponse(
-        statusCode: 403,
-        reasonPhrase: 'Forbidden',
-        headers: {},
-        data: Uint8List(0),
-      );
-    }
-    if (uri.origin != origin) {
-      if (uri.scheme == 'https' &&
-          widget.space.allowedOrigins.contains(uri.origin)) {
-        return null;
-      }
-      return WebResourceResponse(
-        statusCode: 403,
-        reasonPhrase: 'Forbidden',
-        headers: {},
-        data: Uint8List(0),
-      );
-    }
-    final path = Uri.decodeComponent(uri.path.substring(1));
-    final bytes = widget.bundle.files[path.isEmpty ? 'index.html' : path];
-    return WebResourceResponse(
-      contentType: Platform.isWindows
-          ? '${SpaceBundle.mime(path)}; charset=utf-8'
-          : SpaceBundle.mime(path),
-      contentEncoding: Platform.isWindows ? null : 'utf-8',
-      data: bytes ?? Uint8List(0),
-      statusCode: bytes == null ? 404 : 200,
-      reasonPhrase: bytes == null ? 'Not Found' : 'OK',
-      headers: {
-        'Content-Security-Policy': csp,
-        'Access-Control-Allow-Origin': '*',
-        'X-Content-Type-Options': 'nosniff',
-        'Cache-Control': 'no-store',
-      },
-    );
-  }
-
-  Future<Json> bridge(List<dynamic> args) async {
-    if (!mounted || owner == null || !identical(owner, widget.client.store)) {
-      return {'error': 'Space closed'};
-    }
-    final request = args.length == 1 && args.first is Map
-        ? object(args.first)
-        : <String, dynamic>{};
-    final operation = request['operation'], key = request['key'];
-    if (!const ['get', 'list', 'set'].contains(operation) ||
-        (operation != 'list' &&
-            (key is! String || key.isEmpty || key.length > 256))) {
-      return {'error': 'Invalid record operation'};
-    }
-    final store = widget.client.spaces,
-        data = store.data(widget.nodeId, widget.space.spaceId);
-    if (operation == 'list') return {'value': data.records};
-    if (operation == 'get') return {'value': data.records[key]};
-    try {
-      // Method-channel JSON is the only external boundary; no IDs or RPC names
-      // supplied by the page are accepted by the native store.
-      final value = jsonDecode(jsonEncode(request['value']));
-      await store.set(
-        widget.nodeId,
-        widget.space.spaceId,
-        key as String,
-        value,
-      );
-      return {'value': true};
-    } catch (_) {
-      return {'error': 'Record was not saved'};
-    }
-  }
-
   @override
   Widget build(BuildContext context) => InAppWebView(
     webViewEnvironment: widget.environment,
-    initialUrlRequest: URLRequest(url: WebUri('$origin/index.html')),
-    initialUserScripts: UnmodifiableListView([
-      UserScript(
-        source: _sdk,
-        injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
-        forMainFrameOnly: true,
-      ),
-    ]),
-    initialSettings: InAppWebViewSettings(
-      useShouldInterceptRequest: true,
-      useShouldOverrideUrlLoading: true,
-      javaScriptEnabled: true,
-      javaScriptCanOpenWindowsAutomatically: false,
-      supportMultipleWindows: true,
-      allowFileAccess: false,
-      allowContentAccess: false,
-      allowFileAccessFromFileURLs: false,
-      allowUniversalAccessFromFileURLs: false,
-      domStorageEnabled: false,
-      databaseEnabled: false,
-      thirdPartyCookiesEnabled: false,
-      incognito: true,
-      mediaPlaybackRequiresUserGesture: true,
-      disableDefaultErrorPage: true,
-    ),
+    initialUrlRequest: site.home,
+    initialUserScripts: site.scripts,
+    initialSettings: site.settings,
     onWebViewCreated: (view) async {
       controller = view;
-      view.addJavaScriptHandler(handlerName: 'spaceData', callback: bridge);
+      view.addJavaScriptHandler(
+        handlerName: 'spaceData',
+        callback: (args) async =>
+            mounted ? site.bridge(args) : {'error': 'Space closed'},
+      );
       if (Platform.isWindows) {
         desktopVisible =
             await windowManager.isVisible() &&
@@ -321,24 +451,13 @@ class _SpaceWebViewState extends State<SpaceWebView>
       if (!mounted) return;
       updateActivity();
     },
-    shouldInterceptRequest: (_, request) => resource(request),
-    shouldOverrideUrlLoading: (_, action) async {
-      final uri = Uri.tryParse(action.request.url.toString());
-      return uri?.scheme == 'https' && uri?.origin == origin
-          ? NavigationActionPolicy.ALLOW
-          : NavigationActionPolicy.CANCEL;
-    },
+    shouldInterceptRequest: (_, request) => site.resource(request),
+    shouldOverrideUrlLoading: (_, action) async => site.navigation(action),
     onCreateWindow: (_, _) async => false,
-    onPermissionRequest: (_, request) async => PermissionResponse(
-      resources: request.resources,
-      action: PermissionResponseAction.DENY,
-    ),
-    onGeolocationPermissionsShowPrompt: (_, origin) async =>
-        GeolocationPermissionShowPromptResponse(
-          origin: origin,
-          allow: false,
-          retain: false,
-        ),
+    onPermissionRequest: SpaceSite.deny,
+    onGeolocationPermissionsShowPrompt: SpaceSite.nowhere,
+    // Loaded, and given time to read its records and draw, it can be seen.
+    onLoadStop: (_, _) => settling ??= Timer(_settle, widget.onDrawn),
     onReceivedError: (_, request, _) {
       if (request.isForMainFrame == true && mounted) widget.onError();
     },

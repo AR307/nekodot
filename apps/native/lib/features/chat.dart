@@ -11,6 +11,7 @@ import '../ui/design.dart';
 import '../screen/viewer.dart';
 import 'bot_details.dart';
 import 'bot_editor.dart';
+import 'flow_inline.dart';
 import 'flowchart.dart';
 
 import 'chat_presentation.dart';
@@ -48,6 +49,11 @@ class _ChatPageState extends State<ChatPage>
   late final NodeData data;
   late final String nodeId;
   final composer = GlobalKey<ChatComposerState>();
+
+  /// The Bot's screen, open over this conversation; and whether it has been
+  /// given room beside it. Its key keeps it connected as it moves.
+  bool screenOpen = false, screenWide = false;
+  final screenKey = GlobalKey();
   double composerHeight = 76;
   bool historyFocused = false;
   String? focusedMessage;
@@ -262,13 +268,9 @@ class _ChatPageState extends State<ChatPage>
     isSelected: widget.flowOpen,
     onPressed: () {
       FocusManager.instance.primaryFocus?.unfocus();
-      if (widget.onFlow != null) {
-        widget.onFlow!(focusFlowMessage);
-      } else {
-        unawaited(openFlowchart(context, c, id, focusFlowMessage));
-      }
+      widget.onFlow!(focusFlowMessage);
     },
-    icon: const Icon(Icons.account_tree_outlined),
+    icon: const Icon(Symbols.account_tree),
   );
 
   @override
@@ -309,94 +311,80 @@ class _ChatPageState extends State<ChatPage>
           if (widget.onDetails != null) {
             widget.onDetails!(bot);
           } else {
-            popPage(context, BotDetails(client: c, bot: bot));
+            openBottomSheet(context, BotDetails(client: c, bot: bot));
           }
         }
       }
 
       final textTheme = Theme.of(context).textTheme;
-      // Floating controls sit on the surface with a soft shadow, over the
-      // messages, which scroll beneath them and fade out under the bar.
-      Widget floating(Widget child) => DecoratedBox(
-        decoration: ShapeDecoration(
-          color: tone.surface,
-          shape: const RoundedSuperellipseBorder(
-            borderRadius: BorderRadius.all(Radius.circular(999)),
-          ),
-          shadows: tone.rest,
+      final role = group != null || bot == null
+          ? ''
+          : '${bot['role'] ?? ''}'.split('\n').first.trim();
+      // The header is flat: who this is on the left, what can be opened on
+      // the right. Messages scroll beneath it and fade out under it.
+      final titleRow = InkWell(
+        customBorder: const RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.all(Radius.circular(6)),
         ),
-        child: Material(type: MaterialType.transparency, child: child),
-      );
-      final titlePill = Tooltip(
-        message: c.tr('详情', 'Details'),
-        child: floating(
-          InkWell(
-            customBorder: const RoundedSuperellipseBorder(
-              borderRadius: BorderRadius.all(Radius.circular(999)),
-            ),
-            onTap: openDetails,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                8,
-                tone.glass ? 13 : 5,
-                14,
-                tone.glass ? 13 : 5,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (group != null)
-                    GroupAvatar(
-                      size: 22,
-                      working: working,
-                      avatars: memberAvatars,
-                    )
-                  else if (bot != null)
-                    CatAvatar.of(bot, size: 22, working: working),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontSize: tone.glass ? 15 : 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  if (chain != null) ...[
-                    const SizedBox(width: 8),
-                    ChainDots(count: chain.count, max: chain.max),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-      final actions = floating(
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
+        onTap: openDetails,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              flowButton(),
-              IconButton(
-                tooltip: c.tr('屏幕', 'Screen'),
-                onPressed: bot == null
-                    ? null
-                    : () => pushPage(
-                        context,
-                        ScreenPage(client: c, bot: bot, members: members),
-                      ),
-                icon: const Icon(Icons.desktop_windows_outlined),
+              // A desktop has the list beside it; a pushed page says who.
+              if (!widget.embedded) ...[
+                if (group != null)
+                  GroupAvatar(
+                    size: 28,
+                    working: working,
+                    avatars: memberAvatars,
+                  )
+                else if (bot != null)
+                  CatAvatar.of(bot, size: 28, working: working),
+                const SizedBox(width: 10),
+              ],
+              Flexible(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.titleLarge,
+                ),
               ),
+              if (role.isNotEmpty && widget.embedded) ...[
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    role,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodyMedium?.copyWith(color: tone.ink3),
+                  ),
+                ),
+              ],
+              if (group != null && widget.embedded) ...[
+                const SizedBox(width: 10),
+                for (final avatar in memberAvatars.take(4))
+                  Padding(
+                    padding: const EdgeInsets.only(right: 2),
+                    child: CatAvatar(
+                      color: '${avatar['color']}',
+                      shape: '${avatar['shape']}',
+                      size: 20,
+                    ),
+                  ),
+              ],
+              if (chain != null) ...[
+                const SizedBox(width: 8),
+                ChainDots(count: chain.count, max: chain.max),
+              ],
             ],
           ),
         ),
       );
       final header = AppBar(
+        toolbarHeight: tone.glass ? 56 : 48,
         flexibleSpace: DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -413,25 +401,43 @@ class _ChatPageState extends State<ChatPage>
           child: tone.glass ? const SizedBox.expand() : const WindowDrag(),
         ),
         automaticallyImplyLeading: false,
-        leadingWidth: widget.embedded ? 0 : 60,
+        leadingWidth: widget.embedded ? 0 : 52,
         leading: widget.embedded
             ? null
-            : Center(
-                child: floating(
-                  IconButton(
-                    tooltip: MaterialLocalizations.of(context)
-                        .backButtonTooltip,
-                    onPressed: () => Navigator.maybePop(context),
-                    icon: const Icon(Icons.arrow_back),
-                  ),
-                ),
+            : IconButton(
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onPressed: () => Navigator.maybePop(context),
+                icon: const Icon(Symbols.arrow_back),
               ),
-        centerTitle: true,
-        titleSpacing: 8,
-        title: titlePill,
+        centerTitle: false,
+        titleSpacing: widget.embedded ? 14 : 0,
+        // One way to the details has the name 详情 in each layout: the title
+        // itself on a pushed page, the button at the end on a desktop.
+        title: widget.embedded
+            ? titleRow
+            : Tooltip(message: c.tr('详情', 'Details'), child: titleRow),
         actions: [
-          actions,
-          const SizedBox(width: 12),
+          // Beside a list there is room for a panel; a page of its own keeps
+          // the steps folded under the conversation instead.
+          if (widget.onFlow != null) flowButton(),
+          IconButton(
+            tooltip: c.tr('屏幕', 'Screen'),
+            isSelected: screenOpen,
+            onPressed: bot == null
+                ? null
+                : () => setState(() {
+                    screenOpen = !screenOpen;
+                    screenWide = false;
+                  }),
+            icon: const Icon(Symbols.desktop_windows),
+          ),
+          if (widget.embedded)
+            IconButton(
+              tooltip: c.tr('详情', 'Details'),
+              onPressed: openDetails,
+              icon: const Icon(Symbols.right_panel_open),
+            ),
+          const SizedBox(width: 8),
           if (widget.reserveControls)
             SizedBox(width: WindowChrome.reserved(context)),
         ],
@@ -465,127 +471,208 @@ class _ChatPageState extends State<ChatPage>
                 .replaceAll(RegExp(r'\s+'), ' ')
                 .trim();
       WidgetsBinding.instance.addPostFrameCallback((_) => markViewed());
+      // One screen, kept connected as it goes from the small window over
+      // the conversation to its place beside it.
+      final screen = screenOpen && bot != null
+          ? ScreenPage(
+              key: screenKey,
+              client: c,
+              bot: bot,
+              members: members,
+              floating: !screenWide,
+              onClose: () => setState(() {
+                screenOpen = false;
+                screenWide = false;
+              }),
+              onWide: () => setState(() => screenWide = true),
+              onOwn: (own) => setState(() => screenWide = own),
+            )
+          : null;
       return Scaffold(
         extendBodyBehindAppBar: false,
         appBar: header,
-        body: ChatFileDrop(
-          enabled: widget.readingVisible,
-          onFiles: (files) async =>
-              composer.currentState?.attachDroppedFiles(files),
-          child: Stack(
-            children: [
-              if (messages.isEmpty)
-                Center(
-                  child: bot == null
-                      ? null
-                      : group == null
-                      ? CatAvatar.of(bot, size: 56)
-                      : GroupAvatar(size: 56, avatars: memberAvatars),
-                )
-              else
-                ChatTimeline(
-                  client: c,
-                  conversationId: id,
-                  view: view,
-                  scroll: scroll,
-                  composerHeight: composerHeight,
-                  onFocusChanged: (value) =>
-                      setState(() => historyFocused = value),
-                  focusedMessage: focusedMessage,
-                  focusedKey: focusedKey,
-                  onRetry: (text) => composer.currentState?.editDraft(text),
-                  onError: (value) => composer.currentState?.showError(value),
-                  onQuote: (words, taskId) =>
-                      composer.currentState?.quote(words, taskId: taskId),
-                  fresh: fresh,
-                  since: since,
-                ),
-              // While you read further up, what you last asked stays in sight
-              // under the bar; tapping it returns to the latest.
-              if (lastAsked != null)
-                Builder(
-                  builder: (context) => Positioned(
-                    top: MediaQuery.paddingOf(context).top + 4,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: IgnorePointer(
-                        ignoring: !away,
-                        child: AnimatedOpacity(
-                          opacity: away ? 1 : 0,
+        body: beside(
+          screen,
+          ChatFileDrop(
+            enabled: widget.readingVisible,
+            onFiles: (files) async =>
+                composer.currentState?.attachDroppedFiles(files),
+            child: Stack(
+              children: [
+                if (messages.isEmpty)
+                  Center(
+                    child: bot == null
+                        ? null
+                        : group == null
+                        ? CatAvatar.of(bot, size: 56)
+                        : GroupAvatar(size: 56, avatars: memberAvatars),
+                  )
+                else
+                  ChatTimeline(
+                    client: c,
+                    conversationId: id,
+                    view: view,
+                    scroll: scroll,
+                    composerHeight: composerHeight,
+                    onFocusChanged: (value) =>
+                        setState(() => historyFocused = value),
+                    focusedMessage: focusedMessage,
+                    focusedKey: focusedKey,
+                    onRetry: (text) => composer.currentState?.editDraft(text),
+                    onError: (value) => composer.currentState?.showError(value),
+                    onQuote: (words, taskId) =>
+                        composer.currentState?.quote(words, taskId: taskId),
+                    fresh: fresh,
+                    since: since,
+                    footer: widget.onFlow != null
+                        ? null
+                        : FlowFold(
+                            client: c,
+                            conversationId: id,
+                            onMessage: focusFlowMessage,
+                          ),
+                  ),
+                // While you read further up, what you last asked stays in sight
+                // under the bar; tapping it returns to the latest.
+                if (lastAsked != null)
+                  Builder(
+                    builder: (context) => Positioned(
+                      top: MediaQuery.paddingOf(context).top + 4,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: IgnorePointer(
+                          ignoring: !away,
+                          child: AnimatedOpacity(
+                            opacity: away ? 1 : 0,
+                            duration: still
+                                ? Duration.zero
+                                : const Duration(milliseconds: 180),
+                            child: AnimatedSlide(
+                              offset: away ? Offset.zero : const Offset(0, -.3),
+                              duration: still
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 220),
+                              curve: Curves.easeOutCubic,
+                              child: AskedPill(
+                                text: lastAsked,
+                                onTap: toLatest,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: composerHeight + 6,
+                  child: Center(
+                    child: IgnorePointer(
+                      ignoring: !away,
+                      child: AnimatedOpacity(
+                        opacity: away ? 1 : 0,
+                        duration: still
+                            ? Duration.zero
+                            : const Duration(milliseconds: 180),
+                        child: AnimatedScale(
+                          scale: away ? 1 : .8,
                           duration: still
                               ? Duration.zero
                               : const Duration(milliseconds: 180),
-                          child: AnimatedSlide(
-                            offset: away ? Offset.zero : const Offset(0, -.3),
-                            duration: still
-                                ? Duration.zero
-                                : const Duration(milliseconds: 220),
-                            curve: Curves.easeOutCubic,
-                            child: AskedPill(text: lastAsked, onTap: toLatest),
+                          curve: Curves.easeOutCubic,
+                          child: LatestButton(
+                            tooltip: c.tr('回到最新', 'Jump to latest'),
+                            missed: missed,
+                            onPressed: toLatest,
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: composerHeight + 6,
-                child: Center(
-                  child: IgnorePointer(
-                    ignoring: !away,
-                    child: AnimatedOpacity(
-                      opacity: away ? 1 : 0,
-                      duration: still
-                          ? Duration.zero
-                          : const Duration(milliseconds: 180),
-                      child: AnimatedScale(
-                        scale: away ? 1 : .8,
-                        duration: still
-                            ? Duration.zero
-                            : const Duration(milliseconds: 180),
-                        curve: Curves.easeOutCubic,
-                        child: LatestButton(
-                          tooltip: c.tr('回到最新', 'Jump to latest'),
-                          missed: missed,
-                          onPressed: toLatest,
-                        ),
-                      ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: MeasureHeight(
+                    onChange: (height) {
+                      if (mounted && height != composerHeight) {
+                        setState(() => composerHeight = height);
+                      }
+                    },
+                    child: ChatComposer(
+                      key: composer,
+                      historyFocused: historyFocused,
+                      client: c,
+                      conversationId: id,
+                      view: view,
+                      onSent: () {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (scroll.hasClients) {
+                            scroll.jumpTo(scroll.position.minScrollExtent);
+                          }
+                        });
+                      },
                     ),
                   ),
                 ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: MeasureHeight(
-                  onChange: (height) {
-                    if (mounted && height != composerHeight) {
-                      setState(() => composerHeight = height);
-                    }
-                  },
-                  child: ChatComposer(
-                    key: composer,
-                    historyFocused: historyFocused,
-                    client: c,
-                    conversationId: id,
-                    view: view,
-                    onSent: () {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (scroll.hasClients) {
-                          scroll.jumpTo(scroll.position.minScrollExtent);
-                        }
-                      });
-                    },
+                if (screen != null && !screenWide)
+                  Positioned(
+                    top: 8,
+                    right: 12,
+                    width: tone.glass ? 220 : 340,
+                    child: Appear(
+                      key: const ValueKey('screen-small'),
+                      spring: Motion.pop,
+                      from: const Offset(0, -8),
+                      child: screen,
+                    ),
                   ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
+      );
+    },
+  );
+
+  /// The conversation, with the screen given room once it is wanted large:
+  /// at the side where the window is wide, above where it is not. The
+  /// conversation keeps its place in the tree either way.
+  Widget beside(Widget? screen, Widget conversation) => LayoutBuilder(
+    builder: (context, box) {
+      final wide = screen != null && screenWide;
+      final sideways = box.maxWidth >= 720;
+      final tone = context.tone;
+      final room = !wide
+          ? null
+          : sideways
+          ? SizedBox(
+              key: const ValueKey('screen-room'),
+              width: (box.maxWidth * .5).clamp(360.0, 640.0),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: tone.line, width: Tone.hair),
+                  ),
+                ),
+                child: screen,
+              ),
+            )
+          : SizedBox(
+              key: const ValueKey('screen-room'),
+              height: (box.maxHeight * .5).clamp(300.0, 440.0),
+              child: screen,
+            );
+      return Flex(
+        direction: sideways ? Axis.horizontal : Axis.vertical,
+        children: [
+          if (room != null && !sideways) room,
+          Expanded(key: const ValueKey('conversation'), child: conversation),
+          if (room != null && sideways) room,
+        ],
       );
     },
   );
@@ -619,7 +706,7 @@ class LatestButton extends StatelessWidget {
             key: const ValueKey('chat-latest'),
             tooltip: tooltip,
             onPressed: onPressed,
-            icon: const Icon(Icons.arrow_downward),
+            icon: const Icon(Symbols.arrow_downward),
           ),
         ),
         Positioned(
@@ -662,7 +749,7 @@ class AskedPill extends StatelessWidget {
           shape: const RoundedSuperellipseBorder(
             borderRadius: BorderRadius.all(Radius.circular(999)),
           ),
-          shadows: tone.rest,
+          shadows: tone.lift,
         ),
         child: Material(
           type: MaterialType.transparency,
@@ -677,7 +764,7 @@ class AskedPill extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.south_rounded, size: 14, color: tone.ink3),
+                  Icon(Symbols.south, size: 14, color: tone.ink3),
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(

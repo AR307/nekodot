@@ -112,18 +112,18 @@ class _ExtensionsBodyState extends State<ExtensionsBody> {
             controller: search,
             onChanged: (value) => setState(() => query = value.toLowerCase()),
             decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search, size: 20),
+              prefixIcon: const Icon(Symbols.search, size: 20),
               hintText: c.tr('搜索', 'Search'),
             ),
           ),
           actions: [
             IconAction(
-              icon: Icons.refresh,
+              icon: Symbols.refresh,
               tooltip: c.tr('刷新', 'Refresh'),
               onPressed: reload,
             ),
             IconAction(
-              icon: Icons.add,
+              icon: Symbols.add,
               tooltip: c.tr('导入', 'Import'),
               onPressed: !c.online
                   ? null
@@ -172,7 +172,7 @@ class _ExtensionsBodyState extends State<ExtensionsBody> {
                       children: [
                         Text(category.isEmpty ? c.tr('全部', 'All') : category),
                         const SizedBox(width: 8),
-                        const Icon(Icons.expand_more, size: 18),
+                        const Icon(Symbols.expand_more, size: 18),
                       ],
                     ),
                   ),
@@ -224,16 +224,14 @@ class ExtensionIcon extends StatelessWidget {
         width: 24,
         height: 24,
         errorBuilder: (context, error, stack) =>
-            const Icon(Icons.extension_outlined, size: 32),
+            const Icon(Symbols.extension, size: 32),
       );
     }
     if (icon != null && icon.runes.length <= 8) {
       return Text(icon, style: const TextStyle(fontSize: 20));
     }
     return Icon(
-      entry['category'] == 'development'
-          ? Icons.code
-          : Icons.auto_awesome_outlined,
+      entry['category'] == 'development' ? Symbols.code : Symbols.auto_awesome,
       color: context.tone.ink2,
       size: 24,
     );
@@ -314,7 +312,7 @@ class _ExtensionPageState extends State<ExtensionPage> {
                     Uri.parse(repository),
                     mode: LaunchMode.externalApplication,
                   ),
-                  icon: const Icon(Icons.open_in_new, size: 16),
+                  icon: const Icon(Symbols.open_in_new, size: 16),
                   label: Text(repository),
                 ),
               ),
@@ -368,8 +366,8 @@ class _ExtensionPageState extends State<ExtensionPage> {
                               state['botId'] == bot['botId'] &&
                               state['enabled'] == true,
                         )
-                        ? Icons.check_circle_outline
-                        : Icons.pause_circle_outline,
+                        ? Symbols.check_circle
+                        : Symbols.pause_circle,
                     size: 18,
                   ),
                 ),
@@ -385,7 +383,7 @@ class _ExtensionPageState extends State<ExtensionPage> {
                   onPressed: () => setState(() {
                     document = load();
                   }),
-                  icon: const Icon(Icons.refresh),
+                  icon: const Icon(Symbols.refresh),
                 ),
               ),
             ],
@@ -417,7 +415,7 @@ class _ExtensionPageState extends State<ExtensionPage> {
                       ),
                     ),
                   ),
-                  icon: const Icon(Icons.arrow_forward, size: 16),
+                  icon: const Icon(Symbols.arrow_forward, size: 16),
                   label: Text(client.tr('完整内容', 'Full content')),
                 ),
               ),
@@ -634,13 +632,13 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
       IconButton(
         tooltip: c.tr('导入文件或 ZIP', 'Import file or ZIP'),
         onPressed: busy ? null : () => upload(),
-        icon: const Icon(Icons.upload_file_outlined),
+        icon: const Icon(Symbols.upload_file),
       ),
       if (!Platform.isAndroid)
         IconButton(
           tooltip: c.tr('导入完整目录', 'Import folder'),
           onPressed: busy ? null : () => upload(directory: true),
-          icon: const Icon(Icons.folder_open_outlined),
+          icon: const Icon(Symbols.folder_open),
         ),
     ],
     body: PageList(
@@ -727,8 +725,8 @@ class _ExtensionInstallState extends State<ExtensionInstall> {
                     tilePadding: EdgeInsets.zero,
                     leading: Icon(
                       result['ok'] == true
-                          ? Icons.check_circle_outline
-                          : Icons.error_outline,
+                          ? Symbols.check_circle
+                          : Symbols.error,
                       size: 20,
                     ),
                     title: Text(

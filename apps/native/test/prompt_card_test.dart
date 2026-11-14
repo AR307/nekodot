@@ -40,7 +40,7 @@ void main() {
                   ),
                   tools: IconButton(
                     onPressed: () {},
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(Symbols.add),
                   ),
                   action: TextButton(
                     onPressed: () {},
@@ -101,8 +101,8 @@ void main() {
                   hasContent: false,
                   running: false,
                   field: const TextField(),
-                  tools: const Icon(Icons.add),
-                  action: const Icon(Icons.mic),
+                  tools: const Icon(Symbols.add),
+                  action: const Icon(Symbols.mic),
                 ),
               ],
             ),
@@ -166,11 +166,11 @@ void main() {
                         tools: IconButton(
                           tooltip: 'Attach file',
                           onPressed: () => open('Choose file'),
-                          icon: const Icon(Icons.add),
+                          icon: const Icon(Symbols.add),
                         ),
                         action: IconButton(
                           onPressed: () {},
-                          icon: const Icon(Icons.mic),
+                          icon: const Icon(Symbols.mic),
                         ),
                       );
                     },
@@ -236,10 +236,10 @@ void main() {
                 field: TextField(controller: input),
                 hasContent: false,
                 running: false,
-                tools: const Icon(Icons.add),
+                tools: const Icon(Symbols.add),
                 action: IconButton(
                   onPressed: () {},
-                  icon: const Icon(Icons.mic),
+                  icon: const Icon(Symbols.mic),
                 ),
               ),
             ),

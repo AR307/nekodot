@@ -20,7 +20,8 @@ import 'work.dart';
 import 'spaces.dart';
 
 /// One line of a bubble is a pill; longer bubbles keep the same round corners.
-const _bubbleRadius = 18.0;
+double _bubbleRadius(BuildContext context) =>
+    context.tone.glass ? 18 : Tone.r16;
 
 class MessageTile extends StatefulWidget {
   final NekodotClient client;
@@ -206,7 +207,7 @@ class _MessageTileState extends State<MessageTile> {
                     executionId: '${body['routine']['executionId']}',
                   ),
                 ),
-                icon: const Icon(Icons.webhook, size: 16),
+                icon: const Icon(Symbols.webhook, size: 16),
                 key: ValueKey('routine-result-${m.messageId}'),
                 style: user
                     ? TextButton.styleFrom(foregroundColor: tone.base)
@@ -256,7 +257,7 @@ class _MessageTileState extends State<MessageTile> {
                           }
                         }
                       },
-                icon: const Icon(Icons.refresh),
+                icon: const Icon(Symbols.refresh),
                 label: Text(c.tr('重试自我介绍', 'Retry introduction')),
               ),
           ],
@@ -298,7 +299,9 @@ class _MessageTileState extends State<MessageTile> {
                   decoration: ShapeDecoration(
                     color: tone.ink,
                     shape: RoundedSuperellipseBorder(
-                      borderRadius: BorderRadius.circular(_bubbleRadius),
+                      borderRadius: BorderRadius.circular(
+                        _bubbleRadius(context),
+                      ),
                     ),
                   ),
                   child: content,
@@ -334,12 +337,12 @@ class _MessageTileState extends State<MessageTile> {
           )
         : null;
     final avatar = SizedBox(
-      width: 24,
+      width: 28,
       child: continued
           ? null
           : bot == null
-          ? const CatAvatar(color: '#8C8376', size: 24)
-          : CatAvatar.of(bot!, size: 24, working: working),
+          ? const CatAvatar(color: '#8C8376', size: 28)
+          : CatAvatar.of(bot!, size: 28, working: working),
     );
     final bubble = content == null || card
         ? content
@@ -348,7 +351,7 @@ class _MessageTileState extends State<MessageTile> {
             decoration: ShapeDecoration(
               color: tone.bubble,
               shape: RoundedSuperellipseBorder(
-                borderRadius: BorderRadius.circular(_bubbleRadius),
+                borderRadius: BorderRadius.circular(_bubbleRadius(context)),
               ),
             ),
             child: content,
@@ -385,7 +388,7 @@ class _MessageTileState extends State<MessageTile> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 avatar,
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Flexible(child: column),
               ],
             ),
@@ -432,7 +435,7 @@ class _CopyButtonState extends State<CopyButton> {
           });
         });
       },
-      icon: Icon(done ? Icons.check : Icons.content_copy_outlined),
+      icon: Icon(done ? Symbols.check : Symbols.content_copy),
     );
   }
 }
@@ -481,7 +484,13 @@ class _ControlCardState extends State<ControlCard> {
           question ? 'answer' : 'choice': value,
         },
       );
-      if (mounted) setState(() => sent = value);
+      // Answered, it folds to one line again.
+      if (mounted) {
+        setState(() {
+          sent = value;
+          unfolded = false;
+        });
+      }
     } catch (e) {
       if (mounted) setState(() => error = '$e');
     } finally {
@@ -548,85 +557,154 @@ class _ControlCardState extends State<ControlCard> {
         );
       }
       // Keep the original approval and its answer available in the chat.
-      final command = firstLine(
-        data['command'] == null ? '${data['prompt']}' : '${data['command']}',
+      final full =
+          (data['command'] == null ? '${data['prompt']}' : '${data['command']}')
+              .trim();
+      final command = firstLine(full);
+      // While it waits the command is in sight, since it is what you are
+      // asked about. Answered, it folds to one line; a tap turns either over.
+      final shown = pending != unfolded;
+      final mono = TextStyle(
+        fontFamily: monoFont,
+        fontSize: 12,
+        height: 18 / 12,
+        color: tone.ink,
       );
-      final full = data['command'] == null
-          ? '${data['prompt']}'
-          : '${data['command']}';
-      return StepFrame(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            StepLine(
-              key: const ValueKey('command-fold'),
-              leading: pending
-                  ? Icon(Icons.schedule, size: 14, color: tone.ink2)
-                  : Icon(
-                      answered == 'deny' ? Icons.close : Icons.check,
-                      size: 14,
-                      color: tone.ink3,
+      Widget choice(int index, Object? value) => OutlinedButton(
+        key: ValueKey('choice-${m.messageId}-$index'),
+        style: optionStyle(context),
+        onPressed: !open ? null : () => respond('$value'),
+        child: sending == '$value'
+            ? ShiningText(text: label(value))
+            : Text(label(value)),
+      );
+      final refusals = [
+        for (final (index, value) in choices.indexed)
+          if ('$value' == 'deny') choice(index, value),
+      ];
+      return Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: ShapeDecoration(
+          color: tone.surface,
+          shape: RoundedSuperellipseBorder(
+            borderRadius: BorderRadius.circular(pending ? Tone.r16 : 10),
+            side: BorderSide(color: tone.line, width: Tone.hair),
+          ),
+        ),
+        child: SizeMotion(
+          duration: Motion.fold.duration,
+          curve: Motion.fold,
+          alignment: Alignment.topCenter,
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                InkWell(
+                  key: const ValueKey('command-fold'),
+                  onTap: () => setState(() => unfolded = !unfolded),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: tone.glass ? 48 : 36,
                     ),
-              label: [
-                pending
-                    ? c.tr('等你确认', 'Needs your OK')
-                    : answered == null
-                    ? c.tr('未回答', 'Not answered')
-                    : label(answered),
-                command,
-              ],
-              style: TextStyle(
-                fontFamily: monoFont,
-                fontSize: 12,
-                color: pending ? tone.ink : tone.ink2,
-              ),
-              trailing: Icon(
-                unfolded ? Icons.expand_less : Icons.expand_more,
-                size: 16,
-                color: tone.ink3,
-              ),
-              onTap: () => setState(() => unfolded = !unfolded),
-            ),
-            if (unfolded)
-              Container(
-                margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                padding: const EdgeInsets.all(10),
-                decoration: ShapeDecoration(
-                  color: tone.bubble,
-                  shape: RoundedSuperellipseBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: SelectableText(
-                  full.trim(),
-                  style: TextStyle(
-                    fontFamily: monoFont,
-                    fontSize: 12,
-                    color: tone.ink2,
-                  ),
-                ),
-              ),
-            if (pending)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final (index, choice) in choices.indexed)
-                      OutlinedButton(
-                        key: ValueKey('choice-${m.messageId}-$index'),
-                        style: optionStyle(context),
-                        onPressed: !open ? null : () => respond('$choice'),
-                        child: sending == '$choice'
-                            ? ShiningText(text: label(choice))
-                            : Text(label(choice)),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        children: [
+                          Icon(
+                            pending
+                                ? Symbols.schedule
+                                : answered == 'deny'
+                                ? Symbols.close
+                                : answered == null
+                                ? Symbols.remove
+                                : Symbols.check,
+                            size: 18,
+                            color: pending ? tone.ink : tone.ink2,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            pending
+                                ? c.tr('等你确认', 'Needs your OK')
+                                : answered == null
+                                ? c.tr('未回答', 'Not answered')
+                                : label(answered),
+                            style: pending
+                                ? text.titleMedium
+                                : text.bodyMedium?.copyWith(color: tone.ink2),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: shown
+                                ? const SizedBox.shrink()
+                                : Text(
+                                    command,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: mono.copyWith(color: tone.ink2),
+                                  ),
+                          ),
+                          Icon(
+                            shown ? Symbols.expand_less : Symbols.expand_more,
+                            size: 18,
+                            color: tone.ink3,
+                          ),
+                        ],
                       ),
-                  ],
+                    ),
+                  ),
                 ),
-              ),
-            ErrorNotice(error, action: retry),
-          ],
+                if (shown)
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration: ShapeDecoration(
+                      color: tone.bubble,
+                      shape: const RoundedSuperellipseBorder(
+                        borderRadius: BorderRadius.all(
+                          Radius.circular(Tone.r8),
+                        ),
+                      ),
+                    ),
+                    // A long command scrolls in its own box, so the answers
+                    // stay in reach beneath it.
+                    constraints: const BoxConstraints(maxHeight: 180),
+                    child: SingleChildScrollView(
+                      child: SelectableText(full, style: mono),
+                    ),
+                  ),
+                if (pending)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // Every answer looks the same: none is pushed.
+                        Expanded(
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final (index, value) in choices.indexed)
+                                if ('$value' != 'deny') choice(index, value),
+                            ],
+                          ),
+                        ),
+                        if (refusals.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          ...refusals,
+                        ],
+                      ],
+                    ),
+                  ),
+                ErrorNotice(error, action: retry),
+              ],
+            ),
+          ),
         ),
       );
     }
@@ -645,7 +723,7 @@ class _ControlCardState extends State<ControlCard> {
               child: Row(
                 children: [
                   Icon(
-                    answered == null ? Icons.remove : Icons.check,
+                    answered == null ? Symbols.remove : Symbols.check,
                     size: 16,
                     color: tone.ink3,
                   ),
@@ -707,7 +785,7 @@ class _ControlCardState extends State<ControlCard> {
                             onPressed: open && answer.text.trim().isNotEmpty
                                 ? answerWith
                                 : null,
-                            icon: const Icon(Icons.arrow_upward, size: 18),
+                            icon: const Icon(Symbols.arrow_upward, size: 18),
                           ),
                   ),
                 ),

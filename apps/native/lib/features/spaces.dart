@@ -11,6 +11,7 @@ import '../data/spaces.dart';
 import '../ui/design.dart';
 import '../platform/desktop.dart';
 import 'files.dart';
+import 'space_mark.dart';
 import 'space_webview.dart';
 
 class SpaceScope extends InheritedWidget {
@@ -42,9 +43,6 @@ class SpaceCard extends StatelessWidget {
     builder: (context, _) {
       final space = client.node.spaces[spaceId];
       if (space == null) return const SizedBox.shrink();
-      final bot = client.node.bots
-          .where((b) => b['botId'] == space.botId)
-          .firstOrNull;
       return Align(
         alignment: Alignment.centerLeft,
         child: ConstrainedBox(
@@ -56,13 +54,13 @@ class SpaceCard extends StatelessWidget {
             ),
             clipBehavior: Clip.antiAlias,
             child: ListTile(
-              leading: CatAvatar.of(bot ?? {}, size: 32),
+              leading: SpaceMark(space: space, size: 32),
               title: Text(
                 space.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              trailing: const Icon(Icons.open_in_new, size: 18),
+              trailing: const Icon(Symbols.open_in_new, size: 18),
               onTap: () => openSpace(context, client, space),
             ),
           ),
@@ -77,6 +75,9 @@ class SpacePage extends StatefulWidget {
   final String nodeId, spaceId;
   final bool embedded, expanded;
   final VoidCallback? onExpand;
+
+  /// Where its back button leads when it was opened from the gallery.
+  final VoidCallback? onBack;
   const SpacePage({
     super.key,
     required this.client,
@@ -85,6 +86,7 @@ class SpacePage extends StatefulWidget {
     this.embedded = false,
     this.expanded = false,
     this.onExpand,
+    this.onBack,
   });
   @override
   State<SpacePage> createState() => _SpacePageState();
@@ -100,6 +102,9 @@ class _SpacePageState extends State<SpacePage> {
       failed = false,
       missingRuntime = false,
       notDownloaded = false;
+
+  /// The site has drawn itself. Until then its last picture stands in.
+  bool live = false;
   int generation = 0;
   Space? get current => c.nodes[widget.nodeId]?.spaces[widget.spaceId];
   String get cacheKey => 'spaces/open/${widget.nodeId}/${widget.spaceId}';
@@ -115,6 +120,14 @@ class _SpacePageState extends State<SpacePage> {
   void dispose() {
     // Flutter unmounts the child WebView before this parent state.
     unawaited(environment?.dispose());
+    // It has been open, so what its tile shows is due again. Said once the
+    // tree has settled: the gallery listens.
+    if (loaded != null) {
+      final thumbs = c.spaces.thumbs,
+          nodeId = widget.nodeId,
+          spaceId = widget.spaceId;
+      scheduleMicrotask(() => thumbs.stale(nodeId, spaceId));
+    }
     super.dispose();
   }
 
@@ -127,6 +140,7 @@ class _SpacePageState extends State<SpacePage> {
       busy = true;
       failed = false;
       notDownloaded = false;
+      live = false;
     });
     try {
       if (Platform.isWindows && environment == null) {
@@ -338,9 +352,25 @@ class _SpacePageState extends State<SpacePage> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: Listenable.merge([c.nodes[widget.nodeId], c.spaces]),
+    listenable: Listenable.merge([
+      c.nodes[widget.nodeId],
+      c.spaces,
+      c.spaces.thumbs,
+    ]),
     builder: (context, _) {
       final space = current ?? loaded;
+      final picture = c.spaces.thumbs.picture(widget.nodeId, widget.spaceId);
+      final last = picture == null
+          ? null
+          : SizedBox.expand(
+              key: const ValueKey('space-last-picture'),
+              child: Image.memory(
+                picture,
+                fit: BoxFit.fitWidth,
+                alignment: Alignment.topCenter,
+                gaplessPlayback: true,
+              ),
+            );
       final pending = c.spaces
           .data(widget.nodeId, widget.spaceId)
           .pending
@@ -359,10 +389,15 @@ class _SpacePageState extends State<SpacePage> {
       return Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
+          // Beside the rail its bar is as tall as the gallery's, so the
+          // space has the room the gallery had.
+          toolbarHeight: widget.embedded && !context.tone.glass ? 48 : null,
           leading: IconButton(
             tooltip: c.tr('返回', 'Back'),
-            icon: const Icon(Icons.arrow_back),
-            onPressed: widget.embedded ? chat : () => Navigator.pop(context),
+            icon: const Icon(Symbols.arrow_back),
+            onPressed:
+                widget.onBack ??
+                (widget.embedded ? chat : () => Navigator.pop(context)),
           ),
           title: Text(
             space?.name ?? '',
@@ -373,24 +408,24 @@ class _SpacePageState extends State<SpacePage> {
             if (pending)
               Tooltip(
                 message: c.tr('未同步', 'Not synced'),
-                child: const Icon(Icons.cloud_upload_outlined, size: 18),
+                child: const Icon(Symbols.cloud_upload, size: 18),
               ),
             if (update)
               Tooltip(
                 message: c.tr('有更新', 'Update available'),
-                child: const Icon(Icons.circle, size: 8),
+                child: const Icon(Symbols.circle, size: 8),
               ),
             IconAction(
               tooltip: c.tr('刷新', 'Refresh'),
-              icon: Icons.refresh,
+              icon: Symbols.refresh,
               onPressed: busy ? null : load,
             ),
             if (widget.onExpand != null)
               IconAction(
                 tooltip: c.tr('展开', 'Expand'),
                 icon: widget.expanded
-                    ? Icons.fullscreen_exit
-                    : Icons.fullscreen,
+                    ? Symbols.fullscreen_exit
+                    : Symbols.fullscreen,
                 onPressed: widget.onExpand,
               ),
             ActionMenu<String>(
@@ -401,23 +436,23 @@ class _SpacePageState extends State<SpacePage> {
               items: [
                 MenuAction(
                   value: 'edit',
-                  icon: Icons.edit_outlined,
+                  icon: Symbols.edit,
                   label: c.tr('请 Dot 修改', 'Edit with Dot'),
                 ),
                 MenuAction(
                   value: 'access',
-                  icon: Icons.language,
+                  icon: Symbols.language,
                   label: c.tr('网站访问', 'Website access'),
                 ),
                 MenuAction(
                   value: 'rename',
-                  icon: Icons.drive_file_rename_outline,
+                  icon: Symbols.drive_file_rename_outline,
                   label: c.tr('重命名', 'Rename'),
                 ),
                 null,
                 MenuAction(
                   value: 'archive',
-                  icon: Icons.archive_outlined,
+                  icon: Symbols.archive,
                   label: c.tr('归档', 'Archive'),
                 ),
               ],
@@ -444,7 +479,10 @@ class _SpacePageState extends State<SpacePage> {
                 ),
               )
             : busy
-            ? const Center(child: CircularProgressIndicator())
+            ? SafeArea(
+                top: false,
+                child: last ?? const Center(child: CircularProgressIndicator()),
+              )
             : notDownloaded
             ? Center(child: Text(c.tr('尚未下载', 'Not downloaded')))
             : failed
@@ -456,18 +494,34 @@ class _SpacePageState extends State<SpacePage> {
               )
             : SafeArea(
                 top: false,
-                child: SpaceWebView(
-                  key: ValueKey(
-                    '$generation:${shown!.allowedOrigins.join(',')}',
-                  ),
-                  client: c,
-                  nodeId: widget.nodeId,
-                  space: shown,
-                  bundle: bundle!,
-                  environment: environment,
-                  onError: () {
-                    if (mounted) setState(() => failed = true);
-                  },
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    SpaceWebView(
+                      key: ValueKey(
+                        '$generation:${shown!.allowedOrigins.join(',')}',
+                      ),
+                      client: c,
+                      nodeId: widget.nodeId,
+                      space: shown,
+                      bundle: bundle!,
+                      environment: environment,
+                      onError: () {
+                        if (mounted) setState(() => failed = true);
+                      },
+                      onDrawn: () => setState(() => live = true),
+                    ),
+                    // Gone from the tree once the site shows: nothing is left
+                    // lying over the web view.
+                    IgnorePointer(
+                      child: AnimatedSwitcher(
+                        duration: Motion.span(context, Motion.swap),
+                        child: live || last == null
+                            ? const SizedBox.shrink()
+                            : last,
+                      ),
+                    ),
+                  ],
                 ),
               ),
       );
@@ -600,7 +654,7 @@ class _CreateSpacePageState extends State<CreateSpacePage> {
                 IconButton(
                   tooltip: c.tr('关闭', 'Close'),
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, size: 18),
+                  icon: const Icon(Symbols.close, size: 18),
                 ),
               ],
             ),

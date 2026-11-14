@@ -31,8 +31,14 @@ class AuthLayout extends StatelessWidget {
               children: [
                 Positioned.fill(
                   child: SingleChildScrollView(
-                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: EdgeInsets.fromLTRB(24, context.tone.glass ? 80 : 106, 24, 32),
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      context.tone.glass ? 80 : 106,
+                      24,
+                      32,
+                    ),
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
                         minHeight: math.max(0, constraints.maxHeight - 138),

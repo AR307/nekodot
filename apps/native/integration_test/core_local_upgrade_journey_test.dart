@@ -27,11 +27,15 @@ class _LocalApi extends HttpOverrides {
     client.findProxy = (_) => 'DIRECT';
     client.connectionFactory = (url, proxyHost, proxyPort) async {
       expect(url.host, 'api.nekodot.com');
-      final connection = await Socket.startConnect(InternetAddress.loopbackIPv4, 443);
+      final connection = await Socket.startConnect(
+        InternetAddress.loopbackIPv4,
+        443,
+      );
       return ConnectionTask.fromSocket(
-        connection.socket.then((socket) => SecureSocket.secure(
-          socket, host: url.host, context: trusted,
-        )),
+        connection.socket.then(
+          (socket) =>
+              SecureSocket.secure(socket, host: url.host, context: trusted),
+        ),
         connection.cancel,
       );
     };

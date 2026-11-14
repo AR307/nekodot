@@ -112,8 +112,8 @@ void main() {
       await tester.pageBack();
       await tester.pump(const Duration(milliseconds: 400));
       for (final name in ['Research API', 'Writing API']) {
-        await tester.scrollUntilVisible(find.byIcon(Icons.add), 300);
-        await tap(find.byIcon(Icons.add));
+        await tester.scrollUntilVisible(find.byIcon(Symbols.add), 300);
+        await tap(find.byIcon(Symbols.add));
         await fill('名称', name);
         await fill('API URL', 'https://models.example.test/v1');
         await fill('API KEY', 'test-only-$name');

@@ -65,7 +65,7 @@ class _ChatFileDropState extends State<ChatFileDrop> {
                         ),
                       ),
                       child: Icon(
-                        Icons.add_rounded,
+                        Symbols.add,
                         size: 28,
                         color: context.tone.ink2,
                       ),

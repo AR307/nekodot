@@ -194,7 +194,7 @@ class _SecretCardState extends State<SecretCard>
     final ready = c.online && !busy;
     final title = Row(
       children: [
-        Icon(Icons.lock_outline, size: 16, color: tone.ink2),
+        Icon(Symbols.lock, size: 16, color: tone.ink2),
         const SizedBox(width: 8),
         Flexible(
           child: Text(
@@ -215,7 +215,11 @@ class _SecretCardState extends State<SecretCard>
           runSpacing: 4,
           children: [
             Text('${request['service']}', style: text.bodyMedium),
-            Icon(done ? Icons.check : Icons.remove, size: 16, color: tone.ink3),
+            Icon(
+              done ? Symbols.check : Symbols.remove,
+              size: 16,
+              color: tone.ink3,
+            ),
             Text(secretState(c, '${request['state']}'), style: text.bodySmall),
           ],
         ),
@@ -327,113 +331,136 @@ class BotSecretsPage extends StatelessWidget {
   final NekodotClient client;
   final String botId;
   const BotSecretsPage({super.key, required this.client, required this.botId});
+
+  /// One entry: what it is for, where it goes, and what can be done with it.
+  Widget entryPage(Json entry, VoidCallback reload) => AppPage(
+    title: '${entry['service']}',
+    body: Builder(
+      builder: (context) => PageList(
+        children: [
+          Text('${entry['purpose']}'),
+          const SizedBox(height: 6),
+          SelectableText(
+            '${object(entry['target'])['origin'] ?? object(entry['target'])['path']}',
+          ),
+          const SizedBox(height: 6),
+          MetaText([
+            entry['enabled'] == true
+                ? client.tr('已保存', 'Saved')
+                : client.tr('已停用', 'Disabled'),
+            '${client.tr('最近使用', 'Last used')}: ${entry['lastUsedAt']}',
+          ]),
+          if (entry['enabled'] == true) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton(
+                  onPressed: () async {
+                    try {
+                      final request = await client.rpc('secrets.replace', {
+                        'botId': botId,
+                        'credentialId': entry['credentialId'],
+                      });
+                      if (!context.mounted) return;
+                      await pushPage(
+                        context,
+                        AppPage(
+                          title: client.tr('替换保密资料', 'Replace credential'),
+                          body: PageList(
+                            children: [
+                              SecretCard(client: client, content: request),
+                            ],
+                          ),
+                        ),
+                      );
+                      reload();
+                    } catch (e) {
+                      if (context.mounted) showNotice(context, '$e');
+                    }
+                  },
+                  child: Text(client.tr('重新交付 / 替换', 'Re-deliver / replace')),
+                ),
+                OutlinedButton(
+                  onPressed: () async {
+                    try {
+                      await client.rpc('secrets.disable', {
+                        'botId': botId,
+                        'credentialId': entry['credentialId'],
+                      });
+                      reload();
+                      // It is no longer what this page describes.
+                      if (context.mounted) Navigator.pop(context);
+                    } catch (e) {
+                      if (context.mounted) showNotice(context, '$e');
+                    }
+                  },
+                  child: Text(client.tr('停用', 'Disable')),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) => AppPage(
     title: client.tr('保密资料', 'Confidential information'),
-    body: AsyncPane(
-      load: () => client.rpc('secrets.list', {'botId': botId}),
-      builder: (context, data, reload) {
-        final entries = objects(data['credentials']);
-        return PageList(
-          children: [
-            Text(
-              client.tr(
-                '只显示此 Bot 的资料元数据，不回显完整值。停用不会撤销已写入的配置或网站会话。',
-                'Only this Bot’s metadata is displayed. Disabling does not undo target configurations or website sessions.',
-              ),
-            ),
-            if (entries.isEmpty)
-              Text(client.tr('尚未保存保密资料', 'No saved credentials')),
-            for (final entry in entries)
-              Panel(
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${entry['service']}',
-                        key: ValueKey('saved-secret-${entry['credentialId']}'),
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      Text('${entry['purpose']}'),
-                      SelectableText(
-                        '${object(entry['target'])['origin'] ?? object(entry['target'])['path']}',
-                      ),
-                      MetaText([
-                        entry['enabled'] == true
-                            ? client.tr('已保存', 'Saved')
-                            : client.tr('已停用', 'Disabled'),
-                        '${client.tr('最近使用', 'Last used')}: ${entry['lastUsedAt']}',
-                      ]),
-                      if (entry['enabled'] == true)
-                        Wrap(
-                          spacing: 12,
-                          children: [
-                            TextButton(
-                              onPressed: () async {
-                                try {
-                                  final request = await client.rpc(
-                                    'secrets.replace',
-                                    {
-                                      'botId': botId,
-                                      'credentialId': entry['credentialId'],
-                                    },
-                                  );
-                                  if (!context.mounted) return;
-                                  await pushPage(
-                                    context,
-                                    AppPage(
-                                      title: client.tr(
-                                        '替换保密资料',
-                                        'Replace credential',
-                                      ),
-                                      body: PageList(
-                                        children: [
-                                          SecretCard(
-                                            client: client,
-                                            content: request,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                  reload();
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    showNotice(context, '$e');
-                                  }
-                                }
-                              },
-                              child: Text(
-                                client.tr('重新交付 / 替换', 'Re-deliver / replace'),
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () async {
-                                try {
-                                  await client.rpc('secrets.disable', {
-                                    'botId': botId,
-                                    'credentialId': entry['credentialId'],
-                                  });
-                                  reload();
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    showNotice(context, '$e');
-                                  }
-                                }
-                              },
-                              child: Text(client.tr('停用', 'Disable')),
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
+    body: MasterDetail(
+      master: AsyncPane(
+        load: () => client.rpc('secrets.list', {'botId': botId}),
+        builder: (context, data, reload) {
+          final entries = objects(data['credentials']);
+          return PageList(
+            children: [
+              Text(
+                client.tr(
+                  '只显示此 Bot 的资料元数据，不回显完整值。停用不会撤销已写入的配置或网站会话。',
+                  'Only this Bot’s metadata is displayed. Disabling does not undo target configurations or website sessions.',
                 ),
               ),
-          ],
-        );
-      },
+              const SizedBox(height: 10),
+              if (entries.isEmpty)
+                Text(client.tr('尚未保存保密资料', 'No saved credentials'))
+              else
+                PanelGroup(
+                  children: [
+                    for (final entry in entries)
+                      ListTile(
+                        selected: MasterDetail.shows(
+                          context,
+                          '${entry['credentialId']}',
+                        ),
+                        leading: const Icon(Symbols.lock),
+                        title: Text(
+                          '${entry['service']}',
+                          key: ValueKey(
+                            'saved-secret-${entry['credentialId']}',
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          entry['enabled'] == true
+                              ? client.tr('已保存', 'Saved')
+                              : client.tr('已停用', 'Disabled'),
+                        ),
+                        trailing: const Icon(Symbols.chevron_right, size: 18),
+                        onTap: () => pushPage(
+                          context,
+                          entryPage(entry, reload),
+                          row: '${entry['credentialId']}',
+                        ),
+                      ),
+                  ],
+                ),
+            ],
+          );
+        },
+      ),
     ),
   );
 }

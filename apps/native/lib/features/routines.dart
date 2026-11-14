@@ -31,18 +31,22 @@ class RoutineList extends StatelessWidget {
   final NekodotClient client;
   final List<Json> routines;
   final VoidCallback reload;
+
+  /// Whether it says what it lists; a page that is all routines already does.
+  final bool titled;
   const RoutineList({
     super.key,
     required this.client,
     required this.routines,
     required this.reload,
+    this.titled = true,
   });
 
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      SectionLabel(client.tr('例行任务', 'Routines')),
+      if (titled) SectionLabel(client.tr('例行任务', 'Routines')),
       if (routines.isEmpty)
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -58,10 +62,14 @@ class RoutineList extends StatelessWidget {
           children: [
             for (final routine in routines)
               ListTile(
+                selected: MasterDetail.shows(
+                  context,
+                  '${routine['routineId']}',
+                ),
                 leading: Icon(
                   routine['trigger'] == 'schedule'
-                      ? Icons.schedule
-                      : Icons.webhook,
+                      ? Symbols.schedule
+                      : Symbols.webhook,
                 ),
                 title: Text(
                   '${routine['name']}',
@@ -72,15 +80,31 @@ class RoutineList extends StatelessWidget {
                   triggerLabel(client, routine),
                   routineStatus(client, routine),
                 ]),
-                trailing: const Icon(Icons.chevron_right, size: 18),
+                trailing: const Icon(Symbols.chevron_right, size: 18),
                 onTap: () async {
+                  final botId = '${routine['botId']}',
+                      routineId = '${routine['routineId']}';
+                  // Beside a list of routines it opens there. From elsewhere,
+                  // a wide window opens the Bot's routines with this one
+                  // beside them; a narrow one opens just this one.
+                  final alone =
+                      MasterDetail.paneOf(context) != null ||
+                      context.tone.glass ||
+                      MediaQuery.sizeOf(context).width < 840;
                   await pushPage(
                     context,
-                    RoutinePage(
-                      client: client,
-                      botId: '${routine['botId']}',
-                      routineId: '${routine['routineId']}',
-                    ),
+                    alone
+                        ? RoutinePage(
+                            client: client,
+                            botId: botId,
+                            routineId: routineId,
+                          )
+                        : RoutinesPage(
+                            client: client,
+                            botId: botId,
+                            routineId: routineId,
+                          ),
+                    row: routineId,
                   );
                   reload();
                 },
@@ -88,6 +112,43 @@ class RoutineList extends StatelessWidget {
           ],
         ),
     ],
+  );
+}
+
+/// A Bot's routines, with the one being read beside them.
+class RoutinesPage extends StatelessWidget {
+  final NekodotClient client;
+  final String botId;
+  final String? routineId;
+  const RoutinesPage({
+    super.key,
+    required this.client,
+    required this.botId,
+    this.routineId,
+  });
+  @override
+  Widget build(BuildContext context) => AppPage(
+    title: client.tr('例行任务', 'Routines'),
+    body: MasterDetail(
+      initial: routineId == null
+          ? null
+          : RoutinePage(client: client, botId: botId, routineId: routineId!),
+      initialRow: routineId,
+      master: AsyncPane(
+        initialData: const {},
+        load: () => client.rpc('routines.list', {'botId': botId}),
+        builder: (context, data, reload) => PageList(
+          children: [
+            RoutineList(
+              client: client,
+              routines: objects(data['routines']),
+              reload: reload,
+              titled: false,
+            ),
+          ],
+        ),
+      ),
+    ),
   );
 }
 
@@ -124,9 +185,7 @@ class RoutineCard extends StatelessWidget {
     );
     final notice = ChatNotice(
       text: '$action ${content['name']}',
-      icon: content['card'] == 'credentials'
-          ? Icons.lock_outline
-          : Icons.schedule,
+      icon: content['card'] == 'credentials' ? Symbols.lock : Symbols.schedule,
       onTap: openRoutine,
     );
     if (content['action'] != 'created' || content['trigger'] == 'schedule') {
@@ -138,7 +197,7 @@ class RoutineCard extends StatelessWidget {
         notice,
         TextButton.icon(
           onPressed: openRoutine,
-          icon: const Icon(Icons.settings_outlined, size: 16),
+          icon: const Icon(Symbols.settings, size: 16),
           label: const Text('Webhook'),
         ),
       ],
@@ -311,7 +370,7 @@ class _RoutinePageState extends State<RoutinePage> {
         actions: [
           IconAction(
             tooltip: c.tr('刷新', 'Refresh'),
-            icon: Icons.refresh,
+            icon: Symbols.refresh,
             onPressed: busy ? null : load,
           ),
         ],
@@ -426,14 +485,14 @@ class _RoutinePageState extends State<RoutinePage> {
                                 );
                               }
                             },
-                            icon: const Icon(Icons.link),
+                            icon: const Icon(Symbols.link),
                             label: Text(c.tr('复制 URL', 'Copy URL')),
                           ),
                           OutlinedButton.icon(
                             onPressed: allowed
                                 ? () => action(copySecret)
                                 : null,
-                            icon: const Icon(Icons.key),
+                            icon: const Icon(Symbols.key),
                             label: Text(c.tr('复制密钥', 'Copy secret')),
                           ),
                           FilledButton.icon(
@@ -442,7 +501,7 @@ class _RoutinePageState extends State<RoutinePage> {
                                 : () => action(() async {
                                     await c.rpc('routines.grant', target);
                                   }),
-                            icon: const Icon(Icons.lock_outline),
+                            icon: const Icon(Symbols.lock),
                             label: Text(
                               c.tr('确认接入并保密交付', 'Connect & deliver securely'),
                             ),
@@ -572,7 +631,7 @@ class _RoutinePageState extends State<RoutinePage> {
                                   );
                                 }
                               },
-                        icon: const Icon(Icons.webhook),
+                        icon: const Icon(Symbols.webhook),
                         label: Text(
                           c.tr('添加 Webhook 触发', 'Add webhook trigger'),
                         ),
@@ -618,9 +677,30 @@ class _RoutinePageState extends State<RoutinePage> {
                         ),
                     ],
                     SectionLabel(c.tr('执行记录', 'Executions')),
-                    for (final execution in objects(data!['executions']))
-                      Panel(
+                    // Each run is a mark on one line, newest first.
+                    for (final (index, execution) in objects(
+                      data!['executions'],
+                    ).indexed)
+                      TimelineEntry(
+                        last: index == objects(data!['executions']).length - 1,
+                        mark:
+                            const [
+                              'running',
+                              'waiting_approval',
+                            ].contains(execution['state'])
+                            ? const Breathing(size: 8)
+                            : StatusDot(
+                                size: 8,
+                                color:
+                                    const [
+                                      'failed',
+                                      'error',
+                                    ].contains(execution['state'])
+                                    ? context.tone.danger
+                                    : context.tone.ink3,
+                              ),
                         child: ExpansionTile(
+                          tilePadding: const EdgeInsets.only(right: 8),
                           key: ValueKey(execution['executionId']),
                           initiallyExpanded:
                               widget.executionId == execution['executionId'],
@@ -662,7 +742,7 @@ class _RoutinePageState extends State<RoutinePage> {
                                     ),
                                     onPressed: () =>
                                         continueExecution(execution),
-                                    icon: const Icon(Icons.reply),
+                                    icon: const Icon(Symbols.reply),
                                     label: Text(c.tr('继续对话', 'Discuss result')),
                                   ),
                                 TextButton(

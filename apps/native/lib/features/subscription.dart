@@ -50,7 +50,7 @@ class SubscriptionPage extends StatelessWidget {
               title: Text('${tier['name']}'),
               subtitle: Text('${tier['dollars_per_month_display']} / month'),
               trailing: tier['is_current'] == true
-                  ? const Icon(Icons.check)
+                  ? const Icon(Symbols.check)
                   : null,
             ),
           if (data['portal_url'] is String &&
@@ -60,7 +60,7 @@ class SubscriptionPage extends StatelessWidget {
                 Uri.parse(data['portal_url']),
                 mode: LaunchMode.externalApplication,
               ),
-              icon: const Icon(Icons.open_in_new),
+              icon: const Icon(Symbols.open_in_new),
               label: Text(
                 client.tr('打开官方订阅门户', 'Open official subscription portal'),
               ),

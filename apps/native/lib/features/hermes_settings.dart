@@ -151,7 +151,7 @@ class _HermesSettingsState extends State<HermesSettings> {
               onChanged: (value) => setState(() => query = value),
               decoration: InputDecoration(
                 hintText: c.tr('搜索设置', 'Search settings'),
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: const Icon(Symbols.search),
                 suffixIcon: query.isEmpty
                     ? null
                     : IconButton(
@@ -160,7 +160,7 @@ class _HermesSettingsState extends State<HermesSettings> {
                           search.clear();
                           setState(() => query = '');
                         },
-                        icon: const Icon(Icons.close),
+                        icon: const Icon(Symbols.close),
                       ),
               ),
             ),
@@ -240,6 +240,7 @@ class _HermesSettingsState extends State<HermesSettings> {
     ];
     return ListTile(
       key: ValueKey('settings-group-$group'),
+      selected: MasterDetail.shows(context, group),
       title: Text(title ?? c.tr('Hermes 设置', 'Hermes settings')),
       subtitle: Text(
         names.join(c.tr('、', ', ')),
@@ -254,7 +255,7 @@ class _HermesSettingsState extends State<HermesSettings> {
             style: Theme.of(context).textTheme.labelMedium,
           ),
           const SizedBox(width: 4),
-          const Icon(Icons.chevron_right),
+          const Icon(Symbols.chevron_right),
         ],
       ),
       onTap: () => pushPage(
@@ -263,6 +264,7 @@ class _HermesSettingsState extends State<HermesSettings> {
           title: settingGroupName(c, group),
           body: HermesSettings(client: c, botId: widget.botId, group: group),
         ),
+        row: group,
       ),
     );
   }
@@ -305,9 +307,9 @@ class _HermesSettingsState extends State<HermesSettings> {
                 c.tr('修改请前往 Bot 模型设置', 'Change this in Bot model settings'),
             ]),
             trailing: field['sensitive'] == true
-                ? const Icon(Icons.lock_outline, size: 18)
+                ? const Icon(Symbols.lock, size: 18)
                 : field['editable'] == true
-                ? const Icon(Icons.chevron_right)
+                ? const Icon(Symbols.chevron_right)
                 : null,
             onTap: field['editable'] != true
                 ? null

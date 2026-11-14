@@ -29,7 +29,7 @@ class ModelInformation extends StatelessWidget {
             key: const ValueKey('bot-model-settings'),
             title: Text(client.tr('模型', 'Model')),
             subtitle: Text('${data['model']}'),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(Symbols.chevron_right),
             onTap: edit,
           ),
           ExpansionTile(
@@ -39,7 +39,7 @@ class ModelInformation extends StatelessWidget {
                 key: const ValueKey('edit-context-length'),
                 title: Text(client.tr('最大上下文', 'Maximum context')),
                 subtitle: Text('${data['effectiveContext'] ?? '—'}'),
-                trailing: const Icon(Icons.edit_outlined, size: 18),
+                trailing: const Icon(Symbols.edit, size: 18),
                 onTap: edit,
               ),
               ListTile(

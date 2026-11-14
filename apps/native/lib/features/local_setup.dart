@@ -48,47 +48,252 @@ String localErrorText(NekodotClient c, String error) => error == 'cancelled'
 
 String _gigabytes(int bytes) => (bytes / (1 << 30)).toStringAsFixed(1);
 
-/// Desktop "Add computer": run here, or connect a remote server as before.
-class RunLocationPage extends StatelessWidget {
+/// Desktop "Add computer" as a few steps: choose where it runs, then set this
+/// computer up or pair a server, and see it connect.
+class RunLocationPage extends StatefulWidget {
   final NekodotClient client;
   const RunLocationPage({super.key, required this.client});
   @override
+  State<RunLocationPage> createState() => _RunLocationPageState();
+}
+
+class _RunLocationPageState extends State<RunLocationPage> {
+  final local = localRuntime!;
+  NekodotClient get c => widget.client;
+
+  /// 'local' or 'remote', once chosen.
+  String? way;
+  bool done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    local.addListener(_changed);
+  }
+
+  @override
+  void dispose() {
+    local.removeListener(_changed);
+    super.dispose();
+  }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final c = client;
-    final local = localRuntime!;
-    return AppPage(
-      title: c.tr('添加电脑', 'Add computer'),
-      body: PageList(
-        children: [
-          PanelGroup(
+    final tone = context.tone, text = Theme.of(context).textTheme;
+    final installing = local.steps.any((s) => s.state != 'pending');
+    final completed = local.steps.where((s) => s.state == 'done').length;
+    final how = c.tr('选择方式', 'Choose how'), connect = c.tr('连接', 'Connect');
+    // Each step and, once it is settled, what was chosen in it.
+    final steps = way == 'remote'
+        ? [
+            (how, c.tr('连接远程服务器', 'Connect a remote server')),
+            (c.tr('运行命令', 'Run the command'), ''),
+            (connect, ''),
+          ]
+        : [
+            (how, way == null ? '' : c.tr('在这台电脑运行', 'Run on this computer')),
+            (c.tr('选择目录', 'Choose folders'), local.location?.runtime ?? ''),
+            (
+              c.tr('安装', 'Install'),
+              installing ? '$completed / ${local.steps.length}' : '',
+            ),
+            (connect, ''),
+          ];
+    final now = way == null
+        ? 0
+        : done
+        ? steps.length - 1
+        : way == 'local' && installing
+        ? 2
+        : 1;
+    final node = c.account.me?['nodes'] is List
+        ? (c.account.me!['nodes'] as List)
+              .whereType<Map>()
+              .where((n) => n['nodeId'] == c.selectedNodeId)
+              .firstOrNull
+        : null;
+    final pane = done
+        ? Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(connect, style: text.titleLarge),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    StatusDot(on: c.online, size: 8),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        '${node?['name'] ?? ''}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      c.online
+                          ? c.tr('已连接', 'Connected')
+                          : c.tr('连接中', 'Connecting'),
+                      style: text.bodyMedium?.copyWith(color: tone.ink3),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton(
+                    key: const ValueKey('add-computer-done'),
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(c.tr('完成', 'Done')),
+                  ),
+                ),
+              ],
+            ),
+          )
+        : way == null
+        ? PageList(
             children: [
-              ListTile(
-                key: const ValueKey('run-here'),
-                leading: const Icon(Icons.laptop_outlined),
-                title: Text(c.tr('在这台电脑运行', 'Run on this computer')),
-                subtitle: local.support.supported
-                    ? null
-                    : Text(c.tr('此系统暂不支持', 'Not supported on this system')),
-                enabled: local.support.supported,
-                onTap: () => Navigator.of(context).pushReplacement(
-                  MaterialPageRoute<void>(
-                    builder: (_) => LocalSetupPage(client: c),
+              PanelGroup(
+                children: [
+                  ListTile(
+                    key: const ValueKey('run-here'),
+                    leading: const Icon(Symbols.laptop),
+                    title: Text(c.tr('在这台电脑运行', 'Run on this computer')),
+                    subtitle: local.support.supported
+                        ? null
+                        : Text(c.tr('此系统暂不支持', 'Not supported on this system')),
+                    enabled: local.support.supported,
+                    trailing: const Icon(Symbols.chevron_right),
+                    onTap: () => setState(() => way = 'local'),
                   ),
-                ),
-              ),
-              ListTile(
-                key: const ValueKey('connect-server'),
-                leading: const Icon(Icons.dns_outlined),
-                title: Text(c.tr('连接远程服务器', 'Connect a remote server')),
-                onTap: () => Navigator.of(context).pushReplacement(
-                  MaterialPageRoute<void>(
-                    builder: (_) => PairingPage(client: c),
+                  ListTile(
+                    key: const ValueKey('connect-server'),
+                    leading: const Icon(Symbols.dns),
+                    title: Text(c.tr('连接远程服务器', 'Connect a remote server')),
+                    trailing: const Icon(Symbols.chevron_right),
+                    onTap: () => setState(() => way = 'remote'),
                   ),
-                ),
+                ],
               ),
             ],
-          ),
-        ],
+          )
+        : way == 'local'
+        ? LocalSetupPage(
+            client: c,
+            embedded: true,
+            onDone: () => setState(() => done = true),
+          )
+        : PairingPage(
+            client: c,
+            embedded: true,
+            onDone: () => setState(() => done = true),
+          );
+    final rail = SizedBox(
+      width: 208,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 8, 16),
+        child: Column(
+          children: [
+            for (final (i, (label, chosen)) in steps.indexed)
+              InkWell(
+                key: ValueKey('add-computer-step-$i'),
+                borderRadius: BorderRadius.circular(Tone.r8),
+                // The first step can be returned to until an install is
+                // under way.
+                onTap: i == 0 && way != null && !done && !local.busy
+                    ? () => setState(() => way = null)
+                    : null,
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: i == now ? tone.ink : null,
+                          border: i == now
+                              ? null
+                              : Border.all(
+                                  color: i < now ? tone.ink : tone.line,
+                                ),
+                        ),
+                        child: i < now
+                            ? Icon(Symbols.check, size: 14, color: tone.ink)
+                            : Text(
+                                '${i + 1}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  height: 1,
+                                  fontWeight: FontWeight.w600,
+                                  color: i == now ? tone.base : tone.ink3,
+                                ),
+                              ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                label,
+                                style: text.bodyMedium?.copyWith(
+                                  fontSize: 14,
+                                  color: i <= now ? tone.ink : tone.ink3,
+                                  fontWeight: i == now ? FontWeight.w600 : null,
+                                ),
+                              ),
+                            ),
+                            if (i <= now && chosen.isNotEmpty)
+                              Text(
+                                chosen,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: tone.ink3,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+    return AppPage(
+      title: c.tr('添加电脑', 'Add computer'),
+      body: LayoutBuilder(
+        builder: (context, box) => Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (box.maxWidth >= 560) ...[
+              rail,
+              VerticalDivider(
+                width: Tone.hair,
+                thickness: Tone.hair,
+                color: tone.line,
+              ),
+            ],
+            Expanded(child: pane),
+          ],
+        ),
       ),
     );
   }
@@ -97,7 +302,17 @@ class RunLocationPage extends StatelessWidget {
 /// Choose the two folders, then install, pair and start the node on this computer.
 class LocalSetupPage extends StatefulWidget {
   final NekodotClient client;
-  const LocalSetupPage({super.key, required this.client});
+
+  /// Whether it is one step of adding a computer: it then has no bar of its
+  /// own, and says through [onDone] that this computer is running.
+  final bool embedded;
+  final VoidCallback? onDone;
+  const LocalSetupPage({
+    super.key,
+    required this.client,
+    this.embedded = false,
+    this.onDone,
+  });
   @override
   State<LocalSetupPage> createState() => _LocalSetupPageState();
 }
@@ -124,7 +339,11 @@ class _LocalSetupPageState extends State<LocalSetupPage> {
   void _changed() {
     if (!mounted) return;
     if (started && local.phase == LocalPhase.online) {
-      Navigator.popUntil(context, (route) => route.isFirst);
+      if (widget.onDone != null) {
+        widget.onDone!();
+      } else {
+        Navigator.popUntil(context, (route) => route.isFirst);
+      }
       return;
     }
     setState(() {});
@@ -208,10 +427,10 @@ class _LocalSetupPageState extends State<LocalSetupPage> {
   Widget _step(LocalStep step) {
     final tone = context.tone;
     final icon = switch (step.state) {
-      'done' => Icon(Icons.check, size: 18, color: tone.ink),
+      'done' => Icon(Symbols.check, size: 18, color: tone.ink),
       'running' => const ShiningText(style: TextStyle(fontSize: 12)),
       'failed' => Icon(
-        Icons.close,
+        Symbols.close,
         size: 18,
         color: Theme.of(context).colorScheme.error,
       ),
@@ -252,83 +471,85 @@ class _LocalSetupPageState extends State<LocalSetupPage> {
       '已完成 $completed / ${local.steps.length} 步',
       '$completed / ${local.steps.length} steps completed',
     );
-    return AppPage(
-      title: c.tr('在这台电脑运行', 'Run on this computer'),
-      body: PageList(
-        children: [
-          if (showSteps) ...[
-            PanelGroup(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              c.tr('安装进度', 'Installation progress'),
-                              style: Theme.of(context).textTheme.titleSmall,
-                            ),
-                          ),
-                          Text(
-                            progressLabel,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      ClipRSuperellipse(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          key: const ValueKey('local-install-progress'),
-                          value: completed / local.steps.length,
-                          minHeight: 6,
-                          semanticsLabel: progressLabel,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-          ],
+    final body = PageList(
+      children: [
+        if (showSteps) ...[
           PanelGroup(
             children: [
-              _folder(FolderKind.runtime, runtime),
-              _folder(FolderKind.data, data),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            c.tr('安装进度', 'Installation progress'),
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                        ),
+                        Text(
+                          progressLabel,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ClipRSuperellipse(
+                      borderRadius: BorderRadius.circular(2),
+                      child: LinearProgressIndicator(
+                        key: const ValueKey('local-install-progress'),
+                        value: completed / local.steps.length,
+                        minHeight: 4,
+                        semanticsLabel: progressLabel,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-          if (showSteps) ...[
-            const SizedBox(height: 14),
-            PanelGroup(children: [for (final step in local.steps) _step(step)]),
-          ],
-          const SizedBox(height: 16),
-          ErrorNotice(localErrorText(c, local.error)),
-          const SizedBox(height: 8),
-          if (local.busy)
-            OutlinedButton(
-              key: const ValueKey('cancel-local'),
-              onPressed: local.phase == LocalPhase.installing
-                  ? local.cancelSetup
-                  : null,
-              child: Text(c.tr('取消', 'Cancel')),
-            )
-          else
-            FilledButton(
-              key: const ValueKey('start-local'),
-              onPressed: ready ? _start : null,
-              child: Text(
-                local.phase == LocalPhase.failed
-                    ? c.tr('重试', 'Retry')
-                    : c.tr('安装并启动', 'Install and start'),
-              ),
-            ),
+          const SizedBox(height: 14),
         ],
-      ),
+        PanelGroup(
+          children: [
+            _folder(FolderKind.runtime, runtime),
+            _folder(FolderKind.data, data),
+          ],
+        ),
+        if (showSteps) ...[
+          const SizedBox(height: 14),
+          PanelGroup(children: [for (final step in local.steps) _step(step)]),
+        ],
+        const SizedBox(height: 16),
+        ErrorNotice(localErrorText(c, local.error)),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerRight,
+          child: local.busy
+              ? OutlinedButton(
+                  key: const ValueKey('cancel-local'),
+                  onPressed: local.phase == LocalPhase.installing
+                      ? local.cancelSetup
+                      : null,
+                  child: Text(c.tr('取消', 'Cancel')),
+                )
+              : FilledButton(
+                  key: const ValueKey('start-local'),
+                  onPressed: ready ? _start : null,
+                  child: Text(
+                    local.phase == LocalPhase.failed
+                        ? c.tr('重试', 'Retry')
+                        : c.tr('安装并启动', 'Install and start'),
+                  ),
+                ),
+        ),
+      ],
     );
+    return widget.embedded
+        ? body
+        : AppPage(title: c.tr('在这台电脑运行', 'Run on this computer'), body: body);
   }
 }
 
@@ -352,7 +573,7 @@ class LocalComputerPanel extends StatelessWidget {
           subtitle: Text(path),
           trailing: IconButton(
             tooltip: c.tr('打开', 'Open'),
-            icon: const Icon(Icons.folder_open_outlined),
+            icon: const Icon(Symbols.folder_open),
             onPressed: () => launchUrl(Uri.file(path)),
           ),
         );

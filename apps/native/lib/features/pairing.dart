@@ -9,7 +9,17 @@ import '../ui/design.dart';
 
 class PairingPage extends StatefulWidget {
   final NekodotClient client;
-  const PairingPage({super.key, required this.client});
+
+  /// Whether it is one step of adding a computer: it then has no bar of its
+  /// own, and says through [onDone] that the server has connected.
+  final bool embedded;
+  final VoidCallback? onDone;
+  const PairingPage({
+    super.key,
+    required this.client,
+    this.embedded = false,
+    this.onDone,
+  });
   @override
   State<PairingPage> createState() => _PairingPageState();
 }
@@ -40,7 +50,12 @@ class _PairingPageState extends State<PairingPage> {
         c.account.me = me;
         if (added != null) {
           await c.selectNode(added['nodeId'] as String);
-          if (mounted) Navigator.pop(context);
+          if (!mounted) return;
+          if (widget.onDone != null) {
+            widget.onDone!();
+          } else {
+            Navigator.pop(context);
+          }
         } else {
           setState(() {});
         }
@@ -84,83 +99,83 @@ class _PairingPageState extends State<PairingPage> {
               .difference(DateTime.now())
               .inSeconds
               .clamp(0, 999999);
-    return AppPage(
-      title: c.tr('添加电脑', 'Add computer'),
-      body: PageList(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Linux x64 / WSL2',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-              ),
-              if (busy) const ShiningText(style: TextStyle(fontSize: 12)),
-              const SizedBox(width: 8),
-              Text(
-                '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}',
-                style: TextStyle(
-                  fontFamily: monoFont,
-                  fontSize: 13,
-                  color: tone.ink2,
-                ),
-              ),
-              const SizedBox(width: 4),
-              IconButton(
-                tooltip: c.tr('延长 30 分钟', 'Add 30 minutes'),
-                onPressed: busy || code == null
-                    ? null
-                    : () => generate(extend: true),
-                icon: const Icon(Icons.more_time),
-              ),
-              IconButton(
-                tooltip: c.tr('生成新码', 'Generate new code'),
-                onPressed: busy ? null : generate,
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Panel(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: code == null
-                        ? const ShiningText()
-                        : SelectableText(
-                            code!['installCommand'] as String,
-                            style: const TextStyle(
-                              fontFamily: monoFont,
-                              fontSize: 12,
-                              height: 1.5,
-                            ),
-                          ),
-                  ),
-                  IconButton(
-                    tooltip: c.tr('复制', 'Copy'),
-                    onPressed: code == null
-                        ? null
-                        : () async {
-                            await Clipboard.setData(
-                              ClipboardData(
-                                text: code!['installCommand'] as String,
-                              ),
-                            );
-                            if (mounted) setState(() => copied = true);
-                          },
-                    icon: Icon(copied ? Icons.check : Icons.copy_outlined),
-                  ),
-                ],
+    final body = PageList(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Linux x64 / WSL2',
+                style: Theme.of(context).textTheme.titleSmall,
               ),
             ),
+            if (busy) const ShiningText(style: TextStyle(fontSize: 12)),
+            const SizedBox(width: 8),
+            Text(
+              '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}',
+              style: TextStyle(
+                fontFamily: monoFont,
+                fontSize: 13,
+                color: tone.ink2,
+              ),
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              tooltip: c.tr('延长 30 分钟', 'Add 30 minutes'),
+              onPressed: busy || code == null
+                  ? null
+                  : () => generate(extend: true),
+              icon: const Icon(Symbols.more_time),
+            ),
+            IconButton(
+              tooltip: c.tr('生成新码', 'Generate new code'),
+              onPressed: busy ? null : generate,
+              icon: const Icon(Symbols.refresh),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Panel(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: code == null
+                      ? const ShiningText()
+                      : SelectableText(
+                          code!['installCommand'] as String,
+                          style: const TextStyle(
+                            fontFamily: monoFont,
+                            fontSize: 12,
+                            height: 1.5,
+                          ),
+                        ),
+                ),
+                IconButton(
+                  tooltip: c.tr('复制', 'Copy'),
+                  onPressed: code == null
+                      ? null
+                      : () async {
+                          await Clipboard.setData(
+                            ClipboardData(
+                              text: code!['installCommand'] as String,
+                            ),
+                          );
+                          if (mounted) setState(() => copied = true);
+                        },
+                  icon: Icon(copied ? Symbols.check : Symbols.content_copy),
+                ),
+              ],
+            ),
           ),
-          ErrorNotice(error),
-        ],
-      ),
+        ),
+        ErrorNotice(error),
+      ],
     );
+    return widget.embedded
+        ? body
+        : AppPage(title: c.tr('添加电脑', 'Add computer'), body: body);
   }
 }

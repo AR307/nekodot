@@ -451,14 +451,14 @@ void main() {
       () => find.text('语言').evaluate().isNotEmpty,
       'settings language immediately updates',
     );
-    await tap(find.byIcon(Icons.dark_mode_outlined));
+    await tap(find.byIcon(Symbols.dark_mode));
     await shot('settings-dark-chinese');
     await tap(find.text('EN'));
     await until(
       () => find.text('Language').evaluate().isNotEmpty,
       'settings language restores',
     );
-    await tap(find.byIcon(Icons.light_mode_outlined));
+    await tap(find.byIcon(Symbols.light_mode));
     await shot('settings-light-english');
     await binding.handlePopRoute();
     if (phone) {

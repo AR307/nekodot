@@ -155,7 +155,7 @@ class PluginTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Icon(Icons.chevron_right, size: 18, color: tone.ink3),
+                  Icon(Symbols.chevron_right, size: 18, color: tone.ink3),
                 ],
               ),
               if (description.isNotEmpty) ...[

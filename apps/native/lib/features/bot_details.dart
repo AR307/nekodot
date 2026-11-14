@@ -46,9 +46,9 @@ class BotDetails extends StatelessWidget {
           ),
         );
       }
-      final text = Theme.of(context).textTheme;
-      final panel = onClose != null;
+      final text = Theme.of(context).textTheme, tone = context.tone;
       final botId = '${bot['botId']}';
+      final role = '${bot['role'] ?? ''}'.trim();
       Widget link(
         String key,
         IconData icon,
@@ -58,195 +58,169 @@ class BotDetails extends StatelessWidget {
         key: ValueKey(key),
         leading: Icon(icon),
         title: Text(title),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: const Icon(Symbols.chevron_right),
         onTap: () => pushPage(context, page()),
       );
-      final pages = TabBarView(
-        children: [
-          AsyncPane(
-            initialData: const {},
-            load: () => c.rpc('routines.list', {'botId': botId}),
-            builder: (context, data, reload) {
-              final routines = objects(data['routines']);
-              return PageList(
+      final about = AsyncPane(
+        initialData: const {},
+        load: () => c.rpc('routines.list', {'botId': botId}),
+        builder: (context, data, reload) {
+          final routines = objects(data['routines']);
+          return PageList(
+            children: [
+              if (role.isNotEmpty) ...[
+                SelectableText(
+                  role,
+                  style: text.bodyMedium?.copyWith(color: tone.ink2),
+                ),
+                const SizedBox(height: 14),
+              ],
+              ModelInformation(
+                key: ValueKey(
+                  '${bot['sourceId']}:${bot['model']}:${bot['modelSettings']}',
+                ),
+                client: c,
+                botId: botId,
+              ),
+              PanelGroup(
                 children: [
-                  if (context.tone.glass) ...[
-                    Center(child: CatAvatar.of(bot, size: 64)),
-                    const SizedBox(height: 6),
-                    Center(
-                      child: Text('@${bot['handle']}', style: text.labelMedium),
-                    ),
-                    const SizedBox(height: 18),
-                    SelectableText(
-                      '${bot['role']}',
-                      textAlign: TextAlign.center,
-                      style: text.bodyMedium,
-                    ),
-                    const SizedBox(height: 22),
-                  ] else ...[
-                    SectionLabel(c.tr('角色', 'Role')),
-                    Panel(
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: SelectableText(
-                          '${bot['role']}',
-                          style: text.bodyMedium,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                  ],
-                  ModelInformation(
-                    key: ValueKey(
-                      '${bot['sourceId']}:${bot['model']}:${bot['modelSettings']}',
-                    ),
-                    client: c,
-                    botId: botId,
+                  link(
+                    'bot-learning',
+                    Symbols.auto_stories,
+                    c.tr('学习历程', 'Learning journey'),
+                    () => LearningPage(client: c, botId: botId),
                   ),
-                  PanelGroup(
-                    children: [
-                      link(
-                        'bot-learning',
-                        Icons.auto_stories_outlined,
-                        c.tr('学习历程', 'Learning journey'),
-                        () => LearningPage(client: c, botId: botId),
-                      ),
-                    ],
-                  ),
-                  RoutineList(client: c, routines: routines, reload: reload),
                 ],
-              );
-            },
-          ),
-          AsyncPane(
-            load: () => c.rpc('memory.get', {'botId': botId}),
-            builder: (context, data, reload) {
-              Future<void> refine() async {
-                await pushPage(context, RefinePage(client: c, botId: botId));
-                reload();
-              }
-
-              final full = objects(data['documents']).any(
-                (doc) =>
-                    doc['name'] == 'MEMORY.md' &&
-                    doc['limit'] != null &&
-                    nearMemoryLimit('${doc['content']}', doc['limit'] as int),
-              );
-              const refineIcon = Icon(Icons.auto_fix_high_outlined, size: 18);
-              final refineLabel = Text(c.tr('整理记忆', 'Refine memory'));
-              return PageList(
-                children: [
-                  PanelGroup(
-                    children: [
-                      // What a Bot knows about you is shared, so it lives in app settings.
-                      for (final doc in objects(
-                        data['documents'],
-                      ).where((doc) => doc['name'] != 'USER.md'))
-                        ListTile(
-                          title: Text('${doc['name']}'),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if ('${doc['content']}'.trim().isNotEmpty)
-                                Text(
-                                  '${doc['content']}',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              if (doc['limit'] != null) ...[
-                                const SizedBox(height: 6),
-                                MemoryUsage(
-                                  client: c,
-                                  content: '${doc['content']}',
-                                  limit: doc['limit'] as int,
-                                ),
-                              ],
-                            ],
-                          ),
-                          onTap: () async {
-                            await pushPage(
-                              context,
-                              MemoryEditor(
-                                client: c,
-                                botId: botId,
-                                document: doc,
-                              ),
-                            );
-                            reload();
-                          },
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: full
-                        ? FilledButton.icon(
-                            key: const ValueKey('refine-memory-full'),
-                            onPressed: refine,
-                            icon: refineIcon,
-                            label: refineLabel,
-                          )
-                        : OutlinedButton.icon(
-                            onPressed: refine,
-                            icon: refineIcon,
-                            label: refineLabel,
-                          ),
-                  ),
-                  if ('${data['pending'] ?? ''}'.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: SelectableText(
-                        '${data['pending']}',
-                        style: text.bodySmall,
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
-          LibraryPage(client: c, bot: bot, embedded: true),
-          HermesSettings(
-            client: c,
-            botId: botId,
-            extras: {
-              'model': [
-                ModelInformation(
-                  key: ValueKey('${bot['model']}:${bot['modelSettings']}'),
-                  client: c,
-                  botId: botId,
-                ),
-              ],
-              'tools': [
-                if (c.node.capabilities['host'] == 'desktop')
-                  DesktopControlTile(
-                    key: ValueKey('desktop-$botId'),
-                    client: c,
-                    botId: botId,
-                  ),
-              ],
-              'security': [
-                link(
-                  'bot-secrets',
-                  Icons.lock_outline,
-                  c.tr('保密资料', 'Confidential information'),
-                  () => BotSecretsPage(client: c, botId: botId),
-                ),
-              ],
-              'voice': [
-                link(
-                  'bot-voice',
-                  Icons.mic_none,
-                  c.tr('语音与唤醒', 'Voice & wake word'),
-                  () => VoicePage(client: c, botId: botId),
-                ),
-              ],
-            },
-          ),
-        ],
+              ),
+              RoutineList(client: c, routines: routines, reload: reload),
+            ],
+          );
+        },
       );
-      final tabs = [
+      final memory = AsyncPane(
+        load: () => c.rpc('memory.get', {'botId': botId}),
+        builder: (context, data, reload) {
+          Future<void> refine() async {
+            await pushPage(context, RefinePage(client: c, botId: botId));
+            reload();
+          }
+
+          final full = objects(data['documents']).any(
+            (doc) =>
+                doc['name'] == 'MEMORY.md' &&
+                doc['limit'] != null &&
+                nearMemoryLimit('${doc['content']}', doc['limit'] as int),
+          );
+          const refineIcon = Icon(Symbols.auto_fix_high, size: 18);
+          final refineLabel = Text(c.tr('整理记忆', 'Refine memory'));
+          return PageList(
+            children: [
+              PanelGroup(
+                children: [
+                  // What a Bot knows about you is shared, so it lives in app settings.
+                  for (final doc in objects(
+                    data['documents'],
+                  ).where((doc) => doc['name'] != 'USER.md'))
+                    ListTile(
+                      title: Text('${doc['name']}'),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if ('${doc['content']}'.trim().isNotEmpty)
+                            Text(
+                              '${doc['content']}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          if (doc['limit'] != null) ...[
+                            const SizedBox(height: 6),
+                            MemoryUsage(
+                              client: c,
+                              content: '${doc['content']}',
+                              limit: doc['limit'] as int,
+                            ),
+                          ],
+                        ],
+                      ),
+                      onTap: () async {
+                        await pushPage(
+                          context,
+                          MemoryEditor(client: c, botId: botId, document: doc),
+                        );
+                        reload();
+                      },
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: full
+                    ? FilledButton.icon(
+                        key: const ValueKey('refine-memory-full'),
+                        onPressed: refine,
+                        icon: refineIcon,
+                        label: refineLabel,
+                      )
+                    : OutlinedButton.icon(
+                        onPressed: refine,
+                        icon: refineIcon,
+                        label: refineLabel,
+                      ),
+              ),
+              if ('${data['pending'] ?? ''}'.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: SelectableText(
+                    '${data['pending']}',
+                    style: text.bodySmall,
+                  ),
+                ),
+            ],
+          );
+        },
+      );
+      final library = LibraryPage(client: c, bot: bot, embedded: true);
+      final settings = HermesSettings(
+        client: c,
+        botId: botId,
+        extras: {
+          'model': [
+            ModelInformation(
+              key: ValueKey('${bot['model']}:${bot['modelSettings']}'),
+              client: c,
+              botId: botId,
+            ),
+          ],
+          'tools': [
+            if (c.node.capabilities['host'] == 'desktop')
+              DesktopControlTile(
+                key: ValueKey('desktop-$botId'),
+                client: c,
+                botId: botId,
+              ),
+          ],
+          'security': [
+            link(
+              'bot-secrets',
+              Symbols.lock,
+              c.tr('保密资料', 'Confidential information'),
+              () => BotSecretsPage(client: c, botId: botId),
+            ),
+          ],
+          'voice': [
+            link(
+              'bot-voice',
+              Symbols.mic,
+              c.tr('语音与唤醒', 'Voice & wake word'),
+              () => VoicePage(client: c, botId: botId),
+            ),
+          ],
+        },
+      );
+      final parts = [about, memory, library, settings];
+      final labels = [
         c.tr('详情', 'Details'),
         c.tr('记忆', 'Memory'),
         c.tr('资料库', 'Files'),
@@ -255,13 +229,13 @@ class BotDetails extends StatelessWidget {
       final actions = [
         IconAction(
           tooltip: c.tr('屏幕', 'Screen'),
-          icon: Icons.desktop_windows_outlined,
+          icon: Symbols.desktop_windows,
           onPressed: () => pushPage(context, ScreenPage(client: c, bot: bot)),
         ),
         const SizedBox(width: 4),
         IconAction(
           tooltip: c.tr('编辑', 'Edit'),
-          icon: Icons.edit_outlined,
+          icon: Symbols.edit,
           onPressed: () => openPage(
             context,
             BotEditor(client: c, existing: bot),
@@ -269,67 +243,251 @@ class BotDetails extends StatelessWidget {
           ),
         ),
       ];
-      if (context.tone.glass && !panel) {
-        return DefaultTabController(
-          length: 4,
-          child: AppPage(
-            title: '${bot['displayName']}',
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(62),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: DetailTabs(labels: tabs),
+      final identity = Row(
+        children: [
+          CatAvatar.of(bot, size: 48),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${bot['displayName']}',
+                  style: text.headlineSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  '@${bot['handle']}',
+                  style: text.bodyMedium?.copyWith(color: tone.ink3),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+      if (onClose != null) {
+        // A drawer over a desktop window: one long page, its parts listed
+        // beside it.
+        return Material(
+          color: tone.base,
+          child: Column(
+            children: [
+              SizedBox(
+                height: 48,
+                child: Row(
+                  children: [
+                    const SizedBox(width: 8),
+                    IconAction(
+                      tooltip: c.tr('关闭', 'Close'),
+                      icon: Symbols.close,
+                      onPressed: onClose,
+                    ),
+                    const Expanded(child: WindowDrag()),
+                    ...actions,
+                    const SizedBox(width: 8),
+                    SizedBox(width: WindowChrome.reserved(context)),
+                  ],
                 ),
               ),
-            ),
-            actions: actions,
-            body: pages,
+              Expanded(
+                child: _LongPage(labels: labels, head: identity, parts: parts),
+              ),
+            ],
           ),
         );
       }
+      // A sheet on a phone: who it is, then its parts as tabs.
       return DefaultTabController(
         length: 4,
-        child: Scaffold(
-          appBar: AppBar(
-            automaticallyImplyLeading: !panel,
-            flexibleSpace: const WindowDrag(),
-            actions: [
-              ...actions,
-              if (panel) ...[
-                const SizedBox(width: 4),
-                IconAction(
-                  tooltip: c.tr('关闭', 'Close'),
-                  icon: Icons.close,
-                  onPressed: onClose,
-                ),
-              ],
-              const SizedBox(width: 8),
-              SizedBox(width: WindowChrome.reserved(context)),
-            ],
-          ),
-          body: Column(
+        child: Material(
+          type: MaterialType.transparency,
+          child: Column(
             children: [
-              CatAvatar.of(bot, size: 56),
-              const SizedBox(height: 8),
-              Text(
-                '${bot['displayName']}',
-                style: text.titleLarge,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 8, 14),
+                child: Row(
+                  children: [
+                    Expanded(child: identity),
+                    ...actions,
+                  ],
+                ),
               ),
-              Text('@${bot['handle']}', style: text.labelMedium),
-              const SizedBox(height: 12),
-              DetailTabs(labels: tabs),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: DetailTabs(labels: labels),
+                ),
+              ),
               const SizedBox(height: 6),
-              Expanded(child: pages),
+              Expanded(child: TabBarView(children: parts)),
             ],
           ),
         ),
       );
     },
   );
+}
+
+/// One long page with its parts listed beside it. A part's name scrolls to
+/// it, and the list marks the part being read.
+class _LongPage extends StatefulWidget {
+  final List<String> labels;
+  final List<Widget> parts;
+  final Widget head;
+  const _LongPage({
+    required this.labels,
+    required this.parts,
+    required this.head,
+  });
+  @override
+  State<_LongPage> createState() => _LongPageState();
+}
+
+class _LongPageState extends State<_LongPage> {
+  final scroll = ScrollController();
+  final view = GlobalKey();
+  late final keys = [for (final _ in widget.labels) GlobalKey()];
+  int at = 0;
+
+  /// The part being scrolled to; until it arrives the list keeps marking it.
+  int? going;
+
+  @override
+  void dispose() {
+    scroll.dispose();
+    super.dispose();
+  }
+
+  bool follow(ScrollNotification notification) {
+    if (notification.depth != 0) return false;
+    if (going != null) {
+      if (notification is ScrollEndNotification) going = null;
+      return false;
+    }
+    final box = view.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return false;
+    // The last part whose top has reached the top of the page.
+    var index = 0;
+    for (final (i, key) in keys.indexed) {
+      final part = key.currentContext?.findRenderObject() as RenderBox?;
+      if (part != null &&
+          part.localToGlobal(Offset.zero, ancestor: box).dy <= 32) {
+        index = i;
+      }
+    }
+    // At the very end the last parts cannot reach the top; the one chosen
+    // there stays marked.
+    final end =
+        notification.metrics.pixels >= notification.metrics.maxScrollExtent - 1;
+    if (index != at && !(end && index < at)) setState(() => at = index);
+    return false;
+  }
+
+  void go(int index) {
+    final target = keys[index].currentContext;
+    if (target == null) return;
+    setState(() {
+      at = index;
+      going = index;
+    });
+    Scrollable.ensureVisible(
+      target,
+      duration: Motion.still(context) ? Duration.zero : Motion.swap.duration,
+      curve: Motion.leave,
+    ).whenComplete(() => going = null);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tone, text = Theme.of(context).textTheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 120,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+            child: Column(
+              children: [
+                for (final (i, label) in widget.labels.indexed)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: InkWell(
+                      key: ValueKey('details-part-$i'),
+                      borderRadius: BorderRadius.circular(Tone.r8),
+                      onTap: () => go(i),
+                      child: AnimatedContainer(
+                        duration: Motion.still(context)
+                            ? Duration.zero
+                            : Motion.tint,
+                        height: 32,
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: i == at
+                              ? tone.hover
+                              : tone.hover.withValues(alpha: 0),
+                          borderRadius: BorderRadius.circular(Tone.r8),
+                        ),
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: text.bodyMedium?.copyWith(
+                            fontSize: 14,
+                            color: i == at ? tone.ink : tone.ink2,
+                            fontWeight: i == at ? FontWeight.w600 : null,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        Expanded(
+          child: NotificationListener<ScrollNotification>(
+            onNotification: follow,
+            child: SingleChildScrollView(
+              key: view,
+              controller: scroll,
+              padding: const EdgeInsets.fromLTRB(12, 4, 24, 40),
+              child: Unscrolled(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    widget.head,
+                    for (final (i, part) in widget.parts.indexed)
+                      Column(
+                        key: keys[i],
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 24, bottom: 8),
+                            child: Text(
+                              widget.labels[i],
+                              style: text.titleLarge,
+                            ),
+                          ),
+                          part,
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// The shared compact selector follows native tab swipes without another track.

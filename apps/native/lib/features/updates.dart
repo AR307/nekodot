@@ -115,7 +115,7 @@ class _UpdatesPageState extends State<UpdatesPage> {
         PanelGroup(
           children: [
             ListTile(
-              leading: const Icon(Icons.system_update_outlined),
+              leading: const Icon(Symbols.system_update),
               title: Text(c.tr('当前客户端', 'Installed client')),
               subtitle: Text(current?.toString() ?? '…'),
             ),

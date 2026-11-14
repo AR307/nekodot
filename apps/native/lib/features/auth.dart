@@ -242,7 +242,7 @@ class _AuthPageState extends State<AuthPage> {
               autofillHints: const [AutofillHints.email],
               decoration: InputDecoration(
                 hintText: 'you@example.com',
-                prefixIcon: const Icon(Icons.alternate_email, size: 18),
+                prefixIcon: const Icon(Symbols.alternate_email, size: 18),
               ),
             ),
           ),
@@ -285,7 +285,7 @@ class _AuthPageState extends State<AuthPage> {
               hintText: mode == 'login'
                   ? null
                   : c.tr('至少 8 位密码', 'At least 8 characters'),
-              prefixIcon: const Icon(Icons.lock_outline, size: 18),
+              prefixIcon: const Icon(Symbols.lock, size: 18),
               suffixIcon: IconButton(
                 key: const ValueKey('auth-reveal-password'),
                 tooltip: showPassword
@@ -298,8 +298,8 @@ class _AuthPageState extends State<AuthPage> {
                 onPressed: busy
                     ? null
                     : () => setState(() => showPassword = !showPassword),
-                icon: const Icon(Icons.visibility_outlined),
-                selectedIcon: const Icon(Icons.visibility_off_outlined),
+                icon: const Icon(Symbols.visibility),
+                selectedIcon: const Icon(Symbols.visibility_off),
               ),
             ),
             onSubmitted: (_) {
@@ -325,7 +325,7 @@ class _AuthPageState extends State<AuthPage> {
                       ],
                       decoration: InputDecoration(
                         hintText: c.tr('6 位验证码', '6-digit code'),
-                        prefixIcon: const Icon(Icons.key_outlined, size: 18),
+                        prefixIcon: const Icon(Symbols.key, size: 18),
                       ),
                       onSubmitted: (_) => submit(),
                     ),
@@ -378,7 +378,7 @@ class _AuthPageState extends State<AuthPage> {
                               : c.tr('验证并继续', 'Verify & continue'),
                         ),
                         const SizedBox(width: 12),
-                        const Icon(Icons.arrow_forward, size: 17),
+                        const Icon(Symbols.arrow_forward, size: 17),
                       ],
                     ),
             ),
@@ -412,7 +412,7 @@ class _AuthPageState extends State<AuthPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.verified_user_outlined, size: 14, color: tone.ink3),
+              Icon(Symbols.verified_user, size: 14, color: tone.ink3),
               const SizedBox(width: 6),
               Text(
                 c.tr('数据留在自己手里', 'Your data stays with you'),
@@ -464,7 +464,7 @@ class _AuthPageState extends State<AuthPage> {
                   Uri.parse(websiteUrl),
                   mode: LaunchMode.externalApplication,
                 ),
-                icon: const Icon(Icons.chevron_left, size: 18),
+                icon: const Icon(Symbols.chevron_left, size: 18),
                 label: Text(c.tr('返回首页', 'Home')),
               ),
               child: Theme(

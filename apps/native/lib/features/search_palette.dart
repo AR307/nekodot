@@ -31,24 +31,10 @@ Future<void> showSearchPalette(
   barrierDismissible: true,
   barrierLabel: c.tr('关闭', 'Close'),
   barrierColor: Colors.black.withValues(alpha: .18),
-  transitionDuration: MediaQuery.disableAnimationsOf(context)
-      ? Duration.zero
-      : const Duration(milliseconds: 160),
+  // Opened many times a day and usually from the keyboard: it does not
+  // animate.
+  transitionDuration: Duration.zero,
   pageBuilder: (context, _, _) => SearchPalette(client: c, entries: entries),
-  transitionBuilder: (context, animation, _, child) {
-    final curve = CurvedAnimation(
-      parent: animation,
-      curve: Curves.easeOutCubic,
-    );
-    return FadeTransition(
-      opacity: curve,
-      child: ScaleTransition(
-        scale: Tween(begin: .98, end: 1.0).animate(curve),
-        alignment: Alignment.topCenter,
-        child: child,
-      ),
-    );
-  },
 );
 
 class SearchPalette extends StatefulWidget {
@@ -119,13 +105,13 @@ class _SearchPaletteState extends State<SearchPalette> {
           child: Material(
             color: index == chosen ? tone.hover : Colors.transparent,
             shape: RoundedSuperellipseBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(Tone.r8),
             ),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               key: ValueKey('search-entry-$index'),
               customBorder: RoundedSuperellipseBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(Tone.r8),
               ),
               onTap: () => pick(entry),
               onHover: (inside) {
@@ -157,7 +143,7 @@ class _SearchPaletteState extends State<SearchPalette> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: text.bodySmall?.copyWith(
-                                fontSize: 13,
+                                fontSize: 12,
                                 color: tone.ink2,
                               ),
                             ),
@@ -181,7 +167,7 @@ class _SearchPaletteState extends State<SearchPalette> {
           constraints: BoxConstraints(maxWidth: 620, maxHeight: height * .7),
           child: Panel(
             lifted: true,
-            radius: 16,
+            radius: Tone.r12,
             child: Material(
               type: MaterialType.transparency,
               child: CallbackShortcuts(
@@ -201,7 +187,7 @@ class _SearchPaletteState extends State<SearchPalette> {
                         controller: query,
                         autofocus: true,
                         style: text.titleLarge?.copyWith(
-                          fontSize: 20,
+                          fontSize: 16,
                           fontWeight: FontWeight.w400,
                         ),
                         decoration: InputDecoration(
@@ -209,7 +195,7 @@ class _SearchPaletteState extends State<SearchPalette> {
                             '搜索 Bot、群聊、操作',
                             'Search Bots, groups, actions',
                           ),
-                          prefixIcon: const Icon(Icons.search),
+                          prefixIcon: const Icon(Symbols.search),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,

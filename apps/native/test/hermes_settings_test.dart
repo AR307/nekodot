@@ -101,6 +101,9 @@ void main() {
       await (FontLoader(
         'MaterialIcons',
       )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
+      await (FontLoader(
+        'Material Symbols',
+      )..addFont(rootBundle.load('assets/fonts/material-symbols.ttf'))).load();
       final client = SettingsClient()..prefs.language = 'en';
       await tester.pumpWidget(
         MaterialApp(

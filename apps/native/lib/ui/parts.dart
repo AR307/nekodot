@@ -240,6 +240,10 @@ class AppPage extends StatelessWidget {
     extendBodyBehindAppBar: extendBodyBehindAppBar ?? false,
     appBar: AppBar(
       flexibleSpace: context.tone.glass ? const Frost() : const WindowDrag(),
+      // With no way back before it, the title keeps the page's own margin.
+      titleSpacing: ModalRoute.of(context)?.impliesAppBarDismissal ?? true
+          ? null
+          : 24,
       title: title == null ? null : Text(title!),
       actions: [
         ...?actions,
@@ -306,28 +310,44 @@ class LabeledField extends StatelessWidget {
   );
 }
 
+/// Marks content laid out inside a longer page: a list in it takes its full
+/// height and leaves the scrolling to that page.
+class Unscrolled extends InheritedWidget {
+  const Unscrolled({super.key, required super.child});
+  static bool of(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<Unscrolled>() != null;
+  @override
+  bool updateShouldNotify(Unscrolled oldWidget) => false;
+}
+
 /// A centered column of content.
 class PageList extends StatelessWidget {
   final List<Widget> children;
   final double maxWidth;
   const PageList({super.key, required this.children, this.maxWidth = 560});
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final inset = MediaQuery.paddingOf(context);
-      final side = math.max(16.0, (constraints.maxWidth - maxWidth) / 2);
-      return ListView(
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: EdgeInsets.fromLTRB(
-          side,
-          inset.top + 12,
-          side,
-          inset.bottom + 28,
-        ),
-        children: children,
-      );
-    },
-  );
+  Widget build(BuildContext context) => Unscrolled.of(context)
+      ? Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: children,
+        )
+      : LayoutBuilder(
+          builder: (context, constraints) {
+            final inset = MediaQuery.paddingOf(context);
+            final side = math.max(16.0, (constraints.maxWidth - maxWidth) / 2);
+            return ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(
+                side,
+                inset.top + 12,
+                side,
+                inset.bottom + 28,
+              ),
+              children: children,
+            );
+          },
+        );
 }
 
 /// Related rows sharing one card, separated by hairlines.
@@ -369,6 +389,46 @@ class SectionLabel extends StatelessWidget {
           child: Text(text, style: Theme.of(context).textTheme.titleSmall),
         ),
         ?trailing,
+      ],
+    ),
+  );
+}
+
+/// One entry on a timeline: its mark on the line at the left, what happened
+/// beside it.
+class TimelineEntry extends StatelessWidget {
+  final Widget mark, child;
+
+  /// The last entry ends the line.
+  final bool last;
+  const TimelineEntry({
+    super.key,
+    required this.mark,
+    required this.child,
+    this.last = false,
+  });
+  @override
+  Widget build(BuildContext context) => IntrinsicHeight(
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: 24,
+          child: Column(
+            children: [
+              SizedBox(height: 48, child: Center(child: mark)),
+              if (!last)
+                Expanded(
+                  child: VerticalDivider(
+                    width: 1,
+                    thickness: 1,
+                    color: context.tone.line,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Expanded(child: child),
       ],
     ),
   );
@@ -475,14 +535,18 @@ class Segment<T> extends StatelessWidget {
     final keys = options.keys.toList();
     final selected = position ?? keys.indexOf(value).toDouble();
     final still = MediaQuery.disableAnimationsOf(context);
-    final fontSize = tone.glass ? 14.0 : 13.0;
+    final fontSize = tone.glass ? 16.0 : 14.0;
     final height = math.max(
-      tone.glass ? 32.0 : 28.0,
+      tone.glass ? 40.0 : 32.0,
       MediaQuery.textScalerOf(context).scale(fontSize) * 1.2 + 8,
     );
     final target = math.max(height, tone.glass ? 48.0 : height);
     const corners = RoundedSuperellipseBorder(
-      borderRadius: BorderRadius.all(Radius.circular(999)),
+      borderRadius: BorderRadius.all(Radius.circular(Tone.r8)),
+    );
+    final thumb = RoundedSuperellipseBorder(
+      borderRadius: const BorderRadius.all(Radius.circular(6)),
+      side: BorderSide(color: tone.line, width: Tone.hair),
     );
     return IntrinsicWidth(
       child: SizedBox(
@@ -494,7 +558,7 @@ class Segment<T> extends StatelessWidget {
               bottom: (target - height) / 2,
               child: DecoratedBox(
                 key: const ValueKey('segment-track'),
-                decoration: ShapeDecoration(color: tone.raised, shape: corners),
+                decoration: ShapeDecoration(color: tone.hover, shape: corners),
               ),
             ),
             Positioned.fill(
@@ -505,8 +569,8 @@ class Segment<T> extends StatelessWidget {
               child: AnimatedAlign(
                 duration: still || position != null
                     ? Duration.zero
-                    : const Duration(milliseconds: 160),
-                curve: Curves.easeOutCubic,
+                    : Motion.move.duration,
+                curve: Motion.move,
                 alignment: Alignment(
                   keys.length == 1 ? 0 : -1 + 2 * selected / (keys.length - 1),
                   0,
@@ -516,8 +580,8 @@ class Segment<T> extends StatelessWidget {
                   heightFactor: 1,
                   child: DecoratedBox(
                     decoration: ShapeDecoration(
-                      color: tone.ink,
-                      shape: corners,
+                      color: tone.thumb,
+                      shape: thumb,
                     ),
                   ),
                 ),
@@ -545,15 +609,18 @@ class Segment<T> extends StatelessWidget {
                               child: IconTheme(
                                 data: IconThemeData(
                                   size: tone.glass ? 17 : 15,
-                                  color: key == value ? tone.base : tone.ink2,
+                                  color: key == value ? tone.ink : tone.ink2,
                                 ),
                                 child: DefaultTextStyle.merge(
                                   style: Theme.of(context).textTheme.labelLarge
                                       ?.copyWith(
                                         fontSize: fontSize,
                                         height: 1.2,
+                                        fontWeight: key == value
+                                            ? null
+                                            : FontWeight.w400,
                                         color: key == value
-                                            ? tone.base
+                                            ? tone.ink
                                             : tone.ink2,
                                       ),
                                   child: options[key]!,
@@ -605,7 +672,16 @@ class SizeMotion extends StatelessWidget {
 class SidePanel extends StatefulWidget {
   final Widget? child;
   final double width;
-  const SidePanel({super.key, this.child, this.width = 340});
+
+  /// Whether it lies over the page rather than beside it: it then casts a
+  /// shadow and settles as a drawer does.
+  final bool floating;
+  const SidePanel({
+    super.key,
+    this.child,
+    this.width = 340,
+    this.floating = false,
+  });
   @override
   State<SidePanel> createState() => _SidePanelState();
 }
@@ -614,17 +690,18 @@ class _SidePanelState extends State<SidePanel>
     with SingleTickerProviderStateMixin {
   late final controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 240),
-    reverseDuration: const Duration(milliseconds: 180),
+    duration: Motion.side.duration,
+    reverseDuration: Motion.sideLeave,
     value: widget.child == null ? 0 : 1,
   );
   late final curve = CurvedAnimation(
     parent: controller,
-    curve: Curves.easeOutCubic,
-    reverseCurve: Curves.easeInCubic,
+    curve: Motion.side,
+    reverseCurve: const FlippedCurve(Motion.leave),
   );
   late Widget? shown = widget.child;
   late double shownWidth = widget.width;
+  late bool shownFloating = widget.floating;
 
   @override
   void didUpdateWidget(SidePanel old) {
@@ -632,6 +709,13 @@ class _SidePanelState extends State<SidePanel>
     final still = MediaQuery.disableAnimationsOf(context);
     if (widget.child != null) {
       shownWidth = widget.width;
+      shownFloating = widget.floating;
+      final spring = widget.floating ? Motion.drawer : Motion.side;
+      curve.curve = spring;
+      controller.duration = spring.duration;
+      controller.reverseDuration = widget.floating
+          ? Motion.drawerLeave
+          : Motion.sideLeave;
       final opening = shown == null;
       shown = widget.child;
       if (still) {
@@ -671,15 +755,22 @@ class _SidePanelState extends State<SidePanel>
       builder: (context, child) {
         final t = curve.value;
         if (shown == null) return const SizedBox.shrink();
+        // The room it takes never passes its width; only the panel itself
+        // overshoots as it settles.
         return SizedBox(
-          width: shownWidth * t,
+          width: shownWidth * t.clamp(0.0, 1.0),
           child: OverflowBox(
             alignment: Alignment.centerLeft,
             minWidth: shownWidth,
             maxWidth: shownWidth,
             child: Transform.translate(
-              offset: Offset((1 - t) * 28, 0),
-              child: Opacity(opacity: t, child: child),
+              offset: Offset((1 - t) * 40, 0),
+              child: Opacity(
+                opacity: controller.status == AnimationStatus.reverse
+                    ? t.clamp(0.0, 1.0)
+                    : Motion.fade.transform(controller.value),
+                child: child,
+              ),
             ),
           ),
         );
@@ -687,10 +778,10 @@ class _SidePanelState extends State<SidePanel>
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: tone.base,
-          boxShadow: [
-            for (final shadow in tone.lift)
-              shadow.copyWith(offset: Offset(-shadow.offset.dy, 0)),
-          ],
+          border: Border(
+            left: BorderSide(color: tone.line, width: Tone.hair),
+          ),
+          boxShadow: shownFloating ? tone.lift : null,
         ),
         child: TickerMode(
           enabled: widget.child != null,
@@ -709,21 +800,19 @@ Future<T?> popPage<T>(BuildContext context, Widget page) =>
 class _PopRoute<T> extends PageRouteBuilder<T> {
   _PopRoute(Widget page)
     : super(
-        transitionDuration: const Duration(milliseconds: 240),
-        reverseTransitionDuration: const Duration(milliseconds: 180),
+        transitionDuration: Motion.pop.duration,
+        reverseTransitionDuration: Motion.popLeave,
         pageBuilder: (context, animation, secondary) => page,
         transitionsBuilder: (context, animation, secondary, child) {
-          if (MediaQuery.disableAnimationsOf(context)) return child;
-          final grow = CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-            reverseCurve: Curves.easeInCubic,
-          );
+          if (Motion.still(context)) return child;
           return FadeTransition(
-            opacity: grow,
+            opacity: Motion.fadeIn(animation),
             child: ScaleTransition(
               alignment: Alignment.topCenter,
-              scale: Tween<double>(begin: .94, end: 1).animate(grow),
+              scale: Tween<double>(
+                begin: .9,
+                end: 1,
+              ).animate(Motion.spring(animation, Motion.pop)),
               child: child,
             ),
           );
