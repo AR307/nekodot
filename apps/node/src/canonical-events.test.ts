@@ -125,3 +125,16 @@ it('keeps Hermes’s one-line label of a step beside its full arguments', () => 
     preview: JSON.stringify({ url: 'https://x.com/nekodot' }, null, 2),
   });
 });
+
+it('passes the reasoning of the current admission on for the Dot’s status', () => {
+  const frame = { type: 'reasoning.delta', admission_id: run.runId, payload: { text: 'Plan. ' } };
+  expect(projectGatewayEvent(run, frame)).toMatchObject({
+    event: 'reasoning.delta',
+    delta: 'Plan. ',
+  });
+  expect(
+    projectGatewayEvent(run, { ...frame, type: 'reasoning.available', payload: { text: 'All.' } }),
+  ).toMatchObject({ event: 'reasoning.available', delta: 'All.' });
+  expect(projectGatewayEvent(run, { ...frame, payload: { text: '' } })).toBeUndefined();
+  expect(projectGatewayEvent(run, { ...frame, admission_id: 'cron-admission' })).toBeUndefined();
+});

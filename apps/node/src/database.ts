@@ -22,6 +22,8 @@ export interface NativeModelOverride {
 
 export interface RunRecord {
   role?: 'coordinator' | 'execution' | 'report' | 'consultation';
+  /** The Dot's current line of thought, shown in its status while it works. */
+  thought?: string;
   /** The worker's private native question being considered by the main Dot. */
   questionMessageId?: string;
   taskId?: string;

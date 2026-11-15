@@ -9,8 +9,11 @@ import { ExecutionFlows } from '../flow';
 import { connectorApprovalContent } from '../connectors';
 
 import type { RunControls } from './controls';
+import { currentThought } from './thought';
 const now = () => new Date().toISOString();
 export class RunEvents {
+  /** Reasoning of the block in progress per run; a tool call or reply starts a new block. */
+  private readonly reasoning = new Map<string, { text: string; closed: boolean }>();
   constructor(
     private readonly database: NodeDatabase,
     private readonly secrets: BotSecrets,
@@ -36,6 +39,31 @@ export class RunEvents {
       this.database.saveRun(run);
       return;
     }
+    if (event.event === 'reasoning.delta' || event.event === 'reasoning.available') {
+      const block = this.reasoning.get(runId);
+      const text =
+        event.event === 'reasoning.delta' && block && !block.closed
+          ? block.text + (event.delta ?? '')
+          : (event.delta ?? '');
+      this.reasoning.set(runId, { text, closed: event.event === 'reasoning.available' });
+      const thought = currentThought(text);
+      if (thought && thought !== run.thought) {
+        run.thought = thought;
+        run.lastSeq = event.seq;
+        this.database.saveRun(run);
+        this.onActivity(run);
+      }
+      return;
+    }
+    if (
+      event.event === 'tool.started' ||
+      event.event === 'message.interim' ||
+      (event.event === 'message.delta' && event.delta?.trim())
+    ) {
+      const block = this.reasoning.get(runId);
+      if (block) block.closed = true;
+    }
+    if (event.event.startsWith('run.')) this.reasoning.delete(runId);
     if (event.event === 'tool.generating') this.flow.phase(run, 'thinking', event.seq);
     if (event.event === 'clarify.request') {
       this.messages.persistText(run, this.messages.currentText(run), event.seq);

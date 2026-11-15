@@ -56,6 +56,8 @@ export const liveSchema = z.discriminatedUnion('kind', [
     conversationId: idSchema,
     botId: botSchema.shape.botId,
     state: z.enum(['thinking', 'tool', 'waiting_approval', 'waiting_question', 'unknown', 'idle']),
+    /** The working Dot's current line of thought, from its latest reasoning. */
+    thought: z.string().max(160).optional(),
     connection: z.enum(['connected', 'reconnecting']).optional(),
     stalled: z.literal(true).optional(),
     detail: z.string().optional(),

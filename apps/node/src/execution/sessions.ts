@@ -288,6 +288,7 @@ export class ConversationExecution {
             this.database.group(conversation.groupId)?.leadBotId ??
             '',
           state: run?.state ?? 'idle',
+          ...(run?.thought && run.state !== 'idle' ? { thought: run.thought } : {}),
           runId: run?.runId,
           chain: chain ? { count: chain.count, max: MAX_CHAIN } : undefined,
           ...this.stall(run),
@@ -305,6 +306,7 @@ export class ConversationExecution {
         conversationId: conversation.conversationId,
         botId: conversation.botId,
         state: run?.state ?? 'idle',
+        ...(run?.thought && run.state !== 'idle' ? { thought: run.thought } : {}),
         runId: run?.runId,
         ...this.stall(run),
       });
@@ -1098,6 +1100,7 @@ export class ConversationExecution {
       botId: run.botId,
       taskId: run.role === 'execution' ? run.taskId : undefined,
       state: run.state,
+      ...(run.thought && run.state !== 'idle' ? { thought: run.thought } : {}),
       chain: chain ? { count: chain.count, max: MAX_CHAIN } : undefined,
       ...this.stall(run),
     });

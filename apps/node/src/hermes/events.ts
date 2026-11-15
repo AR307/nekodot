@@ -17,6 +17,10 @@ export function projectGatewayEvent(run: RunRecord, frame: GatewayFrame): Hermes
       return { ...base, event: 'todo.updated', todo_state: hermesTodoStateSchema.parse(payload) };
     case 'message.delta':
       return { ...base, event: 'message.delta', ...(text !== undefined ? { delta: text } : {}) };
+    // Reasoning as the model streams it (summaries or thinking), or a whole block at once.
+    case 'reasoning.delta':
+    case 'reasoning.available':
+      return text ? { ...base, event: frame.type, delta: text } : undefined;
     case 'message.interim':
       return {
         ...base,
