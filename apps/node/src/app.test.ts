@@ -276,11 +276,14 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
         );
       });
       const active = app.database.runs().find((r) => r.inputMessageId === steerMessage.messageId)!;
-      await runtime.gateway(bot.botId).rpc('session.steer', {
-        session_id: active.sessionId,
-        execution_generation: active.executionGeneration,
-        text: 'Please keep the same run and explain what you found.',
-      });
+      // A message sent while the Dot works redirects that same turn instead of queueing a new one.
+      const redirected = (await send('Please keep the same run and explain what you found.')) as {
+        messageId: string;
+      };
+      expect(app.database.messageRun(redirected.messageId)).toBe(active.runId);
+      expect(app.database.runs().some((r) => r.inputMessageId === redirected.messageId)).toBe(
+        false,
+      );
       const lastRun = relay.inspectRuns().at(-1)!;
       expect(lastRun.steers).toEqual(['Please keep the same run and explain what you found.']);
       expect(relay.inspectRuns().filter((run) => run.profile === bot.botId)).toHaveLength(8);

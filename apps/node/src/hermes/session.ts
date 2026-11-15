@@ -42,7 +42,9 @@ export async function openNativeSession(
   options: { execution?: boolean; ownerConversationId?: string } = {},
 ) {
   const gateway = hermes.gateway(botId);
-  const marker = 'coordinator-session:' + conversationId;
+  // A private chat is one Dot working with its profile's tools; group turns still coordinate.
+  const dot = !options.execution && !conversationId.startsWith('group:');
+  const marker = (dot ? 'dot-session:' : 'coordinator-session:') + conversationId;
   const existing =
     options.execution || database.setting(marker)
       ? database.hermesSession(conversationId)
@@ -73,14 +75,16 @@ export async function openNativeSession(
         // in their unique segment ID; including a Cron/Webhook task ID exceeds that limit.
         title: options.execution
           ? 'Nekodot task ' + conversationId.split(':').at(-1)
-          : 'Nekodot coordinator ' + conversationId,
+          : dot
+            ? 'Nekodot ' + conversationId
+            : 'Nekodot coordinator ' + conversationId,
         hidden: true,
         follow_profile_config: true,
         ...(reasoning ? { reasoning } : {}),
-        ...(!options.execution ? { toolsets: ['nekodot-tasks', 'memory', 'clarify'] } : {}),
+        ...(!options.execution && !dot ? { toolsets: ['nekodot-tasks', 'memory', 'clarify'] } : {}),
         request_id:
           'nekodot:' +
-          (options.execution ? 'task:' : 'coordinator:') +
+          (options.execution ? 'task:' : dot ? 'dot:' : 'coordinator:') +
           botId +
           ':' +
           conversationId,
@@ -94,7 +98,8 @@ export async function openNativeSession(
     lastSequence: snapshot.last_sequence,
     ownerConversationId: options.ownerConversationId,
   });
-  if (!options.execution) {
+  if (dot) database.setSetting(marker, true);
+  else if (!options.execution) {
     if (!database.setting(marker)) {
       const context = database
         .messages(options.ownerConversationId ?? conversationId, undefined, 40)

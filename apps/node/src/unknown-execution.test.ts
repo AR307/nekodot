@@ -116,7 +116,7 @@ it.each(['dm', 'group'] as const)(
         replayEpoch: nativeSession.replay_epoch,
         lastSequence: nativeSession.last_sequence,
       });
-      app.database.setSetting('coordinator-session:' + dm.conversationId, true);
+      app.database.setSetting('dot-session:' + dm.conversationId, true);
       let conversation: Conversation = dm;
       if (kind === 'group') {
         const group = {

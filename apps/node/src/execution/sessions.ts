@@ -573,6 +573,18 @@ export class ConversationExecution {
     const routine = params.routineExecutionId
       ? this.routines.execution(bot.botId, params.routineExecutionId)
       : undefined;
+    // An introduction, or a Dot waiting on the user's answer or approval, keeps the message
+    // for after it.
+    const redirect =
+      active &&
+      !active.welcome &&
+      active.state !== 'waiting_approval' &&
+      active.state !== 'waiting_question';
+    if (redirect && (params.files?.length || routine))
+      throw new NodeFault(
+        'conflict',
+        'A Dot that is working takes text only. Wait for it to finish or stop it first. Your draft is kept.',
+      );
     const userMessage: Message = {
       messageId: randomUUID(),
       conversationId: conversation.conversationId,
@@ -598,6 +610,7 @@ export class ConversationExecution {
       },
     };
 
+    if (redirect) return this.redirect(active, userMessage, params, command);
     const run: RunRecord = {
       conversationId: conversation.conversationId,
       botId: bot.botId,
@@ -616,6 +629,59 @@ export class ConversationExecution {
     this.database.putMessage(userMessage, { clientMsgId: params.clientMsgId }, run);
     this.publishActivity(run);
     void this.startRun(run, command?.input ?? params.text);
+    return { messageId: userMessage.messageId };
+  }
+
+  /**
+   * A message sent while the Dot works redirects that turn, as a person would be interrupted:
+   * Hermes cancels the model request in flight (keeping finished work), moves a foreground
+   * command to the background, and continues with the new message.
+   */
+  private async redirect(
+    active: RunRecord,
+    userMessage: Message,
+    params: RpcParams<'messages.send'>,
+    command?: { botId: string; input: string },
+  ): Promise<{ messageId: string }> {
+    if (active.state === 'unknown')
+      throw new NodeFault(
+        'conflict',
+        'The previous execution was interrupted. Click Stop to acknowledge it before sending a new task. Completed effects will be kept.',
+      );
+    if (!active.runId || !active.sessionId || active.executionGeneration === undefined)
+      throw new NodeFault('conflict', 'The current run is starting. Try again shortly.');
+    const key = `steer:${params.clientMsgId}`;
+    this.database.setSetting(key, { runId: active.runId });
+    const accepted = await this.hermes.gateway(active.botId).rpc<{
+      status: 'redirected' | 'queued' | 'rejected';
+      execution_generation?: number;
+    }>('session.redirect', {
+      session_id: active.sessionId,
+      execution_generation: active.executionGeneration,
+      text: command?.input ?? params.text,
+    });
+    if (accepted.status === 'rejected') {
+      this.database.setSetting(key, null);
+      throw new NodeFault('conflict', 'Hermes did not accept this message. You can send it again.');
+    }
+    if (accepted.execution_generation !== undefined)
+      active.executionGeneration = accepted.execution_generation;
+    const previousReply = this.messages.currentText(active);
+    if (previousReply) {
+      previousReply.status = 'done';
+      this.database.putMessage(previousReply, { runId: active.runId }, active);
+      this.messages.release(previousReply.messageId);
+    }
+    userMessage.seq = this.database.head();
+    this.database.putMessage(
+      userMessage,
+      { clientMsgId: params.clientMsgId, runId: active.runId },
+      active,
+    );
+    active.textMessageId = undefined;
+    active.state = 'thinking';
+    this.database.saveRun(active);
+    this.publishActivity(active);
     return { messageId: userMessage.messageId };
   }
 
@@ -671,7 +737,9 @@ export class ConversationExecution {
         [
           run.role === 'execution'
             ? 'Carry out the full brief for the coordinating Dot using your native tools. You are not speaking directly to the user. Do not use nekodot_task. If a decision is missing, use native clarify: the main Dot will consider it, ask the user when necessary and return the answer. Preserve all supplied user constraints and attachments. Return verifiable findings, failures and actual deliverable references to the main Dot; it will compose the user-facing response. Your final response is the result the main Dot needs, so always provide it; do not use NO_REPLY, [SILENT], or another silence marker in place of findings or a blocker. Preserve native memory and skills as usual.'
-            : this.tasks.context(run.conversationId, run.botId, run.targetTaskId),
+            : run.groupId
+              ? this.tasks.context(run.conversationId, run.botId, run.targetTaskId)
+              : undefined,
           snapshot.bootstrap,
           (this.database.message(run.inputMessageId) as TextMessage | undefined)?.content
             .createSpace

@@ -211,7 +211,7 @@ it('uploads a user file, sends images natively, and executes a selected group me
           call.profile === writer.bot.botId &&
           call.method === 'session.create' &&
           call.params.request_id ===
-            'nekodot:coordinator:' + writer.bot.botId + ':' + writer.conversation.conversationId,
+            'nekodot:dot:' + writer.bot.botId + ':' + writer.conversation.conversationId,
       ),
     ).toBe(true);
     expect(
