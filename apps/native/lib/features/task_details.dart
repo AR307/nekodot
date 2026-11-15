@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import '../data/client.dart';
 import 'chat_activity.dart';
 import 'chat_presentation.dart';
-import 'work.dart';
 
-/// Internal work contributes to one fixed Dot status, never a task navigator.
+/// One fixed Dot status: what the working Dot is thinking, or what it waits
+/// for. Never a task navigator.
 class DotActivity extends StatelessWidget {
   final NekodotClient client;
   final ChatPresentation view;
@@ -33,13 +33,15 @@ class DotActivity extends StatelessWidget {
       );
     }
     if (tasks.isEmpty && !view.running) return const SizedBox.shrink();
-    final names = tasks
-        .map((task) => compactActivity(task.title))
-        .where((name) => name.isNotEmpty)
-        .toSet();
-    final line = names.isNotEmpty
-        ? names.join(client.tr('、', ', '))
-        : !client.online
+    // The conversation's own run first; in a group, a Dot working on a
+    // hand-off speaks through its task.
+    final thought =
+        view.activity.thought ??
+        tasks
+            .map((task) => client.node.taskActivities[task.taskId]?.thought)
+            .nonNulls
+            .lastOrNull;
+    final line = !client.online
         ? client.tr('离线', 'Offline')
         : view.activity.connection == 'reconnecting'
         ? client.tr('重连中', 'Reconnecting')
@@ -49,8 +51,9 @@ class DotActivity extends StatelessWidget {
             'waiting_approval' => client.tr('等你确认', 'Needs your OK'),
             'waiting_question' => client.tr('等你回答', 'Needs your answer'),
             'unknown' => client.tr('状态待确认', 'Status unknown'),
+            _ when thought != null => thought,
             'tool' => client.tr('工具运行中', 'Using tools'),
-            _ => client.tr('回复中', 'Replying'),
+            _ => client.tr('思考中', 'Thinking'),
           };
     final moving =
         client.online &&

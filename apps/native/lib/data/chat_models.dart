@@ -61,6 +61,9 @@ class ConversationActivity {
   final String state;
   final String? botId, connection, detail;
 
+  /// The working Dot's current line of thought, from its latest reasoning.
+  final String? thought;
+
   /// Hermes has sent nothing for this run for a while; it is not stopped.
   final bool stalled;
   final GroupActivity? chain;
@@ -70,6 +73,7 @@ class ConversationActivity {
       botId = null,
       connection = null,
       detail = null,
+      thought = null,
       stalled = false,
       chain = null;
   ConversationActivity.fromJson(Json value)
@@ -78,6 +82,7 @@ class ConversationActivity {
       botId = value['botId'] as String?,
       connection = value['connection'] as String?,
       detail = value['detail'] as String?,
+      thought = value['thought'] as String?,
       stalled = value['stalled'] == true,
       chain = value['chain'] == null
           ? null
@@ -88,6 +93,7 @@ class ConversationActivity {
     'botId': ?botId,
     'connection': ?connection,
     'detail': ?detail,
+    'thought': ?thought,
     'stalled': stalled,
     if (chain != null) 'chain': {'count': chain!.count, 'max': chain!.max},
   };

@@ -11,7 +11,6 @@ import '../ui/design.dart';
 import '../screen/viewer.dart';
 import 'bot_details.dart';
 import 'bot_editor.dart';
-import 'flow_inline.dart';
 import 'flowchart.dart';
 
 import 'chat_presentation.dart';
@@ -268,9 +267,29 @@ class _ChatPageState extends State<ChatPage>
     isSelected: widget.flowOpen,
     onPressed: () {
       FocusManager.instance.primaryFocus?.unfocus();
-      widget.onFlow!(focusFlowMessage);
+      if (widget.onFlow != null) {
+        widget.onFlow!(focusFlowMessage);
+      } else {
+        unawaited(openFlowPage());
+      }
     },
     icon: const Icon(Symbols.account_tree),
+  );
+
+  /// Without room for a panel beside the conversation, the Flow is a page of
+  /// its own; a step that names a message closes it on that message.
+  Future<void> openFlowPage() => Navigator.of(context).push<void>(
+    MaterialPageRoute(
+      builder: (page) => FlowchartPanel(
+        client: c,
+        conversationId: id,
+        onClose: () => Navigator.of(page).pop(),
+        onMessage: (messageId) async {
+          Navigator.of(page).pop();
+          await focusFlowMessage(messageId);
+        },
+      ),
+    ),
   );
 
   @override
@@ -417,9 +436,8 @@ class _ChatPageState extends State<ChatPage>
             ? titleRow
             : Tooltip(message: c.tr('详情', 'Details'), child: titleRow),
         actions: [
-          // Beside a list there is room for a panel; a page of its own keeps
-          // the steps folded under the conversation instead.
-          if (widget.onFlow != null) flowButton(),
+          // Beside a list the Flow is a panel; otherwise a page of its own.
+          flowButton(),
           IconButton(
             tooltip: c.tr('屏幕', 'Screen'),
             isSelected: screenOpen,
@@ -524,13 +542,6 @@ class _ChatPageState extends State<ChatPage>
                         composer.currentState?.quote(words, taskId: taskId),
                     fresh: fresh,
                     since: since,
-                    footer: widget.onFlow != null
-                        ? null
-                        : FlowFold(
-                            client: c,
-                            conversationId: id,
-                            onMessage: focusFlowMessage,
-                          ),
                   ),
                 // While you read further up, what you last asked stays in sight
                 // under the bar; tapping it returns to the latest.

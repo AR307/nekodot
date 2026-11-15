@@ -18,7 +18,7 @@ import 'package:nekodot_native/ui/design.dart';
 /// Walks what opens beside a conversation against a running Relay with a real
 /// Node, Hermes and model, and writes a PNG of each step: Flow as a panel and
 /// one step's result, Bot details as a drawer with its parts, two files as
-/// tabs; then on a phone, Flow folded into the conversation and opened, and
+/// tabs; then on a phone, Flow as a page of its own, and
 /// details and a file as sheets. One real command is run so there are steps
 /// to show, and one message carries two small files to open.
 /// Defines: RELAY_URL, QA_TOKEN, QA_NODE, QA_CONVERSATION, QA_GROUP, TOUR_OUT.
@@ -278,29 +278,22 @@ void main() {
     await run(const Duration(milliseconds: 500));
     await tester.tap(row(talk));
     await run(const Duration(milliseconds: 1200));
-    // The steps sit under the latest message; go there if it opened higher.
-    if (key('chat-latest').evaluate().isNotEmpty) {
-      await tester.tap(key('chat-latest'));
-    }
-    await shot('phone-light-flow-folded', settle: 1200);
-    await tester.tap(key('flow-fold-toggle'));
+    // On a phone the steps are a page of their own.
+    await shot('phone-light-chat', settle: 1200);
+    await tester.tap(key('chat-flowchart'));
     await shot('phone-light-flow-open', settle: 1500);
-    if (step != null) {
-      final line = find.descendant(
-        of: key('flow-fold-step-${step.stepId}'),
-        matching: find.byType(InkWell),
-      );
-      await tester.ensureVisible(line.first);
-      await run(const Duration(milliseconds: 300));
-      await tester.tap(line.first);
-      await shot('phone-light-flow-step', settle: 1500);
-    }
     mode.value = ThemeMode.dark;
     await shot('phone-dark-flow-open');
     mode.value = ThemeMode.light;
     await run(const Duration(milliseconds: 300));
-    await tester.tap(key('flow-fold-toggle'));
-    await run(const Duration(milliseconds: 600));
+    if (step != null) {
+      await tester.tap(key('flow-step-${step.stepId}'));
+      await shot('phone-light-flow-step', settle: 1500);
+    }
+    if (key('flow-close').evaluate().isNotEmpty) {
+      await tester.tap(key('flow-close'));
+      await run(const Duration(milliseconds: 600));
+    }
 
     await tester.tap(find.byTooltip('详情'));
     await shot('phone-light-details', settle: 2500);
