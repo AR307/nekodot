@@ -7,9 +7,11 @@ import 'package:url_launcher/url_launcher.dart';
 import '../data/client.dart';
 import '../data/endpoints.dart';
 import '../data/account.dart';
+import '../data/oauth_sign_in.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
 import '../ui/auth_layout.dart';
+import '../ui/provider_logo.dart';
 import 'auth_errors.dart';
 import 'updates.dart';
 
@@ -29,7 +31,85 @@ class _AuthPageState extends State<AuthPage> {
   int seconds = 0;
   Timer? countdown;
   DateTime? retryAt;
+
+  /// Google and GitHub, as far as this Relay offers them; the one being
+  /// signed in through while the browser is open.
+  List<String> providers = const [];
+  OAuthSignIn? signing;
   NekodotClient get c => widget.client;
+
+  @override
+  void initState() {
+    super.initState();
+    OAuthSignIn.offered(c.account).then(
+      (offered) {
+        if (mounted) setState(() => providers = offered);
+      },
+      // A Relay that cannot be reached shows its error on sign-in instead.
+      onError: (_) {},
+    );
+  }
+
+  /// Signs in through [provider] in the browser; pressing it again while the
+  /// browser is open gives up waiting.
+  Future<void> signInWith(String provider) async {
+    if (signing != null) return signing!.cancel();
+    final attempt = OAuthSignIn(c.account, provider);
+    setState(() {
+      signing = attempt;
+      busy = true;
+      error = '';
+      notice = '';
+    });
+    try {
+      await c.acceptSession(await attempt.run());
+    } on OAuthRefused catch (e) {
+      final name = ProviderLogo.name(provider);
+      if (mounted && e.reason != 'cancelled') {
+        setState(
+          () => error = switch (e.reason) {
+            'denied' => c.tr('已取消 $name 授权', '$name sign-in was cancelled'),
+            'unverified' => c.tr(
+              '这个 $name 账号没有已验证的邮箱',
+              'This $name account has no verified email',
+            ),
+            'expired' => c.tr('授权已过期，请重试', 'Sign-in expired. Try again'),
+            _ => c.tr('$name 授权失败，请重试', '$name sign-in failed. Try again'),
+          },
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = authError(c, e));
+    } finally {
+      if (mounted) {
+        setState(() {
+          signing = null;
+          busy = false;
+        });
+      }
+    }
+  }
+
+  Widget providerButton(String provider) {
+    final waiting = signing?.provider == provider;
+    return SizedBox(
+      height: 48,
+      child: OutlinedButton(
+        key: ValueKey('auth-oauth-$provider'),
+        onPressed: waiting || !busy ? () => signInWith(provider) : null,
+        child: waiting
+            ? ShiningText(text: c.tr('等待授权…', 'Waiting…'))
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ProviderLogo(provider),
+                  const SizedBox(width: 10),
+                  Text(ProviderLogo.name(provider)),
+                ],
+              ),
+      ),
+    );
+  }
 
   String? validate({bool needsPassword = true, bool needsCode = false}) {
     if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email.text.trim())) {
@@ -383,6 +463,32 @@ class _AuthPageState extends State<AuthPage> {
                     ),
             ),
           ),
+          if (providers.isNotEmpty &&
+              (mode == 'login' || mode == 'signup')) ...[
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(child: Divider(color: tone.line, height: 1)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    c.tr('或', 'or'),
+                    style: text.bodySmall?.copyWith(color: tone.ink3),
+                  ),
+                ),
+                Expanded(child: Divider(color: tone.line, height: 1)),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                for (final (index, provider) in providers.indexed) ...[
+                  if (index > 0) const SizedBox(width: 10),
+                  Expanded(child: providerButton(provider)),
+                ],
+              ],
+            ),
+          ],
           const SizedBox(height: 12),
           Center(
             child: Row(

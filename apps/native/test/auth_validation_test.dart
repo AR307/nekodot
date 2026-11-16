@@ -14,6 +14,9 @@ void main() {
     final requests = <http.Request>[];
     final client = NekodotClient(
       transport: MockClient((request) async {
+        if (request.url.path == '/api/auth/providers') {
+          return http.Response('{"providers":[]}', 200);
+        }
         requests.add(request);
         return http.Response('{"error":{"message":"Invalid input"}}', 400);
       }),
@@ -49,6 +52,9 @@ void main() {
     final requests = <http.Request>[];
     final client = NekodotClient(
       transport: MockClient((request) async {
+        if (request.url.path == '/api/auth/providers') {
+          return http.Response('{"providers":[]}', 200);
+        }
         requests.add(request);
         return http.Response('{"retryAfter":60}', 200);
       }),
@@ -81,5 +87,49 @@ void main() {
     expect(find.text('60s'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     client.dispose();
+  });
+
+  testWidgets('Google and GitHub appear only as the Relay offers them', (
+    tester,
+  ) async {
+    Future<void> open(String providers) async {
+      final client = NekodotClient(
+        transport: MockClient(
+          (request) async => http.Response(
+            '{"providers":$providers}',
+            200,
+            headers: {'content-type': 'application/json'},
+          ),
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: appTheme(Brightness.light),
+          home: AuthPage(client: client),
+        ),
+      );
+      await tester.pumpAndSettle();
+      addTearDown(client.dispose);
+    }
+
+    await open('["google","github"]');
+    expect(find.byKey(const ValueKey('auth-oauth-google')), findsOneWidget);
+    expect(find.byKey(const ValueKey('auth-oauth-github')), findsOneWidget);
+    expect(find.text('Google'), findsOneWidget);
+    expect(find.text('GitHub'), findsOneWidget);
+    // Resetting a password is about the email account only.
+    await tester.tap(find.text('忘记密码'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('auth-oauth-google')), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+
+    await open('["github"]');
+    expect(find.byKey(const ValueKey('auth-oauth-google')), findsNothing);
+    expect(find.byKey(const ValueKey('auth-oauth-github')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+
+    await open('[]');
+    expect(find.text('或'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 }

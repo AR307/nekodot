@@ -5,9 +5,15 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    companion object {
+        /** Where a Google or GitHub sign-in's return link is handed to the app. */
+        var oauth: MethodChannel? = null
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         UpdateInstaller.register(this, flutterEngine)
+        oauth = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "app.nekodot/oauth")
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "app.nekodot/lifecycle")
             .setMethodCallHandler { call, result ->
                 if (call.method == "background") {
