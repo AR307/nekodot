@@ -40,37 +40,52 @@ export class ExecutionFlows {
   }
 
   get(conversationId: string, taskId?: string) {
-    if (!this.database.conversation(conversationId))
-      throw new NodeFault('not_found', 'Conversation not found');
+    const conversation = this.database.conversation(conversationId);
+    if (!conversation) throw new NodeFault('not_found', 'Conversation not found');
     const task = taskId
       ? this.database.task(taskId)
       : this.database
           .tasks(conversationId)
           .filter((task) => task.source === 'chat' || task.source === 'group')
           .at(-1);
-    if (!task || task.conversationId !== conversationId) return null;
-    if (task.source !== 'chat' && task.source !== 'group') return null;
-    return this.load(task.taskId) ?? null;
+    const handed =
+      task?.conversationId === conversationId && (task.source === 'chat' || task.source === 'group')
+        ? this.load(task.taskId)
+        : undefined;
+    if (taskId || conversation.kind !== 'dm') return handed ?? null;
+    // A Dot works in its private chat itself, so that chat has a flow of its own;
+    // a task from before keeps its flow until newer work replaces it.
+    const own = this.load(conversationId);
+    if (!own || !handed) return own ?? handed ?? null;
+    return own.seq >= handed.seq ? own : handed;
   }
 
   all() {
-    return this.database.tasks().flatMap((task) => {
-      const flow = this.get(task.conversationId, task.taskId);
+    const own = this.database.conversations().flatMap((conversation) => {
+      const flow = conversation.kind === 'dm' ? this.load(conversation.conversationId) : undefined;
       return flow ? [flow] : [];
     });
+    return [
+      ...own,
+      ...this.database.tasks().flatMap((task) => {
+        const flow = this.get(task.conversationId, task.taskId);
+        return flow ? [flow] : [];
+      }),
+    ];
   }
 
   start(run: RunRecord) {
+    // A Dot's own turn in its private chat, or the work of a chat or group task.
+    const own = !run.groupId && !run.taskId && run.role === 'coordinator';
     if (
-      run.role !== 'execution' ||
-      !run.taskId ||
+      (!own && (run.role !== 'execution' || !run.taskId)) ||
       !run.runId ||
       !run.storedSessionId ||
       run.queue === 'queued'
     )
       return;
-    const task = this.database.task(run.taskId);
-    if (!task || (task.source !== 'chat' && task.source !== 'group')) return;
+    const task = run.taskId ? this.database.task(run.taskId) : undefined;
+    if (!own && (!task || (task.source !== 'chat' && task.source !== 'group'))) return;
     const chain = run.groupId
       ? this.database.chain(run.groupChainId ?? run.conversationId)
       : undefined;
@@ -89,7 +104,7 @@ export class ExecutionFlows {
         steps: [],
         seq: 0,
       };
-      this.values.set(run.taskId, flow);
+      this.values.set(run.taskId ?? run.conversationId, flow);
     }
     const bot = this.step(run, 'bot', run.runId + ':bot', this.frontier(flow));
     const thinking = this.step(run, 'thinking', run.runId + ':thinking:start', [bot.stepId]);

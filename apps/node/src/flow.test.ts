@@ -227,3 +227,16 @@ it('groups actual actions beneath native plan items without pre-executing pendin
   flow.start({ ...run, runId: 'next' });
   expect(flow.get('dm')!.steps.some((s) => s.kind === 'plan')).toBe(false);
 });
+
+it('shows a private chat’s own work, newer than a task from before', async () => {
+  const { db, run, flow } = await scene();
+  flow.start(run);
+  const own: RunRecord = { ...run, role: 'coordinator', taskId: undefined, runId: 'own' };
+  flow.start(own);
+  expect(flow.get('dm')!.taskId).toBeUndefined();
+  expect(flow.get('dm')!.steps.some((s) => s.runId === 'own')).toBe(true);
+  expect(flow.get('dm', 'task')!.taskId).toBe('task');
+  expect(flow.all().map((f) => f.taskId ?? f.conversationId)).toEqual(['dm', 'task']);
+  db.db.close();
+  databases.splice(databases.indexOf(db), 1);
+});

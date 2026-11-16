@@ -57,6 +57,10 @@ class NodeData extends ChangeNotifier {
   final Map<String, Json> screens = {};
   final Map<String, FlowSnapshot> flows = {};
   final Map<String, DotTask> tasks = {};
+
+  /// The steps of a conversation: in a private chat, the Dot's own work (a
+  /// task from before keeps its steps until newer work replaces them); in a
+  /// group, the latest hand-off.
   FlowSnapshot? flow(String conversationId, [String? taskId]) {
     if (taskId != null) return flows[taskId];
     final latest = tasks.values
@@ -66,7 +70,10 @@ class NodeData extends ChangeNotifier {
               (t.source == 'chat' || t.source == 'group'),
         )
         .lastOrNull;
-    return latest == null ? null : flows[latest.taskId];
+    final handed = latest == null ? null : flows[latest.taskId];
+    final own = flows[conversationId];
+    if (own == null || handed == null) return own ?? handed;
+    return own.seq >= handed.seq ? own : handed;
   }
 
   int seq = 0;
