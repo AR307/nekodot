@@ -60,7 +60,6 @@ Color _stateColor(BuildContext context, String state) {
 class FlowchartPanel extends StatefulWidget {
   final NekodotClient client;
   final String conversationId;
-  final String? taskId;
   final VoidCallback onClose;
   final FlowMessageFocus onMessage;
   final bool reserveControls;
@@ -68,7 +67,6 @@ class FlowchartPanel extends StatefulWidget {
     super.key,
     required this.client,
     required this.conversationId,
-    this.taskId,
     required this.onClose,
     required this.onMessage,
     this.reserveControls = false,
@@ -105,7 +103,7 @@ class _FlowchartPanelState extends State<FlowchartPanel>
   @override
   void initState() {
     super.initState();
-    flow = c.node.flow(widget.conversationId, widget.taskId);
+    flow = c.node.flow(widget.conversationId);
     collapsed.addAll(
       flow?.steps
               .where((s) => s.kind == 'plan' && s.state == 'done')
@@ -115,7 +113,7 @@ class _FlowchartPanelState extends State<FlowchartPanel>
     connected =
         c.online &&
         !c.node.syncing &&
-        c.node.taskActivities[flow?.taskId]?.connection != 'reconnecting';
+        c.node.activities[widget.conversationId]?.connection != 'reconnecting';
     layout();
     WidgetsBinding.instance.addPostFrameCallback((_) => followCurrent());
     c.addListener(changed);
@@ -132,7 +130,7 @@ class _FlowchartPanelState extends State<FlowchartPanel>
 
   Future<void> load() async {
     try {
-      await c.loadFlow(widget.conversationId, widget.taskId);
+      await c.loadFlow(widget.conversationId);
       if (mounted) {
         setState(() {
           loading = false;
@@ -150,11 +148,11 @@ class _FlowchartPanelState extends State<FlowchartPanel>
   }
 
   void changed() {
-    final next = c.node.flow(widget.conversationId, widget.taskId);
+    final next = c.node.flow(widget.conversationId);
     final online =
         c.online &&
         !c.node.syncing &&
-        c.node.taskActivities[flow?.taskId]?.connection != 'reconnecting';
+        c.node.activities[widget.conversationId]?.connection != 'reconnecting';
     if (identical(next, flow) && connected == online) return;
     FlowStep? cursor(FlowSnapshot? value) => value?.steps
         .where(

@@ -17,7 +17,7 @@ class ChatTimeline extends StatelessWidget {
   final String? focusedMessage;
   final GlobalKey focusedKey;
   final ValueChanged<String> onRetry, onError;
-  final void Function(String words, String? taskId) onQuote;
+  final ValueChanged<String> onQuote;
   final ValueChanged<bool>? onFocusChanged;
 
   /// Whether a message arrived while the page was open and has not been shown
@@ -119,7 +119,7 @@ class ChatTimeline extends StatelessWidget {
                         previous.author.id == m.author.id &&
                         previous.author.type == m.author.type,
                     onRetry: onRetry,
-                    onQuote: (words) => onQuote(words, m.taskId),
+                    onQuote: onQuote,
                   ),
                 ),
               ),

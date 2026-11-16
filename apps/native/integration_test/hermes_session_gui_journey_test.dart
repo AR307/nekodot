@@ -6,8 +6,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:nekodot_native/data/chat_models.dart';
 import 'package:nekodot_native/data/client.dart';
-import 'package:nekodot_native/data/tasks.dart';
 import 'package:nekodot_native/features/home.dart';
 import 'package:nekodot_native/features/chat_composer.dart';
 import 'package:nekodot_native/features/chat_activity.dart';
@@ -28,7 +28,6 @@ void main() {
       const work = String.fromEnvironment('QA_WORK_DIR');
       const evidence = String.fromEnvironment('QA_EVIDENCE_DIR');
       final stamp = DateTime.now().millisecondsSinceEpoch.toString();
-      final original = <String>{};
       var androidSurfaceReady = false;
       Future<void> until(
         bool Function() ready,
@@ -100,7 +99,6 @@ void main() {
         () => c.online && c.node.conversations.isNotEmpty,
         'real Node connected',
       );
-      original.addAll(c.node.tasks.keys);
       c.workspace['conversation:${c.selectedNodeId}'] = id;
       runApp(
         ListenableBuilder(
@@ -133,9 +131,9 @@ void main() {
       }
 
       // Work in a private chat is the Dot's own turn: no task is created for it.
-      List<DotTask> created() => c.node.tasks.values
-          .where((t) => t.conversationId == id && !original.contains(t.taskId))
-          .toList();
+      // Work in a chat is the Dot's own turn: nothing is handed to another session.
+      Iterable<ChatMessage> handedOff() =>
+          (c.node.messages[id] ?? []).where((m) => m.taskRole == 'execution');
       bool working() => (c.node.activities[id]?.state ?? 'idle') != 'idle';
       final activity = find.byKey(const ValueKey('dot-activity'));
       Future<void> checkPinned() async {
@@ -203,7 +201,7 @@ void main() {
           seconds: 180,
         );
         await checkPinned();
-        expect(created(), isEmpty);
+        expect(handedOff(), isEmpty);
         expect(find.byKey(const ValueKey('flow-fold')), findsNothing);
         await shot('single-dot-working');
         // A message while it works interrupts that turn, and the Dot answers it.
@@ -227,7 +225,7 @@ void main() {
         final b = File('$work/single-dot-B.txt').readAsStringSync();
         expect(b, contains('SINGLE_B_$stamp'));
         expect(b, contains('338350'));
-        expect(created(), isEmpty);
+        expect(handedOff(), isEmpty);
         final reception = (c.node.messages[id] ?? [])
             .where(
               (m) =>
@@ -274,7 +272,6 @@ void main() {
       expect(find.text('平方和结果'), findsOneWidget);
       await tap(find.byTooltip('Cancel').last);
       expect(find.text('平方和结果'), findsNothing);
-      expect(composer.taskDraft, isNull);
 
       // Real interaction card: the Dot asks in the chat and continues on the answer.
       await send(
@@ -303,7 +300,7 @@ void main() {
         () => replied('SINGLE_QUESTION_$stamp') && !working(),
         'the answer continues the same work and the Dot replies',
       );
-      expect(created(), isEmpty);
+      expect(handedOff(), isEmpty);
       await shot('single-dot-answer');
 
       await tap(find.byKey(const ValueKey('chat-flowchart')));
@@ -352,7 +349,7 @@ void main() {
         ...?binding.reportData,
         'realServices': true,
         'singleDot': true,
-        'tasksCreated': created().length,
+        'handedOff': handedOff().length,
         'thoughtsShown': thoughts.length,
         'notificationInChat': true,
         'questionInChat': true,

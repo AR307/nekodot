@@ -13,14 +13,6 @@ class DotActivity extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final id = view.conversation['conversationId'] as String;
-    final tasks = client.node.tasks.values
-        .where(
-          (task) =>
-              task.conversationId == id &&
-              (task.active || task.reportMessageId == null),
-        )
-        .toList();
     final controls = view.controls;
     if (controls.isNotEmpty) {
       return ThinkingRow(
@@ -32,15 +24,8 @@ class DotActivity extends StatelessWidget {
         moving: false,
       );
     }
-    if (tasks.isEmpty && !view.running) return const SizedBox.shrink();
-    // The conversation's own run first; in a group, a Dot working on a
-    // hand-off speaks through its task.
-    final thought =
-        view.activity.thought ??
-        tasks
-            .map((task) => client.node.taskActivities[task.taskId]?.thought)
-            .nonNulls
-            .lastOrNull;
+    if (!view.running) return const SizedBox.shrink();
+    final thought = view.activity.thought;
     final line = !client.online
         ? client.tr('离线', 'Offline')
         : view.activity.connection == 'reconnecting'
@@ -61,18 +46,8 @@ class DotActivity extends StatelessWidget {
         view.activity.connection != 'reconnecting' &&
         !view.activity.stalled &&
         view.state != 'unknown' &&
-        tasks.every(
-          (task) =>
-              task.state != 'unknown' &&
-              client.node.taskActivities[task.taskId]?.connection !=
-                  'reconnecting',
-        ) &&
-        ((view.working && !view.waiting) ||
-            tasks.any(
-              (task) =>
-                  task.state == 'running' &&
-                  client.node.taskActivities[task.taskId]?.stalled != true,
-            ));
+        view.working &&
+        !view.waiting;
     return ThinkingRow(
       key: const ValueKey('dot-activity'),
       bot: view.bot,

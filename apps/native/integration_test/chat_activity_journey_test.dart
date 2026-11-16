@@ -136,7 +136,6 @@ void main() {
     final input = find.byKey(const ValueKey('chat-input'));
     final dock = find.byKey(const ValueKey('dot-activity'));
     final box = find.byKey(const ValueKey('composer-card'));
-    final original = c.node.tasks.keys.toSet();
     Future<void> send(String text) async {
       await tester.enterText(input, text);
       await frames(150);
@@ -165,7 +164,6 @@ void main() {
       (m) => m.seq > start && m.seq < asked.seq && m.kind == 'tool',
     );
     expect(read, isNotEmpty, reason: 'it read the material before asking');
-    expect(c.node.tasks.keys.toSet().difference(original), isEmpty);
     expect(
       '${asked.content['question']}',
       isNot(
@@ -282,7 +280,6 @@ void main() {
       'the same work continued and the Dot delivered the file',
     );
     final report = delivered()!;
-    expect(c.node.tasks.keys.toSet().difference(original), isEmpty);
     expect(
       c.node.messages[dm]!.where((m) => m.taskRole == 'execution'),
       isEmpty,
