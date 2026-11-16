@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:nekodot_native/data/chat_models.dart';
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/features/chat_message.dart';
 import 'package:nekodot_native/features/home.dart';
@@ -120,62 +121,46 @@ void main() {
     await shot('list-start');
     await tap(row);
     await wait(() => input.evaluate().isNotEmpty, 'chat opened');
-    final before = c.node.tasks.keys.toSet();
+    // Let the conversation finish opening before typing into it.
+    await frames(1500);
     final beforeSeq = c.node.seq;
-    var workerPreviewChecks = 0;
-    var showedWorkerPreview = false;
-    void checkPreview() {
-      final newest = c.node.messages[dm]?.lastOrNull;
-      if (newest?.taskRole == 'execution' &&
-          (newest?.kind == 'text' || newest?.kind == 'commentary')) {
-        showedWorkerPreview |= c.node.latestText(dm)?.taskRole == 'execution';
-        workerPreviewChecks++;
-      }
-    }
-
-    c.node.conversation(dm).addListener(checkPreview);
-    addTearDown(() => c.node.conversation(dm).removeListener(checkPreview));
+    // The Dot does the work in its own turn; the reply that carries the
+    // results is the message the user reads, with its tool steps beside it.
+    bool answered(ChatMessage m) =>
+        m.seq > beforeSeq &&
+        m.author.type == 'bot' &&
+        m.kind == 'text' &&
+        m.status == 'done' &&
+        '${m.content['text']}'.contains('437') &&
+        '${m.content['text']}'.contains('527');
     var reportId = const String.fromEnvironment('QA_REPORT_MESSAGE');
     if (reportId.isEmpty) {
       await tester.enterText(
         input,
-        '帮我核对周报数据。先简短回应我，再安排用 Python 实际计算 19*23、31*17。'
+        '帮我核对周报数据。先简短回应我，再用 Python 实际计算 19*23、31*17。'
         '最终用中文给我两条 Markdown 列表，每条都同时有加粗的项目名、行内代码和正常文字，'
         '例如 **项目一**：`19*23` 的结果是 **437**。再给一行总结。'
         '不需要浏览网页、不创建文件，也不需要问我。',
       );
-      await frames();
-      await tap(find.byTooltip('Send'));
+      await shot('typed');
+      await tap(find.byTooltip(c.tr('发送', 'Send')));
       await wait(
-        () => c.node.tasks.values.any((t) => !before.contains(t.taskId)),
-        'native task started',
+        () =>
+            (c.node.messages[dm] ?? const []).any(answered) &&
+            (c.node.activities[dm]?.state ?? 'idle') == 'idle',
+        'the Dot replied with its results',
       );
-      await wait(
-        () => c.node.tasks.values
-            .where((t) => !before.contains(t.taskId))
-            .every((t) => t.reportMessageId != null),
-        'native work reported',
-      );
-      reportId = c.node.tasks.values
-          .lastWhere((t) => !before.contains(t.taskId))
-          .reportMessageId!;
+      reportId = c.node.messages[dm]!.lastWhere(answered).messageId;
       final fresh = c.node.messages[dm]!.where((m) => m.seq > beforeSeq);
-      expect(
-        fresh.any((m) => m.kind == 'tool' && m.taskRole == 'execution'),
-        isTrue,
-      );
-      expect(workerPreviewChecks, greaterThan(0));
-      expect(showedWorkerPreview, isFalse);
-      debugPrint(
-        'CHAT_REPLIES $platform worker preview checks $workerPreviewChecks',
-      );
+      expect(fresh.any((m) => m.kind == 'tool'), isTrue);
+      expect(fresh.any((m) => m.taskRole == 'execution'), isFalse);
       expect(
         fresh.any((m) => '${m.content['text']}'.contains('silence marker')),
         isFalse,
       );
       expect(
         fresh
-            .where((m) => m.taskRole != 'execution' && m.kind == 'text')
+            .where((m) => m.kind == 'text')
             .any(
               (m) =>
                   RegExp(r'^\s*(NO_REPLY|\[SILENT\])\s*$')
@@ -191,10 +176,10 @@ void main() {
     expect('${report.content['text']}', contains('437'));
     expect('${report.content['text']}', contains('527'));
     final preview = c.node.latestText(dm)!;
-    expect(preview.taskRole, isNot('execution'));
+    expect(preview.messageId, reportId);
     debugPrint('CHAT_REPLIES $platform report $reportId');
     // Home stays mounted while the phone opens a chat. Exercise its loaded cache,
-    // then close/reopen: private execution rows must never become list previews.
+    // then close/reopen: the list previews the Dot's reply.
     if (phone) {
       await binding.handlePopRoute();
       await frames();
