@@ -210,7 +210,6 @@ export class RunEvents {
       this.notifications.send({
         notificationId: `approval:${runId}:${event.prompt_id}`,
         conversationId: run.conversationId,
-        ...(run.taskId ? { taskId: run.taskId } : {}),
         kind: 'approval',
       });
       this.onActivity(run);

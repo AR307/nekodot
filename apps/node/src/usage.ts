@@ -159,13 +159,6 @@ export class NodeUsage {
           }
           return {
             id: row.id,
-            taskId:
-              this.database.setting<string>('usage-task:' + bot.botId + ':' + row.executionId) ??
-              row.lineage
-                .map((sid) =>
-                  this.database.setting<string>('usage-task-session:' + bot.botId + ':' + sid),
-                )
-                .find(Boolean),
             profile: bot.botId,
             sessionId: row.sessionId,
             executionId: row.executionId,

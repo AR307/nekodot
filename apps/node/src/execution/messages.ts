@@ -96,12 +96,6 @@ export class RunMessages {
     return {
       messageId: randomUUID(),
       nativeSessionId: run.storedSessionId,
-      ...(run.taskId
-        ? {
-            taskId: run.taskId,
-            taskRole: run.role === 'execution' ? ('execution' as const) : ('report' as const),
-          }
-        : {}),
       conversationId: run.conversationId,
       seq: this.database.head(),
       author: { type: 'bot', id: run.botId },

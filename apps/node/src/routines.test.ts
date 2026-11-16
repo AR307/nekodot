@@ -3,37 +3,43 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { expect, it } from 'vitest';
-import { NodeDatabase } from './database';
+import { NodeDatabase, type RunRecord } from './database';
 import { Routines } from './routines';
 import { Notifications } from './notifications';
-import { DotTasks } from './execution/tasks';
 import { RunControls } from './execution/controls';
 import { ExecutionFlows } from './flow';
 
 function makeRoutines(db: NodeDatabase, hermes: HermesRuntime, notifications: Notifications) {
   const routines = new Routines(db, hermes, notifications);
-  const tasks = new DotTasks(db, hermes, {
-    start: async () => {},
-    stop: async () => {},
-    answer: async (messageId, answer) => controls.respondToQuestion({ messageId, answer }),
-  });
-  const controls: RunControls = new RunControls(
-    db,
-    hermes,
-    new ExecutionFlows(db),
-    notifications,
-    () => {},
-    (run, question) => tasks.consult(run, question),
-  );
+  const controls = new RunControls(db, hermes, new ExecutionFlows(db), notifications, () => {});
   routines.scrub = (_, text) => text;
+  // As the conversation execution does: a routine run only carries native prompts to the chat.
   routines.onExecution = async (routine, execution, conversationId, prompts, generation) => {
-    const run = tasks.background(routine, execution, conversationId, generation);
+    const run: RunRecord = db.runs().find((r) => r.inputMessageId === execution.executionId) ?? {
+      conversationId,
+      botId: routine.botId,
+      inputMessageId: execution.executionId,
+      native: true,
+      background: routine.cronJobId ? 'cron' : 'webhook',
+      routineId: routine.routineId,
+      sessionKey: 'routine:' + execution.executionId,
+      sessionId: execution.sessionId,
+      storedSessionId: execution.sessionId,
+      runId: execution.admissionId,
+      lastSeq: -1,
+      state: 'thinking',
+    };
+    run.executionGeneration = generation ?? run.executionGeneration;
     if (['completed', 'failed', 'cancelled'].includes(execution.state)) {
       run.textMessageId = 'routine-result:' + execution.executionId;
+      controls.settleControls(run, execution.state === 'completed' ? 'done' : 'failed');
       run.state = 'idle';
       db.saveRun(run);
-      await tasks.finished(run, execution.state as 'completed' | 'failed' | 'cancelled');
-    } else await controls.restoreNativePrompts(run, prompts);
+    } else {
+      run.state = execution.state === 'waiting_question' ? 'waiting_question' : 'waiting_approval';
+      db.saveRun(run);
+      await controls.restoreNativePrompts(run, prompts);
+    }
   };
   return { routines, controls };
 }
@@ -239,7 +245,10 @@ it('recovers a native admission failure after restart without rerunning it or du
   });
   await routines.drain();
   expect(db.messages(conversationId).filter((m) => m.kind === 'text')).toHaveLength(1);
-  expect(signals).toEqual([]); // Only the coordinating Dot report sends completion notifications.
+  // The failed result itself is what the user is told about, once.
+  expect(signals).toMatchObject([
+    { notificationId: 'routine:' + task.routineId + ':native-session', kind: 'failed' },
+  ]);
   expect(routines.execution(botId, task.routineId + ':native-session').sessionId).toBe(
     'native-session',
   );
@@ -302,11 +311,11 @@ it('shows a one-shot completion without reporting a user stop, while a pause sti
     },
   ];
   await routines.drain();
-  expect(db.message('routine-result:cron:once:once-session')).toMatchObject({
-    taskRole: 'execution',
-    content: { text: 'Reminder completed' },
-  });
-  expect(db.tasks(conversationId)[0]?.routineExecutionId).toBe('cron:once:once-session');
+  // The result is the Dot's own message in its chat, not a task to retell.
+  const result = db.message('routine-result:cron:once:once-session');
+  expect(result).toMatchObject({ content: { text: 'Reminder completed' } });
+  expect(result?.taskRole).toBeUndefined();
+  expect(db.tasks(conversationId)).toHaveLength(0);
   expect(
     db
       .messages(conversationId)

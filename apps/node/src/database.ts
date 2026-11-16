@@ -21,19 +21,11 @@ export interface NativeModelOverride {
 }
 
 export interface RunRecord {
-  role?: 'coordinator' | 'execution' | 'report' | 'consultation';
   /** The Dot's current line of thought, shown in its status while it works. */
   thought?: string;
-  /** The worker's private native question being considered by the main Dot. */
-  questionMessageId?: string;
-  taskId?: string;
-  executionId?: string;
-  /** Logical native session scope; never use the private chat for a group run. */
+  /** The conversation whose native session runs this turn: a group turn uses the Dot's own. */
   sessionKey?: string;
-  groupChainId?: string;
-  groupFollowup?: boolean;
   pendingInput?: string;
-  targetTaskId?: string;
   background?: 'cron' | 'webhook';
   routineId?: string;
   runId?: string;
@@ -70,8 +62,6 @@ export interface HermesSessionRecord {
 
 export interface GroupChainRecord {
   notificationId: string;
-  inputMessageId?: string;
-  taskId?: string;
   failed?: boolean;
   conversationId: string;
   group: Group;
@@ -144,6 +134,14 @@ export class NodeDatabase {
       if (columns.some((column) => column.name === 'session_id'))
         this.db.exec('ALTER TABLE hermes_sessions RENAME COLUMN session_id TO stored_session_id');
       this.db.exec('PRAGMA user_version=4');
+    }
+    if (version < 5) {
+      // One relay per group again: chains kept per message while Dots handed work to tasks end.
+      this.db.exec(`BEGIN;
+        UPDATE group_chains SET data=json_set(data,'$.active',json('false'))
+          WHERE conversation_id<>json_extract(data,'$.conversationId');
+        PRAGMA user_version=5;
+        COMMIT;`);
     }
     this.db.exec(`CREATE TABLE IF NOT EXISTS usage_owners(
       profile TEXT NOT NULL,kind TEXT NOT NULL,id TEXT NOT NULL,conversation_id TEXT NOT NULL,
@@ -397,18 +395,11 @@ export class NodeDatabase {
       run ??
       (metadata.runId ? this.runs().find((item) => item.runId === metadata.runId) : undefined);
     if (owner?.storedSessionId) message.nativeSessionId = owner.storedSessionId;
-    if (owner?.groupChainId) message.groupChainId = owner.groupChainId;
-    if (owner?.taskId) {
-      message.taskId = owner.taskId;
-      message.taskRole = owner.role === 'execution' ? 'execution' : 'report';
-    }
     if (metadata.clientMsgId) message.clientMsgId = metadata.clientMsgId;
     if (message.kind === 'text' && message.author.type === 'bot' && message.status === 'done') {
       const submission =
-        owner?.role === 'report'
-          ? owner.executionId
-          : (owner?.inputMessageId ??
-            (message.content.routine ? 'native:' + message.content.routine.sessionId : undefined));
+        owner?.inputMessageId ??
+        (message.content.routine ? 'native:' + message.content.routine.sessionId : undefined);
       if (submission) {
         const spaces = this.db
           .prepare('SELECT space_id FROM space_publications WHERE submission_id=?')
@@ -526,19 +517,15 @@ export class NodeDatabase {
     this.db.prepare('UPDATE messages SET run_id=? WHERE message_id=?').run(runId, messageId);
   }
   saveRun(run: RunRecord) {
-    if (run.runId && run.taskId)
-      this.setSetting('usage-task:' + run.botId + ':admission:' + run.runId, run.taskId);
-    if (run.role === 'execution' && run.storedSessionId && run.taskId)
-      this.setSetting('usage-task-session:' + run.botId + ':' + run.storedSessionId, run.taskId);
     if (run.runId && run.routineId)
       this.setSetting('usage-routine:' + run.botId + ':' + 'admission:' + run.runId, run.routineId);
     if (run.runId)
       this.db
         .prepare('INSERT OR IGNORE INTO usage_owners VALUES(?,?,?,?)')
         .run(run.botId, 'execution', 'admission:' + run.runId, run.conversationId);
-    if (run.queue || run.native || run.role) {
+    if (run.queue || run.native) {
       this.setSetting(
-        (run.native || run.role ? 'native-admission:' : 'native-queue:') + run.inputMessageId,
+        (run.native ? 'native-admission:' : 'native-queue:') + run.inputMessageId,
         run,
       );
       return;
@@ -638,15 +625,13 @@ export class NodeDatabase {
     );
   }
   groupHistory(conversationId: string) {
-    return this.all<GroupChainRecord>('SELECT data FROM group_chains')
-      .filter((chain) => chain.conversationId === conversationId)
-      .at(-1);
-  }
-  chain(chainId: string) {
-    const chain = this.all<GroupChainRecord>(
+    return this.all<GroupChainRecord>(
       'SELECT data FROM group_chains WHERE conversation_id=?',
-      chainId,
+      conversationId,
     )[0];
+  }
+  chain(conversationId: string) {
+    const chain = this.groupHistory(conversationId);
     return chain?.active ? chain : undefined;
   }
   chains() {
@@ -659,10 +644,10 @@ export class NodeDatabase {
       .prepare(
         'INSERT INTO group_chains VALUES(?,?) ON CONFLICT(conversation_id) DO UPDATE SET data=excluded.data',
       )
-      .run(chain.notificationId, JSON.stringify(chain));
+      .run(chain.conversationId, JSON.stringify(chain));
   }
-  clearChain(chainId: string) {
-    const chain = this.chain(chainId);
+  clearChain(conversationId: string) {
+    const chain = this.groupHistory(conversationId);
     if (chain) this.saveChain({ ...chain, active: false, queue: [], currentBotId: undefined });
   }
 }

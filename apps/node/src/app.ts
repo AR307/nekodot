@@ -100,7 +100,6 @@ export class NodeApplication {
     this.connectors.onRequest = (request) =>
       this.notifications.send({
         notificationId: 'connector:' + request.requestId,
-        taskId: request.taskId,
         conversationId: request.conversationId,
         kind: 'question',
       });
@@ -109,7 +108,6 @@ export class NodeApplication {
     this.secrets.onRequestCard = (request) =>
       this.notifications.send({
         notificationId: 'secret:' + request.requestId,
-        ...(request.taskId ? { taskId: request.taskId } : {}),
         conversationId: request.conversationId,
         kind: 'question',
       });
@@ -118,7 +116,6 @@ export class NodeApplication {
         kind: 'activity',
         conversationId: run.conversationId,
         botId: run.botId,
-        taskId: run.taskId,
         state: waiting ? 'waiting_question' : 'thinking',
       });
     this.routines.onSecret = (input) => this.secrets.local(input);

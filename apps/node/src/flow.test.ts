@@ -26,21 +26,7 @@ async function scene() {
     replayEpoch: 'epoch',
     lastSequence: 0,
   });
-  db.saveTask({
-    taskId: 'task',
-    conversationId: 'dm',
-    botId: 'nk-aaaaaa',
-    title: 'Requirement',
-    inputMessageId: 'user',
-    executionId: 'first',
-    source: 'chat',
-    state: 'running',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
   const run: RunRecord = {
-    role: 'execution',
-    taskId: 'task',
     conversationId: 'dm',
     botId: 'nk-aaaaaa',
     runId: 'first',
@@ -80,7 +66,7 @@ it('shows real call identities, overlapping tools, approval and reply without co
   expect(new ExecutionFlows(db).get('dm')).toEqual(flow.get('dm'));
 });
 
-it('keeps the current graph while queued or steered, replaces it only on actual start, and keeps another task isolated', async () => {
+it('keeps the current graph while queued or steered, replaces it only on actual start, and clears on session switch', async () => {
   const { db, run, flow } = await scene();
   flow.start(run);
   const seq = db.head();
@@ -93,11 +79,9 @@ it('keeps the current graph while queued or steered, replaces it only on actual 
   flow.start({ ...run, runId: 'second', queue: 'started' });
   expect(flow.get('dm')!.steps.every((s) => s.runId === 'second')).toBe(true);
   db.saveHermesSession({ ...db.hermesSession('dm')!, storedSessionId: 'new-session' });
-  expect(flow.get('dm')!.steps.every((s) => s.runId === 'second')).toBe(true);
-  db.saveTask({ ...db.task('task')!, taskId: 'other' });
-  flow.start({ ...run, taskId: 'other', runId: 'third' });
-  expect(flow.get('dm', 'task')!.steps.every((s) => s.runId === 'second')).toBe(true);
-  expect(flow.get('dm', 'other')!.steps.every((s) => s.runId === 'third')).toBe(true);
+  expect(flow.get('dm')).toBeNull();
+  flow.sessionChanged('dm');
+  expect(flow.get('dm')!.steps).toEqual([]);
 });
 
 it('keeps A to B to A as three real group turns, queue avatars only, and actual final state', async () => {
@@ -111,7 +95,6 @@ it('keeps A to B to A as three real group turns, queue avatars only, and actual 
   const chain: GroupChainRecord = {
     conversationId: 'group-chat',
     notificationId: 'chain',
-    taskId: 'g-task',
     group: {
       groupId: 'group',
       name: 'Team',
@@ -126,21 +109,8 @@ it('keeps A to B to A as three real group turns, queue avatars only, and actual 
     cursorByBot: {},
     active: true,
   };
-  db.saveTask({
-    ...db.task('task')!,
-    taskId: 'g-task',
-    conversationId: 'group-chat',
-    source: 'group',
-    groupChainId: 'chain',
-  });
   db.saveChain(chain);
-  const first = {
-    ...run,
-    conversationId: 'group-chat',
-    groupId: 'group',
-    groupChainId: 'chain',
-    taskId: 'g-task',
-  };
+  const first = { ...run, conversationId: 'group-chat', groupId: 'group' };
   flow.start(first);
   flow.plan(first, {
     revision: 1,
@@ -226,17 +196,4 @@ it('groups actual actions beneath native plan items without pre-executing pendin
   expect(flowSnapshotSchema.parse(new ExecutionFlows(db).get('dm'))).toEqual(flow.get('dm'));
   flow.start({ ...run, runId: 'next' });
   expect(flow.get('dm')!.steps.some((s) => s.kind === 'plan')).toBe(false);
-});
-
-it('shows a private chat’s own work, newer than a task from before', async () => {
-  const { db, run, flow } = await scene();
-  flow.start(run);
-  const own: RunRecord = { ...run, role: 'coordinator', taskId: undefined, runId: 'own' };
-  flow.start(own);
-  expect(flow.get('dm')!.taskId).toBeUndefined();
-  expect(flow.get('dm')!.steps.some((s) => s.runId === 'own')).toBe(true);
-  expect(flow.get('dm', 'task')!.taskId).toBe('task');
-  expect(flow.all().map((f) => f.taskId ?? f.conversationId)).toEqual(['dm', 'task']);
-  db.db.close();
-  databases.splice(databases.indexOf(db), 1);
 });

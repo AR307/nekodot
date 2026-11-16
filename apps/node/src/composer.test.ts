@@ -163,7 +163,7 @@ it('uploads a user file, sends images natively, and executes a selected group me
     const commandCatalog = (await rpc('commands.list', { botId: writer.bot.botId })) as {
       commands: { name: string }[];
     };
-    expect(commandCatalog.commands.some((command) => command.name === '/new')).toBe(false);
+    expect(commandCatalog.commands.some((command) => command.name === '/new')).toBe(true);
     expect(commandCatalog.commands.some((command) => command.name === '/stop')).toBe(true);
     expect(gatewayCalls).toContainEqual(
       expect.objectContaining({
@@ -194,7 +194,8 @@ it('uploads a user file, sends images natively, and executes a selected group me
       clientMsgId: randomUUID(),
     })) as Operation;
     await until(() => app.operations.get(newSession.operationId).status !== 'running');
-    expect(app.operations.get(newSession.operationId)).toMatchObject({ status: 'failed' });
+    // A Dot's session commands work again: /new starts a fresh native context, no model turn.
+    expect(app.operations.get(newSession.operationId)).toMatchObject({ status: 'done' });
     expect(fake.inspectRuns()).toHaveLength(1);
     const plan = (await rpc('commands.execute', {
       ...command,

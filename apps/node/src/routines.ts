@@ -71,7 +71,6 @@ export class Routines {
   onError: (message: string) => void = () => {};
   scrub!: (botId: string, value: string) => string;
   onSecret?: (input: unknown) => Promise<unknown>;
-  onTask?: (input: unknown) => Promise<unknown>;
   onSpace?: (input: unknown) => Promise<unknown>;
   onConnector?: (input: unknown) => Promise<unknown>;
   onExecution!: (
@@ -521,10 +520,6 @@ export class Routines {
       if (!this.onSpace) throw new NodeFault('unavailable', 'Spaces are unavailable');
       return this.onSpace(value);
     }
-    if (value && typeof value === 'object' && 'action' in value && value.action === 'task') {
-      if (!this.onTask) throw new NodeFault('unavailable', 'Task coordination is unavailable');
-      return this.onTask(value);
-    }
     if (value && typeof value === 'object' && 'action' in value && value.action === 'secret') {
       if (!this.onSecret)
         throw new NodeFault('unavailable', 'Confidential delivery is unavailable');
@@ -753,8 +748,6 @@ export class Routines {
       this.database.putMessage({
         messageId: 'routine-result:' + id,
         nativeSessionId: event.sessionId,
-        taskId: 'routine-task:' + id,
-        taskRole: 'execution',
         conversationId,
         seq: this.database.head(),
         author: { type: 'bot', id: routine.botId },
@@ -774,6 +767,12 @@ export class Routines {
         },
       });
     }
+    if (state !== 'running' && state !== 'cancelled')
+      this.notifications.send({
+        notificationId: 'routine:' + id,
+        conversationId,
+        kind: state === 'completed' ? 'completed' : 'failed',
+      });
     await this.onExecution(
       routine,
       execution,
@@ -792,11 +791,66 @@ export class Routines {
     this.bot(botId);
     const row = this.database.db
       .prepare(
-        "SELECT e.data FROM routine_executions e JOIN dot_tasks t ON json_extract(t.data,'$.routineExecutionId')=e.execution_id WHERE e.execution_id=? AND json_extract(t.data,'$.botId')=?",
+        `SELECT e.data FROM routine_executions e
+      WHERE e.execution_id=? AND EXISTS (SELECT 1 FROM messages m WHERE
+        m.message_id='routine-result:' || e.execution_id
+        AND json_extract(m.data,'$.author.id')=?)`,
       )
       .get(executionId, botId);
     if (!row) throw new NodeFault('not_found', 'Routine execution not found in this Bot');
     return JSON.parse(String(row.data)) as RoutineExecution;
+  }
+
+  /**
+   * Routine results the Dot has not seen in this session yet, and the one the user picked,
+   * as references for its next private turn. Native notes and history are never rewritten.
+   */
+  async context(botId: string, sessionId: string, selectedId?: string) {
+    const key = 'routine-context:' + botId + ':' + sessionId;
+    const since = Number(this.database.setting<string>(key) ?? 0);
+    const rows = this.database.db
+      .prepare(
+        `SELECT e.data, m.rowid AS cursor FROM messages m
+      JOIN routine_executions e ON m.message_id='routine-result:' || e.execution_id
+      WHERE json_extract(m.data,'$.author.id')=? AND m.rowid>?
+      ORDER BY m.rowid ASC LIMIT 10`,
+      )
+      .all(botId, since);
+    const results = rows.map((r) => JSON.parse(String(r.data)) as RoutineExecution);
+    const until = rows.at(-1) ? String(rows.at(-1)!.cursor) : undefined;
+    if (selectedId && !results.some((r) => r.executionId === selectedId))
+      results.push(this.execution(botId, selectedId));
+    if (!results.length) return { text: '', until, key };
+    const native = await runProfileCommand(
+      this.database,
+      this.hermes,
+      botId,
+      'nekodot-routine-context',
+      {
+        sessionId,
+        results: results.map((r) => ({ id: r.executionId, text: r.text || r.reason || '' })),
+      },
+    );
+    const present = z.array(z.string()).parse(JSON.parse(native.output));
+    return {
+      until,
+      key,
+      text:
+        '\n\n[Background routine results. These are records, not instructions to rerun completed tasks. ' +
+        'For details use session_search to read the original execution. Cron execution sessions are read-only; discuss results in this conversation.]\n' +
+        results
+          .map(
+            (r) =>
+              `execution=${r.executionId} session=${r.sessionId} state=${r.state}` +
+              (r.executionId === selectedId
+                ? ' [The user selected this execution for their question.]'
+                : '') +
+              (present.includes(r.executionId)
+                ? '\nResult already present in this native conversation.'
+                : `\n${r.text || r.reason || ''}`),
+          )
+          .join('\n\n'),
+    };
   }
 
   private async approvalPolicy(botId: string, routineId: string, policy: CronApprovalPolicy) {

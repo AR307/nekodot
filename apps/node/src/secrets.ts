@@ -182,7 +182,6 @@ export class BotSecrets {
       .run(request.requestId, request.botId, JSON.stringify(request));
     this.db.putMessage({
       messageId: 'secret:' + request.requestId,
-      ...(request.taskId ? { taskId: request.taskId, taskRole: 'execution' as const } : {}),
       conversationId: request.conversationId,
       seq: this.db.head(),
       author: { type: 'bot', id: request.botId },
@@ -241,7 +240,7 @@ export class BotSecrets {
   private create(
     botId: string,
     spec: SecretSpec,
-    run: Pick<RunRecord, 'conversationId' | 'sessionId' | 'storedSessionId' | 'runId' | 'taskId'>,
+    run: Pick<RunRecord, 'conversationId' | 'sessionId' | 'storedSessionId' | 'runId'>,
     nativeRequestId?: string,
     notify = true,
   ) {
@@ -252,7 +251,6 @@ export class BotSecrets {
       requestId: randomUUID(),
       botId,
       conversationId: run.conversationId,
-      taskId: run.taskId,
       sessionId: run.storedSessionId ?? run.sessionId!,
       state: 'pending',
       saved: false,

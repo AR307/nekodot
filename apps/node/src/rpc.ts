@@ -274,7 +274,7 @@ export class NodeRpc {
         return this.features.extensions.configure(request.params);
       case 'flow.get':
         return {
-          flow: this.features.flow.get(request.params.conversationId, request.params.taskId),
+          flow: this.features.flow.get(request.params.conversationId),
         };
       case 'sync.snapshot':
         this.execution.activities();
