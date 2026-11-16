@@ -8,13 +8,16 @@ pair_code=''
 relay_ssh=''
 relay_ssh_key=''
 relay_ssh_known_hosts=''
+node_name=''
 uninstall=false
+sandbox=false
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --pair|--relay|--relay-ssh|--relay-ssh-key|--relay-ssh-known-hosts)
+    --pair|--relay|--relay-ssh|--relay-ssh-key|--relay-ssh-known-hosts|--name)
       [ "$#" -ge 2 ] || { printf '%s requires a value\n' "$1" >&2; exit 2; }
       case "$1" in
         --pair) pair_code="$2" ;;
+        --name) node_name="$2" ;;
         --relay) relay="$2" ;;
         --relay-ssh) relay_ssh="$2" ;;
         --relay-ssh-key) relay_ssh_key="$2" ;;
@@ -22,9 +25,12 @@ while [ "$#" -gt 0 ]; do
       esac
       shift 2 ;;
     --uninstall) uninstall=true; shift ;;
+    --sandbox) sandbox=true; shift ;;
     --help)
-      printf '%s\n' 'Usage: install.sh --pair ABCD-2345 [--relay http://127.0.0.1:4329]' \
-        '       install.sh --uninstall  (stop and disable; retain all files and history)'
+      printf '%s\n' 'Usage: install.sh --pair ABCD-2345 [--name NAME] [--relay http://127.0.0.1:4329] [--sandbox]' \
+        '       install.sh --uninstall [--sandbox]  (stop; retain all files and history)' \
+        '       --sandbox: for a cloud sandbox without systemd; the node is kept running by' \
+        '       $NEKODOT_HOME/bin/nekodot-supervise, started by $NEKODOT_HOME/bin/nekodot-start'
       exit 0 ;;
     *) printf 'Unknown option: %s\n' "$1" >&2; exit 2 ;;
   esac
@@ -34,12 +40,45 @@ done
   printf '%s\n' 'Supported: Linux x64. On Windows, run this command inside WSL2 Ubuntu 24.04.' >&2
   exit 1
 }
+# A sandbox runs the node under its own supervisor, which ends the node's
+# process group when it is told to stop.
+stop_supervisor() {
+  local pid
+  pid="$(cat "$home/nekodot-supervise.pid" 2>/dev/null || true)"
+  if [ -n "$pid" ] && grep -q nekodot-supervise "/proc/$pid/cmdline" 2>/dev/null; then
+    kill -TERM "$pid" 2>/dev/null || true
+    for _ in $(seq 1 30); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+  fi
+}
+if [ "$sandbox" = true ]; then
+  if [ "$uninstall" = true ]; then
+    stop_supervisor
+    printf 'Node stopped. All program files, profiles, history and logs remain in %s\n' "$home"
+    exit 0
+  fi
+  # A sandbox image may lack a tool the installer needs; as root they are
+  # added with apt, otherwise the check below names what is missing.
+  missing=''
+  for tool in curl tar git; do command -v "$tool" >/dev/null || missing="$missing $tool"; done
+  if ! ldconfig -p 2>/dev/null | grep -F 'libatomic.so.1' >/dev/null; then missing="$missing libatomic1"; fi
+  if [ -n "$missing" ] && command -v apt-get >/dev/null; then
+    as_root=''
+    if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null && sudo -n true 2>/dev/null; then as_root='sudo -n'; fi
+    if [ "$(id -u)" -eq 0 ] || [ -n "$as_root" ]; then
+      printf 'Installing%s...\n' "$missing"
+      $as_root apt-get update
+      # shellcheck disable=SC2086
+      DEBIAN_FRONTEND=noninteractive $as_root apt-get install -y --no-install-recommends ca-certificates $missing
+    fi
+  fi
+else
 command -v systemctl >/dev/null && [ -d /run/systemd/system ] || {
   printf '%s\n' 'systemd is required. For WSL2, enable systemd and restart your WSL instance first.' >&2
   exit 1
 }
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
+fi
 if [ "$uninstall" = true ]; then
   systemctl --user disable --now nekodot-node.service
   if [ -f "$HOME/.config/systemd/user/nekodot-relay-tunnel.service" ]; then
@@ -48,7 +87,9 @@ if [ "$uninstall" = true ]; then
   printf 'Node service stopped and disabled. All program files, profiles, history and logs remain in %s\n' "$home"
   exit 0
 fi
-for tool in curl tar git systemd-notify; do
+required_tools='curl tar git'
+if [ "$sandbox" = false ]; then required_tools="$required_tools systemd-notify"; fi
+for tool in $required_tools; do
   command -v "$tool" >/dev/null || { printf 'Install %s with your system package manager, then rerun.\n' "$tool" >&2; exit 1; }
 done
 if ! ldconfig -p 2>/dev/null | grep -F 'libatomic.so.1' >/dev/null; then
@@ -116,7 +157,12 @@ if [ ! -e "$HERMES_HOME/cache" ]; then ln -s "$home/cache" "$HERMES_HOME/cache";
 export NEKODOT_HERMES_API_PORT="$api_port"
 # Hermes's dependency resolver needs upload times, which some system pip mirrors omit.
 export UV_INDEX_URL='https://pypi.org/simple'
-printf '%s\n' 'First installation can take several minutes. Use Add 30 minutes in the app to keep the same pairing code.'
+if [ "$sandbox" = true ]; then
+  # The app that made the sandbox keeps the pairing code alive itself.
+  printf '%s\n' 'First installation can take several minutes.'
+else
+  printf '%s\n' 'First installation can take several minutes. Use Add 30 minutes in the app to keep the same pairing code.'
+fi
 relay_tunnel_pid=''
 stop_relay_tunnel() {
   if [ -n "$relay_tunnel_pid" ] && kill -0 "$relay_tunnel_pid" 2>/dev/null; then
@@ -225,7 +271,9 @@ exec '$node_root/bin/node' '$home/bin/nekodot-node.cjs' "\$@"
 EOF
 chmod 700 "$home/bin/nekodot-node"
 if [ ! -f "$home/node.json" ]; then
-  if ! "$home/bin/nekodot-node" pair --relay "$relay" --code "$pair_code"; then
+  name_args=()
+  if [ -n "$node_name" ]; then name_args=(--name "$node_name"); fi
+  if ! "$home/bin/nekodot-node" pair --relay "$relay" --code "$pair_code" "${name_args[@]}"; then
     printf '%s\n' 'Pairing did not complete. Extend this code in the app and rerun the same command, or generate a new code. Installed dependencies are retained.' >&2
     exit 1
   fi
@@ -244,6 +292,73 @@ if (target === 'https://api.nekodot.com' && data.relayUrl.replace(/\/+$/, '') ==
 }
 NODE
   printf '%s\n' 'Keeping the existing node identity and history; pairing code was not consumed.'
+fi
+if [ "$sandbox" = true ]; then
+  # No systemd here: a loop restarts the node after an update (exit 75) or a
+  # crash, and a clean stop (exit 0) ends it.
+  # Each run is its own process group, so what the node started (Hermes and
+  # its gateway) ends with it before the next run, as systemd would do.
+  cat > "$home/bin/nekodot-supervise" <<EOF
+#!/usr/bin/env bash
+node=''
+end_run() {
+  [ -n "\$node" ] || return 0
+  kill -TERM -- "-\$node" 2>/dev/null
+  # The node gets 20 seconds to stop Hermes itself; then the rest is killed.
+  ( sleep 20; kill -KILL -- "-\$node" 2>/dev/null ) &
+  guard=\$!
+  wait "\$node" 2>/dev/null
+  kill -KILL -- "-\$node" 2>/dev/null
+  kill "\$guard" 2>/dev/null
+  node=''
+}
+trap 'end_run; exit 0' TERM INT
+while true; do
+  setsid '$home/bin/nekodot-node' run >> '$home/logs/node.log' 2>&1 &
+  node=\$!
+  wait "\$node"
+  code=\$?
+  end_run
+  [ "\$code" -eq 0 ] && break
+  sleep 3
+done
+EOF
+  # Starts the supervisor unless it is running; the app runs it again after
+  # the sandbox has been stopped and started.
+  cat > "$home/bin/nekodot-start" <<EOF
+#!/usr/bin/env bash
+pid="\$(cat '$home/nekodot-supervise.pid' 2>/dev/null || true)"
+if [ -n "\$pid" ] && grep -q nekodot-supervise "/proc/\$pid/cmdline" 2>/dev/null; then exit 0; fi
+setsid nohup '$home/bin/nekodot-supervise' > /dev/null 2>&1 < /dev/null &
+pid=\$!
+# Return only once it leads its own session, so that it outlives whatever
+# ran this script, such as a sandbox command that has just ended.
+for _ in \$(seq 1 50); do
+  [ "\$(awk '{ print \$6 }' "/proc/\$pid/stat" 2>/dev/null)" = "\$pid" ] && break
+  sleep 0.1
+done
+printf '%s\n' "\$pid" > '$home/nekodot-supervise.pid'
+EOF
+  chmod 700 "$home/bin/nekodot-supervise" "$home/bin/nekodot-start"
+  # A rerun starts the freshly installed node.
+  stop_supervisor
+  seen=0
+  if [ -f "$home/logs/node.log" ]; then seen="$(wc -l < "$home/logs/node.log")"; fi
+  printf '%s\n' 'Starting Hermes and waiting for the node to connect to Relay (up to 5 minutes)...'
+  "$home/bin/nekodot-start"
+  for _ in $(seq 1 150); do
+    # No pipe: under pipefail an early-exiting grep would read as a failure.
+    if [ -f "$home/logs/node.log" ] &&
+       awk -v from="$((seen + 1))" 'NR >= from && /"online":true/ { found = 1; exit } END { exit !found }' "$home/logs/node.log"; then
+      printf '%s\n' 'Node connected to Relay. Return to the app; this sandbox is now online.'
+      exit 0
+    fi
+    sleep 2
+  done
+  printf '%s\n' 'The node has not connected. Pairing and installed files are retained. Startup logs:' >&2
+  tail -n 30 "$home/logs/node.log" >&2 || true
+  if [ -f "$home/logs/hermes.log" ]; then tail -n 40 "$home/logs/hermes.log" >&2; fi
+  exit 1
 fi
 if [ "$(loginctl show-user "$(id -un)" -p Linger --value)" != yes ]; then
   if [ "$(id -u)" -eq 0 ]; then loginctl enable-linger "$(id -un)"

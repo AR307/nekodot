@@ -170,9 +170,12 @@ export function registerAuth(
   app.post('/api/pairing-codes', async (request) => {
     const user = await authenticate(request);
     const result = database.pairingCode(user.user_id);
+    const installCommand = `curl -fsSL '${publicUrl.replace(/\/$/, '')}/install.sh' | bash -s -- --pair ${result.code}`;
     return {
       ...result,
-      installCommand: `curl -fsSL '${publicUrl.replace(/\/$/, '')}/install.sh' | bash -s -- --pair ${result.code}`,
+      installCommand,
+      // For a cloud sandbox the app makes: no systemd, the node keeps itself running.
+      sandboxCommand: installCommand + ' --sandbox',
     };
   });
   app.post<{ Params: { code: string } }>('/api/pairing-codes/:code/extend', async (request) => {
