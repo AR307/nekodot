@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../data/client.dart';
 import '../data/json.dart';
-import '../local/runtime.dart';
 import '../platform/desktop.dart';
 import '../ui/design.dart';
 import 'connectors.dart';
 import 'extensions.dart';
 import 'mcp.dart';
 import 'local_setup.dart';
-import 'pairing.dart';
 
 Future<void> showPluginCenter(BuildContext context, NekodotClient client) =>
     openPage(context, PluginCenterPage(client: client));
@@ -62,12 +60,7 @@ class _PluginCenterPageState extends State<PluginCenterPage> {
       final selected = nodes
           .where((n) => n['nodeId'] == c.selectedNodeId)
           .firstOrNull;
-      void addComputer() => openPage(
-        context,
-        localRuntime == null
-            ? PairingPage(client: c)
-            : RunLocationPage(client: c),
-      );
+      void addComputer() => openPage(context, RunLocationPage(client: c));
       final scope = kind == 'connectors'
           ? Row(
               mainAxisSize: MainAxisSize.min,

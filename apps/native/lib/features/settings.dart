@@ -11,6 +11,7 @@ import '../platform/desktop.dart';
 import 'plugin_center.dart';
 import 'hermes_settings.dart';
 import 'local_setup.dart';
+import 'sandbox_setup.dart';
 import '../ui/design.dart';
 import 'updates.dart';
 import 'user_memory.dart';
@@ -24,6 +25,8 @@ List<(String, String, IconData)> settingsParts(NekodotClient c) => [
   ('bots', c.tr('所有 Bot', 'All Bots'), Symbols.smart_toy),
   if (localRuntime?.location != null && localRuntime?.userId != null)
     ('computer', c.tr('这台电脑', 'This computer'), Symbols.computer),
+  if (c.sandboxes.records.isNotEmpty)
+    ('sandboxes', c.tr('云沙箱', 'Cloud sandboxes'), Symbols.cloud),
   ('app', c.tr('应用', 'App'), Symbols.tune),
 ];
 
@@ -200,6 +203,13 @@ class _SettingsPageState extends State<SettingsPage> {
             title: parts['computer']!.$1,
             icon: parts['computer']!.$2,
             children: [LocalComputerPanel(client: c)],
+          ),
+        if (parts.containsKey('sandboxes'))
+          (
+            id: 'sandboxes',
+            title: parts['sandboxes']!.$1,
+            icon: parts['sandboxes']!.$2,
+            children: [SandboxesPanel(client: c)],
           ),
         (
           id: 'app',

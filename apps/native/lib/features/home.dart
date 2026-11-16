@@ -15,7 +15,6 @@ import 'bot_editor.dart';
 import 'plugin_center.dart';
 import 'files.dart';
 import 'settings.dart';
-import 'pairing.dart';
 import 'local_setup.dart';
 import '../local/runtime.dart';
 import 'node_update.dart';
@@ -247,9 +246,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// Desktops can run Bots here or connect a server; phones only connect.
-  Widget _addComputer() => localRuntime == null
-      ? PairingPage(client: c)
-      : RunLocationPage(client: c);
+  Widget _addComputer() => RunLocationPage(client: c);
 
   Widget nodePicker() {
     final nodes = objects(c.account.me?['nodes']);

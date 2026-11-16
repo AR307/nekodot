@@ -33,6 +33,7 @@ abstract final class Symbols {
   static const chevron_right = IconData(0xe5cc, fontFamily: _family);
   static const circle = IconData(0xef4a, fontFamily: _family);
   static const close = IconData(0xe5cd, fontFamily: _family);
+  static const cloud = IconData(0xf15c, fontFamily: _family);
   static const cloud_off = IconData(0xe2c1, fontFamily: _family);
   static const cloud_upload = IconData(0xe2c3, fontFamily: _family);
   static const code = IconData(0xe86f, fontFamily: _family);
@@ -41,6 +42,7 @@ abstract final class Symbols {
   static const contrast = IconData(0xeb37, fontFamily: _family);
   static const crop_square = IconData(0xe3c6, fontFamily: _family);
   static const dark_mode = IconData(0xe51c, fontFamily: _family);
+  static const delete = IconData(0xe92e, fontFamily: _family);
   static const description = IconData(0xe873, fontFamily: _family);
   static const desktop_windows = IconData(0xe30c, fontFamily: _family);
   static const dns = IconData(0xe875, fontFamily: _family);

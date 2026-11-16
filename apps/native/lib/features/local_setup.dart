@@ -8,6 +8,7 @@ import '../data/client.dart';
 
 import '../local/location.dart';
 import '../local/runtime.dart';
+import 'sandbox_setup.dart';
 import '../ui/design.dart';
 import 'pairing.dart';
 
@@ -58,22 +59,26 @@ class RunLocationPage extends StatefulWidget {
 }
 
 class _RunLocationPageState extends State<RunLocationPage> {
-  final local = localRuntime!;
+  /// Running Dots on this device itself is offered on computers only.
+  final local = localRuntime;
   NekodotClient get c => widget.client;
 
-  /// 'local' or 'remote', once chosen.
+  /// 'local', 'remote' or 'sandbox', once chosen.
   String? way;
   bool done = false;
+
+  /// How far a sandbox has got: 0 its account, 1 installing, 2 connecting.
+  int sandboxStage = 0;
 
   @override
   void initState() {
     super.initState();
-    local.addListener(_changed);
+    local?.addListener(_changed);
   }
 
   @override
   void dispose() {
-    local.removeListener(_changed);
+    local?.removeListener(_changed);
     super.dispose();
   }
 
@@ -84,8 +89,9 @@ class _RunLocationPageState extends State<RunLocationPage> {
   @override
   Widget build(BuildContext context) {
     final tone = context.tone, text = Theme.of(context).textTheme;
-    final installing = local.steps.any((s) => s.state != 'pending');
-    final completed = local.steps.where((s) => s.state == 'done').length;
+    final installSteps = local?.steps ?? const [];
+    final installing = installSteps.any((s) => s.state != 'pending');
+    final completed = installSteps.where((s) => s.state == 'done').length;
     final how = c.tr('选择方式', 'Choose how'), connect = c.tr('连接', 'Connect');
     // Each step and, once it is settled, what was chosen in it.
     final steps = way == 'remote'
@@ -94,12 +100,19 @@ class _RunLocationPageState extends State<RunLocationPage> {
             (c.tr('运行命令', 'Run the command'), ''),
             (connect, ''),
           ]
+        : way == 'sandbox'
+        ? [
+            (how, c.tr('云沙箱', 'Cloud sandbox')),
+            (c.tr('沙箱账号', 'Sandbox account'), ''),
+            (c.tr('安装', 'Install'), ''),
+            (connect, ''),
+          ]
         : [
             (how, way == null ? '' : c.tr('在这台电脑运行', 'Run on this computer')),
-            (c.tr('选择目录', 'Choose folders'), local.location?.runtime ?? ''),
+            (c.tr('选择目录', 'Choose folders'), local?.location?.runtime ?? ''),
             (
               c.tr('安装', 'Install'),
-              installing ? '$completed / ${local.steps.length}' : '',
+              installing ? '$completed / ${installSteps.length}' : '',
             ),
             (connect, ''),
           ];
@@ -109,6 +122,8 @@ class _RunLocationPageState extends State<RunLocationPage> {
         ? steps.length - 1
         : way == 'local' && installing
         ? 2
+        : way == 'sandbox'
+        ? 1 + sandboxStage
         : 1;
     final node = c.account.me?['nodes'] is List
         ? (c.account.me!['nodes'] as List)
@@ -161,17 +176,20 @@ class _RunLocationPageState extends State<RunLocationPage> {
             children: [
               PanelGroup(
                 children: [
-                  ListTile(
-                    key: const ValueKey('run-here'),
-                    leading: const Icon(Symbols.laptop),
-                    title: Text(c.tr('在这台电脑运行', 'Run on this computer')),
-                    subtitle: local.support.supported
-                        ? null
-                        : Text(c.tr('此系统暂不支持', 'Not supported on this system')),
-                    enabled: local.support.supported,
-                    trailing: const Icon(Symbols.chevron_right),
-                    onTap: () => setState(() => way = 'local'),
-                  ),
+                  if (local case final here?)
+                    ListTile(
+                      key: const ValueKey('run-here'),
+                      leading: const Icon(Symbols.laptop),
+                      title: Text(c.tr('在这台电脑运行', 'Run on this computer')),
+                      subtitle: here.support.supported
+                          ? null
+                          : Text(
+                              c.tr('此系统暂不支持', 'Not supported on this system'),
+                            ),
+                      enabled: here.support.supported,
+                      trailing: const Icon(Symbols.chevron_right),
+                      onTap: () => setState(() => way = 'local'),
+                    ),
                   ListTile(
                     key: const ValueKey('connect-server'),
                     leading: const Icon(Symbols.dns),
@@ -179,9 +197,23 @@ class _RunLocationPageState extends State<RunLocationPage> {
                     trailing: const Icon(Symbols.chevron_right),
                     onTap: () => setState(() => way = 'remote'),
                   ),
+                  ListTile(
+                    key: const ValueKey('run-sandbox'),
+                    leading: const Icon(Symbols.cloud),
+                    title: Text(c.tr('云沙箱', 'Cloud sandbox')),
+                    subtitle: const Text('Daytona, Vercel Sandbox'),
+                    trailing: const Icon(Symbols.chevron_right),
+                    onTap: () => setState(() => way = 'sandbox'),
+                  ),
                 ],
               ),
             ],
+          )
+        : way == 'sandbox'
+        ? SandboxSetupPage(
+            client: c,
+            onStage: (stage) => setState(() => sandboxStage = stage),
+            onDone: () => setState(() => done = true),
           )
         : way == 'local'
         ? LocalSetupPage(
@@ -206,7 +238,12 @@ class _RunLocationPageState extends State<RunLocationPage> {
                 borderRadius: BorderRadius.circular(Tone.r8),
                 // The first step can be returned to until an install is
                 // under way.
-                onTap: i == 0 && way != null && !done && !local.busy
+                onTap:
+                    i == 0 &&
+                        way != null &&
+                        !done &&
+                        !(local?.busy ?? false) &&
+                        sandboxStage == 0
                     ? () => setState(() => way = null)
                     : null,
                 child: Padding(
