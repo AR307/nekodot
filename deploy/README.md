@@ -30,6 +30,19 @@ curl -fsS http://127.0.0.1:4329/health
 
 Keep the same JWT_SECRET and data directory across restarts. Do not modify other Compose projects or expose port 4329 publicly. Installer downloads are included in the image.
 
+## Google and GitHub sign-in
+
+The apps offer **Continue with Google** and **Continue with GitHub** only for providers the Relay has a client for. Create the clients yourself and put both values of each in `.env`:
+
+| Provider | Create it at                                                 | Callback URL to register                      | `.env`                                                 |
+| -------- | ------------------------------------------------------------ | --------------------------------------------- | ------------------------------------------------------ |
+| Google   | Google Cloud console, OAuth client of type _Web application_ | `<PUBLIC_URL>/api/auth/oauth/google/callback` | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` |
+| GitHub   | GitHub, Settings, Developer settings, OAuth Apps             | `<PUBLIC_URL>/api/auth/oauth/github/callback` | `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET` |
+
+The Relay starts only with both values of a pair or neither. Google asks for `openid email`, GitHub for `read:user user:email`; a sign-in needs a verified email. The first sign-in creates an account for that email, or signs in to the account that already has it. Such an account has no password until its owner sets one with **Forgot password**.
+
+The app opens the provider in the system browser. The Relay sends a one-time code back to the app that started the sign-in (a `127.0.0.1` address on a computer, the `nekodot://oauth` link on Android), and the app redeems it with a secret it never sent, so a code that reaches anyone else is useless.
+
 ## Node releases
 
 Publish Relay and its Node downloads **before** distributing a new client. After every distribution build, run `pnpm release:node` with the publisher's Ed25519 PEM private key. It stamps the bundle with a 14-digit UTC version and public key and writes `nekodot-node.json`. Deploy the bundle and manifest together. Relay reads the manifest again on Node/client connections; replacing downloads does not require a Relay restart.

@@ -3,6 +3,7 @@ import rateLimit from '@fastify/rate-limit';
 import cors from '@fastify/cors';
 import { RelayDatabase } from './database';
 import { HttpFault, registerAuth } from './auth';
+import { registerOAuth, type OAuthProviders } from './oauth';
 import { registerRouting } from './routing';
 import { registerDownloads, latestNodeRelease } from './downloads';
 import { registerFileTransfer } from './files';
@@ -24,6 +25,8 @@ export interface RelayOptions {
   smtp?: SmtpConfiguration;
   trustedProxy?: string[];
   composioApiKey?: string;
+  /** Google and GitHub sign-in, each only when its client is configured. */
+  oauth?: OAuthProviders;
 }
 export async function createRelay(options: RelayOptions) {
   const app = Fastify({
@@ -56,6 +59,7 @@ export async function createRelay(options: RelayOptions) {
     options.smtp,
     (id) => routing.needsManualUpdate(id),
   );
+  registerOAuth(app, database, options.oauth ?? {}, options.publicUrl, auth.issue);
   const notify = registerNotifications(
     app,
     database,

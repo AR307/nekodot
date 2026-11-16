@@ -31,6 +31,7 @@ export class RelayDatabase {
       CREATE TABLE IF NOT EXISTS verified_emails(user_id TEXT PRIMARY KEY,verified_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS auth_sessions(session_id TEXT PRIMARY KEY,user_id TEXT NOT NULL,expires_at INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS device_sessions(device_id TEXT PRIMARY KEY,session_id TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS oauth_identities(provider TEXT NOT NULL,subject TEXT NOT NULL,user_id TEXT NOT NULL,PRIMARY KEY(provider,subject));
     `);
   }
   userByEmail(email: string) {
@@ -45,6 +46,21 @@ export class RelayDatabase {
     const userId = randomUUID();
     this.db.prepare('INSERT INTO users VALUES(?,?,?)').run(userId, email, hash);
     return userId;
+  }
+  setPassword(userId: string, hash: string) {
+    this.db.prepare('UPDATE users SET password_hash=? WHERE user_id=?').run(hash, userId);
+  }
+  /** The account a Google or GitHub identity signs in to. */
+  identityUser(provider: string, subject: string) {
+    const row = this.db
+      .prepare('SELECT user_id FROM oauth_identities WHERE provider=? AND subject=?')
+      .get(provider, subject) as { user_id: string } | undefined;
+    return row?.user_id;
+  }
+  linkIdentity(provider: string, subject: string, userId: string) {
+    this.db
+      .prepare('INSERT OR IGNORE INTO oauth_identities VALUES(?,?,?)')
+      .run(provider, subject, userId);
   }
   verified(userId: string) {
     return !!this.db.prepare('SELECT user_id FROM verified_emails WHERE user_id=?').get(userId);

@@ -126,10 +126,7 @@ export function registerAuth(
     emailCodes.consume(email, 'reset', code);
     const user = database.userByEmail(email);
     if (!user) throw new HttpFault('invalid_code', 'Code is invalid or expired');
-    const encoded = await hash(password, { type: argon2id });
-    database.db
-      .prepare('UPDATE users SET password_hash=? WHERE user_id=?')
-      .run(encoded, user.user_id);
+    database.setPassword(user.user_id, await hash(password, { type: argon2id }));
     database.verifyEmail(user.user_id);
     invalidate(user.user_id);
     return {};
@@ -146,10 +143,7 @@ export function registerAuth(
       throw new HttpFault('invalid_params', 'Current and new passwords required');
     if (!(await verify(user.password_hash, parsed.data.currentPassword)))
       throw new HttpFault('unauthorized', 'Current password incorrect', 401);
-    const encoded = await hash(parsed.data.password, { type: argon2id });
-    database.db
-      .prepare('UPDATE users SET password_hash=? WHERE user_id=?')
-      .run(encoded, user.user_id);
+    database.setPassword(user.user_id, await hash(parsed.data.password, { type: argon2id }));
     invalidate(user.user_id);
     return {};
   });
@@ -204,5 +198,5 @@ export function registerAuth(
     return {};
   });
   app.addHook('onClose', async () => emailCodes.close());
-  return { authenticateToken, authenticate };
+  return { authenticateToken, authenticate, issue: token };
 }
