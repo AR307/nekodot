@@ -24,7 +24,7 @@ import {
 import { z } from 'zod';
 import { RoutineIngress } from './routines';
 import type { RelayDatabase, NodeRow } from './database';
-import { HttpFault } from './auth';
+import { HttpFault, pairingCode } from './auth';
 import { AccountUserMemory } from './user-memory';
 import { AccountUsage } from './usage';
 import { AccountConnectors, connectorFault } from './connectors/service';
@@ -242,6 +242,21 @@ export function registerRouting(
               replyTo: envelope.id,
             });
           }
+        } else if (node && envelope.type === 'pairing.req') {
+          // The Dot asked for it and the user approved it in the Dot's chat; the code
+          // belongs to the node's owner, like one made in the app.
+          payloadSchemas['pairing.req'].parse(envelope.payload);
+          const owner = database.owns(node.user_id, node.node_id);
+          send(socket, {
+            ...frame(
+              'pairing.res',
+              owner
+                ? { ok: true, result: pairingCode(database, publicUrl, node.user_id) }
+                : { ok: false, error: { code: 'forbidden', message: 'Node unpaired' } },
+              node.node_id,
+            ),
+            replyTo: envelope.id,
+          });
         } else if (node && envelope.type === 'usage.batch') {
           usage.ingest(node, usageBatchSchema.parse(envelope.payload).records);
           send(socket, { ...frame('usage.ack', {}, node.node_id), replyTo: envelope.id });

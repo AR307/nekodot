@@ -47,6 +47,13 @@ export const botSchema = z.strictObject({
   archived: z.boolean(),
   createdAt: timestampSchema,
 });
+/** A sandbox a Bot's commands, files, browser and screen run in, set up by the Bot itself. */
+export const workplaceSchema = z.strictObject({
+  label: z.string().trim().min(1).max(60),
+  /** The Hermes terminal backend: ssh, docker, daytona, vercel_sandbox, modal or a plugin's. */
+  backend: z.string().regex(/^[a-z0-9_]{1,40}$/),
+});
+export type Workplace = z.infer<typeof workplaceSchema>;
 export const groupFields = {
   name: z.string().trim().min(1),
   botIds: z

@@ -2,7 +2,12 @@ import { SignJWT, jwtVerify } from 'jose';
 import { hash, verify, argon2id } from 'argon2';
 import { z } from 'zod';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { authInputSchema, loginInputSchema, pairInputSchema } from '@nekodot/protocol';
+import {
+  authInputSchema,
+  loginInputSchema,
+  pairInputSchema,
+  type PairingCode,
+} from '@nekodot/protocol';
 import { RelayDatabase } from './database';
 import { EmailVerification, type SmtpConfiguration } from './email';
 
@@ -23,6 +28,17 @@ const codeRequest = z.strictObject({
   purpose: z.enum(['signup', 'verify', 'reset']),
   password: z.string().optional(),
 });
+/** A new pairing code for [userId] and the commands that install a node with it. */
+export function pairingCode(
+  database: RelayDatabase,
+  publicUrl: string,
+  userId: string,
+): PairingCode {
+  const result = database.pairingCode(userId);
+  const installCommand = `curl -fsSL '${publicUrl.replace(/\/$/, '')}/install.sh' | bash -s -- --pair ${result.code}`;
+  // For a cloud sandbox: no systemd, the node keeps itself running.
+  return { ...result, installCommand, sandboxCommand: installCommand + ' --sandbox' };
+}
 export function registerAuth(
   app: FastifyInstance,
   database: RelayDatabase,
@@ -169,14 +185,7 @@ export function registerAuth(
   });
   app.post('/api/pairing-codes', async (request) => {
     const user = await authenticate(request);
-    const result = database.pairingCode(user.user_id);
-    const installCommand = `curl -fsSL '${publicUrl.replace(/\/$/, '')}/install.sh' | bash -s -- --pair ${result.code}`;
-    return {
-      ...result,
-      installCommand,
-      // For a cloud sandbox the app makes: no systemd, the node keeps itself running.
-      sandboxCommand: installCommand + ' --sandbox',
-    };
+    return pairingCode(database, publicUrl, user.user_id);
   });
   app.post<{ Params: { code: string } }>('/api/pairing-codes/:code/extend', async (request) => {
     const user = await authenticate(request);
