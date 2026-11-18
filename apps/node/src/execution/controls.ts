@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Message, RpcParams, ApprovalChoice } from '@nekodot/protocol';
 import { connectorApprovalContent } from '../connectors';
+import { approvalCommand } from '../workplaces';
 import { NodeDatabase, type RunRecord } from '../database';
 import type { HermesRuntime } from '../hermes/runtime';
 import { NodeFault } from '../fault';
@@ -93,7 +94,7 @@ export class RunControls {
             requestId: pending.prompt_id,
             executionGeneration: pending.execution_generation,
             prompt: pending.description ?? pending.command ?? 'Approval required',
-            ...(pending.command ? { command: pending.command } : {}),
+            ...(approvalCommand(pending.command) ? { command: pending.command } : {}),
             ...connector,
             ...(pending.choices ? { choices: pending.choices as ApprovalChoice[] } : {}),
           },

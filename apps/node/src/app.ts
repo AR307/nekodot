@@ -24,6 +24,7 @@ import { Routines } from './routines';
 import { BotVoice } from './voice';
 import { ExecutionFlows } from './flow';
 import { Spaces } from './spaces';
+import { Workplaces } from './workplaces';
 import { NodeConnectors } from './connectors';
 
 export class NodeApplication {
@@ -77,6 +78,7 @@ export class NodeApplication {
   readonly voice: BotVoice;
   readonly flow: ExecutionFlows;
   readonly spaces: Spaces;
+  readonly workplaces: Workplaces;
   readonly connectors: NodeConnectors;
 
   onEvent: (event: PersistedEvent) => void = () => {};
@@ -105,6 +107,8 @@ export class NodeApplication {
         kind: 'question',
       });
     this.routines.onSpace = (input) => this.spaces.local(input);
+    this.workplaces = new Workplaces(this.database, hermes);
+    this.routines.onSandbox = (input) => this.workplaces.local(input);
     this.routines.scrub = (botId, value) => this.secrets.scrub(botId, value);
     this.secrets.onRequestCard = (request) =>
       this.notifications.send({
@@ -143,7 +147,7 @@ export class NodeApplication {
     this.files = new FileLibrary(this.database, hermes, this.operations);
     this.extensions = new Extensions(this.database, this.bots, hermes, this.operations);
     this.mcp = new McpServers(this.bots, hermes);
-    this.screens = new BotScreens(hermes, this.bots, this.operations, desktop);
+    this.screens = new BotScreens(hermes, this.bots, this.operations, desktop, this.workplaces);
     this.desktopControl = new DesktopControl(hermes, this.bots, desktop, this.screens.available);
     this.screens.onStatus = (status) => this.onLive({ kind: 'screen', status });
     this.database.onEvent = (event) => this.onEvent(event);
@@ -175,6 +179,7 @@ export class NodeApplication {
       {
         secrets: this.secrets,
         spaces: this.spaces,
+        workplaces: this.workplaces,
         bots: this.bots,
         voice: this.voice,
         operations: this.operations,

@@ -9,6 +9,7 @@ import type { BotService } from './bots';
 import type { Operations } from './operations';
 import type { NodeCredentials } from './connection';
 import { NodeFault } from './fault';
+import type { Workplaces } from './workplaces';
 
 const nativeLeaseSchema = z.object({
   holder: z.enum(['agent', 'human']),
@@ -36,8 +37,9 @@ interface ScreenSession {
 
 /** A product adapter for Hermes-owned displays; no agent or control lifecycle lives here. */
 export class BotScreens {
-  /** Hermes-owned Bot displays exist only on Linux servers, never on a desktop-hosted node. */
+  /** Hermes-owned Bot displays on this host exist only on Linux servers, never on a desktop-hosted node. */
   readonly available: boolean;
+  private readonly linux: boolean;
   onStatus: (status: ScreenStatus) => void = () => {};
   private readonly sessions = new Map<string, ScreenSession>();
   private readonly statuses = new Map<string, NativeStatus>();
@@ -47,8 +49,10 @@ export class BotScreens {
     private readonly bots: BotService,
     private readonly operations: Operations,
     desktop: boolean,
+    private readonly workplaces: Workplaces,
   ) {
-    this.available = !desktop && platform() === 'linux' && !/microsoft/i.test(release());
+    this.linux = !desktop && platform() === 'linux';
+    this.available = this.linux && !/microsoft/i.test(release());
     hermes.management.listeners.add(this.handleEvent);
   }
   private handleEvent = (event: ManagementEvent) => {
@@ -71,6 +75,11 @@ export class BotScreens {
       if (status && lease.epoch >= status.lease.epoch) this.publish(botId, { ...status, lease });
     }
   };
+  /** A Bot working in an ssh or docker sandbox has its screen there, whatever this host can run. */
+  private availableFor(botId: string) {
+    const backend = this.workplaces.get(botId)?.backend;
+    return this.available || (this.linux && (backend === 'ssh' || backend === 'docker'));
+  }
   private publicStatus(botId: string, status?: NativeStatus): ScreenStatus {
     const controllerSessionId =
       status?.lease.holder === 'human'
@@ -81,7 +90,7 @@ export class BotScreens {
         : undefined;
     return {
       botId,
-      available: this.available && (status?.supported ?? true),
+      available: this.availableFor(botId) && (status?.supported ?? true),
       installed: status?.installed ?? false,
       running: status?.running ?? false,
       geometry: status?.geometry ?? '1440x900',
@@ -89,7 +98,7 @@ export class BotScreens {
       holder: status?.lease.holder ?? 'agent',
       ...(controllerSessionId ? { controllerSessionId } : {}),
       ...(status?.install_command ? { installCommand: status.install_command } : {}),
-      ...(!this.available
+      ...(!this.availableFor(botId)
         ? { blocker: 'Screen access currently supports Linux VPS nodes only.' }
         : status?.blocker
           ? { blocker: status.blocker }
@@ -108,7 +117,7 @@ export class BotScreens {
   }
   async status(botId: string): Promise<ScreenStatus> {
     this.bots.get(botId);
-    if (!this.available) return this.publicStatus(botId);
+    if (!this.availableFor(botId)) return this.publicStatus(botId);
     return this.publish(
       botId,
       nativeStatusSchema.parse(
@@ -118,7 +127,8 @@ export class BotScreens {
   }
   start(botId: string) {
     this.bots.get(botId);
-    if (!this.available) throw new NodeFault('unavailable', 'Screen access requires a Linux VPS.');
+    if (!this.availableFor(botId))
+      throw new NodeFault('unavailable', 'Screen access requires a Linux VPS.');
     return this.operations.start('screen.start', [botId], async (operation) => {
       await this.hermes.configureScreen(botId);
       const result = await this.hermes.management.rpc('display.start', { profile: botId }, 120_000);
@@ -175,7 +185,7 @@ export class BotScreens {
     });
     const attach = async () => {
       this.bots.get(request.botId);
-      if (!this.available)
+      if (!this.availableFor(request.botId))
         throw new NodeFault('unavailable', 'Screen access requires a Linux VPS.');
       const observed = await this.hermes.management.rpc('display.observe', {
         profile: request.botId,
