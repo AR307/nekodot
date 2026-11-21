@@ -168,6 +168,14 @@ class NodeData extends ChangeNotifier {
         m.content = {...content, 'text': text + delta.substring(skip)};
         changed(p['conversationId'] as String);
       }
+    } else if (p['kind'] == 'job') {
+      // A running job's newest progress, between the saved updates of its card.
+      final m = messages[p['conversationId']]
+          ?.where((x) => x.messageId == p['messageId'])
+          .firstOrNull;
+      if (m == null || m.kind != 'job' || m.status != 'streaming') return;
+      m.content = object(p['content']);
+      changed(p['conversationId'] as String);
     }
   }
 
