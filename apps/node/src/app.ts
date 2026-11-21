@@ -25,10 +25,12 @@ import { BotVoice } from './voice';
 import { ExecutionFlows } from './flow';
 import { Spaces } from './spaces';
 import { NodeConnectors } from './connectors';
+import { BackgroundJobs } from './jobs';
 
 export class NodeApplication {
   readonly database: NodeDatabase;
   readonly execution: ConversationExecution;
+  readonly jobs: BackgroundJobs;
   private readonly rpc: NodeRpc;
   get idle() {
     return this.execution.idle;
@@ -45,6 +47,7 @@ export class NodeApplication {
     if (this.desktop) void this.desktopControl.refresh().catch(() => {});
     await this.execution.resume();
     await this.connectors.recover();
+    this.jobs.resume();
   }
   async close() {
     this.secrets.close();
@@ -54,6 +57,7 @@ export class NodeApplication {
     await this.userMemory.close();
     this.screens.close();
     this.execution.close();
+    await this.jobs.close();
     this.database.db.close();
   }
 
@@ -158,6 +162,10 @@ export class NodeApplication {
       (event) => this.onLive(event),
       this.connectors,
     );
+    this.jobs = new BackgroundJobs(this.database, this.hermes, this.secrets, (event) =>
+      this.onLive(event),
+    );
+    this.execution.onBackgroundProcess = (run, processId) => this.jobs.track(run, processId);
     const commandOperations = new CommandOperations(
       this.bots,
       this.database,
@@ -192,6 +200,7 @@ export class NodeApplication {
         desktop: this.desktop,
         hermes: this.hermes,
         groups: this.groups,
+        jobs: this.jobs,
       },
       this.execution,
       commandOperations,

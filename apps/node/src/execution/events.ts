@@ -28,6 +28,8 @@ export class RunEvents {
       status: 'completed' | 'failed' | 'cancelled',
       output: string,
     ) => Promise<void>,
+    /** A terminal call left a process running in the background. */
+    private readonly onProcess: (run: RunRecord, processId: string) => void = () => {},
   ) {}
   async accept(run: RunRecord, event: HermesEvent) {
     event = JSON.parse(this.secrets.scrub(run.botId, JSON.stringify(event))) as HermesEvent;
@@ -179,6 +181,7 @@ export class RunEvents {
           event.seq,
         );
       } else this.database.saveRun(run);
+      if (event.process_id) this.onProcess(run, event.process_id);
       this.onActivity(run);
       return;
     }

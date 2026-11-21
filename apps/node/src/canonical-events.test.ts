@@ -138,3 +138,35 @@ it('passes the reasoning of the current admission on for the Dot’s status', ()
   expect(projectGatewayEvent(run, { ...frame, payload: { text: '' } })).toBeUndefined();
   expect(projectGatewayEvent(run, { ...frame, admission_id: 'cron-admission' })).toBeUndefined();
 });
+
+it('names the process a terminal call left running in the background', () => {
+  const complete = (name: string, result: unknown) =>
+    projectGatewayEvent(run, {
+      type: 'tool.complete',
+      admission_id: run.runId,
+      payload: { tool_id: 'call', name, result },
+    });
+  const started = {
+    output: 'Background process started',
+    session_id: 'proc_4dae91c03b2f',
+    pid: 4242,
+    exit_code: 0,
+    error: null,
+    notify_on_complete: true,
+  };
+  expect(complete('terminal', started)).toMatchObject({ process_id: 'proc_4dae91c03b2f' });
+  // Hermes moved a long foreground command to the background.
+  expect(
+    complete(
+      'terminal',
+      JSON.stringify({
+        output: 'still running',
+        exit_code: null,
+        status: 'yielded_to_background',
+        session_id: 'proc_0123456789ab',
+      }),
+    ),
+  ).toMatchObject({ process_id: 'proc_0123456789ab' });
+  expect(complete('terminal', { output: 'done', exit_code: 0 })).not.toHaveProperty('process_id');
+  expect(complete('web_search', started)).not.toHaveProperty('process_id');
+});

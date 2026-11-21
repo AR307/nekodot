@@ -20,6 +20,7 @@ import { Routines } from './routines';
 import { BotVoice } from './voice';
 import { ExecutionFlows } from './flow';
 import { Spaces } from './spaces';
+import type { BackgroundJobs } from './jobs';
 
 import type { ConversationExecution } from './execution/sessions';
 import type { CommandOperations } from './command-operations';
@@ -27,6 +28,7 @@ import type { McpServers } from './mcp';
 interface RpcFeatures {
   mcp: McpServers;
   spaces: Spaces;
+  jobs: BackgroundJobs;
   secrets: BotSecrets;
   bots: BotService;
   voice: BotVoice;
@@ -329,6 +331,9 @@ export class NodeRpc {
         return this.execution.stop(request.params.conversationId, request.params.runId);
       case 'approvals.respond':
         return this.execution.controls.respondToApproval(request.params);
+      case 'jobs.stop':
+        await this.features.jobs.stop(request.params.messageId);
+        return {};
       case 'questions.respond':
         return this.execution.controls.respondToQuestion(request.params);
       case 'providers.list':

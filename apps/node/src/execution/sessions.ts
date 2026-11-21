@@ -43,6 +43,8 @@ export class ConversationExecution {
   private readonly welcomeSends = new Map<string, Promise<{ messageId: string }>>();
   private readonly submissions = new Map<string, Promise<{ messageId: string }>>();
   readonly onLive: (event: LiveEvent) => void;
+  /** A Dot's terminal call left a process running in the background. */
+  onBackgroundProcess: (run: RunRecord, processId: string) => void = () => {};
   get idle() {
     return (
       this.activeRuns.size === 0 &&
@@ -188,6 +190,7 @@ export class ConversationExecution {
       this.files,
       (run) => this.publishActivity(run),
       (run, status, output) => this.finishRun(run, status, output),
+      (run, processId) => this.onBackgroundProcess(run, processId),
     );
   }
   /**
