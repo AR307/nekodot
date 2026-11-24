@@ -11,6 +11,7 @@ import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/features/auth.dart';
 import 'package:nekodot_native/platform/desktop.dart';
 import 'package:nekodot_native/ui/design.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// Keeps the session in memory, so the installed client's own login is never touched.
 class MemoryVault extends FlutterSecureStorage {
@@ -66,7 +67,11 @@ void main() {
   ) async {
     final client = NekodotClient(vault: MemoryVault());
     expect(client.account.origin.host, '127.0.0.1');
-    final out = Directory(const String.fromEnvironment('TOUR_OUT'));
+    final out = Directory(
+      Platform.isAndroid
+          ? '${(await tester.runAsync(getExternalStorageDirectory))!.path}/oauth-evidence'
+          : const String.fromEnvironment('TOUR_OUT'),
+    );
     await tester.runAsync(() => out.create(recursive: true));
     final mode = ValueNotifier(ThemeMode.light);
     var glass = false;
@@ -140,21 +145,23 @@ void main() {
     }
 
     // The login page, as people will see it.
-    await stage(phone: false);
-    await shot('desk-light');
-    mode.value = ThemeMode.dark;
-    await shot('desk-dark');
-    mode.value = ThemeMode.light;
-    await tester.tap(find.byKey(const ValueKey('auth-switch-mode')));
-    await shot('desk-signup');
+    if (!Platform.isAndroid) {
+      await stage(phone: false);
+      await shot('desk-light');
+      mode.value = ThemeMode.dark;
+      await shot('desk-dark');
+      mode.value = ThemeMode.light;
+      await tester.tap(find.byKey(const ValueKey('auth-switch-mode')));
+      await shot('desk-signup');
+    }
     await stage(phone: true);
     await shot('phone-light');
     mode.value = ThemeMode.dark;
     await shot('phone-dark');
     mode.value = ThemeMode.light;
 
-    // Each provider in turn, through the real browser and back to 127.0.0.1.
-    await stage(phone: false);
+    // Real browser return: desktop loopback or Android's native deep link.
+    await stage(phone: Platform.isAndroid);
     for (final (provider, email) in const [
       ('google', 'qa.google@example.test'),
       ('github', 'qa.github@example.test'),
@@ -174,7 +181,7 @@ void main() {
       expect(client.account.me?['user']['email'], email);
       await shot('after-$provider', settle: 300);
       await tester.runAsync(client.account.clear);
-      await stage(phone: false);
+      await stage(phone: Platform.isAndroid);
     }
 
     tester.view.reset();
