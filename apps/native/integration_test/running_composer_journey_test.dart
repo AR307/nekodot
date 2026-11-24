@@ -213,8 +213,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
     }
     final sources = await tester.runAsync(() => c.rpc('providers.list'));
-    final source = objects(sources!['sources'])
-        .firstWhere((s) => s['name'] == 'Model Catalog QA');
+    const sourceId = String.fromEnvironment('QA_SOURCE');
+    final source = objects(sources!['sources']).firstWhere(
+      (s) => sourceId.isEmpty
+          ? s['name'] == 'Model Catalog QA'
+          : s['sourceId'] == sourceId,
+    );
     if (find.byTooltip('Account').evaluate().isNotEmpty) {
       await click(find.byTooltip('Account'));
       await click(find.text('Settings'));
