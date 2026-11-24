@@ -13,6 +13,7 @@ class DotActivity extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!view.running) return const SizedBox.shrink();
     final controls = view.controls;
     if (controls.isNotEmpty) {
       return ThinkingRow(
@@ -24,7 +25,6 @@ class DotActivity extends StatelessWidget {
         moving: false,
       );
     }
-    if (!view.running) return const SizedBox.shrink();
     final thought = view.activity.thought;
     final line = !client.online
         ? client.tr('离线', 'Offline')

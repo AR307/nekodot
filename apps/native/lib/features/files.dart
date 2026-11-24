@@ -194,7 +194,14 @@ class FileCard extends StatefulWidget {
 }
 
 class _FileCardState extends State<FileCard> {
-  late final file = widget.client.rpc('files.get', {'fileId': widget.fileId});
+  late final nodeId = widget.client.selectedNodeId;
+  late final cached =
+      widget.client.views[widget.client.viewKey('files.get', {
+        'fileId': widget.fileId,
+      }, nodeId)];
+  late final file = widget.client.rpc('files.get', {
+    'fileId': widget.fileId,
+  }, nodeId);
   Future<Uint8List>? picture;
 
   Future<void> open() async {
@@ -211,8 +218,9 @@ class _FileCardState extends State<FileCard> {
   @override
   Widget build(BuildContext context) => FutureBuilder<Json>(
     future: file,
+    initialData: cached,
     builder: (context, snapshot) {
-      final value = snapshot.data;
+      final value = snapshot.data ?? cached;
       if (value != null &&
           value['available'] == true &&
           '${value['mime']}'.startsWith('image/')) {
@@ -223,7 +231,11 @@ class _FileCardState extends State<FileCard> {
               bytes.hasError ? row(value) : image(bytes.data, value),
         );
       }
-      return row(value);
+      return row(
+        value,
+        loading: snapshot.connectionState != ConnectionState.done,
+        failed: snapshot.hasError,
+      );
     },
   );
 
@@ -285,7 +297,7 @@ class _FileCardState extends State<FileCard> {
     );
   }
 
-  Widget row(Json? value) {
+  Widget row(Json? value, {bool loading = false, bool failed = false}) {
     final tone = context.tone;
     final text = Theme.of(context).textTheme;
     final corners = BorderRadius.circular(12);
@@ -303,7 +315,7 @@ class _FileCardState extends State<FileCard> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  value?['available'] == false
+                  failed || value?['available'] == false
                       ? Symbols.broken_image
                       : fileIcon(
                           '${value?['name'] ?? ''}',
@@ -318,15 +330,29 @@ class _FileCardState extends State<FileCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        value?['name'] as String? ??
-                            widget.client.tr('附件', 'Attachment'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: text.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
+                      if (value == null && loading)
+                        SizedBox(
+                          width: 140,
+                          height: 18,
+                          child: DecoratedBox(
+                            decoration: ShapeDecoration(
+                              color: tone.line,
+                              shape: RoundedSuperellipseBorder(
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        Text(
+                          value?['name'] as String? ??
+                              widget.client.tr('附件', 'Attachment'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: text.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
                       if (value?['size'] is num)
                         Text(
                           fileSize(value!['size'] as num),
