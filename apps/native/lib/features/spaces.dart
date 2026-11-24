@@ -188,7 +188,8 @@ class _SpacePageState extends State<SpacePage> {
         throw StateError('Missing index.html');
       }
       await storage.write(cacheKey, space.toJson());
-      await c.spaces.sync(widget.nodeId, widget.spaceId);
+      // Cached records are available now; sync notifies the live page.
+      unawaited(c.spaces.sync(widget.nodeId, widget.spaceId));
       if (!mounted || !identical(storage, c.store)) return;
       setState(() {
         loaded = space;
@@ -389,6 +390,7 @@ class _SpacePageState extends State<SpacePage> {
       return Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
+          flexibleSpace: const WindowDrag(),
           // Beside the rail its bar is as tall as the gallery's, so the
           // space has the room the gallery had.
           toolbarHeight: widget.embedded && !context.tone.glass ? 48 : null,

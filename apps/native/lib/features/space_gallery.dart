@@ -94,6 +94,7 @@ class _SpaceGalleryState extends State<SpaceGallery> {
       return;
     }
     taking = true;
+    final tone = context.tone, brightness = Theme.of(context).brightness;
     WebViewEnvironment? environment;
     try {
       while (mounted && current && !room.isEmpty) {
@@ -133,6 +134,8 @@ class _SpaceGalleryState extends State<SpaceGallery> {
                 'allowedOrigins': const <String>[],
               }),
               bundle: bundle,
+              tone: tone,
+              brightness: brightness,
               writes: false,
             ),
             room,
