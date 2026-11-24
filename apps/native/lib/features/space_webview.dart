@@ -14,6 +14,7 @@ import 'package:window_manager/window_manager.dart';
 import '../data/client.dart';
 import '../data/json.dart';
 import '../data/spaces.dart';
+import '../ui/design.dart' show Tone;
 
 Future<WebViewEnvironment> createSpaceEnvironment(String folder) async {
   final environment = await WebViewEnvironment.create(
@@ -57,11 +58,11 @@ const _sdk = r'''
 /// A zip stays in the existing account file cache. No unpacked site directory,
 /// public listener or file:// access is needed by the renderer.
 class SpaceBundle {
-  final Map<String, Uint8List> files;
+  final Map<String, ArchiveFile> files;
   SpaceBundle(Uint8List bytes)
     : files = {
         for (final file in ZipDecoder().decodeBytes(bytes))
-          if (file.isFile) file.name: file.readBytes()!,
+          if (file.isFile) file.name: file,
       };
   static String mime(String path) =>
       switch (path.split('.').last.toLowerCase()) {
@@ -95,6 +96,8 @@ class SpaceSite {
   final String nodeId;
   final Space space;
   final SpaceBundle bundle;
+  final Tone tone;
+  final Brightness brightness;
 
   /// Whether the site may change its records.
   final bool writes;
@@ -106,6 +109,8 @@ class SpaceSite {
     required this.nodeId,
     required this.space,
     required this.bundle,
+    required this.tone,
+    required this.brightness,
     this.writes = true,
   }) : owner = client.store;
 
@@ -121,6 +126,19 @@ class SpaceSite {
       "frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 
   URLRequest get home => URLRequest(url: WebUri('$origin/index.html'));
+  // Supply base colors before authored CSS, which remains in charge.
+  String get themeCss {
+    String hex(Color color) =>
+        '#${(color.toARGB32() & 0xffffff).toRadixString(16).padLeft(6, '0')}';
+    return ':root {color-scheme:${brightness == Brightness.dark ? 'dark' : 'light'};'
+        '--background:${hex(tone.base)};--foreground:${hex(tone.ink)};'
+        '--muted-foreground:${hex(tone.ink2)};--card:${hex(tone.raised)};'
+        '--border:${hex(tone.line)};--accent:${hex(tone.ink)};}'
+        'html {background:var(--background);color:var(--foreground);}'
+        'body {font-family:system-ui,sans-serif;background:var(--background);'
+        'color:var(--foreground);}';
+  }
+
   UnmodifiableListView<UserScript> get scripts => UnmodifiableListView([
     UserScript(
       source: _sdk,
@@ -168,11 +186,27 @@ class SpaceSite {
       );
     }
     final path = Uri.decodeComponent(uri.path.substring(1));
-    final bytes = bundle.files[path.isEmpty ? 'index.html' : path];
+    final asset = path.isEmpty ? 'index.html' : path;
+    var bytes = bundle.files[asset]?.readBytes();
+    if (bytes != null && SpaceBundle.mime(asset) == 'text/html') {
+      final html = utf8.decode(bytes);
+      final style = '<style id="nekodot-space-theme">$themeCss</style>';
+      final head = RegExp(
+        r'<head\b[^>]*>',
+        caseSensitive: false,
+      ).firstMatch(html);
+      bytes = Uint8List.fromList(
+        utf8.encode(
+          head == null
+              ? '$style$html'
+              : html.replaceRange(head.end, head.end, style),
+        ),
+      );
+    }
     return WebResourceResponse(
       contentType: Platform.isWindows
-          ? '${SpaceBundle.mime(path)}; charset=utf-8'
-          : SpaceBundle.mime(path),
+          ? '${SpaceBundle.mime(asset)}; charset=utf-8'
+          : SpaceBundle.mime(asset),
       contentEncoding: Platform.isWindows ? null : 'utf-8',
       data: bytes ?? Uint8List(0),
       statusCode: bytes == null ? 404 : 200,
@@ -335,13 +369,15 @@ class SpaceWebView extends StatefulWidget {
 class _SpaceWebViewState extends State<SpaceWebView>
     with WidgetsBindingObserver, WindowListener {
   InAppWebViewController? controller;
-  late final site = SpaceSite(
+  late SpaceSite site;
+  SpaceSite makeSite() => SpaceSite(
     client: widget.client,
     nodeId: widget.nodeId,
     space: widget.space,
     bundle: widget.bundle,
+    tone: Theme.of(context).extension<Tone>()!,
+    brightness: Theme.of(context).brightness,
   );
-  Timer? settling;
   bool visible = true;
   bool desktopVisible = true;
   bool pageVisible = true;
@@ -368,6 +404,14 @@ class _SpaceWebViewState extends State<SpaceWebView>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    site = makeSite();
+    unawaited(
+      controller?.evaluateJavascript(
+        source:
+            'document.getElementById("nekodot-space-theme")?.replaceChildren('
+            'document.createTextNode(${jsonEncode(site.themeCss)}));',
+      ),
+    );
     // Navigator disables tickers for routes covered by an opaque page, but
     // keeps them enabled under a menu/dialog. WebView2.pause also hides the
     // surface, so merely losing route.isCurrent must not pause a visible site.
@@ -423,7 +467,6 @@ class _SpaceWebViewState extends State<SpaceWebView>
     WidgetsBinding.instance.removeObserver(this);
     widget.client.spaces.removeListener(recordsChanged);
     if (Platform.isWindows) windowManager.removeListener(this);
-    settling?.cancel();
     // Android timers are process-wide; do not leave the next space paused.
     if (!visible && Platform.isAndroid) unawaited(controller?.resumeTimers());
     controller = null;
@@ -456,8 +499,9 @@ class _SpaceWebViewState extends State<SpaceWebView>
     onCreateWindow: (_, _) async => false,
     onPermissionRequest: SpaceSite.deny,
     onGeolocationPermissionsShowPrompt: SpaceSite.nowhere,
-    // Loaded, and given time to read its records and draw, it can be seen.
-    onLoadStop: (_, _) => settling ??= Timer(_settle, widget.onDrawn),
+    onLoadStop: (_, _) {
+      if (mounted) widget.onDrawn();
+    },
     onReceivedError: (_, request, _) {
       if (request.isForMainFrame == true && mounted) widget.onError();
     },
