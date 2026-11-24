@@ -12,6 +12,7 @@ import '../ui/message_markdown.dart';
 import '../ui/message_selection.dart';
 import '../ui/chat_notice.dart';
 import 'files.dart';
+import 'job_card.dart';
 import 'routines.dart';
 import 'secrets.dart';
 import 'connector_authorization.dart';
@@ -158,6 +159,7 @@ class _MessageTileState extends State<MessageTile> {
       'routine',
       'approval',
       'question',
+      'job',
     }.contains(kind);
     Widget? content;
     if (kind == 'approval' || kind == 'question') {
@@ -176,6 +178,13 @@ class _MessageTileState extends State<MessageTile> {
       );
     } else if (kind == 'routine') {
       content = RoutineCard(client: c, content: body);
+    } else if (kind == 'job') {
+      content = JobCard(
+        key: ValueKey(m.messageId),
+        client: c,
+        messageId: m.messageId,
+        content: body,
+      );
     } else if (text.trim().isNotEmpty ||
         streaming ||
         stopped ||

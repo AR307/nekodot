@@ -7,7 +7,7 @@ import {
   type ConnectorAuthorization,
   type ConnectorRequest,
 } from '@nekodot/protocol';
-import type { NodeDatabase, RunRecord } from './database';
+import type { NodeDatabase } from './database';
 import type { HermesRuntime } from './hermes/runtime';
 import { NodeFault } from './fault';
 
@@ -22,9 +22,8 @@ interface PendingConnection {
   requestId: string;
   botId: string;
   conversationId: string;
+  /** The native session that asked; the work continues there after the user decides. */
   sessionId: string;
-  taskId: string;
-  executionId: string;
   authorization: ConnectorAuthorization;
   createdAt: string;
   stopped?: boolean;
@@ -36,7 +35,11 @@ export class NodeConnectors {
   request: (request: ConnectorRequest) => Promise<unknown> = async () => {
     throw new NodeFault('unavailable', 'Relay is disconnected');
   };
-  onContinue!: (taskId: string, submissionId: string, text: string) => Promise<void>;
+  onContinue!: (
+    request: { botId: string; conversationId: string; sessionId: string },
+    submissionId: string,
+    text: string,
+  ) => Promise<void>;
   onRequest?: (request: PendingConnection) => void;
   private refreshing?: Promise<void>;
   private continuing = new Set<string>();
@@ -54,9 +57,6 @@ export class NodeConnectors {
       .all()
       .map((r) => JSON.parse(String(r.data)));
   }
-  pending(taskId: string) {
-    return this.all().some((r) => r.taskId === taskId && !r.stopped && !r.continued);
-  }
   private persist(row: PendingConnection) {
     this.db.db
       .prepare(
@@ -66,8 +66,6 @@ export class NodeConnectors {
     this.db.putMessage({
       messageId: 'connector:' + row.requestId,
       conversationId: row.conversationId,
-      taskId: row.taskId,
-      taskRole: 'execution',
       seq: this.db.head(),
       author: { type: 'bot', id: row.botId },
       kind: 'connector',
@@ -83,14 +81,14 @@ export class NodeConnectors {
       content: { authorization: row.authorization, stopped: row.stopped ?? false },
     });
   }
-  cancelTask(taskId: string) {
-    let cancelled = false;
-    for (const row of this.all().filter((r) => r.taskId === taskId && !r.continued && !r.stopped)) {
+  /** Stopping a conversation's work also drops the account connections it was waiting for. */
+  cancel(conversationId: string) {
+    for (const row of this.all().filter(
+      (r) => r.conversationId === conversationId && !r.continued && !r.stopped,
+    )) {
       row.stopped = true;
       this.persist(row);
-      cancelled = true;
     }
-    return cancelled;
   }
   async changed(authorization?: ConnectorAuthorization) {
     if (!authorization) return;
@@ -110,48 +108,37 @@ export class NodeConnectors {
       this.continuing.has(row.requestId)
     )
       return;
-    const task = this.db.task(row.taskId);
-    if (task?.executionId === 'connector:' + row.requestId) {
-      row.continued = true;
-      this.persist(row);
-      return;
-    }
-    if (
-      !task ||
-      task.state === 'cancelled' ||
-      task.state === 'failed' ||
-      task.executionId !== row.executionId ||
-      this.db.bot(row.botId)?.archived
-    ) {
+    if (this.db.bot(row.botId)?.archived) {
       row.stopped = true;
       this.persist(row);
       return;
     }
-    // Let the requesting execution finish and its main-Dot report settle first.
+    // The turn that asked finishes first; the Dot then continues in the same session.
     const running = this.db
       .runs()
       .some(
         (r) =>
-          r.taskId === row.taskId &&
-          (r.role === 'execution' || r.role === 'report') &&
+          r.botId === row.botId &&
+          (r.sessionId === row.sessionId || r.storedSessionId === row.sessionId) &&
           r.state !== 'idle',
       );
     if (running) return;
     const text =
       row.authorization.status === 'active'
-        ? `The account connection requested for this same task is now authorized. Service: ${row.authorization.service.name}. Connection reference: ${row.authorization.connectionId}. Continue only the remaining work in this session; do not repeat completed operations. Authorization to connect is not approval to write or send: use the existing native approval for each tool as required. Report findings to the main Dot, which will summarize them naturally.`
-        : `The account authorization for ${row.authorization.service.name} ended with status ${row.authorization.status}. Do not execute any connector operation, retry authorization, or switch to browser access. Report this blocker to the main Dot for a natural explanation. This is not a new task.`;
+        ? `The account connection you requested is now authorized. Service: ${row.authorization.service.name}. Connection reference: ${row.authorization.connectionId}. Continue only the remaining work of the user's request in this conversation; do not repeat completed operations. Authorization to connect is not approval to write or send: use the existing native approval for each tool as required. This is not a new request from the user.`
+        : `The account authorization for ${row.authorization.service.name} ended with status ${row.authorization.status}. Do not execute any connector operation, retry authorization, or switch to browser access. Tell the user plainly what is blocked. This is not a new request from the user.`;
     this.continuing.add(row.requestId);
     try {
-      await this.onContinue(row.taskId, 'connector:' + row.requestId, text);
+      await this.onContinue(row, 'connector:' + row.requestId, text);
       row.continued = true;
       this.persist(row);
     } finally {
       this.continuing.delete(row.requestId);
     }
   }
-  settled(run: RunRecord) {
-    if (run.role !== 'execution' && run.role !== 'report') return;
+  /** A turn ended: an authorization it was waiting for may now continue. */
+  settled() {
+    if (!this.all().some((r) => !r.stopped && !r.continued)) return;
     return this.recover();
   }
   recover() {
@@ -207,18 +194,12 @@ export class NodeConnectors {
             (r.sessionId === p.sessionId || r.storedSessionId === p.sessionId) &&
             r.runId === p.admissionId,
         );
-      if (!run?.taskId || !run.executionId)
-        throw new NodeFault(
-          'conflict',
-          'Connection must be requested from the existing execution task',
-        );
+      if (!run) throw new NodeFault('conflict', 'Connection must be requested from a running turn');
       const authorization = (await this.request(input)) as ConnectorAuthorization;
       const row: PendingConnection = {
         requestId,
         botId: p.botId,
-        sessionId: p.sessionId,
-        taskId: run.taskId,
-        executionId: run.executionId,
+        sessionId: run.storedSessionId ?? p.sessionId,
         conversationId: run.conversationId,
         authorization,
         createdAt: new Date().toISOString(),
@@ -229,7 +210,7 @@ export class NodeConnectors {
         authorization,
         awaitingUser: true,
         instruction:
-          'An authorization card is already in the original chat. Finish this turn and report the service needed to the main Dot. The main Dot explains the need naturally; do not expose internal IDs or paste an OAuth URL. The original task resumes after authorization. Do not poll, repeat completed work, or use another access method.',
+          'An authorization card is already in this chat. Tell the user briefly which service you need and why, then end this turn; do not expose internal IDs or paste an OAuth URL. The work resumes in this conversation after the user decides. Do not poll, repeat completed work, or use another access method.',
       };
     }
     if (input.operation === 'execute') {

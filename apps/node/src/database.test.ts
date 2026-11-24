@@ -84,7 +84,7 @@ it('opens a Phase 1 database without changing DM history and atomically creates 
     });
     expect(groupAndConversationVisibleTogether).toBe(true);
     expect(upgraded.messages('old-dm')).toEqual([message]);
-    expect(upgraded.db.prepare('PRAGMA user_version').get()?.user_version).toBe(4);
+    expect(upgraded.db.prepare('PRAGMA user_version').get()?.user_version).toBe(5);
   } finally {
     upgraded.db.close();
   }

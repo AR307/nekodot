@@ -65,10 +65,6 @@ class ChatComposerState extends State<ChatComposer> {
   String get draftKey => '${c.selectedNodeId}:$id';
   Json? get routineDraft => c.routineDrafts[draftKey];
   Json? get spaceDraft => c.spaceDrafts[draftKey];
-  Json? get taskDraft =>
-      quoted != null && c.workspace['taskQuote:$draftKey'] is Map
-      ? object(c.workspace['taskQuote:$draftKey'])
-      : null;
 
   @override
   void initState() {
@@ -132,14 +128,9 @@ class ChatComposerState extends State<ChatComposer> {
   String? quoted;
   final field = FocusNode();
 
-  void quote(String words, {String? taskId}) {
+  void quote(String words) {
     setState(() => quoted = words.trim());
     c.quotes[draftKey] = words.trim();
-    if (taskId == null) {
-      c.workspace.remove('taskQuote:$draftKey');
-    } else {
-      c.workspace['taskQuote:$draftKey'] = {'taskId': taskId};
-    }
     c.saveContent();
     field.requestFocus();
   }
@@ -178,7 +169,6 @@ class ChatComposerState extends State<ChatComposer> {
         .toList();
     final routineId = routineDraft?['executionId'];
     final spaceId = spaceDraft?['spaceId'];
-    final taskId = taskDraft?['taskId'];
     setState(() {
       sending = true;
       error = '';
@@ -196,7 +186,6 @@ class ChatComposerState extends State<ChatComposer> {
           if (command) 'botId': commandBotId,
           command ? 'command' : 'text': messageText,
           'clientMsgId': uid(),
-          'taskId': ?taskId,
           if (!command && routineId != null) 'routineExecutionId': routineId,
           if (!command && spaceId != null) 'spaceId': spaceId,
         },
@@ -214,7 +203,6 @@ class ChatComposerState extends State<ChatComposer> {
       }
       if (c.drafts[key]?.trim() == text) c.drafts[key] = '';
       c.quotes.remove(key);
-      if (taskDraft?['taskId'] == taskId) c.workspace.remove('taskQuote:$key');
       c.saveContent();
       if (!mounted) return;
       if (!command && quoted == sentQuote) setState(() => quoted = null);
@@ -788,7 +776,6 @@ class ChatComposerState extends State<ChatComposer> {
                           onClear: () {
                             setState(() => quoted = null);
                             c.quotes.remove(draftKey);
-                            c.workspace.remove('taskQuote:$draftKey');
                             c.saveContent();
                           },
                         ),

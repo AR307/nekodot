@@ -258,11 +258,12 @@ export function recordedManagementRuntime(
             : {}),
         } as T;
       }
-      if (method === 'session.steer')
+      // A recorded redirect replays like a steer: the same run continues with the new text.
+      if (method === 'session.steer' || method === 'session.redirect')
         return {
           ...(await hermes.steer(runId, String(params.text ?? ''))),
           execution_generation: Number(params.execution_generation ?? 1),
-          status: 'queued',
+          status: method === 'session.redirect' ? 'redirected' : 'queued',
         } as T;
       if (method === 'session.interrupt' || method === 'prompt.cancel')
         return (await hermes.stop(runId)) as T;

@@ -21,6 +21,7 @@ import { BotVoice } from './voice';
 import { ExecutionFlows } from './flow';
 import { Spaces } from './spaces';
 import { Workplaces } from './workplaces';
+import type { BackgroundJobs } from './jobs';
 
 import type { ConversationExecution } from './execution/sessions';
 import type { CommandOperations } from './command-operations';
@@ -28,6 +29,7 @@ import type { McpServers } from './mcp';
 interface RpcFeatures {
   mcp: McpServers;
   spaces: Spaces;
+  jobs: BackgroundJobs;
   secrets: BotSecrets;
   bots: BotService;
   voice: BotVoice;
@@ -280,7 +282,7 @@ export class NodeRpc {
         return this.features.extensions.configure(request.params);
       case 'flow.get':
         return {
-          flow: this.features.flow.get(request.params.conversationId, request.params.taskId),
+          flow: this.features.flow.get(request.params.conversationId),
         };
       case 'sync.snapshot':
         this.execution.activities();
@@ -335,6 +337,9 @@ export class NodeRpc {
         return this.execution.stop(request.params.conversationId, request.params.runId);
       case 'approvals.respond':
         return this.execution.controls.respondToApproval(request.params);
+      case 'jobs.stop':
+        await this.features.jobs.stop(request.params.messageId);
+        return {};
       case 'questions.respond':
         return this.execution.controls.respondToQuestion(request.params);
       case 'providers.list':

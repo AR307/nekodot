@@ -284,11 +284,14 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
         );
       });
       const active = app.database.runs().find((r) => r.inputMessageId === steerMessage.messageId)!;
-      await runtime.gateway(bot.botId).rpc('session.steer', {
-        session_id: active.sessionId,
-        execution_generation: active.executionGeneration,
-        text: 'Please keep the same run and explain what you found.',
-      });
+      // A message sent while the Dot works redirects that same turn instead of queueing a new one.
+      const redirected = (await send('Please keep the same run and explain what you found.')) as {
+        messageId: string;
+      };
+      expect(app.database.messageRun(redirected.messageId)).toBe(active.runId);
+      expect(app.database.runs().some((r) => r.inputMessageId === redirected.messageId)).toBe(
+        false,
+      );
       const lastRun = relay.inspectRuns().at(-1)!;
       expect(lastRun.steers).toEqual(['Please keep the same run and explain what you found.']);
       expect(relay.inspectRuns().filter((run) => run.profile === bot.botId)).toHaveLength(8);
@@ -376,7 +379,7 @@ describe('Node private-chat journeys with the recorded Hermes HTTP service', () 
 });
 
 describe('Node group journeys with the recorded Hermes HTTP service', () => {
-  it('keeps group context separate, resumes native work, preserves handoffs on direction and stops the selected chain', async () => {
+  it('runs group turns in each Dot’s own session, resumes native work, ends the relay on a new message and stops the chain', async () => {
     const schedule: string[] = [];
     const relay = await startFakeHermes({
       fixturesDirectory: join(process.cwd(), 'tests/fixtures'),
@@ -521,8 +524,9 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
         .filter((run) => run.profile === lead.bot.botId || run.profile === writer.bot.botId);
       expect(groupRuns).toHaveLength(1);
       expect(groupRuns[0]?.profile).toBe(lead.bot.botId);
+      // A Dot's group turn runs in its own private session: one agent, one context.
       const groupSessionId = groupRuns[0]?.sessionId;
-      expect(groupSessionId).not.toBe(privateSessionId);
+      expect(groupSessionId).toBe(privateSessionId);
       expect(groupRuns[0]?.input).not.toContain('the project color is amber');
 
       schedule.push('group-target-1', 'group-target-2');
@@ -658,19 +662,13 @@ describe('Node group journeys with the recorded Hermes HTTP service', () => {
       await app.resume();
       expect(app.database.runs()[0]?.runId).toBe(activeId);
       const active = app.database.runs().find((r) => r.runId === activeId)!;
-      expect(app.database.chain(active.groupChainId!)?.queue).toEqual([writer.bot.botId]);
-      schedule.push('group-writer');
-      await runtime.gateway(active.botId).rpc('session.steer', {
-        session_id: active.sessionId,
-        execution_generation: active.executionGeneration,
-        text: 'Keep the same run and use the new final instruction.',
-      });
+      expect(app.database.chain(active.conversationId)?.queue).toEqual([writer.bot.botId]);
+      // A new message interrupts the working Dot's turn and ends the relay with it.
+      await send('Keep the same run and use the new final instruction.');
       await waitIdle();
-      expect(relay.inspectRuns().slice(before)).toHaveLength(2);
-      expect(relay.inspectRuns().find((r) => r.runId === activeId)).toMatchObject({
-        toolStarts: 1,
-      });
-      expect(relay.inspectRuns().find((r) => r.runId === activeId)?.steers).toHaveLength(1);
+      expect(relay.inspectRuns().slice(before)).toHaveLength(1);
+      expect(relay.inspectRuns().at(-1)).toMatchObject({ runId: activeId, toolStarts: 1 });
+      expect(relay.inspectRuns().at(-1)?.steers).toHaveLength(1);
 
       schedule.push('group-stop');
       before = relay.inspectRuns().length;

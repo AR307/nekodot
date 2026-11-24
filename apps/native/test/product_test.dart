@@ -303,6 +303,49 @@ void main() {
     client.dispose();
   });
 
+  testWidgets('The status line says what the working Dot is thinking', (
+    tester,
+  ) async {
+    final client = JourneyClient();
+    client.node.messages['dm'] = [
+      ChatMessage.fromJson({
+        'messageId': 'm1',
+        'conversationId': 'dm',
+        'createdAt': '2026-11-06T00:00:00Z',
+        'seq': 1,
+        'kind': 'text',
+        'status': 'done',
+        'author': {'type': 'user', 'id': 'me'},
+        'content': {'text': 'Unzip and check the totals'},
+      }),
+    ];
+    client.node.activities['dm'] = ConversationActivity.fromJson({
+      'state': 'thinking',
+      'botId': bot['botId'],
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: appTheme(Brightness.light),
+        home: ChatPage(client: client, conversationId: 'dm'),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    final line = find.byKey(const ValueKey('dot-activity'));
+    expect(find.descendant(of: line, matching: find.text('思考中')), findsOne);
+    client.node.activities['dm'] = ConversationActivity.fromJson({
+      'state': 'tool',
+      'botId': bot['botId'],
+      'thought': 'Checking the totals',
+    });
+    client.node.notifySnapshot();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      find.descendant(of: line, matching: find.text('Checking the totals')),
+      findsOne,
+    );
+    expect(find.byKey(const ValueKey('chat-flowchart')), findsOne);
+  });
+
   testWidgets('Questions stay in chat; activity is read-only', (tester) async {
     final client = JourneyClient();
     Json question(String status) => {

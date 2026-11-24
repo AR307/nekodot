@@ -45,7 +45,7 @@ class FlowClient extends NekodotClient {
     });
   }
   @override
-  Future<void> loadFlow(String conversationId, [String? taskId]) async {
+  Future<void> loadFlow(String conversationId) async {
     notifyListeners();
   }
 }
@@ -112,7 +112,6 @@ void main() {
             child: FlowchartPanel(
               client: client,
               conversationId: 'chat',
-              taskId: 'chat',
               onClose: () {},
               onMessage: (_) async {},
             ),
@@ -157,7 +156,6 @@ void main() {
             child: FlowchartPanel(
               client: client,
               conversationId: 'chat',
-              taskId: 'chat',
               onClose: () {},
               onMessage: (id) async {
                 selected = id;

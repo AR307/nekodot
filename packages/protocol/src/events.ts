@@ -8,6 +8,7 @@ import {
   conversationSchema,
   groupSchema,
   idSchema,
+  jobContentSchema,
   messageSchema,
   seqSchema,
 } from './entities';
@@ -42,6 +43,13 @@ export const eventSchema = z.discriminatedUnion('kind', [
 ]);
 export const liveSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('screen'), status: screenStatusSchema }),
+  /** A running job's newest progress, between the saved updates of its card. */
+  z.strictObject({
+    kind: z.literal('job'),
+    conversationId: idSchema,
+    messageId: idSchema,
+    content: jobContentSchema,
+  }),
   z.strictObject({
     kind: z.literal('delta'),
     conversationId: idSchema,
@@ -56,6 +64,8 @@ export const liveSchema = z.discriminatedUnion('kind', [
     conversationId: idSchema,
     botId: botSchema.shape.botId,
     state: z.enum(['thinking', 'tool', 'waiting_approval', 'waiting_question', 'unknown', 'idle']),
+    /** The working Dot's current line of thought, from its latest reasoning. */
+    thought: z.string().max(160).optional(),
     connection: z.enum(['connected', 'reconnecting']).optional(),
     stalled: z.literal(true).optional(),
     detail: z.string().optional(),

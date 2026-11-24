@@ -116,7 +116,7 @@ it.each(['dm', 'group'] as const)(
         replayEpoch: nativeSession.replay_epoch,
         lastSequence: nativeSession.last_sequence,
       });
-      app.database.setSetting('coordinator-session:' + dm.conversationId, true);
+      app.database.setSetting('dot-session:' + dm.conversationId, true);
       let conversation: Conversation = dm;
       if (kind === 'group') {
         const group = {
@@ -162,9 +162,8 @@ it.each(['dm', 'group'] as const)(
           conversationId: conversation.conversationId,
           botId: bot.botId,
           runId: 'lost-admission',
-          role: 'coordinator',
           sessionKey: dm.conversationId,
-          ...(kind === 'group' ? { groupId: 'recovery-group', groupChainId: 'lost-chain' } : {}),
+          ...(kind === 'group' ? { groupId: 'recovery-group' } : {}),
           sessionId: runtimeSessionId,
           storedSessionId,
           replayEpoch: nativeSession.replay_epoch,
@@ -194,7 +193,8 @@ it.each(['dm', 'group'] as const)(
         );
       await expect(stop()).rejects.toMatchObject({ code: 'unavailable' });
       expect(app.database.runs()[0]?.state).toBe('unknown');
-      if (kind === 'group') expect(app.database.chain('lost-chain')?.queue).toEqual(['nk-ghijkl']);
+      if (kind === 'group')
+        expect(app.database.chain(conversation.conversationId)?.queue).toEqual(['nk-ghijkl']);
       refuseResolution = false;
       await stop();
       expect(resolutions).toEqual([
@@ -202,7 +202,7 @@ it.each(['dm', 'group'] as const)(
         { admission_id: 'lost-admission', execution_generation: 4 },
       ]);
       expect(app.database.runs()).toHaveLength(0);
-      expect(app.database.chain('lost-chain')).toBeUndefined();
+      expect(app.database.chain(conversation.conversationId)).toBeUndefined();
       expect(app.database.message('partial-reply')).toMatchObject({
         status: 'cancelled',
         content: { text: 'Already completed work stays here.' },

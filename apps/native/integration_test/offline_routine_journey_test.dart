@@ -7,6 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:integration_test/integration_test.dart';
+import 'package:nekodot_native/data/chat_models.dart';
 import 'package:nekodot_native/data/client.dart';
 import 'package:nekodot_native/data/json.dart';
 import 'package:nekodot_native/features/bot_model.dart';
@@ -202,19 +203,16 @@ void main() {
     await send(
       '这是隔离验收。请读取 nekodot-routines skill，通过原生 cronjob_manage 创建名为 $marker 的一次性任务（约一分钟后，只运行一次，local 投递）。任务内容：真实调用 terminal 用 Python 计算并打印 37 乘 41，然后仅输出 $marker 和结果。审批策略我已明确选择：每次问我，时区 Asia/Kuala_Lumpur，无时间窗口。用 hermes routine approvals 设置该任务的策略。不要立即自己执行计算，不要删除任务。创建后结束本轮，等后台任务来请求审批。',
     );
-    await until(
-      () => c.node.messages[dm]!.any(
-        (m) =>
-            m.kind == 'approval' && m.taskId != null && m.status == 'streaming',
-      ),
-      seconds: 420,
-    );
-    final approval = c.node.messages[dm]!.firstWhere(
-      (m) =>
-          m.kind == 'approval' && m.taskId != null && m.status == 'streaming',
-    );
-    final task = c.node.tasks[approval.taskId]!;
-    final executionId = task.routineExecutionId!;
+    // The cron fire asks after the creating turn has ended: its approval is the
+    // only one then waiting in the chat.
+    final asked = c.node.messages[dm]!.length;
+    bool fromCron(ChatMessage m) =>
+        m.kind == 'approval' &&
+        m.status == 'streaming' &&
+        c.node.messages[dm]!.indexOf(m) >= asked &&
+        (c.node.activities[dm]?.state ?? 'idle') == 'idle';
+    await until(() => c.node.messages[dm]!.any(fromCron), seconds: 420);
+    final approval = c.node.messages[dm]!.firstWhere(fromCron);
     await fault(true);
     await tap(find.byKey(ValueKey('choice-${approval.messageId}-0')));
     expect(
@@ -222,15 +220,17 @@ void main() {
       isTrue,
     );
     await fault(false);
-    await until(
-      () => c.node.messages[dm]!.any(
-        (m) =>
-            m.messageId == 'routine-result:$executionId' &&
-            m.status == 'done' &&
-            '${m.content['text']}'.contains('1517'),
-      ),
-      seconds: 360,
-    );
+    // The result is the Dot's own message in this chat.
+    bool cronResult(ChatMessage m) =>
+        m.messageId.startsWith('routine-result:') &&
+        m.status == 'done' &&
+        m.taskRole == null &&
+        '${m.content['text']}'.contains('1517');
+    await until(() => c.node.messages[dm]!.any(cronResult), seconds: 360);
+    final executionId = c.node.messages[dm]!
+        .firstWhere(cronResult)
+        .messageId
+        .substring('routine-result:'.length);
     await tester.runAsync(
       () => c.rpc('approvals.respond', {
         'messageId': approval.messageId,

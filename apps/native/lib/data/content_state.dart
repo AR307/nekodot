@@ -158,10 +158,6 @@ extension ClientContent on NekodotClient {
           'headSeq': n.seq,
           'node': n.capabilities,
           'flows': n.flows.values.map((f) => f.toJson()).toList(),
-          'tasks': n.tasks.values.map((task) => task.toJson()).toList(),
-          'taskActivities': n.taskActivities.map(
-            (id, activity) => MapEntry(id, activity.toJson()),
-          ),
           'activities': n.activities.map(
             (id, activity) => MapEntry(id, activity.toJson()),
           ),
@@ -198,8 +194,6 @@ extension ClientContent on NekodotClient {
 
   // Explicit product read models only: never persist arbitrary RPC responses.
   static const cachedReads = {
-    'tasks.get',
-    'tasks.list',
     'routines.list',
     'routines.get',
     'routines.executions',

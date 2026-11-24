@@ -244,7 +244,7 @@ class NativeNotifications {
             'nekodot tasks',
             importance: Importance.high,
             priority: Priority.high,
-            tag: '${signal['taskId'] ?? signal['conversationId']}',
+            tag: '${signal['conversationId']}',
           ),
         ),
         payload: jsonEncode(signal),

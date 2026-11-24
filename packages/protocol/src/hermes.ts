@@ -26,6 +26,8 @@ export const hermesSseEventSchema = z
     preview: z.string().optional(),
     context: z.string().optional(),
     tool_call_id: z.string().optional(),
+    /** A terminal call that left a process running in the background: its id. */
+    process_id: z.string().optional(),
     duration: z.number().optional(),
     error: z.union([z.boolean(), z.string()]).optional(),
     output: z.string().optional(),

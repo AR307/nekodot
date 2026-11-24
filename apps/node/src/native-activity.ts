@@ -40,7 +40,13 @@ export class NativeActivity {
     const results = await Promise.allSettled(
       bots.map(async (bot) => {
         const gateway = this.hermes.gateway(bot.botId);
-        const sessions = this.database.hermesSessions().filter((s) => s.botId === bot.botId);
+        // A Dot's turns (private and group) all run in its private chat's session.
+        const sessions = this.database
+          .hermesSessions()
+          .filter(
+            (s) =>
+              s.botId === bot.botId && this.database.conversation(s.conversationId)?.kind === 'dm',
+          );
         for (const session of sessions) this.scopes.set(session.storedSessionId, session);
         if (!this.listeners.has(gateway)) {
           const listener = (frame: GatewayFrame) => {

@@ -107,6 +107,26 @@ const textContent = z.strictObject({
     .strictObject({ routineId: z.string(), executionId: z.string(), sessionId: z.string() })
     .optional(),
 });
+/**
+ * A long job a Dot runs in the background (a script collecting data, a download), as the
+ * progress line it prints shows it: what it is, how far, how fast, how long is left.
+ */
+export const jobContentSchema = z.strictObject({
+  botId: botSchema.shape.botId,
+  /** The description its progress line gives, else its command. */
+  label: z.string().max(200),
+  state: z.enum(['running', 'done', 'failed', 'stopped']),
+  /** Done and total as the job prints them, e.g. 450 and 1000, or 12.3M and 100M. */
+  done: z.string().max(24).optional(),
+  total: z.string().max(24).optional(),
+  percent: z.number().min(0).max(100).optional(),
+  /** Speed as printed, e.g. 14.9it/s. */
+  rate: z.string().max(32).optional(),
+  elapsedSeconds: z.number().nonnegative().optional(),
+  etaSeconds: z.number().nonnegative().optional(),
+  exitCode: z.number().int().optional(),
+});
+export type JobContent = z.infer<typeof jobContentSchema>;
 export const messageSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     ...messageBase,
@@ -210,6 +230,7 @@ export const messageSchema = z.discriminatedUnion('kind', [
       choice: approvalChoiceSchema.optional(),
     }),
   }),
+  z.strictObject({ ...messageBase, kind: z.literal('job'), content: jobContentSchema }),
 ]);
 export type Bot = z.infer<typeof botSchema>;
 export type Group = z.infer<typeof groupSchema>;

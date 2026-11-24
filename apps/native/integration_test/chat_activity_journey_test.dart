@@ -24,7 +24,9 @@ import 'local_desktop_journey_test.dart' show MemoryVault;
 // Native UI, actual isolated Node/Relay/Hermes and model. No event injection.
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  testWidgets('Dot mediates private questions and results', (tester) async {
+  testWidgets('the Dot asks in the chat while it works and delivers the file', (
+    tester,
+  ) async {
     tester.testTextInput.register();
     addTearDown(tester.testTextInput.unregister);
     SharedPreferences.setMockInitialValues({'notification-requested': true});
@@ -134,61 +136,34 @@ void main() {
     final input = find.byKey(const ValueKey('chat-input'));
     final dock = find.byKey(const ValueKey('dot-activity'));
     final box = find.byKey(const ValueKey('composer-card'));
-    final original = c.node.tasks.keys.toSet();
     Future<void> send(String text) async {
       await tester.enterText(input, text);
       await frames(150);
       await tap(find.byTooltip(c.tr('发送', 'Send')));
     }
 
-    const reuse = String.fromEnvironment('QA_ACTIVITY_TASKS');
-    final taskIds = reuse.split(',').where((s) => s.isNotEmpty).toSet();
-    if (taskIds.isEmpty) {
-      await send(
-        '帮我做一个三页周汇报 PPTX，素材是 $work/activity-input.txt，内容用中文。'
-        '先安排实际制作去读取素材、整理内容，再通过原生 clarify 确认我想用正式商务风还是轻松图文风。'
-        '现在先不要替我选风格，也不要在接待阶段提前问；读取后再问我。'
-        '我选好以后继续完成真实 PPTX，保存在 $work/weekly-$suffix.pptx，然后交付文件和简短总结。'
-        '不要改写素材，不要装大型依赖。',
-      );
-      await until(
-        () => c.node.tasks.keys.any((id) => !original.contains(id)),
-        'native work started',
-      );
-      taskIds.addAll(c.node.tasks.keys.where((id) => !original.contains(id)));
-    }
-    final taskId = taskIds.single;
-    if (const bool.fromEnvironment('QA_ACTIVITY_RESULT_ONLY')) {
-      await until(
-        () => c.node.tasks[taskId]?.reportMessageId != null,
-        'existing work reported without replay',
-      );
-      final report = c.node.messages[dm]!.firstWhere(
-        (m) => m.messageId == c.node.tasks[taskId]!.reportMessageId,
-      );
-      expect(c.node.tasks[taskId]!.state, 'completed');
-      expect(report.content['files'], isNotEmpty);
-      await shot('results');
-      return;
-    }
-    ChatMessage? question(bool worker) => c.node.messages[dm]!
+    // The Dot reads the material itself, asks in the chat, and continues on
+    // the answer in the same work; nothing is handed to another session.
+    final start = c.node.seq;
+    await send(
+      '帮我做一个三页周汇报 PPTX，素材是 $work/activity-input.txt，内容用中文。'
+      '先读取素材、整理内容，再通过原生 clarify 确认我想用正式商务风还是轻松图文风。'
+      '现在先不要替我选风格，也不要在读素材之前提前问；读取后再问我。'
+      '我选好以后继续完成真实 PPTX，保存在 $work/weekly-$suffix.pptx，然后交付文件和简短总结。'
+      '不要改写素材，不要装大型依赖。',
+    );
+    ChatMessage? question() => c.node.messages[dm]!
         .where(
           (m) =>
-              m.taskId == taskId &&
-              m.kind == 'question' &&
-              m.status == 'streaming' &&
-              (m.taskRole == 'execution') == worker,
+              m.seq > start && m.kind == 'question' && m.status == 'streaming',
         )
         .lastOrNull;
-    await until(() => question(true) != null, 'worker asked privately');
-    final raw = question(true)!;
-    await until(
-      () => question(false) != null,
-      'main Dot asked with native clarify',
+    await until(() => question() != null, 'the Dot asked in the chat');
+    final asked = question()!;
+    final read = c.node.messages[dm]!.where(
+      (m) => m.seq > start && m.seq < asked.seq && m.kind == 'tool',
     );
-    final asked = question(false)!;
-    expect(asked.content['runId'], isNot(raw.content['runId']));
-    expect(asked.content['question'], isNot(raw.content['question']));
+    expect(read, isNotEmpty, reason: 'it read the material before asking');
     expect(
       '${asked.content['question']}',
       isNot(
@@ -203,7 +178,6 @@ void main() {
 
     await showLatest();
     expect(find.byType(ControlCard), findsWidgets);
-    expect(find.text('${raw.content['question']}'), findsNothing);
     expect(find.text('${asked.content['question']}'), findsOneWidget);
     expect(dock, findsOneWidget);
     expect(tester.getRect(dock).bottom, closeTo(tester.getRect(box).top, 1));
@@ -233,13 +207,13 @@ void main() {
     await tap(find.byKey(const ValueKey('flow-close')));
     expect(tester.widget<TextField>(input).controller!.text, '保留这段未发送草稿\n第二行');
     final composer = tester.state<ChatComposerState>(find.byType(ChatComposer));
-    composer.quote('${asked.content['question']}', taskId: taskId);
+    composer.quote('${asked.content['question']}');
     await frames();
-    expect(composer.taskDraft?['taskId'], taskId);
+    expect(find.byKey(const ValueKey('composer-quote')), findsOneWidget);
     expect(tester.getRect(dock).bottom, closeTo(tester.getRect(box).top, 1));
     await shot('quoted');
     await tap(find.byTooltip(c.tr('取消', 'Cancel')).last);
-    expect(composer.taskDraft, isNull);
+    expect(find.byKey(const ValueKey('composer-quote')), findsNothing);
     if (phone) {
       tester.testTextInput.unregister();
       await tester.tap(input);
@@ -266,11 +240,11 @@ void main() {
     await shot('offline');
     await c.connection.connect();
     await until(() => c.online, 'reconnected');
-    await until(() => question(false) != null, 'same question restored');
-    expect(question(false)!.messageId, asked.messageId);
+    await until(() => question() != null, 'same question restored');
+    expect(question()!.messageId, asked.messageId);
     if (const bool.fromEnvironment('QA_ACTIVITY_OBSERVE_ONLY')) {
       final result = {
-        'taskIds': taskIds.toList(),
+        'questionId': asked.messageId,
         'platform': suffix,
         'pending': true,
       };
@@ -289,75 +263,33 @@ void main() {
     );
     expect(selected, greaterThanOrEqualTo(0));
     await tap(find.byKey(ValueKey('choice-${asked.messageId}-$selected')));
+    ChatMessage? delivered() => c.node.messages[dm]!
+        .where(
+          (m) =>
+              m.seq > asked.seq &&
+              m.author.type == 'bot' &&
+              m.kind == 'text' &&
+              m.status == 'done' &&
+              (m.content['files'] as List?)?.isNotEmpty == true,
+        )
+        .lastOrNull;
     await until(
-      () => question(true) == null,
-      'secretary passed answer to original worker',
+      () =>
+          delivered() != null &&
+          (c.node.activities[dm]?.state ?? 'idle') == 'idle',
+      'the same work continued and the Dot delivered the file',
     );
-    await until(
-      () => c.node.tasks[taskId]?.reportMessageId != null,
-      'file produced and main Dot reported',
-    );
-    expect(c.node.tasks[taskId]!.state, 'completed');
-    final result = await c.rpc('tasks.get', {
-      'conversationId': dm,
-      'taskId': taskId,
-    });
-    final report = c.node.messages[dm]!.firstWhere(
-      (m) => m.messageId == c.node.tasks[taskId]!.reportMessageId,
-    );
-    final originalResult = (result['messages'] as List)
-        .cast<Map>()
-        .where((m) => m['messageId'] == c.node.tasks[taskId]!.resultMessageId)
-        .first;
+    final report = delivered()!;
     expect(
-      report.content['text'],
-      isNot((originalResult['content'] as Map)['text']),
+      c.node.messages[dm]!.where((m) => m.taskRole == 'execution'),
+      isEmpty,
     );
-    expect(report.content['files'], isNotEmpty);
     await tester.enterText(input, '');
     await showLatest();
     await shot('results');
-    if (const bool.fromEnvironment('QA_SECRETARY_SELF_ANSWER')) {
-      final before = c.node.tasks.keys.toSet();
-      await send(
-        '接下来做一次重复确认的流程验收：输出格式我已经确定为 Markdown 表格。'
-        '请在实际执行中先读同一素材 $work/activity-input.txt；为了验收，'
-        '让执行过程仍用原生 clarify 向你核对输出格式。'
-        '你根据我已经明确的格式直接答复，不要再让我选。'
-        '然后生成日期和安排两列的表格，保存 $work/self-answer-$suffix.md，简短汇报并交付。',
-      );
-      await until(
-        () => c.node.tasks.keys.any((id) => !before.contains(id)),
-        'second native requirement started',
-      );
-      final second = c.node.tasks.keys.firstWhere((id) => !before.contains(id));
-      await until(
-        () => c.node.tasks[second]?.reportMessageId != null,
-        'main Dot resolved known information without interrupting user',
-      );
-      final detail = await c.rpc('tasks.get', {
-        'conversationId': dm,
-        'taskId': second,
-      });
-      final questions = (detail['messages'] as List)
-          .cast<Map>()
-          .where((m) => m['kind'] == 'question')
-          .toList();
-      expect(questions.where((m) => m['taskRole'] == 'execution'), isNotEmpty);
-      expect(questions.where((m) => m['taskRole'] != 'execution'), isEmpty);
-      expect(
-        questions.every((m) => (m['content'] as Map)['answer'] != null),
-        isTrue,
-      );
-      expect(c.node.tasks[second]!.state, 'completed');
-      await showLatest();
-      await shot('self-answered');
-    }
     final record = {
       'platform': suffix,
-      'taskIds': taskIds.toList(),
-      'workerQuestion': raw.content['question'],
-      'mainQuestion': asked.content['question'],
+      'question': asked.content['question'],
       'reportMessageId': report.messageId,
       'fileIds': report.content['files'],
     };

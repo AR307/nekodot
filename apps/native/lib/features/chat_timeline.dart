@@ -17,11 +17,8 @@ class ChatTimeline extends StatelessWidget {
   final String? focusedMessage;
   final GlobalKey focusedKey;
   final ValueChanged<String> onRetry, onError;
-  final void Function(String words, String? taskId) onQuote;
+  final ValueChanged<String> onQuote;
   final ValueChanged<bool>? onFocusChanged;
-
-  /// What stands under the latest message and scrolls with the conversation.
-  final Widget? footer;
 
   /// Whether a message arrived while the page was open and has not been shown
   /// yet; such a message enters with a short motion.
@@ -33,7 +30,6 @@ class ChatTimeline extends StatelessWidget {
   final int? since;
   const ChatTimeline({
     this.onFocusChanged,
-    this.footer,
     super.key,
     required this.client,
     required this.conversationId,
@@ -123,7 +119,7 @@ class ChatTimeline extends StatelessWidget {
                         previous.author.id == m.author.id &&
                         previous.author.type == m.author.type,
                     onRetry: onRetry,
-                    onQuote: (words) => onQuote(words, m.taskId),
+                    onQuote: onQuote,
                   ),
                 ),
               ),
@@ -170,10 +166,8 @@ class ChatTimeline extends StatelessWidget {
                   padding: EdgeInsets.fromLTRB(14, 0, 14, bottom),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
-                      (context, index) => index == current.length
-                          ? footer!
-                          : entry(earlier.length + index),
-                      childCount: current.length + (footer == null ? 0 : 1),
+                      (context, index) => entry(earlier.length + index),
+                      childCount: current.length,
                       findChildIndexCallback: (key) {
                         final index = current.indexWhere(
                           (item) => ValueKey(item.messageId) == key,

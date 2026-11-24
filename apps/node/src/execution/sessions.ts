@@ -1,4 +1,3 @@
-import { DotTasks } from './tasks';
 import { RunControls } from './controls';
 import { RunEvents } from './events';
 import { GroupExecution } from './groups';
@@ -31,7 +30,6 @@ const STALL_MS = 5 * 60_000;
 export class ConversationExecution {
   readonly messages: RunMessages;
   readonly controls: RunControls;
-  readonly tasks: DotTasks;
   private readonly events: RunEvents;
   private readonly groupExecution: GroupExecution;
   private readonly nativeActivity: NativeActivity;
@@ -45,6 +43,8 @@ export class ConversationExecution {
   private readonly welcomeSends = new Map<string, Promise<{ messageId: string }>>();
   private readonly submissions = new Map<string, Promise<{ messageId: string }>>();
   readonly onLive: (event: LiveEvent) => void;
+  /** A Dot's terminal call left a process running in the background. */
+  onBackgroundProcess: (run: RunRecord, processId: string) => void = () => {};
   get idle() {
     return (
       this.activeRuns.size === 0 &&
@@ -69,19 +69,11 @@ export class ConversationExecution {
     private readonly connectors?: NodeConnectors,
   ) {
     this.onLive = onLive;
-    this.tasks = new DotTasks(database, hermes, {
-      start: (run, input) => this.startRun(run, input),
-      stop: (conversationId, runId) => this.stop(conversationId, runId),
-      answer: (messageId, answer) => this.controls.respondToQuestion({ messageId, answer }),
-      connectionPending: (taskId) => this.connectors?.pending(taskId) ?? false,
-      cancelConnection: (taskId) => this.connectors?.cancelTask(taskId) ?? false,
-    });
     if (this.connectors)
-      this.connectors.onContinue = (taskId, submissionId, text) =>
-        this.tasks.continueExternalInput(taskId, submissionId, text);
-    this.routines.onTask = (value) => this.tasks.local(value);
+      this.connectors.onContinue = (request, submissionId, text) =>
+        this.continueInSession(request, submissionId, text);
     this.routines.onExecution = async (routine, execution, conversationId, prompts, generation) => {
-      const run = this.tasks.background(routine, execution, conversationId, generation);
+      const run = this.routineRun(routine, execution, conversationId, generation);
       if (['completed', 'failed', 'cancelled'].includes(execution.state)) {
         run.textMessageId = 'routine-result:' + execution.executionId;
         this.controls.settleControls(
@@ -93,59 +85,15 @@ export class ConversationExecution {
               : 'failed',
         );
         this.end(run);
-        await this.tasks.finished(run, execution.state as 'completed' | 'failed' | 'cancelled');
-        await this.connectors?.settled(run);
+        await this.connectors?.settled();
       } else {
         await this.controls.restoreNativePrompts(run, prompts);
         this.publishActivity(run);
       }
     };
     this.messages = new RunMessages(this.database, (event) => this.onLive(event));
-    this.secrets.onContinue = async (request, submissionId, text) => {
-      if (request.taskId)
-        return this.tasks.continueExternalInput(request.taskId, submissionId, text);
-      const gateway = hermes.gateway(request.botId);
-      const snapshot = await gateway.rpc<NativeSessionSnapshot>('session.resume', {
-        session_id: request.sessionId,
-        omit_messages: true,
-        defer_history: true,
-      });
-      const admission = await gateway.rpc<NativeAdmission>('prompt.submit', {
-        session_id: snapshot.session_id,
-        submission_id: submissionId,
-        input_id: submissionId,
-        text,
-        queued: true,
-      });
-      const run: RunRecord = {
-        botId: request.botId,
-        conversationId: request.conversationId,
-        inputMessageId: submissionId,
-        submissionId,
-        runId: admission.admission_id,
-        native: true,
-        queue: 'queued',
-        state: 'thinking',
-        sessionId: snapshot.session_id,
-        storedSessionId: snapshot.stored_session_id,
-        lastSeq: snapshot.last_sequence,
-        replayEpoch: snapshot.replay_epoch,
-        executionGeneration: admission.execution_generation ?? snapshot.execution_generation,
-      };
-      this.database.saveRun(run);
-      if (admission.status === 'terminal') {
-        const receipt = await gateway.rpc<NativeAdmission>('prompt.receipt', {
-          session_id: run.sessionId,
-          admission_id: run.runId,
-          include_result: true,
-        });
-        await this.finishFromState(
-          run,
-          receipt.outcome ?? 'failed',
-          receipt.result?.final_response,
-        );
-      } else this.consume(run, gateway);
-    };
+    this.secrets.onContinue = (request, submissionId, text) =>
+      this.continueInSession(request, submissionId, text);
     this.nativeActivity = new NativeActivity(
       this.database,
       hermes,
@@ -155,16 +103,10 @@ export class ConversationExecution {
         if (!conversation) return;
         if (frame.type === 'review.summary') {
           const text = frame.payload?.text;
-          const owner = this.database.db
-            .prepare(
-              "SELECT task_id FROM task_executions WHERE json_extract(data,'$.sessionKey')=? ORDER BY rowid DESC LIMIT 1",
-            )
-            .get(session.conversationId);
           const messageId = `native-review:${session.storedSessionId}:${replayEpoch}:${frame.seq}`;
           if (typeof text === 'string' && text.trim() && !this.database.message(messageId))
             this.database.putMessage({
               messageId,
-              ...(owner ? { taskId: String(owner.task_id), taskRole: 'execution' as const } : {}),
               conversationId,
               seq: this.database.head(),
               author: { type: 'bot', id: session.botId },
@@ -186,7 +128,6 @@ export class ConversationExecution {
           botId: session.botId,
           conversationId,
           sessionKey: session.conversationId,
-          role: 'coordinator',
           ...(conversation.kind === 'group' ? { groupId: conversation.groupId } : {}),
           inputMessageId: admissionId,
           runId: admissionId,
@@ -198,19 +139,13 @@ export class ConversationExecution {
           lastSeq: (frame.seq ?? 0) - 1,
           state: 'thinking',
         };
-        this.tasks.nativeContinuation(run);
         this.database.saveRun(run);
         this.activeRuns.set(run.inputMessageId, run);
         this.consume(run, hermes.gateway(run.botId));
       },
     );
-    this.controls = new RunControls(
-      this.database,
-      hermes,
-      this.flow,
-      this.notifications,
-      (run) => this.publishActivity(run),
-      (run, question) => this.tasks.consult(run, question),
+    this.controls = new RunControls(this.database, hermes, this.flow, this.notifications, (run) =>
+      this.publishActivity(run),
     );
     this.groupExecution = new GroupExecution(
       this.database,
@@ -240,6 +175,8 @@ export class ConversationExecution {
         },
         publish: (run) => this.publishActivity(run),
         start: (run, input, instructions) => this.startRun(run, input, instructions),
+        redirect: (active, message, params, command) =>
+          this.redirect(active, message, params, command),
       },
       (event) => this.onLive(event),
     );
@@ -253,29 +190,111 @@ export class ConversationExecution {
       this.files,
       (run) => this.publishActivity(run),
       (run, status, output) => this.finishRun(run, status, output),
+      (run, processId) => this.onBackgroundProcess(run, processId),
     );
   }
+  /**
+   * Input that arrives for a session after its turn (a delivered secret, an authorized
+   * account) continues there as the Dot's own next turn.
+   */
+  private async continueInSession(
+    request: { botId: string; conversationId: string; sessionId: string },
+    submissionId: string,
+    text: string,
+  ) {
+    if (this.database.runs().some((run) => run.inputMessageId === submissionId)) return;
+    const gateway = this.hermes.gateway(request.botId);
+    const conversation = this.database.conversation(request.conversationId);
+    const snapshot = await gateway.rpc<NativeSessionSnapshot>('session.resume', {
+      session_id: request.sessionId,
+      omit_messages: true,
+      defer_history: true,
+    });
+    const admission = await gateway.rpc<NativeAdmission>('prompt.submit', {
+      session_id: snapshot.session_id,
+      submission_id: submissionId,
+      input_id: submissionId,
+      text,
+      queued: true,
+    });
+    const run: RunRecord = {
+      botId: request.botId,
+      conversationId: request.conversationId,
+      ...(conversation?.kind === 'group' ? { groupId: conversation.groupId } : {}),
+      inputMessageId: submissionId,
+      submissionId,
+      runId: admission.admission_id,
+      native: true,
+      queue: 'queued',
+      state: 'thinking',
+      sessionId: snapshot.session_id,
+      storedSessionId: snapshot.stored_session_id,
+      lastSeq: snapshot.last_sequence,
+      replayEpoch: snapshot.replay_epoch,
+      executionGeneration: admission.execution_generation ?? snapshot.execution_generation,
+    };
+    this.database.saveRun(run);
+    if (admission.status === 'terminal') {
+      const receipt = await gateway.rpc<NativeAdmission>('prompt.receipt', {
+        session_id: run.sessionId,
+        admission_id: run.runId,
+        include_result: true,
+      });
+      await this.finishFromState(run, receipt.outcome ?? 'failed', receipt.result?.final_response);
+    } else this.consume(run, gateway);
+  }
+
+  /** A scheduled or webhook execution, followed only for its native approvals and questions. */
+  private routineRun(
+    routine: { botId: string; routineId: string; cronJobId?: string },
+    execution: { executionId: string; sessionId: string; admissionId?: string; state: string },
+    conversationId: string,
+    generation?: number,
+  ) {
+    const run: RunRecord = this.database
+      .runs()
+      .find((r) => r.inputMessageId === execution.executionId) ?? {
+      conversationId,
+      botId: routine.botId,
+      inputMessageId: execution.executionId,
+      native: true,
+      background: routine.cronJobId ? 'cron' : 'webhook',
+      routineId: routine.routineId,
+      sessionKey: 'routine:' + execution.executionId,
+      sessionId: execution.sessionId,
+      storedSessionId: execution.sessionId,
+      runId: execution.admissionId,
+      lastSeq: -1,
+      state: 'thinking',
+    };
+    run.executionGeneration = generation ?? run.executionGeneration;
+    run.state =
+      execution.state === 'waiting_approval'
+        ? 'waiting_approval'
+        : execution.state === 'waiting_question'
+          ? 'waiting_question'
+          : 'thinking';
+    this.database.saveRun(run);
+    return run;
+  }
+
   private current(conversationId: string) {
     return [...this.activeRuns.values()].find(
       (run) =>
         run.conversationId === conversationId &&
-        run.role !== 'execution' &&
+        !run.background &&
         run.queue !== 'queued' &&
         run.state !== 'idle',
     );
   }
 
   activities() {
-    const runs = this.database.runs();
-    for (const run of runs) if (run.role === 'execution') this.publishActivity(run);
+    const runs = this.database.runs().filter((run) => !run.background);
     for (const conversation of this.database.conversations()) {
       if (conversation.kind === 'group') {
         const run =
           this.current(conversation.conversationId) ??
-          runs.find(
-            (item) =>
-              item.conversationId === conversation.conversationId && item.role !== 'execution',
-          );
+          runs.find((item) => item.conversationId === conversation.conversationId);
         const chain = this.database
           .chains()
           .find((c) => c.conversationId === conversation.conversationId);
@@ -288,6 +307,7 @@ export class ConversationExecution {
             this.database.group(conversation.groupId)?.leadBotId ??
             '',
           state: run?.state ?? 'idle',
+          ...(run?.thought && run.state !== 'idle' ? { thought: run.thought } : {}),
           runId: run?.runId,
           chain: chain ? { count: chain.count, max: MAX_CHAIN } : undefined,
           ...this.stall(run),
@@ -296,15 +316,13 @@ export class ConversationExecution {
       }
       const run =
         this.current(conversation.conversationId) ??
-        runs.find(
-          (item) =>
-            item.conversationId === conversation.conversationId && item.role !== 'execution',
-        );
+        runs.find((item) => item.conversationId === conversation.conversationId);
       this.onLive({
         kind: 'activity',
         conversationId: conversation.conversationId,
         botId: conversation.botId,
         state: run?.state ?? 'idle',
+        ...(run?.thought && run.state !== 'idle' ? { thought: run.thought } : {}),
         runId: run?.runId,
         ...this.stall(run),
       });
@@ -314,10 +332,8 @@ export class ConversationExecution {
   async resume() {
     for (const run of this.database.runs()) {
       if (run.background) continue;
-      const conversationId =
-        run.sessionKey ??
-        (run.groupId ? 'group:' + run.conversationId + ':' + run.botId : run.conversationId);
-      if (!run.runId && run.role && run.pendingInput !== undefined) {
+      const conversationId = run.sessionKey ?? this.sessionKey(run);
+      if (!run.runId && !run.groupId && run.pendingInput !== undefined) {
         await this.startRun(run, run.pendingInput);
         continue;
       }
@@ -353,7 +369,6 @@ export class ConversationExecution {
         this.database.saveRun(run);
         this.database.saveHermesSession({
           conversationId,
-          ownerConversationId: run.conversationId,
           botId: run.botId,
           storedSessionId: snapshot.stored_session_id,
           replayEpoch: snapshot.replay_epoch,
@@ -363,9 +378,7 @@ export class ConversationExecution {
         });
         if (!run.runId) {
           const input = this.database.message(run.inputMessageId);
-          const chain = run.groupId
-            ? this.database.chain(run.groupChainId ?? run.conversationId)
-            : undefined;
+          const chain = run.groupId ? this.database.chain(run.conversationId) : undefined;
           if (run.queue !== 'queued') this.activeRuns.set(run.inputMessageId, run);
           void this.startRun(
             run,
@@ -425,18 +438,11 @@ export class ConversationExecution {
         }
       }
     }
-    const activeChains = new Set(this.database.runs().map((run) => run.groupChainId));
+    const activeConversations = new Set(this.database.runs().map((run) => run.conversationId));
     for (const chain of this.database.chains()) {
-      const waiting = chain.taskId && !this.database.task(chain.taskId)?.reportMessageId;
-      if (
-        chain.queue.length &&
-        !chain.currentBotId &&
-        !activeChains.has(chain.notificationId) &&
-        !waiting
-      )
+      if (chain.queue.length && !activeConversations.has(chain.conversationId))
         await this.groupExecution.startNextGroupRun(chain);
     }
-    await this.tasks.recoverReports();
     this.nativeActivity.start();
   }
 
@@ -449,7 +455,6 @@ export class ConversationExecution {
       lastSeq: -1,
       state: 'thinking',
       welcome: true,
-      role: 'coordinator',
       inputMessageId: randomUUID(),
       requestId: retry ? randomUUID() : 'welcome:' + botId,
     };
@@ -489,7 +494,6 @@ export class ConversationExecution {
       botId: params.botId,
       inputMessageId: message.messageId,
       submissionId: params.clientMsgId,
-      role: 'coordinator',
       lastSeq: -1,
       state: 'thinking',
       queue: 'queued',
@@ -531,11 +535,6 @@ export class ConversationExecution {
       throw new NodeFault('conflict', 'The original conversation session has changed.');
     const conversation = this.database.conversation(params.conversationId);
     if (!conversation) throw new NodeFault('not_found', 'Conversation not found');
-    if (
-      params.taskId &&
-      this.database.task(params.taskId)?.conversationId !== params.conversationId
-    )
-      throw new NodeFault('not_found', 'Task not found in this chat');
     if (!params.text.trim() && !params.files?.length)
       throw new NodeFault('invalid_params', 'Write a message or attach a file.');
     if (
@@ -548,31 +547,47 @@ export class ConversationExecution {
         'conflict',
         'Wait for the current task before starting a one-turn model command. No input was sent.',
       );
-    if (params.routineExecutionId) {
-      const task = this.database
-        .tasks(params.conversationId)
-        .find((t) => t.routineExecutionId === params.routineExecutionId);
-      if (!task) throw new NodeFault('not_found', 'Routine task not found in this chat');
-      params = { ...params, taskId: task.taskId };
-    }
     if (
       params.spaceId &&
       this.database.space(params.spaceId)?.conversationId !== params.conversationId
     )
       throw new NodeFault('not_found', 'Space not found in this chat');
-    if (conversation.kind === 'group')
+    if (conversation.kind === 'group') {
+      if (params.routineExecutionId)
+        throw new NodeFault(
+          'invalid_params',
+          'Continue a routine in its Bot private conversation.',
+        );
       return this.groupExecution.sendGroupMessage(params, conversation, command);
+    }
     const bot = this.bots.get(conversation.botId);
     const active =
       this.current(conversation.conversationId) ??
       this.database
         .runs()
-        .find(
-          (run) => run.conversationId === conversation.conversationId && run.role !== 'execution',
-        );
+        .find((run) => run.conversationId === conversation.conversationId && !run.background);
+    // The Dot's group turn runs in this same session: a private message waits behind it.
+    const inGroup = this.database
+      .runs()
+      .some((run) => run.botId === conversation.botId && run.groupId && run.state !== 'idle');
     const routine = params.routineExecutionId
       ? this.routines.execution(bot.botId, params.routineExecutionId)
       : undefined;
+    // An introduction, or a Dot waiting on the user's answer or approval, keeps the message
+    // for after it.
+    // A turn still waiting behind the Dot's other work is not the one running: the new
+    // message waits too.
+    const redirect =
+      active &&
+      active.queue !== 'queued' &&
+      !active.welcome &&
+      active.state !== 'waiting_approval' &&
+      active.state !== 'waiting_question';
+    if (redirect && (params.files?.length || routine))
+      throw new NodeFault(
+        'conflict',
+        'A Dot that is working takes text only. Wait for it to finish or stop it first. Your draft is kept.',
+      );
     const userMessage: Message = {
       messageId: randomUUID(),
       conversationId: conversation.conversationId,
@@ -581,7 +596,6 @@ export class ConversationExecution {
       kind: 'text',
       status: 'done',
       createdAt: now(),
-      ...(params.taskId ? { taskId: params.taskId } : {}),
       content: {
         text: params.text,
         ...(params.spaceId ? { spaces: [params.spaceId] } : {}),
@@ -598,6 +612,7 @@ export class ConversationExecution {
       },
     };
 
+    if (redirect) return this.redirect(active, userMessage, params, command);
     const run: RunRecord = {
       conversationId: conversation.conversationId,
       botId: bot.botId,
@@ -605,9 +620,7 @@ export class ConversationExecution {
       state: 'thinking',
       inputMessageId: userMessage.messageId,
       submissionId: params.clientMsgId,
-      role: 'coordinator',
-      targetTaskId: params.taskId,
-      ...(active ? { queue: 'queued' as const } : {}),
+      ...(active || inGroup ? { queue: 'queued' as const } : {}),
       ...(command?.modelOverride ? { modelOverride: command.modelOverride } : {}),
     };
     if (params.files?.length) this.files.attach(userMessage, params.files);
@@ -619,8 +632,70 @@ export class ConversationExecution {
     return { messageId: userMessage.messageId };
   }
 
+  /**
+   * A message sent while the Dot works redirects that turn, as a person would be interrupted:
+   * Hermes cancels the model request in flight (keeping finished work), moves a foreground
+   * command to the background, and continues with the new message.
+   */
+  private async redirect(
+    active: RunRecord,
+    userMessage: Message,
+    params: RpcParams<'messages.send'>,
+    command?: { botId: string; input: string },
+  ): Promise<{ messageId: string }> {
+    if (active.state === 'unknown')
+      throw new NodeFault(
+        'conflict',
+        'The previous execution was interrupted. Click Stop to acknowledge it before sending a new task. Completed effects will be kept.',
+      );
+    if (!active.runId || !active.sessionId || active.executionGeneration === undefined)
+      throw new NodeFault('conflict', 'The current run is starting. Try again shortly.');
+    const key = `steer:${params.clientMsgId}`;
+    this.database.setSetting(key, { runId: active.runId });
+    const accepted = await this.hermes.gateway(active.botId).rpc<{
+      status: 'redirected' | 'queued' | 'rejected';
+      execution_generation?: number;
+    }>('session.redirect', {
+      session_id: active.sessionId,
+      execution_generation: active.executionGeneration,
+      text: command?.input ?? params.text,
+    });
+    if (accepted.status === 'rejected') {
+      this.database.setSetting(key, null);
+      throw new NodeFault('conflict', 'Hermes did not accept this message. You can send it again.');
+    }
+    if (accepted.execution_generation !== undefined)
+      active.executionGeneration = accepted.execution_generation;
+    const previousReply = this.messages.currentText(active);
+    if (previousReply) {
+      previousReply.status = 'done';
+      this.database.putMessage(previousReply, { runId: active.runId }, active);
+      this.messages.release(previousReply.messageId);
+    }
+    userMessage.seq = this.database.head();
+    this.database.putMessage(
+      userMessage,
+      { clientMsgId: params.clientMsgId, runId: active.runId },
+      active,
+    );
+    active.textMessageId = undefined;
+    active.state = 'thinking';
+    this.database.saveRun(active);
+    this.publishActivity(active);
+    return { messageId: userMessage.messageId };
+  }
+
+  /** A group turn runs in the Dot's own native session, so the Dot is one agent everywhere. */
+  private sessionKey(run: RunRecord) {
+    if (!run.groupId) return run.conversationId;
+    const dm = this.database
+      .conversations()
+      .find((conversation) => conversation.kind === 'dm' && conversation.botId === run.botId);
+    if (!dm) throw new NodeFault('not_found', 'Bot private conversation is missing');
+    return dm.conversationId;
+  }
+
   private async startRun(run: RunRecord, input: string, instructions?: string) {
-    run.role ??= 'coordinator';
     run.pendingInput = input;
     this.database.saveRun(run);
     if (run.queue !== 'queued') this.activeRuns.set(run.inputMessageId, run);
@@ -630,36 +705,32 @@ export class ConversationExecution {
       // Sources are applied when a Bot or its source changes: /api/model/set probes the provider
       // catalog, which can outlast the 30 s management deadline.
       await this.hermes.syncRules(this.bots.get(run.botId));
-      const conversationId =
-        run.sessionKey ??
-        (run.groupId ? 'group:' + run.conversationId + ':' + run.botId : run.conversationId);
+      const conversationId = run.sessionKey ?? this.sessionKey(run);
       run.sessionKey = conversationId;
       const attachments = run.groupId
         ? this.database
             .messagesAfter(
               run.conversationId,
-              this.database.chain(run.groupChainId ?? run.conversationId)?.cursorByBot[run.botId] ??
-                0,
+              this.database.chain(run.conversationId)?.cursorByBot[run.botId] ?? 0,
             )
             .flatMap((message) => (message.kind === 'text' ? (message.content.files ?? []) : []))
-        : (
-            this.database.message(
-              run.role === 'execution' && run.executionId
-                ? this.tasks.execution(run.executionId)!.parentInputId
-                : run.inputMessageId,
-            ) as TextMessage | undefined
-          )?.content.files;
+        : (this.database.message(run.inputMessageId) as TextMessage | undefined)?.content.files;
       const gateway = this.hermes.gateway(run.botId);
       const snapshot = await openNativeSession(
         this.database,
         this.hermes,
         run.botId,
         conversationId,
-        {
-          execution: run.role === 'execution',
-          ownerConversationId: run.conversationId,
-        },
       );
+      const inputMessage = this.database.message(run.inputMessageId) as TextMessage | undefined;
+      const routineContext =
+        run.welcome || run.groupId
+          ? { text: '', until: undefined, key: '' }
+          : await this.routines.context(
+              run.botId,
+              snapshot.stored_session_id,
+              inputMessage?.content.routine?.executionId,
+            );
       run.sessionId = snapshot.session_id;
       run.storedSessionId = snapshot.stored_session_id;
       run.replayEpoch = snapshot.replay_epoch;
@@ -669,23 +740,10 @@ export class ConversationExecution {
       const nativeInput = await this.files.gatewayInput(
         run.botId,
         [
-          run.role === 'execution'
-            ? 'Carry out the full brief for the coordinating Dot using your native tools. You are not speaking directly to the user. Do not use nekodot_task. If a decision is missing, use native clarify: the main Dot will consider it, ask the user when necessary and return the answer. Preserve all supplied user constraints and attachments. Return verifiable findings, failures and actual deliverable references to the main Dot; it will compose the user-facing response. Your final response is the result the main Dot needs, so always provide it; do not use NO_REPLY, [SILENT], or another silence marker in place of findings or a blocker. Preserve native memory and skills as usual.'
-            : this.tasks.context(run.conversationId, run.botId, run.targetTaskId),
-          snapshot.bootstrap,
-          (this.database.message(run.inputMessageId) as TextMessage | undefined)?.content
-            .createSpace
+          inputMessage?.content.createSpace
             ? 'The user submitted this request through New Space. Use the nekodot-spaces skill to create and publish an interactive HTML space, and deliver it in this chat.'
             : undefined,
-          ...(
-            (
-              this.database.message(
-                run.role === 'execution' && run.executionId
-                  ? this.tasks.execution(run.executionId)!.parentInputId
-                  : run.inputMessageId,
-              ) as TextMessage | undefined
-            )?.content.spaces ?? []
-          )
+          ...(inputMessage?.content.spaces ?? [])
             .map((id) => this.database.space(id))
             .filter((space) => space !== undefined)
             .map(
@@ -693,7 +751,7 @@ export class ConversationExecution {
                 `The user selected the existing Space ${JSON.stringify(space.name)} (${space.spaceId}). Use nekodot_space get for its current content directory and records; publish this same ID to update it. Preserve user records.`,
             ),
           instructions,
-          input,
+          input + routineContext.text,
         ]
           .filter(Boolean)
           .join('\n\n'),
@@ -712,9 +770,8 @@ export class ConversationExecution {
           ...(nativeInput.attachments.length ? { attachments: nativeInput.attachments } : {}),
         },
       );
-      if (run.role !== 'execution')
-        this.database.setSetting('coordinator-session:' + conversationId + ':context', '');
       run.runId = admission.admission_id;
+      if (routineContext.until) this.database.setSetting(routineContext.key, routineContext.until);
       run.executionGeneration = admission.execution_generation ?? snapshot.execution_generation;
       run.state = 'thinking';
       if (this.database.message(run.inputMessageId))
@@ -945,7 +1002,6 @@ export class ConversationExecution {
           this.messages.persistText(run, this.messages.currentText(run), run.lastSeq);
           this.onLive({
             kind: 'activity',
-            taskId: run.role === 'execution' ? run.taskId : undefined,
             conversationId: run.conversationId,
             botId: run.botId,
             state: run.state,
@@ -1008,28 +1064,23 @@ export class ConversationExecution {
     this.notifications.send({
       notificationId: 'stalled:' + runId,
       conversationId: run.conversationId,
-      ...(run.taskId ? { taskId: run.taskId } : {}),
       kind: 'stalled',
     });
   }
 
   private publishActivity(run: RunRecord) {
-    this.tasks.activity(run);
     if (run.queue === 'queued') return;
     const current = this.current(run.conversationId);
-    if (run.role !== 'execution' && run.state === 'idle' && current && current.runId !== run.runId)
-      return;
-    const chain = run.groupId
-      ? this.database.chain(run.groupChainId ?? run.conversationId)
-      : undefined;
+    if (run.state === 'idle' && current && current.runId !== run.runId) return;
+    const chain = run.groupId ? this.database.chain(run.conversationId) : undefined;
     if (chain) this.flow.group(chain);
     this.onLive({
       kind: 'activity',
       conversationId: run.conversationId,
       runId: run.runId,
       botId: run.botId,
-      taskId: run.role === 'execution' ? run.taskId : undefined,
       state: run.state,
+      ...(run.thought && run.state !== 'idle' ? { thought: run.thought } : {}),
       chain: chain ? { count: chain.count, max: MAX_CHAIN } : undefined,
       ...this.stall(run),
     });
@@ -1050,7 +1101,7 @@ export class ConversationExecution {
         )
       : this.current(conversationId);
     if (runId && !run) return {};
-    if (run?.taskId) this.connectors?.cancelTask(run.taskId);
+    this.connectors?.cancel(conversationId);
     if (run?.background === 'cron' && run.runId && run.sessionId) {
       await this.hermes.gateway(run.botId).rpc('cron.cancel', {
         session_id: run.sessionId,
@@ -1077,7 +1128,7 @@ export class ConversationExecution {
           execution_generation: run.executionGeneration,
         });
         this.consumers.get(run.runId)?.abort();
-        if (run.groupId) this.database.clearChain(run.groupChainId ?? conversationId);
+        if (run.groupId) this.database.clearChain(conversationId);
         await this.finishFromState(run, 'cancelled');
       } else if (receipt.status === 'queued') {
         await gateway.rpc('prompt.cancel', {
@@ -1085,7 +1136,7 @@ export class ConversationExecution {
           admission_id: run.runId,
         });
         this.consumers.get(run.runId)?.abort();
-        if (run.groupId) this.database.clearChain(run.groupChainId ?? conversationId);
+        if (run.groupId) this.database.clearChain(conversationId);
         await this.finishFromState(run, 'cancelled');
       } else if (receipt.status === 'terminal') {
         await this.finishFromState(
@@ -1108,49 +1159,9 @@ export class ConversationExecution {
       this.database.saveRun(run);
       throw error;
     }
-    if (run.groupId) this.database.clearChain(run.groupChainId ?? conversationId);
+    if (run.groupId) this.database.clearChain(conversationId);
     return {};
   }
-  async stopTasks(conversationId: string, selector = '', taskId?: string) {
-    const tasks = this.database
-      .tasks(conversationId)
-      .filter((task) => !['completed', 'failed', 'cancelled'].includes(task.state));
-    const target = taskId || selector;
-    const selected =
-      selector === 'all'
-        ? tasks
-        : target
-          ? tasks.filter((task) => task.taskId === target || task.title === target)
-          : tasks.length === 1
-            ? tasks
-            : [];
-    if (tasks.length > 1 && !selected.length && !target)
-      return tasks.map((task) => `/stop ${task.title}`).join('\n');
-    if (target && selector !== 'all' && selected.length !== 1)
-      throw new NodeFault('not_found', 'Task not found in this chat');
-    const runs = this.database
-      .runs()
-      .filter(
-        (run) =>
-          run.conversationId === conversationId &&
-          (selector === 'all' ||
-            selected.some((task) => task.taskId === run.taskId) ||
-            (!tasks.length && !target)),
-      );
-    for (const task of selected) {
-      if (this.connectors?.cancelTask(task.taskId)) {
-        task.state = 'cancelled';
-        this.database.saveTask(task);
-      }
-    }
-    for (const run of runs) {
-      if (!run.runId)
-        throw new NodeFault('conflict', 'Task is starting; its native receipt is not ready');
-      await this.stop(conversationId, run.runId);
-    }
-    return 'Stop requested';
-  }
-
   private pauseUnknown(run: RunRecord) {
     if (run.runId) {
       this.lastFrameAt.delete(run.runId);
@@ -1238,38 +1249,18 @@ export class ConversationExecution {
     status: 'completed' | 'failed' | 'cancelled',
     output: string,
   ) {
-    if (run.role === 'consultation') {
+    if (run.groupId) await this.groupExecution.finishGroupRun(run, status, output);
+    else {
       this.end(run);
-      return;
+      if (status !== 'cancelled')
+        this.notifications.send({
+          notificationId: 'run:' + (run.runId ?? run.inputMessageId),
+          conversationId: run.conversationId,
+          kind: status === 'completed' ? 'completed' : 'failed',
+        });
     }
-    if (run.role === 'execution' || run.role === 'report') {
-      this.end(run);
-      await this.tasks.finished(run, status);
-      await this.connectors?.settled(run);
-      if (run.role === 'execution') return;
-      if (
-        run.taskId &&
-        (this.connectors?.pending(run.taskId) ||
-          this.database.task(run.taskId)?.executionId !== run.executionId)
-      )
-        return;
-      // A failed report keeps this handoff pending; recovery only submits the report.
-      if (run.groupId && status === 'failed') return;
-      if (run.groupId) {
-        await this.groupExecution.finishGroupRun(run, status, output);
-        return;
-      }
-    } else if (run.groupId) {
-      await this.groupExecution.finishGroupRun(run, status, output);
-      return;
-    } else this.end(run);
-    if (status !== 'cancelled')
-      this.notifications.send({
-        notificationId: 'run:' + (run.runId ?? run.inputMessageId),
-        conversationId: run.conversationId,
-        ...(run.taskId ? { taskId: run.taskId } : {}),
-        kind: status === 'completed' ? 'completed' : 'failed',
-      });
+    // An account authorized during this turn continues once the turn is over.
+    await this.connectors?.settled();
   }
 
   private async finishInterrupted(run: RunRecord, text: string) {

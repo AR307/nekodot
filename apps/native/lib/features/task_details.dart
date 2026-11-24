@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import '../data/client.dart';
 import 'chat_activity.dart';
 import 'chat_presentation.dart';
-import 'work.dart';
 
-/// Internal work contributes to one fixed Dot status, never a task navigator.
+/// One fixed Dot status: what the working Dot is thinking, or what it waits
+/// for. Never a task navigator.
 class DotActivity extends StatelessWidget {
   final NekodotClient client;
   final ChatPresentation view;
@@ -13,14 +13,6 @@ class DotActivity extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final id = view.conversation['conversationId'] as String;
-    final tasks = client.node.tasks.values
-        .where(
-          (task) =>
-              task.conversationId == id &&
-              (task.active || task.reportMessageId == null),
-        )
-        .toList();
     final controls = view.controls;
     if (controls.isNotEmpty) {
       return ThinkingRow(
@@ -32,14 +24,9 @@ class DotActivity extends StatelessWidget {
         moving: false,
       );
     }
-    if (tasks.isEmpty && !view.running) return const SizedBox.shrink();
-    final names = tasks
-        .map((task) => compactActivity(task.title))
-        .where((name) => name.isNotEmpty)
-        .toSet();
-    final line = names.isNotEmpty
-        ? names.join(client.tr('、', ', '))
-        : !client.online
+    if (!view.running) return const SizedBox.shrink();
+    final thought = view.activity.thought;
+    final line = !client.online
         ? client.tr('离线', 'Offline')
         : view.activity.connection == 'reconnecting'
         ? client.tr('重连中', 'Reconnecting')
@@ -49,8 +36,9 @@ class DotActivity extends StatelessWidget {
             'waiting_approval' => client.tr('等你确认', 'Needs your OK'),
             'waiting_question' => client.tr('等你回答', 'Needs your answer'),
             'unknown' => client.tr('状态待确认', 'Status unknown'),
+            _ when thought != null => thought,
             'tool' => client.tr('工具运行中', 'Using tools'),
-            _ => client.tr('回复中', 'Replying'),
+            _ => client.tr('思考中', 'Thinking'),
           };
     final moving =
         client.online &&
@@ -58,18 +46,8 @@ class DotActivity extends StatelessWidget {
         view.activity.connection != 'reconnecting' &&
         !view.activity.stalled &&
         view.state != 'unknown' &&
-        tasks.every(
-          (task) =>
-              task.state != 'unknown' &&
-              client.node.taskActivities[task.taskId]?.connection !=
-                  'reconnecting',
-        ) &&
-        ((view.working && !view.waiting) ||
-            tasks.any(
-              (task) =>
-                  task.state == 'running' &&
-                  client.node.taskActivities[task.taskId]?.stalled != true,
-            ));
+        view.working &&
+        !view.waiting;
     return ThinkingRow(
       key: const ValueKey('dot-activity'),
       bot: view.bot,

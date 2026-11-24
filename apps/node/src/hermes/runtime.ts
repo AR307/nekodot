@@ -12,7 +12,6 @@ import { runHermesCli, spawnHermesCli, type HermesLaunch } from './cli';
 import { installRoutinePlugin } from './routines-plugin';
 import { installSecretsPlugin } from './secrets-plugin';
 import { installUsagePlugin } from './usage-plugin';
-import { installTaskPlugin } from './tasks-plugin';
 import { installSpacesPlugin } from './spaces-plugin';
 import { installConnectorsPlugin } from './connectors-plugin';
 import { installSandboxPlugin } from './sandbox-plugin';
@@ -55,14 +54,14 @@ export function managedRules(bot: Bot) {
   return `<!-- nekodot managed: do not edit below -->
 You are "${bot.displayName}", a member of the user's nekodot team. Your handle is @${bot.handle}.
 - Reply in the language the user writes in.
-- Speak naturally as yourself. Do not narrate internal delegation or repeatedly announce tool progress; the app displays real task status separately. Give a short acknowledgement when useful, then substantive results.
 - For API keys, passwords, private keys and one-time codes: read the nekodot-secrets skill and request encrypted delivery cards. Never request values in chat or print them. Website logins use this profile's native vault and browser_vault. CAPTCHAs and other human verification require screen takeover. Payments are not supported by confidential delivery.
 - In group chats, keep replies short. To hand work to a teammate, write @their-handle and say exactly what you need.
+- For work that takes more than about a minute (collecting data with a script, downloads, batch processing), run it with terminal(background=true, notify=true) and make it print its progress as one line it redraws, in tqdm's layout: a short description in the user's language, percent, bar, done/total, [elapsed<ETA, rate]. Example: \`Collecting pages:  45%|████▌     | 450/1000 [00:30<00:37, 14.9it/s]\`. In Python use tqdm with desc and total; elsewhere print the same layout with a carriage return and flush. The app shows that line to the user as a live progress card with its ETA, so you need not post progress in chat; report the result when it finishes.
 - When configuring a scheduled task, explain which actions need authorization and ask the user how to handle them, unless they already specified a rule. Support ask, auto-allow and auto-deny, optionally by timezone, weekday and time windows. Use the user's natural-language answer to configure the rule yourself through the nekodot-routines skill and hermes routine approvals; do not send them to a settings form or ask them to write JSON. New tasks wait paused for this answer; ask is the default. Never silently choose auto-allow or auto-deny. Resume the task after saving the confirmed rule unless the user asked to keep it paused.
 - When the user gives you a sandbox provider key so you can work in a sandbox (for example a screen this computer has no memory for), or wants a new computer in a sandbox, read the nekodot-sandbox skill.
 - To create webhook routines, read the nekodot-routines skill. Ask the user to open the task card and approve secure credential delivery. Never request or print the webhook secret in chat.
 - Spaces are private interactive pages inside Nekodot. When an ongoing learning, game, tracking or reporting goal would benefit from one, you may suggest a Space in ordinary conversation and ask whether the user wants it; use native clarify when offering choices. Do not create one merely because the topic matches, and do not require the user to find a separate creation screen. An explicit creation request or agreement to your suggestion is sufficient consent. Keep simple questions in chat.
-- After consent, delegate creation or editing through the normal task flow. The execution task reads the nekodot-spaces skill and uses nekodot_space; the main Dot summarizes and delivers the space in the original chat without exposing paths or private IDs. Publish locally on this Node, never a public server. Website access needs the user's native approval. Keep user records separate from generated files.
+- After consent, read the nekodot-spaces skill and build or edit the space with nekodot_space; deliver it in the original chat without exposing paths or private IDs. Publish locally on this Node, never a public server. Website access needs the user's native approval. Keep user records separate from generated files.
 <!-- end nekodot managed -->
 `;
 }
@@ -226,20 +225,20 @@ export class ManagedHermes implements HermesRuntime {
     await installRoutinePlugin(directory);
     await installSecretsPlugin(directory);
     const usageChanged = await installUsagePlugin(directory);
-    const taskChanged = await installTaskPlugin(directory);
     const spaceChanged = await installSpacesPlugin(directory);
     const connectorsChanged = await installConnectorsPlugin(directory);
     const sandboxChanged = await installSandboxPlugin(directory);
     const enabled = document.toJS().plugins?.enabled as string[] | undefined;
+    // Dots no longer hand work to tasks: the tool that did so is switched off.
+    const tasksRemoved = enabled?.includes('nekodot-tasks') ?? false;
     document.setIn(
       ['plugins', 'enabled'],
       [
         ...new Set([
-          ...(enabled ?? []),
+          ...(enabled ?? []).filter((name) => name !== 'nekodot-tasks'),
           'nekodot-routines',
           'nekodot-secrets',
           'nekodot-usage',
-          'nekodot-tasks',
           'nekodot-spaces',
           'nekodot-connectors',
           'nekodot-sandbox',
@@ -248,13 +247,14 @@ export class ManagedHermes implements HermesRuntime {
     );
     document.setIn(['plugins', 'entries', 'nekodot-routines', 'socket'], this.bridge);
     document.setIn(['plugins', 'entries', 'nekodot-secrets', 'socket'], this.bridge);
-    document.setIn(['plugins', 'entries', 'nekodot-tasks', 'socket'], this.bridge);
+    if (document.hasIn(['plugins', 'entries', 'nekodot-tasks']))
+      document.deleteIn(['plugins', 'entries', 'nekodot-tasks']);
     document.setIn(['plugins', 'entries', 'nekodot-spaces', 'socket'], this.bridge);
     document.setIn(['plugins', 'entries', 'nekodot-connectors', 'socket'], this.bridge);
     document.setIn(['plugins', 'entries', 'nekodot-sandbox', 'socket'], this.bridge);
     if (document.hasIn(['secrets', 'nekodot'])) document.deleteIn(['secrets', 'nekodot']);
     await writeFile(path, document.toString(), { mode: 0o600 });
-    return usageChanged || taskChanged || spaceChanged || connectorsChanged || sandboxChanged;
+    return usageChanged || tasksRemoved || spaceChanged || connectorsChanged || sandboxChanged;
   }
   async configureBot(
     bot: Bot,

@@ -115,7 +115,7 @@ void main() {
     await tester.tap(section('recent'));
     await run(const Duration(milliseconds: 500));
 
-    // A conversation: bubbles, composer, the steps folded under it.
+    // A conversation: bubbles, composer; its steps open as a page of their own.
     await tester.tap(key('conversation-$talk'));
     await run(const Duration(milliseconds: 1500));
     if (key('chat-latest').evaluate().isNotEmpty) {
@@ -123,14 +123,10 @@ void main() {
     }
     await shot('chat', settle: 1200);
     await dark('chat-dark');
-    final fold = key('flow-fold-toggle');
-    notes['fold'] = fold.evaluate().isNotEmpty;
-    if (fold.evaluate().isNotEmpty) {
-      await tester.tap(fold);
-      await shot('chat-flow-open', settle: 1500);
-      await tester.tap(fold);
-      await run(const Duration(milliseconds: 600));
-    }
+    await tester.tap(key('chat-flowchart'));
+    await shot('chat-flow-open', settle: 1500);
+    await tester.tap(key('flow-close'));
+    await run(const Duration(milliseconds: 600));
     await tester.tap(find.byTooltip('屏幕'));
     await shot('chat-screen-window', settle: 3000);
     await tester.tap(key('screen-wide'));

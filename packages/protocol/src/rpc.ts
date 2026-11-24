@@ -494,6 +494,8 @@ export const rpcContracts = {
     params: z.strictObject({ messageId: idSchema, choice: approvalChoiceSchema }),
     result: empty,
   },
+  /** Stops the background job a job card shows. */
+  'jobs.stop': { params: z.strictObject({ messageId: idSchema }), result: empty },
   'questions.respond': {
     params: z.strictObject({ messageId: idSchema, answer: z.string().min(1).max(16384) }),
     result: empty,

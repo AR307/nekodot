@@ -2,6 +2,24 @@ import { hermesTodoStateSchema, type HermesEvent } from '@nekodot/protocol';
 import type { RunRecord } from '../database';
 import type { GatewayFrame } from './gateway';
 
+/** The process a terminal call left running in the background (`proc_…`), from its result. */
+function backgroundProcess(payload: Record<string, unknown>) {
+  if (payload.name !== 'terminal') return undefined;
+  let result = payload.result ?? payload.result_text;
+  if (typeof result === 'string') {
+    try {
+      result = JSON.parse(result);
+    } catch {
+      return undefined;
+    }
+  }
+  const id =
+    result && typeof result === 'object' && !Array.isArray(result)
+      ? (result as Record<string, unknown>).session_id
+      : undefined;
+  return typeof id === 'string' && /^proc_[0-9a-f]+$/.test(id) ? id : undefined;
+}
+
 export function projectGatewayEvent(run: RunRecord, frame: GatewayFrame): HermesEvent | undefined {
   const payload = frame.payload ?? {};
   // Native background completions share the session stream, not this admission.
@@ -17,6 +35,10 @@ export function projectGatewayEvent(run: RunRecord, frame: GatewayFrame): Hermes
       return { ...base, event: 'todo.updated', todo_state: hermesTodoStateSchema.parse(payload) };
     case 'message.delta':
       return { ...base, event: 'message.delta', ...(text !== undefined ? { delta: text } : {}) };
+    // Reasoning as the model streams it (summaries or thinking), or a whole block at once.
+    case 'reasoning.delta':
+    case 'reasoning.available':
+      return text ? { ...base, event: frame.type, delta: text } : undefined;
     case 'message.interim':
       return {
         ...base,
@@ -41,10 +63,12 @@ export function projectGatewayEvent(run: RunRecord, frame: GatewayFrame): Hermes
       };
     case 'tool.complete': {
       const result = payload.result;
+      const process = backgroundProcess(payload);
       return {
         ...base,
         event: 'tool.completed',
         tool_call_id: String(payload.tool_id ?? ''),
+        ...(process ? { process_id: process } : {}),
         preview: String(
           payload.result_text ??
             payload.summary ??
