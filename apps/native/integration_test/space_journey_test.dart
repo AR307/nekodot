@@ -633,9 +633,10 @@ void main() {
           'creation form submitted a real model task',
         );
         await until(
-          () => c.node.tasks.values
-              .where((t) => t.conversationId == conversation)
-              .every((t) => !t.active && t.reportMessageId != null),
+          () =>
+              c.node.activities[conversation]?.state == 'idle' &&
+              c.node.latestText(conversation)?.author.type == 'bot' &&
+              c.node.latestText(conversation)?.status != 'streaming',
           'creation task finished',
         );
       }
@@ -739,9 +740,10 @@ void main() {
         (s) => s.conversationId == guideConversation && s.version > 0,
       );
       await until(
-        () => c.node.tasks.values
-            .where((t) => t.conversationId == guideConversation)
-            .every((t) => !t.active && t.reportMessageId != null),
+        () =>
+            c.node.activities[guideConversation]?.state == 'idle' &&
+            c.node.latestText(guideConversation)?.author.type == 'bot' &&
+            c.node.latestText(guideConversation)?.status != 'streaming',
         'learning task completed and reported',
       );
       if (find.byType(SpacePage).evaluate().isNotEmpty) {
@@ -767,7 +769,10 @@ void main() {
           isNull,
           reason: 'Never-opened page, not cleared test data',
         );
-        expect(c.node.tasks.values.any((t) => t.active), isFalse);
+        expect(
+          c.node.activities.values.any((activity) => activity.state != 'idle'),
+          isFalse,
+        );
         await control('/node/stop');
         await until(
           () => !c.node.online,

@@ -253,19 +253,14 @@ void main() {
       }
     }
 
-    /// Whether the Dot is still at work in this chat: its own turn or a task.
+    /// Whether the Dot is still at work in this chat.
     bool busy() {
       final state = client.node.activities[conversation]?.state;
-      return (state != null && state != 'idle') ||
-          client.node.tasks.values.any(
-            (t) =>
-                t.conversationId == conversation &&
-                !const ['completed', 'failed', 'cancelled'].contains(t.state),
-          );
+      return state != null && state != 'idle';
     }
 
-    /// Sends [text], serves the cards, and once the Dot has finished (no turn
-    /// or task at work for 15 s after a finished reply) returns whether its
+    /// Sends [text], serves the cards, and once the Dot has finished (idle
+    /// for 15 s after a finished reply) returns whether its
     /// replies pass [done].
     Future<bool> ask(
       String text,
