@@ -19,6 +19,7 @@ import 'local_content.dart';
 import 'delivery_queue.dart';
 import 'read_positions.dart';
 import 'spaces.dart';
+import 'sandboxes.dart';
 part 'content_state.dart';
 
 class NekodotClient extends ChangeNotifier {
@@ -33,6 +34,7 @@ class NekodotClient extends ChangeNotifier {
   Timer? _saveTimer, _viewTimer;
   late final deliveries = DeliveryQueue(this);
   late final spaces = SpaceStore(this);
+  late final sandboxes = SandboxStore(account);
   final contentRefresh = ValueNotifier<int>(0);
   final reading = ReadPositions();
   late final RelayTransport connection;
@@ -137,6 +139,10 @@ class NekodotClient extends ChangeNotifier {
       }
       if (_closed || session != account.token) return;
       account.me = me;
+      if (userId != null) {
+        await sandboxes.load(userId);
+        sandboxes.keep(nodes);
+      }
       final available = objects(account.me!['nodes']);
       for (final n in available) {
         nodes.putIfAbsent(n['nodeId'] as String, NodeData.new).online =
@@ -575,6 +581,7 @@ class NekodotClient extends ChangeNotifier {
     deliveries.suspend();
     await deliveries.save();
     await spaces.suspend();
+    sandboxes.clear();
     await pendingSave;
     _saveTimer?.cancel();
     _viewTimer?.cancel();
@@ -604,6 +611,7 @@ class NekodotClient extends ChangeNotifier {
     _viewTimer?.cancel();
     deliveries.dispose();
     spaces.dispose();
+    sandboxes.dispose();
     _closed = true;
     account.removeListener(notifyListeners);
     prefs.removeListener(notifyListeners);

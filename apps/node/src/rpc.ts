@@ -20,6 +20,7 @@ import { Routines } from './routines';
 import { BotVoice } from './voice';
 import { ExecutionFlows } from './flow';
 import { Spaces } from './spaces';
+import { Workplaces } from './workplaces';
 
 import type { ConversationExecution } from './execution/sessions';
 import type { CommandOperations } from './command-operations';
@@ -35,6 +36,7 @@ interface RpcFeatures {
   nativeExtras: NativeExtras;
   userMemory: SharedUserMemory;
   screens: BotScreens;
+  workplaces: Workplaces;
   desktopControl: DesktopControl;
   routines: Routines;
   management: BotManagement;
@@ -188,6 +190,10 @@ export class NodeRpc {
         return this.features.desktopControl.refresh();
       case 'bots.desktopControl':
         return this.features.desktopControl.bot(request.params.botId, request.params.enabled);
+      case 'bots.workplace':
+        if (request.params.home) await this.features.workplaces.home(request.params.botId);
+        else this.features.bots.get(request.params.botId);
+        return { workplace: this.features.workplaces.get(request.params.botId) };
       case 'screen.start':
         return this.features.screens.start(request.params.botId);
       case 'screen.stop':

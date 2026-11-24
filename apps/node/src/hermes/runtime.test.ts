@@ -104,6 +104,7 @@ it.each(['null', '{}'])(
             'nekodot-secrets',
             'nekodot-spaces',
             'nekodot-connectors',
+            'nekodot-sandbox',
           ],
         },
       });

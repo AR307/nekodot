@@ -7,6 +7,7 @@ import { FileLibrary } from '../files';
 import { Notifications } from '../notifications';
 import { ExecutionFlows } from '../flow';
 import { connectorApprovalContent } from '../connectors';
+import { approvalCommand } from '../workplaces';
 
 import type { RunControls } from './controls';
 const now = () => new Date().toISOString();
@@ -171,7 +172,7 @@ export class RunEvents {
           executionGeneration: event.execution_generation ?? run.executionGeneration ?? 0,
           ...(event.choices ? { choices: event.choices as ApprovalChoice[] } : {}),
           prompt: event.description ?? event.command ?? 'Approval required',
-          ...(event.command ? { command: event.command } : {}),
+          ...(approvalCommand(event.command) ? { command: event.command } : {}),
           ...connectorApprovalContent(event.command, event.description),
         },
       };

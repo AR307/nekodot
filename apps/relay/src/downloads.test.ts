@@ -47,12 +47,15 @@ it('downloads the installer and standalone node, then pairs outside the checkout
       method: 'POST',
       headers: { Authorization: 'Bearer ' + token },
     });
-    const { code, installCommand } = (await pairing.json()) as {
+    const { code, installCommand, sandboxCommand } = (await pairing.json()) as {
       code: string;
       installCommand: string;
+      sandboxCommand: string;
     };
     expect(installCommand).toContain('/install.sh');
     expect(installCommand).toContain('--pair ' + code);
+    // The same installer, without systemd, for a cloud sandbox the app makes.
+    expect(sandboxCommand).toBe(installCommand + ' --sandbox');
     const installer = await fetch(base + '/install.sh');
     expect(installer.headers.get('cache-control')).toBe('no-store');
     const installerBody = await installer.text();

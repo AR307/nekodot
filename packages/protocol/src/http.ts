@@ -11,6 +11,15 @@ export const pairInputSchema = z.strictObject({
   nodeName: z.string().trim().min(1),
   platform: z.string().min(1),
 });
+/** A new pairing code and the commands that install a node with it. */
+export const pairingCodeSchema = z.strictObject({
+  code: pairInputSchema.shape.code,
+  expiresAt: z.iso.datetime(),
+  installCommand: z.string().min(1),
+  /** The same, for a cloud sandbox: no systemd, the node keeps itself running. */
+  sandboxCommand: z.string().min(1),
+});
+export type PairingCode = z.infer<typeof pairingCodeSchema>;
 export const nodeSummarySchema = z.strictObject({
   nodeId: z.string(),
   name: z.string(),

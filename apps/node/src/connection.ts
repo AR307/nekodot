@@ -7,6 +7,7 @@ import { HermesGatewayError } from './hermes/gateway';
 import type { SharedUserMemory } from './user-memory';
 import type { NodeUsage } from './usage';
 import type { NodeConnectors } from './connectors';
+import type { Workplaces } from './workplaces';
 import type { ConnectorAuthorization } from '@nekodot/protocol';
 import {
   envelopeSchema,
@@ -24,6 +25,7 @@ import {
   protocolTimings,
   userMemoryResponseSchema,
   type UserMemoryState,
+  type PairingCode,
 } from '@nekodot/protocol';
 
 export interface NodeCredentials {
@@ -46,6 +48,7 @@ export interface NodeConnectionOptions {
   routines?: Routines;
   usage?: NodeUsage;
   connectors?: NodeConnectors;
+  workplaces?: Workplaces;
 }
 export function connectRelay(options: NodeConnectionOptions) {
   let socket: WebSocket;
@@ -90,6 +93,27 @@ export function connectRelay(options: NodeConnectionOptions) {
           );
         }, 110_000);
         connectorRequests.set(message.id, { resolve, reject, timer });
+        send(message);
+      });
+    };
+  const pairingRequests = new Map<
+    string,
+    {
+      resolve(value: PairingCode): void;
+      reject(error: Error): void;
+      timer: ReturnType<typeof setTimeout>;
+    }
+  >();
+  if (options.workplaces)
+    options.workplaces.pairing = () => {
+      if (!ready) return Promise.reject(new NodeFault('unavailable', 'Relay is disconnected'));
+      const message = frame('pairing.req', {});
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          pairingRequests.delete(message.id);
+          reject(new NodeFault('timeout', 'Relay did not answer the pairing request'));
+        }, 30_000);
+        pairingRequests.set(message.id, { resolve, reject, timer });
         send(message);
       });
     };
@@ -214,6 +238,17 @@ export function connectRelay(options: NodeConnectionOptions) {
               waiter.reject(
                 new NodeFault('unavailable', `${response.error?.code}: ${response.error?.message}`),
               );
+          }
+          return;
+        }
+        if (envelope.type === 'pairing.res') {
+          const response = payloadSchemas['pairing.res'].parse(envelope.payload);
+          const waiter = pairingRequests.get(envelope.replyTo!);
+          if (waiter) {
+            pairingRequests.delete(envelope.replyTo!);
+            clearTimeout(waiter.timer);
+            if (response.ok) waiter.resolve(response.result);
+            else waiter.reject(new NodeFault('unavailable', response.error.message));
           }
           return;
         }

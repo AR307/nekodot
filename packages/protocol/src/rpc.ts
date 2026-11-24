@@ -20,6 +20,7 @@ import {
   idSchema,
   messageSchema,
   seqSchema,
+  workplaceSchema,
 } from './entities';
 import { eventSchema } from './events';
 import { rpcErrorSchema } from './errors';
@@ -611,6 +612,11 @@ export const rpcContracts = {
   'bots.desktopControl': {
     params: z.strictObject({ ...botTarget, enabled: z.boolean().optional() }),
     result: z.strictObject({ enabled: z.boolean() }),
+  },
+  /** Where this Bot's commands, files, browser and screen run; home: true brings them back. */
+  'bots.workplace': {
+    params: z.strictObject({ ...botTarget, home: z.literal(true).optional() }),
+    result: z.strictObject({ workplace: workplaceSchema.nullable() }),
   },
   'screen.start': { params: z.strictObject(botTarget), result: operationSchema },
   'screen.stop': {

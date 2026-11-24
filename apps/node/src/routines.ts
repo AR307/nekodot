@@ -73,6 +73,7 @@ export class Routines {
   onSecret?: (input: unknown) => Promise<unknown>;
   onTask?: (input: unknown) => Promise<unknown>;
   onSpace?: (input: unknown) => Promise<unknown>;
+  onSandbox?: (input: unknown) => Promise<unknown>;
   onConnector?: (input: unknown) => Promise<unknown>;
   onExecution!: (
     routine: Routine,
@@ -520,6 +521,10 @@ export class Routines {
     if (value && typeof value === 'object' && 'action' in value && value.action === 'space') {
       if (!this.onSpace) throw new NodeFault('unavailable', 'Spaces are unavailable');
       return this.onSpace(value);
+    }
+    if (value && typeof value === 'object' && 'action' in value && value.action === 'sandbox') {
+      if (!this.onSandbox) throw new NodeFault('unavailable', 'Sandboxes are unavailable');
+      return this.onSandbox(value);
     }
     if (value && typeof value === 'object' && 'action' in value && value.action === 'task') {
       if (!this.onTask) throw new NodeFault('unavailable', 'Task coordination is unavailable');

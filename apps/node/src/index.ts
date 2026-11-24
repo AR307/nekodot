@@ -105,6 +105,7 @@ async function main() {
     const usage = (parts.usage = new NodeUsage(app.database, runtime));
     usage.onError = (message) => log.error({ service: 'nekodot-node', message });
     app.routines.onError = (message) => log.error({ service: 'nekodot-node', message });
+    app.workplaces.onError = (message) => log.error({ service: 'nekodot-node', message });
     await app.routines.start(bridge);
     const updater = (parts.updater = new NodeUpdater({
       home,
@@ -131,6 +132,7 @@ async function main() {
       },
       userMemory: app.userMemory,
       connectors: app.connectors,
+      workplaces: app.workplaces,
       routines: app.routines,
       usage,
       handleTransfer: (request) => app.files.transfer(request),

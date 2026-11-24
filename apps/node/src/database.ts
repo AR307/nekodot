@@ -502,6 +502,9 @@ export class NodeDatabase {
     }
     return this.spaceData(id);
   }
+  deleteSetting(key: string) {
+    this.db.prepare('DELETE FROM settings WHERE key=?').run(key);
+  }
   setSetting(key: string, value: unknown) {
     this.db
       .prepare(

@@ -67,6 +67,8 @@ The installer downloads private Node 24 and the versioned Nekodot Hermes backend
 
 Some minimal Ubuntu images do not include Hermes PM's `libatomic.so.1` runtime dependency. The installer checks for it before downloading Node or Hermes; on Ubuntu/Debian, install it with `sudo apt-get install -y libatomic1`, then rerun the same command. This does not install or change the system Node runtime.
 
+For a cloud sandbox, choose **Cloud sandbox** in the native client and enter a Daytona API key, or a Vercel access token with its team and project. The client creates the sandbox with that account and runs the same installer with `--sandbox --name <name>` (the pairing code response carries this as `sandboxCommand`). Sandboxes have no systemd, so the installer writes `~/.nekodot/bin/nekodot-supervise`, which restarts the node after a crash or an update, and `~/.nekodot/bin/nekodot-start`, which starts it once after the sandbox resumes. The keys stay on that device; the Relay never sees them. A Daytona account below Tier 3 cannot reach the Relay from its sandboxes. Vercel stops a session after the plan's limit (45 minutes on Hobby, 24 hours on Pro); an open client wakes it again.
+
 On Windows, choose **This computer** in the native client. It uses the same backend recipe with a Windows package, installs into the selected runtime directory, and keeps account data in the separately selected data directory. No WSL or frontend build is needed.
 
 ```sh

@@ -5,6 +5,7 @@ import { rpcRequestSchema } from './rpc';
 import { rpcErrorSchema } from './errors';
 import { notificationSchema } from './notifications';
 import { nodeVersionSchema } from './node-release';
+import { pairingCodeSchema } from './http';
 export const envelopeSchema = z
   .strictObject({
     v: z.literal(1),
@@ -40,13 +41,18 @@ export const envelopeSchema = z
       'connectors.req',
       'connectors.res',
       'connectors.changed',
+      'pairing.req',
+      'pairing.res',
     ]),
     nodeId: idSchema.optional(),
     replyTo: z.uuidv4().optional(),
     payload: z.unknown(),
   })
   .superRefine((value, ctx) => {
-    if (['rpc.res', 'memory.user.res', 'connectors.res'].includes(value.type) && !value.replyTo)
+    if (
+      ['rpc.res', 'memory.user.res', 'connectors.res', 'pairing.res'].includes(value.type) &&
+      !value.replyTo
+    )
       ctx.addIssue({
         code: 'custom',
         path: ['replyTo'],
@@ -80,6 +86,12 @@ export const payloadSchemas = {
   'node.update': z.strictObject({ version: nodeVersionSchema }),
   notify: notificationSchema,
   'notify.ack': z.strictObject({ notificationId: z.string().min(1).max(240) }),
+  /** A node asks for a pairing code for its owner, to install another node in a sandbox. */
+  'pairing.req': z.strictObject({}),
+  'pairing.res': z.discriminatedUnion('ok', [
+    z.strictObject({ ok: z.literal(true), result: pairingCodeSchema }),
+    z.strictObject({ ok: z.literal(false), error: rpcErrorSchema }),
+  ]),
 };
 export const protocolTimings = {
   helloMs: 5000,

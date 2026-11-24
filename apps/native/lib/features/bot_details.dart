@@ -17,6 +17,7 @@ import 'routines.dart';
 import 'desktop_control.dart';
 import 'secrets.dart';
 import 'voice.dart';
+import 'workplace.dart';
 
 class BotDetails extends StatelessWidget {
   final NekodotClient client;
@@ -194,6 +195,11 @@ class BotDetails extends StatelessWidget {
             ),
           ],
           'tools': [
+            WorkplaceTile(
+              key: ValueKey('workplace-$botId'),
+              client: c,
+              botId: botId,
+            ),
             if (c.node.capabilities['host'] == 'desktop')
               DesktopControlTile(
                 key: ValueKey('desktop-$botId'),
