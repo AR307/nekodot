@@ -50,14 +50,7 @@ void main() {
       await tester.ensureVisible(target);
       await tester.pump(const Duration(milliseconds: 300));
       expect(target.hitTestable(), findsOneWidget, reason: stage);
-      final mouse = await tester.startGesture(
-        tester.getCenter(target),
-        kind: Platform.isAndroid
-            ? ui.PointerDeviceKind.touch
-            : ui.PointerDeviceKind.mouse,
-      );
-      await tester.pump(const Duration(milliseconds: 100));
-      await mouse.up();
+      await tester.tap(target);
       await tester.pump(const Duration(milliseconds: 300));
     }
 
@@ -102,6 +95,8 @@ void main() {
       (v) => v['conversationId'] == dm,
     )['botId'];
     final input = find.byKey(const ValueKey('chat-input'));
+    stage = 'conversation opens its composer';
+    await until(() => input.hitTestable().evaluate().isNotEmpty);
     final toggle = find.byKey(const ValueKey('reasoning-toggle'));
     Future<Json> reasoning() async => (await tester.runAsync(
       () => c.rpc('models.reasoning.get', {'botId': bot}),
@@ -112,6 +107,7 @@ void main() {
     bool working() => (c.node.activities[dm]?.state ?? 'idle') != 'idle';
     final sourceOnly = const bool.fromEnvironment('QA_SOURCE_ONLY');
     final original = sourceOnly ? null : (await reasoning())['effort'];
+    debugPrint('QA conversation composer visible; reasoning loaded');
     for (final theme in sourceOnly ? <String>[] : ['light', 'dark']) {
       final previousIds = (c.node.messages[dm] ?? [])
           .map((m) => m.messageId)
@@ -154,20 +150,17 @@ void main() {
                 .byKey(const ValueKey('reasoning-slider'))
                 .evaluate()
                 .isNotEmpty ||
-            find.widgetWithText(ListTile, 'low').evaluate().isNotEmpty,
+            find.text('Low').evaluate().isNotEmpty,
       );
       final desired = theme == 'light' ? 'low' : 'medium';
-      await click(
-        Platform.isAndroid
-            ? find.widgetWithText(ListTile, desired).last
-            : find.widgetWithText(TextButton, desired).last,
-      );
+      final desiredLabel = theme == 'light' ? 'Low' : 'Medium';
+      await click(find.text(desiredLabel).hitTestable().last);
       await until(
         () =>
             find.byKey(const ValueKey('reasoning-slider')).evaluate().isEmpty &&
-            find.widgetWithText(ListTile, 'low').evaluate().isEmpty,
+            find.text(desiredLabel).hitTestable().evaluate().length <= 1,
       );
-      await until(() => shownLevel() == desired);
+      await until(() => shownLevel() == desiredLabel);
       // The level must have been accepted while the turn was still running.
       expect(working(), isTrue, reason: stage);
       await shot('running-composer-$theme');
@@ -179,7 +172,7 @@ void main() {
         '下一条草稿 retained while running',
       );
       stage = '$theme level applies after the turn';
-      await until(() => shownLevel() == desired);
+      await until(() => shownLevel() == desiredLabel);
       expect((await reasoning())['effort'], desired, reason: stage);
       await shot('running-composer-after-turn-$theme');
       stage = '$theme next real turn';
